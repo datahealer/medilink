@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Settings | MediLink</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @font-face {
+            font-family: 'Agatho';
+            src: url('https://fonts.cdnfonts.com/s/76019/Agatho-Regular.woff');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Agatho';
+            src: url('https://fonts.cdnfonts.com/s/76019/Agatho-Bold.woff');
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .premium-shadow {
+            box-shadow: 0 20px 40px -10px rgba(24, 3, 49, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid #DFC8E7;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#b5c9df",
+                        "on-error": "#ffffff",
+                        "surface": "#fdf8fe",
+                        "primary": "#180331",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#ddd8de",
+                        "tertiary-fixed": "#d0e5fc",
+                        "primary-fixed": "#eedbff",
+                        "inverse-on-surface": "#f4eff5",
+                        "on-background": "#1c1b1f",
+                        "background": "#fdf8fe",
+                        "surface-container-highest": "#e6e1e7",
+                        "on-surface": "#1c1b1f",
+                        "surface-variant": "#e6e1e7",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#6a5872",
+                        "on-error-container": "#93000a",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#7a8ea3",
+                        "on-secondary-fixed": "#24162c",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#122637",
+                        "surface-bright": "#fdf8fe",
+                        "on-primary-container": "#9981b5",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "tertiary": "#00101f",
+                        "surface-tint": "#6b5585",
+                        "secondary-container": "#efd8f7",
+                        "surface-container": "#f1ecf2",
+                        "surface-container-high": "#ebe7ec",
+                        "surface-container-low": "#f7f2f8",
+                        "secondary-fixed": "#f2dbfa",
+                        "inverse-surface": "#313034",
+                        "on-secondary-container": "#6e5c77",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#25113e",
+                        "primary-container": "#2e1a47",
+                        "on-tertiary-fixed": "#081d2e",
+                        "inverse-primary": "#d6bcf4",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "outline-variant": "#ccc4cf",
+                        "outline": "#7b757f",
+                        "on-surface-variant": "#4a454e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "gutter-mobile": "12px",
+                        "section-padding": "32px",
+                        "stack-sm": "8px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Agatho"],
+                        "headline-lg": ["Agatho"],
+                        "display-lg": ["Agatho"],
+                        "title-md": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-32">
+<!-- Top AppBar -->
+<header class="bg-surface sticky top-0 z-40 flex justify-between items-center w-full px-margin-mobile h-16">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional medical professional portrait in a soft-lit environment. The lighting is clean and high-key, reflecting a clinical yet warm atmosphere. The doctor wears a minimalist white coat against a soft lavender background, aligning with a premium healthcare aesthetic. The composition is a close-up headshot with a gentle, reassuring expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCob_lHhfXcgKeOEA-Jr-u9xlnNtDL35AgjzvN4C5X3CRH2WrCu75Rq4Ni4tFWdILlvKTMNf87-EvJsgHywmNMhG3iUocqywsfDcZPKWvx3QeU0r-_0CXpsmMSPqeAUJfkFR7zGIS5C_30KAwtSFtp952JJNIh7wMBlsgrIFpl8G_Fd8i4tfB8wJDSQkVd9ClzTt1pq57nQFfzO6CCsZv_4hTpPP6IG3s2ZOm5sMbIEvT3L_zJCvSrSkEgmpv-yR763JaXm_Nlq9o1D"/>
+</div>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">MediLink</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors active:opacity-80 active:scale-95">
+<span class="material-symbols-outlined text-primary">notifications</span>
+</button>
+</header>
+<main class="px-margin-mobile mt-6 space-y-stack-lg max-w-2xl mx-auto">
+<!-- Profile Summary Card -->
+<section class="relative overflow-hidden rounded-3xl bg-primary p-6 text-on-primary premium-shadow">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-secondary-container/20 rounded-full blur-3xl"></div>
+<div class="relative z-10 flex items-center gap-5">
+<div class="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20">
+<span class="material-symbols-outlined text-4xl text-primary-fixed">person</span>
+</div>
+<div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary-fixed leading-tight">Dr. Elena Sterling</h2>
+<p class="font-body-sm text-body-sm text-primary-fixed-dim opacity-90">Senior Cardiologist • ID: 88291-MS</p>
+<div class="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-secondary-container/20 rounded-full border border-white/10">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim animate-pulse"></span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Premium Access</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Settings Categories -->
+<div class="space-y-stack-md">
+<!-- Account Section -->
+<div>
+<h3 class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-widest px-1 mb-3">Account Settings</h3>
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden">
+<!-- Security -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">security</span>
+</div>
+<div class="text-left">
+<p class="font-title-md text-body-lg text-primary">Security</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">2FA, Password &amp; Biometrics</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<div class="h-[1px] bg-outline-variant/20 mx-4"></div>
+<!-- Privacy -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">lock_person</span>
+</div>
+<div class="text-left">
+<p class="font-title-md text-body-lg text-primary">Privacy</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Data sharing &amp; visibility</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<div class="h-[1px] bg-outline-variant/20 mx-4"></div>
+<!-- Notifications -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">notifications_active</span>
+</div>
+<div class="text-left">
+<p class="font-title-md text-body-lg text-primary">Notifications</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Push, Email &amp; SMS Alerts</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Help & Support Section -->
+<div>
+<h3 class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-widest px-1 mb-3">Support</h3>
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden">
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-secondary-container/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container">help</span>
+</div>
+<div class="text-left">
+<p class="font-title-md text-body-lg text-primary">Help Center</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Guides &amp; troubleshooting</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">open_in_new</span>
+</button>
+<div class="h-[1px] bg-outline-variant/20 mx-4"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-secondary-container/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container">chat_bubble</span>
+</div>
+<div class="text-left">
+<p class="font-title-md text-body-lg text-primary">Contact Support</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Live chat available 24/7</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Legal Section -->
+<div>
+<h3 class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-widest px-1 mb-3">Legal</h3>
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden">
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<p class="font-title-md text-body-lg text-primary">Terms of Service</p>
+<span class="material-symbols-outlined text-outline">article</span>
+</button>
+<div class="h-[1px] bg-outline-variant/20 mx-4"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-surface-variant/30 transition-colors active:scale-[0.98]">
+<p class="font-title-md text-body-lg text-primary">Privacy Policy</p>
+<span class="material-symbols-outlined text-outline">policy</span>
+</button>
+</div>
+</div>
+<!-- Logout -->
+<div class="pt-4">
+<button class="w-full flex items-center justify-center gap-2 p-4 bg-error-container text-on-error-container rounded-2xl font-bold transition-all hover:opacity-90 active:scale-95 premium-shadow">
+<span class="material-symbols-outlined">logout</span>
+<span>Log Out from MediLink</span>
+</button>
+<p class="text-center text-label-sm text-outline mt-6 font-medium">MediLink Version 4.2.1-stable</p>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest shadow-[0_-4px_20px_rgba(24,3,49,0.1)] rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-label-sm font-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="text-label-sm font-label-sm">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="text-label-sm font-label-sm">Calendar</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="text-label-sm font-label-sm">Records</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-primary rounded-full px-4 py-1 scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interaction for buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+    </script>
+</body></html>

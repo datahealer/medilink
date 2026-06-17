@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Doctor Profile - MediLink</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Agatho&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @font-face {
+            font-family: 'Agatho';
+            src: local('Agatho'), local('Agatho-Regular');
+            /* Fallback to serif if local Agatho isn't available */
+            font-display: swap;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .premium-shadow {
+            box-shadow: 0 10px 30px -5px rgba(24, 3, 49, 0.1);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(223, 200, 231, 0.5);
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#ebe7ec",
+                        "secondary-container": "#efd8f7",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "tertiary-container": "#122637",
+                        "on-error": "#ffffff",
+                        "on-background": "#1c1b1f",
+                        "primary-fixed": "#eedbff",
+                        "tertiary-fixed": "#d0e5fc",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f7f2f8",
+                        "surface-variant": "#e6e1e7",
+                        "on-secondary-container": "#6e5c77",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#1c1b1f",
+                        "on-secondary-fixed": "#24162c",
+                        "background": "#fdf8fe",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "surface-container-highest": "#e6e1e7",
+                        "on-surface-variant": "#4a454e",
+                        "surface-container": "#f1ecf2",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#180331",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#fdf8fe",
+                        "surface-dim": "#ddd8de",
+                        "on-primary-container": "#9981b5",
+                        "outline": "#7b757f",
+                        "inverse-on-surface": "#f4eff5",
+                        "on-tertiary-fixed": "#081d2e",
+                        "on-primary-fixed": "#25113e",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#6a5872",
+                        "primary-container": "#2e1a47",
+                        "inverse-primary": "#d6bcf4",
+                        "outline-variant": "#ccc4cf",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#f2dbfa",
+                        "inverse-surface": "#313034",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "error": "#ba1a1a",
+                        "tertiary": "#00101f",
+                        "surface": "#fdf8fe",
+                        "surface-tint": "#6b5585",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "tertiary-fixed-dim": "#b5c9df"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-padding": "32px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "stack-md": "16px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "12px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Manrope"],
+                        "display-lg": ["Agatho", "serif"],
+                        "label-sm": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "headline-lg": ["Agatho", "serif"],
+                        "headline-lg-mobile": ["Agatho", "serif"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-lg overflow-x-hidden">
+<!-- Top AppBar - Following JSON command -->
+<header class="bg-surface dark:bg-surface-dim flex justify-between items-center w-full px-margin-mobile h-16 fixed top-0 z-50">
+<div class="flex items-center gap-3">
+<button aria-label="Go back" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-all active:scale-95">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary dark:text-primary-fixed">MediLink</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-all active:scale-95">
+<span class="material-symbols-outlined text-primary">favorite</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-all active:scale-95">
+<span class="material-symbols-outlined text-primary">share</span>
+</button>
+</div>
+</header>
+<main class="pt-16 pb-32">
+<!-- Hero Section -->
+<section class="relative w-full aspect-[4/5] md:aspect-video overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional portrait of a senior female cardiologist in her late 40s wearing a crisp white medical coat over a deep violet silk blouse. She is standing in a brightly lit, high-end medical facility with soft ambient lighting that highlights the clinical yet premium aesthetic. The background features blurred glass partitions and medical equipment in pastel blue and lavender tones. Her expression is warm, authoritative, and compassionate, perfectly capturing the luxury healthcare brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPgjqRk0WWA0aakndjqPksMXRpQHE9pSKTf0PlR6p-S1vjvKnndED6Mnrn2yq9MeNiLpQA5BZdyMsJQz-nnfIBZRT7tUZsSGRhlz8WPQt_5JYr0H14voVFLj3eH2giHE66nvxYLP6FrqQkgL4xzxLjC-CYuIKZkgUMXLoACEJlabcWty1vhbtpkS104MXxAF4W35j0L6n9LfS8Fiyqdbf2TDcmJmHKJgqVqdiG440bxHMveHyh0zzopJNZDxNy-1CgovotuS7zxUjD"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent"></div>
+<div class="absolute bottom-0 left-0 w-full p-section-padding space-y-2">
+<span class="px-3 py-1 bg-secondary-container text-primary text-label-sm font-label-sm rounded-full">Cardiologist</span>
+<h2 class="text-display-lg font-display-lg text-white leading-none">Dr. Elena<br/>Vaughn</h2>
+</div>
+</section>
+<!-- Stats Bento Grid -->
+<section class="px-margin-mobile -mt-8 relative z-10">
+<div class="grid grid-cols-3 gap-3">
+<div class="glass-card p-4 rounded-xl flex flex-col items-center justify-center text-center premium-shadow">
+<span class="text-primary font-bold text-title-md">15+</span>
+<span class="text-on-surface-variant text-label-sm font-label-sm">Exp. Years</span>
+</div>
+<div class="glass-card p-4 rounded-xl flex flex-col items-center justify-center text-center premium-shadow">
+<div class="flex items-center gap-1">
+<span class="text-primary font-bold text-title-md">4.9</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<span class="text-on-surface-variant text-label-sm font-label-sm">Rating</span>
+</div>
+<div class="glass-card p-4 rounded-xl flex flex-col items-center justify-center text-center premium-shadow">
+<span class="text-primary font-bold text-title-md">2k+</span>
+<span class="text-on-surface-variant text-label-sm font-label-sm">Patients</span>
+</div>
+</div>
+</section>
+<!-- About Section -->
+<section class="mt-stack-lg px-margin-mobile space-y-stack-md">
+<h3 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">About Doctor</h3>
+<p class="text-body-lg text-on-surface-variant leading-relaxed">
+                Dr. Elena Vaughn is a world-renowned specialist in Interventional Cardiology, dedicated to providing premium clinical care with a human touch. Her approach combines state-of-the-art diagnostic technology with personalized wellness plans.
+            </p>
+<div class="flex flex-wrap gap-2 pt-2">
+<span class="bg-surface-container-high px-4 py-1.5 rounded-full text-body-sm text-primary border border-outline-variant">MD, Harvard</span>
+<span class="bg-surface-container-high px-4 py-1.5 rounded-full text-body-sm text-primary border border-outline-variant">Ph.D Cardiology</span>
+<span class="bg-surface-container-high px-4 py-1.5 rounded-full text-body-sm text-primary border border-outline-variant">BCCT</span>
+</div>
+</section>
+<!-- Experience & Clinic Section -->
+<section class="mt-stack-lg px-margin-mobile grid grid-cols-1 md:grid-cols-2 gap-stack-lg">
+<div class="space-y-stack-md">
+<h3 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">Location</h3>
+<div class="rounded-2xl overflow-hidden border border-outline-variant premium-shadow group">
+<div class="h-40 w-full bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A clean, minimalist architectural map view of a high-end medical district in London. The map is styled with a custom premium clinical palette, using soft lavender roads and deep violet landmarks. The aesthetic is modern, utilitarian yet sophisticated, mirroring the brand's visual identity with generous whitespace and precise geometric lines." data-location="London" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvRGy-9Lns32CeUIvqv_48sKbkj1gXX8QvVVxwFiAOuModMDT4AL38G1bD4QmPV_6sYhEwmO9cmO-NLs0qk8d8YAdlle50ayS6zpggEGJ3Gnz6OXbz9eF_D6_Y1p7KT_crxRgTTaVoaPffLPDBLYRlarg0zlcGewUHwCmRBANapqLs3IMtCvvgHXik0GujTyTQ8A5UtBSJLj7u8bGvrxE4xKFJU-MaqKbEPVaaPs5aI-MddYWWJW2rFSL0sG5d5dF2K5cWEoXxt9LU"/>
+</div>
+<div class="p-4 bg-surface-container-lowest">
+<h4 class="font-title-md text-primary">Harley Health Clinic</h4>
+<p class="text-body-sm text-on-surface-variant">22 Harley St, London W1G 9PL, UK</p>
+<div class="mt-3 flex items-center gap-4">
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[18px]">distance</span>
+<span class="text-label-sm font-label-sm">1.2 km away</span>
+</div>
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+<span class="text-label-sm font-label-sm">09:00 - 18:00</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Reviews Preview -->
+<div class="space-y-stack-md">
+<div class="flex justify-between items-end">
+<h3 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">Patient Reviews</h3>
+<button class="text-primary font-title-md text-sm border-b border-primary/20 pb-1">See all</button>
+</div>
+<div class="space-y-3">
+<div class="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-primary text-xs font-bold">AL</div>
+<div>
+<p class="text-body-sm font-bold text-primary">Aidan L.</p>
+<p class="text-[10px] text-on-surface-variant">2 days ago</p>
+</div>
+</div>
+<div class="flex text-primary">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<p class="text-body-sm text-on-surface-variant italic leading-snug">"Dr. Vaughn is incredibly thorough and explained everything clearly. Truly professional environment."</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Fixed Booking Bar -->
+<div class="fixed bottom-0 left-0 w-full bg-surface-container-lowest/90 backdrop-blur-md px-margin-mobile py-4 safe-bottom z-[60] premium-shadow border-t border-outline-variant/30">
+<div class="flex items-center gap-4 max-w-2xl mx-auto">
+<div class="flex-1">
+<p class="text-label-sm font-label-sm text-on-surface-variant">Consultation Fee</p>
+<p class="text-title-md text-primary">$150.00</p>
+</div>
+<button class="flex-[2] bg-primary text-white py-4 rounded-full font-title-md flex items-center justify-center gap-2 active:scale-95 transition-transform premium-shadow">
+                Book Appointment
+                <span class="material-symbols-outlined">calendar_today</span>
+</button>
+</div>
+</div>
+<!-- Nav Support Hidden for Sub-page - Following Suppression Rule -->
+<div class="hidden" id="bottom-nav-placeholder"></div>
+<script>
+        // Micro-interactions
+        document.addEventListener('DOMContentLoaded', () => {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.addEventListener('touchstart', () => {
+                    btn.classList.add('opacity-80', 'scale-95');
+                });
+                btn.addEventListener('touchend', () => {
+                    btn.classList.remove('opacity-80', 'scale-95');
+                });
+            });
+
+            // Intersection Observer for scroll animations
+            const observerOptions = {
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('opacity-100', 'translate-y-0');
+                        entry.target.classList.remove('opacity-0', 'translate-y-4');
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('section').forEach(section => {
+                section.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-4');
+                observer.observe(section);
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>MediLink | AI Symptom Checker</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Using a high-quality serif fallback for Agatho as it's a custom brand font -->
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+        
+        :root {
+            --font-agatho: 'Playfair Display', serif;
+        }
+        
+        .font-headline-lg, .font-headline-lg-mobile, .font-display-lg {
+            font-family: var(--font-agatho);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .chat-bubble-ai {
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble-user {
+            border-bottom-right-radius: 4px;
+        }
+        
+        /* Biomorphic Background Texture */
+        .bio-blob {
+            filter: blur(60px);
+            opacity: 0.4;
+            z-index: -1;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#ffffff",
+                      "surface-bright": "#fdf8fe",
+                      "on-tertiary-container": "#7a8ea3",
+                      "surface-container-lowest": "#ffffff",
+                      "on-surface": "#1c1b1f",
+                      "secondary-container": "#efd8f7",
+                      "surface-dim": "#ddd8de",
+                      "primary-fixed-dim": "#d6bcf4",
+                      "secondary-fixed-dim": "#d6bfde",
+                      "primary-container": "#2e1a47",
+                      "error": "#ba1a1a",
+                      "surface": "#fdf8fe",
+                      "on-surface-variant": "#4a454e",
+                      "on-primary-container": "#9981b5",
+                      "secondary": "#6a5872",
+                      "surface-variant": "#e6e1e7",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-fixed-variant": "#36495b",
+                      "surface-tint": "#6b5585",
+                      "tertiary-fixed": "#d0e5fc",
+                      "outline-variant": "#ccc4cf",
+                      "background": "#fdf8fe",
+                      "surface-container": "#f1ecf2",
+                      "on-secondary-fixed-variant": "#51415a",
+                      "on-error-container": "#93000a",
+                      "tertiary-fixed-dim": "#b5c9df",
+                      "on-primary-fixed": "#25113e",
+                      "surface-container-highest": "#e6e1e7",
+                      "secondary-fixed": "#f2dbfa",
+                      "outline": "#7b757f",
+                      "inverse-surface": "#313034",
+                      "on-secondary-fixed": "#24162c",
+                      "tertiary-container": "#122637",
+                      "inverse-on-surface": "#f4eff5",
+                      "on-error": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "on-tertiary-fixed": "#081d2e",
+                      "on-background": "#1c1b1f",
+                      "surface-container-high": "#ebe7ec",
+                      "on-secondary-container": "#6e5c77",
+                      "surface-container-low": "#f7f2f8",
+                      "tertiary": "#00101f",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-fixed-variant": "#523d6c",
+                      "inverse-primary": "#d6bcf4",
+                      "primary-fixed": "#eedbff",
+                      "primary": "#180331"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-md": "16px",
+                      "margin-mobile": "20px",
+                      "gutter-mobile": "12px",
+                      "stack-lg": "24px",
+                      "section-padding": "32px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "title-md": ["Manrope"],
+                      "headline-lg": ["var(--font-agatho)"],
+                      "headline-lg-mobile": ["var(--font-agatho)"],
+                      "body-lg": ["Manrope"],
+                      "label-sm": ["Manrope"],
+                      "display-lg": ["var(--font-agatho)"],
+                      "body-sm": ["Manrope"]
+              },
+              "fontSize": {
+                      "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-lg min-h-screen flex flex-col overflow-x-hidden">
+<!-- Background Decoration -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+<div class="absolute -top-24 -left-24 w-96 h-96 bg-secondary-fixed-dim rounded-full bio-blob"></div>
+<div class="absolute top-1/2 -right-32 w-80 h-80 bg-tertiary-fixed rounded-full bio-blob"></div>
+</div>
+<!-- Top Navigation Bar -->
+<header class="bg-surface docked full-width top-0 z-40">
+<div class="flex justify-between items-center w-full px-margin-mobile h-16">
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">Symptom Checker</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary p-2">notifications</span>
+<div class="w-10 h-10 rounded-full border-2 border-outline-variant overflow-hidden">
+<img alt="Doctor avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a friendly female healthcare professional with glasses, smiling warmly. The background is a clean, bright medical office with soft lavender lighting, reflecting a modern and premium clinical aesthetic. High-quality portrait photography with a shallow depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFW7VELTROIQAglSKUynsQRUyk2TDeZOK9Mc3ad7G2fWDph3a6OGxGDl_PdsMBqv82RoL50-rLHAqfQ6DkyxKMpq9KCtlgpyB13x1Kw-6tT6PPSQ53LrQsm6FmptGRwOfzUr8aUX_QjObkWFUZVFNgZJUnnwHG5By_j4JTt_DaXZS4pDWw4HFHjaKRAGC28OmEcrvrtTLJJXEVCrkb8tbjbSOadmgexFlBMxGXex0fMcqN7mWxiYj-culadZV-stNo7GljYFXAWGqj"/>
+</div>
+</div>
+</div>
+<!-- Progress Indicator -->
+<div class="px-margin-mobile pb-2">
+<div class="flex justify-between items-end mb-2">
+<span class="text-label-sm font-label-sm text-on-surface-variant">Step 2 of 5: Symptoms Detail</span>
+<span class="text-label-sm font-label-sm text-primary font-bold">40%</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[40%] transition-all duration-500 ease-out rounded-full shadow-[0_0_8px_rgba(24,3,49,0.3)]"></div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-margin-mobile pt-stack-lg pb-32 flex flex-col max-w-2xl mx-auto w-full relative">
+<!-- Chat Interface -->
+<div class="flex flex-col gap-stack-lg flex-1">
+<!-- AI Message -->
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-on-primary text-[18px]" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="bg-secondary-container p-4 rounded-2xl chat-bubble-ai max-w-[85%] shadow-sm">
+<p class="text-body-lg text-on-secondary-container leading-relaxed">
+                        Hello! I'm your MediLink assistant. I'll help you assess your symptoms. To get started, <span class="font-bold">could you select all the symptoms you're currently experiencing?</span>
+</p>
+</div>
+</div>
+<!-- Symptom Chips Selection Area -->
+<div class="flex flex-col gap-stack-md">
+<h3 class="text-title-md font-title-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]" data-icon="search">search</span>
+                    Common Symptoms
+                </h3>
+<div class="flex flex-wrap gap-2">
+<!-- Chip Component -->
+<button class="px-4 py-2 bg-white border border-outline-variant rounded-full text-on-surface-variant text-body-sm font-medium hover:border-primary hover:bg-primary-fixed transition-all flex items-center gap-1 active:scale-95">
+                        Headache
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="px-4 py-2 bg-secondary-container border border-primary text-primary rounded-full text-body-sm font-bold shadow-sm flex items-center gap-1 active:scale-95">
+                        Dry Cough
+                        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<button class="px-4 py-2 bg-white border border-outline-variant rounded-full text-on-surface-variant text-body-sm font-medium hover:border-primary hover:bg-primary-fixed transition-all flex items-center gap-1 active:scale-95">
+                        Fever
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="px-4 py-2 bg-secondary-container border border-primary text-primary rounded-full text-body-sm font-bold shadow-sm flex items-center gap-1 active:scale-95">
+                        Fatigue
+                        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<button class="px-4 py-2 bg-white border border-outline-variant rounded-full text-on-surface-variant text-body-sm font-medium hover:border-primary hover:bg-primary-fixed transition-all flex items-center gap-1 active:scale-95">
+                        Sore Throat
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="px-4 py-2 bg-white border border-outline-variant rounded-full text-on-surface-variant text-body-sm font-medium hover:border-primary hover:bg-primary-fixed transition-all flex items-center gap-1 active:scale-95">
+                        Shortness of Breath
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="px-4 py-2 bg-white border border-outline-variant rounded-full text-on-surface-variant text-body-sm font-medium hover:border-primary hover:bg-primary-fixed transition-all flex items-center gap-1 active:scale-95">
+                        Muscle Aches
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="px-4 py-2 bg-white border border-outline-variant rounded-full text-on-surface-variant text-body-sm font-medium hover:border-primary hover:bg-primary-fixed transition-all flex items-center gap-1 active:scale-95">
+                        Nausea
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="px-4 py-2 bg-white border border-primary/20 border-dashed rounded-full text-primary text-body-sm font-bold transition-all flex items-center gap-1">
+                        More...
+                    </button>
+</div>
+</div>
+<!-- AI Message 2 (Conditional appearance) -->
+<div class="flex items-start gap-3 mt-4">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-on-primary text-[18px]" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="bg-secondary-container p-4 rounded-2xl chat-bubble-ai max-w-[85%] shadow-sm">
+<p class="text-body-lg text-on-secondary-container leading-relaxed">
+                        I've noted <span class="font-bold">Dry Cough</span> and <span class="font-bold">Fatigue</span>. How long have you been feeling this way?
+                    </p>
+</div>
+</div>
+<!-- User Response Area (Options) -->
+<div class="flex flex-col items-end gap-2 mt-2">
+<div class="flex flex-col gap-2 w-full max-w-[80%]">
+<button class="p-4 bg-white border border-outline-variant rounded-xl text-left text-on-surface-variant hover:border-primary hover:bg-secondary-container/30 transition-all flex justify-between items-center group">
+<span class="font-medium">Less than 24 hours</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+<button class="p-4 bg-white border border-primary rounded-xl text-left text-primary font-bold bg-secondary-container/20 flex justify-between items-center group shadow-sm">
+<span>1 to 3 days</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<button class="p-4 bg-white border border-outline-variant rounded-xl text-left text-on-surface-variant hover:border-primary hover:bg-secondary-container/30 transition-all flex justify-between items-center group">
+<span class="font-medium">More than a week</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Floating Input / Analyze Footer -->
+<div class="fixed bottom-24 left-0 w-full px-margin-mobile max-w-2xl mx-auto left-1/2 -translate-x-1/2">
+<div class="bg-white p-4 rounded-3xl shadow-[0_12px_40px_rgba(24,3,49,0.15)] border border-outline-variant/30 flex flex-col gap-4">
+<div class="flex items-center gap-3 bg-surface-container-low px-4 py-2 rounded-2xl border border-outline-variant/20">
+<span class="material-symbols-outlined text-outline">edit</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-body-lg text-on-surface placeholder:text-outline/60 py-2" placeholder="Add more details or symptoms..." type="text"/>
+</div>
+<button class="w-full bg-primary text-on-primary py-4 rounded-full flex items-center justify-center gap-3 shadow-lg hover:opacity-90 active:scale-[0.98] transition-all group overflow-hidden relative">
+<div class="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out"></div>
+<span class="font-title-md text-title-md">Analyze Symptoms</span>
+<span class="material-symbols-outlined text-[24px]">analytics</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest rounded-t-xl shadow-lg">
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-label-sm font-label-sm">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="text-label-sm font-label-sm">Search</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-secondary-container text-primary rounded-full px-4 py-1 scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="event" style="font-variation-settings: 'FILL' 1;">event</span>
+<span class="text-label-sm font-label-sm">Calendar</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-label-sm font-label-sm">Records</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</button>
+</nav>
+<script>
+        // Simple micro-interaction for chips
+        document.querySelectorAll('button.rounded-full').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if(this.innerText.includes('More...')) return;
+                
+                const isSelected = this.classList.contains('bg-secondary-container');
+                const icon = this.querySelector('.material-symbols-outlined');
+                
+                if (isSelected) {
+                    this.classList.remove('bg-secondary-container', 'border-primary', 'text-primary', 'font-bold', 'shadow-sm');
+                    this.classList.add('bg-white', 'border-outline-variant', 'text-on-surface-variant', 'font-medium');
+                    icon.innerText = 'add';
+                    icon.style.fontVariationSettings = "'FILL' 0";
+                } else {
+                    this.classList.add('bg-secondary-container', 'border-primary', 'text-primary', 'font-bold', 'shadow-sm');
+                    this.classList.remove('bg-white', 'border-outline-variant', 'text-on-surface-variant', 'font-medium');
+                    icon.innerText = 'check_circle';
+                    icon.style.fontVariationSettings = "'FILL' 1";
+                }
+            });
+        });
+    </script>
+</body></html>

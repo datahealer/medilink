@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MediLink | Lab Report View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Agatho&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @font-face {
+            font-family: 'Agatho';
+            src: url('https://fonts.cdnfonts.com/s/73916/Agatho-Regular.woff') format('woff');
+        }
+        
+        body {
+            font-family: 'Manrope', sans-serif;
+            background-color: #fdf8fe;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .serene-shadow {
+            box-shadow: 0 20px 40px -15px rgba(24, 3, 49, 0.08);
+        }
+
+        .biomorphic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            background: radial-gradient(circle at 10% 20%, rgba(239, 216, 247, 0.3) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(208, 229, 252, 0.3) 0%, transparent 40%);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #DFC8E7;
+            border-radius: 10px;
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-variant": "#e6e1e7",
+                      "on-secondary-container": "#6e5c77",
+                      "on-error-container": "#93000a",
+                      "surface-container-low": "#f7f2f8",
+                      "on-surface": "#1c1b1f",
+                      "tertiary-fixed": "#d0e5fc",
+                      "error-container": "#ffdad6",
+                      "tertiary-container": "#122637",
+                      "primary-fixed": "#eedbff",
+                      "on-error": "#ffffff",
+                      "on-background": "#1c1b1f",
+                      "surface-container-high": "#ebe7ec",
+                      "secondary-container": "#efd8f7",
+                      "on-secondary-fixed-variant": "#51415a",
+                      "surface-dim": "#ddd8de",
+                      "surface-bright": "#fdf8fe",
+                      "on-primary-container": "#9981b5",
+                      "surface-container": "#f1ecf2",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "primary": "#180331",
+                      "on-primary-fixed-variant": "#523d6c",
+                      "surface-container-highest": "#e6e1e7",
+                      "on-surface-variant": "#4a454e",
+                      "primary-fixed-dim": "#d6bcf4",
+                      "on-secondary-fixed": "#24162c",
+                      "background": "#fdf8fe",
+                      "on-tertiary-container": "#7a8ea3",
+                      "on-primary-fixed": "#25113e",
+                      "on-tertiary-fixed": "#081d2e",
+                      "outline": "#7b757f",
+                      "inverse-on-surface": "#f4eff5",
+                      "surface-tint": "#6b5585",
+                      "on-tertiary-fixed-variant": "#36495b",
+                      "tertiary-fixed-dim": "#b5c9df",
+                      "tertiary": "#00101f",
+                      "error": "#ba1a1a",
+                      "surface": "#fdf8fe",
+                      "secondary-fixed": "#f2dbfa",
+                      "inverse-surface": "#313034",
+                      "outline-variant": "#ccc4cf",
+                      "on-primary": "#ffffff",
+                      "secondary-fixed-dim": "#d6bfde",
+                      "secondary": "#6a5872",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#2e1a47",
+                      "inverse-primary": "#d6bcf4"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "section-padding": "32px",
+                      "stack-sm": "8px",
+                      "stack-lg": "24px",
+                      "stack-md": "16px",
+                      "margin-mobile": "20px",
+                      "gutter-mobile": "12px"
+              },
+              "fontFamily": {
+                      "title-md": ["Manrope"],
+                      "display-lg": ["Agatho"],
+                      "label-sm": ["Manrope"],
+                      "body-lg": ["Manrope"],
+                      "headline-lg": ["Agatho"],
+                      "headline-lg-mobile": ["Agatho"],
+                      "body-sm": ["Manrope"]
+              },
+              "fontSize": {
+                      "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-background min-h-screen pb-32">
+<div class="biomorphic-bg"></div>
+<!-- Top App Bar -->
+<header class="bg-surface sticky top-0 z-50 flex justify-between items-center w-full px-margin-mobile h-16">
+<div class="flex items-center gap-stack-md">
+<button class="material-symbols-outlined text-primary hover:bg-surface-variant/50 p-2 rounded-full transition-colors">arrow_back</button>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">MediLink</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary hover:bg-surface-variant/50 p-2 rounded-full transition-colors" data-icon="notifications">notifications</span>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-secondary-container">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="A professional studio portrait of a female doctor in her late 40s wearing a clean white medical coat and a stethoscope around her neck. The background is a soft, out-of-focus clinical setting with warm, premium lighting. The overall aesthetic is calm, trustworthy, and sophisticated, mirroring a high-end healthcare brand identity with a palette of soft violets and whites." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIAi3iSFKIM_i_QJmK20IC-7VD1jFxzxrxEW4Gf3CvflqwAmWTU005cgbzYvErEjvR5Hc_aqdqOn9q0u85NJYa7hRVZ6EPeRTEZorYlhL26lCAte-kWJN8sgII8nHhf4NEb6yag3tdR-yv0M6PekP5NGD_fXZNbIXe3cct341usQvlllwNziTVtV-eHpwmk27YBDQwfrmjH2wgRWUmr_oy0dvKLp8QxjIB_4tZ-53JUIOr39cMOFmvmVKVukRc_rYzEFZy5Mw30HVQ"/>
+</div>
+</div>
+</header>
+<main class="max-w-4xl mx-auto px-margin-mobile pt-8 space-y-stack-lg">
+<!-- Report Header Section -->
+<section class="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 serene-shadow">
+<div class="flex flex-col md:flex-row justify-between gap-6">
+<div class="space-y-2">
+<span class="text-label-sm font-label-sm text-on-secondary-container uppercase tracking-wider bg-secondary-container px-3 py-1 rounded-full">Report Status: Final</span>
+<h2 class="text-headline-lg font-headline-lg text-primary mt-2">Complete Blood Count (CBC)</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant">Report ID: #LAB-2023-98421</p>
+</div>
+<div class="flex gap-3 h-fit">
+<button class="flex items-center gap-2 bg-secondary-container text-primary px-6 py-3 rounded-full font-title-md text-title-md hover:bg-opacity-80 transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+                        Share with Doctor
+                    </button>
+<button class="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-title-md text-title-md hover:opacity-90 transition-all active:scale-95 shadow-lg">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+                        Download PDF
+                    </button>
+</div>
+</div>
+<!-- Patient & Referral Info Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-8 border-t border-outline-variant/30">
+<div class="space-y-1">
+<p class="text-label-sm font-label-sm text-outline">PATIENT NAME</p>
+<p class="text-body-lg font-body-lg font-bold text-primary">Eleanor Vance</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-sm font-label-sm text-outline">AGE / GENDER</p>
+<p class="text-body-lg font-body-lg text-primary">34Y / Female</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-sm font-label-sm text-outline">DATE COLLECTED</p>
+<p class="text-body-lg font-body-lg text-primary">Oct 12, 2023</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-sm font-label-sm text-outline">REFERRING DOCTOR</p>
+<p class="text-body-lg font-body-lg text-primary">Dr. Julian Thorne</p>
+</div>
+</div>
+</section>
+<!-- AI Interpretation Section -->
+<section class="bg-primary text-on-primary rounded-xl overflow-hidden serene-shadow">
+<div class="p-6 relative">
+<!-- Subtle background glow -->
+<div class="absolute -right-20 -top-20 w-64 h-64 bg-primary-fixed/10 rounded-full blur-3xl"></div>
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-primary-fixed-dim" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<h3 class="text-title-md font-title-md text-primary-fixed">AI Clinical Insight</h3>
+</div>
+<p class="text-body-lg font-body-lg leading-relaxed text-surface-variant">
+                    Your results indicate a healthy blood profile overall. Your <strong class="text-white">Hemoglobin</strong> and <strong class="text-white">Red Blood Cell count</strong> are within optimal ranges, suggesting good oxygen-carrying capacity. There is a very slight elevation in <strong class="text-white">White Blood Cells</strong>, which might indicate your body is recently recovered from a minor inflammation or seasonal sniffle. No immediate clinical action is required, but continue monitoring if symptoms persist.
+                </p>
+<div class="mt-4 flex items-center gap-2 text-label-sm font-label-sm text-primary-fixed-dim bg-white/5 w-fit px-3 py-1 rounded-full">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                    This interpretation is AI-generated and should be verified by your physician.
+                </div>
+</div>
+</section>
+<!-- Results Table -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 serene-shadow overflow-hidden">
+<div class="p-6 border-b border-outline-variant/30 bg-surface-container-low flex justify-between items-center">
+<h3 class="text-title-md font-title-md text-primary">Hematology Details</h3>
+<span class="text-label-sm font-label-sm text-on-surface-variant flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-error"></span> Out of Range
+                </span>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container">
+<th class="px-6 py-4 text-label-sm font-label-sm text-outline uppercase tracking-wider">Test Parameter</th>
+<th class="px-6 py-4 text-label-sm font-label-sm text-outline uppercase tracking-wider">Result Value</th>
+<th class="px-6 py-4 text-label-sm font-label-sm text-outline uppercase tracking-wider">Ref. Range</th>
+<th class="px-6 py-4 text-label-sm font-label-sm text-outline uppercase tracking-wider text-right">Interpretation</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<p class="text-body-lg font-bold text-primary">WBC Count</p>
+<p class="text-body-sm text-outline">White Blood Cells</p>
+</td>
+<td class="px-6 py-5">
+<span class="text-body-lg font-bold text-error">11.2</span>
+<span class="text-body-sm text-on-surface-variant ml-1">x10^3/μL</span>
+</td>
+<td class="px-6 py-5 text-body-lg text-on-surface-variant font-body-lg">4.5 - 11.0</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-error-container text-on-error-container px-3 py-1 rounded-full text-label-sm font-label-sm">High</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<p class="text-body-lg font-bold text-primary">RBC Count</p>
+<p class="text-body-sm text-outline">Red Blood Cells</p>
+</td>
+<td class="px-6 py-5">
+<span class="text-body-lg font-bold text-primary">4.8</span>
+<span class="text-body-sm text-on-surface-variant ml-1">x10^6/μL</span>
+</td>
+<td class="px-6 py-5 text-body-lg text-on-surface-variant font-body-lg">4.2 - 5.4</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-label-sm font-label-sm">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<p class="text-body-lg font-bold text-primary">Hemoglobin</p>
+<p class="text-body-sm text-outline">Hgb</p>
+</td>
+<td class="px-6 py-5">
+<span class="text-body-lg font-bold text-primary">13.8</span>
+<span class="text-body-sm text-on-surface-variant ml-1">g/dL</span>
+</td>
+<td class="px-6 py-5 text-body-lg text-on-surface-variant font-body-lg">12.0 - 15.5</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-label-sm font-label-sm">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<p class="text-body-lg font-bold text-primary">Hematocrit</p>
+<p class="text-body-sm text-outline">Hct</p>
+</td>
+<td class="px-6 py-5">
+<span class="text-body-lg font-bold text-primary">41.2</span>
+<span class="text-body-sm text-on-surface-variant ml-1">%</span>
+</td>
+<td class="px-6 py-5 text-body-lg text-on-surface-variant font-body-lg">36.1 - 44.3</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-label-sm font-label-sm">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<p class="text-body-lg font-bold text-primary">Platelet Count</p>
+<p class="text-body-sm text-outline">Plt</p>
+</td>
+<td class="px-6 py-5">
+<span class="text-body-lg font-bold text-primary">285</span>
+<span class="text-body-sm text-on-surface-variant ml-1">x10^3/μL</span>
+</td>
+<td class="px-6 py-5 text-body-lg text-on-surface-variant font-body-lg">150 - 450</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-label-sm font-label-sm">Normal</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Comparison Widget -->
+<div class="p-6 bg-surface-container-low/50 border-t border-outline-variant/30">
+<div class="flex items-center justify-between">
+<div>
+<h4 class="text-body-lg font-bold text-primary">Previous Trends</h4>
+<p class="text-body-sm text-on-surface-variant">Comparing with your test from August 2023</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="text-right">
+<p class="text-label-sm font-label-sm text-outline uppercase">WBC TREND</p>
+<p class="text-title-md font-title-md text-error flex items-center gap-1 justify-end">
+<span class="material-symbols-outlined text-[18px]">trending_up</span> +8.4%
+                            </p>
+</div>
+<div class="w-[1px] h-10 bg-outline-variant/30"></div>
+<div class="text-right">
+<p class="text-label-sm font-label-sm text-outline uppercase">HGB TREND</p>
+<p class="text-title-md font-title-md text-on-secondary-container flex items-center gap-1 justify-end">
+<span class="material-symbols-outlined text-[18px]">trending_flat</span> Stable
+                            </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Doctor's Disclaimer -->
+<footer class="text-center py-8 opacity-60">
+<p class="text-body-sm text-on-surface-variant max-w-lg mx-auto">
+                Electronic signature: Dr. Julian Thorne (Oct 13, 2023 09:12 AM). This report is digitally encrypted and certified for authenticity.
+            </p>
+</footer>
+</main>
+<!-- Bottom Navigation Bar (Shell) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest dark:bg-surface-container-high shadow-[0_-4px_20px_rgba(24,3,49,0.1)] rounded-t-xl">
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant group cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-label-sm font-label-sm mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant group cursor-pointer">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="text-label-sm font-label-sm mt-1">Search</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant group cursor-pointer">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="text-label-sm font-label-sm mt-1">Calendar</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-secondary-container dark:bg-primary-container text-primary dark:text-primary-fixed-dim rounded-full px-4 py-1 group cursor-pointer scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-label-sm font-label-sm mt-1">Records</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant group cursor-pointer">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-label-sm font-label-sm mt-1">Profile</span>
+</div>
+</nav>
+<script>
+        // Simple micro-interaction for the share/download buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', function() {
+                this.classList.add('scale-105');
+            });
+            btn.addEventListener('mouseleave', function() {
+                this.classList.remove('scale-105');
+            });
+        });
+
+        // Simulating loading state for the AI section
+        window.addEventListener('DOMContentLoaded', () => {
+            const aiSection = document.querySelector('.bg-primary');
+            aiSection.style.opacity = '0';
+            aiSection.style.transform = 'translateY(20px)';
+            aiSection.style.transition = 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+            
+            setTimeout(() => {
+                aiSection.style.opacity = '1';
+                aiSection.style.transform = 'translateY(0)';
+            }, 300);
+        });
+    </script>
+</body></html>

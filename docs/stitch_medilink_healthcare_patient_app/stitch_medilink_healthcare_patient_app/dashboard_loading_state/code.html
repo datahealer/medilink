@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MediLink - Loading Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Agatho:wght@100..900&family=Manrope:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        @font-face {
+            font-family: 'Agatho';
+            src: url('https://fonts.cdnfonts.com/s/73916/Agatho-Regular.woff') format('woff');
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton-shimmer {
+            background: linear-gradient(90deg, #f1ecf2 25%, #e6e1e7 50%, #f1ecf2 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-shimmer-dark {
+            background: linear-gradient(90deg, #2e1a47 25%, #3d245c 50%, #2e1a47 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        body {
+            background-color: #fdf8fe;
+            color: #1c1b1f;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#b5c9df",
+                        "on-error": "#ffffff",
+                        "surface": "#fdf8fe",
+                        "primary": "#180331",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#ddd8de",
+                        "tertiary-fixed": "#d0e5fc",
+                        "primary-fixed": "#eedbff",
+                        "inverse-on-surface": "#f4eff5",
+                        "on-background": "#1c1b1f",
+                        "background": "#fdf8fe",
+                        "surface-container-highest": "#e6e1e7",
+                        "on-surface": "#1c1b1f",
+                        "surface-variant": "#e6e1e7",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#6a5872",
+                        "on-error-container": "#93000a",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#7a8ea3",
+                        "on-secondary-fixed": "#24162c",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#122637",
+                        "surface-bright": "#fdf8fe",
+                        "on-primary-container": "#9981b5",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "tertiary": "#00101f",
+                        "surface-tint": "#6b5585",
+                        "secondary-container": "#efd8f7",
+                        "surface-container": "#f1ecf2",
+                        "surface-container-high": "#ebe7ec",
+                        "surface-container-low": "#f7f2f8",
+                        "secondary-fixed": "#f2dbfa",
+                        "inverse-surface": "#313034",
+                        "on-secondary-container": "#6e5c77",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#25113e",
+                        "primary-container": "#2e1a47",
+                        "on-tertiary-fixed": "#081d2e",
+                        "inverse-primary": "#d6bcf4",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "outline-variant": "#ccc4cf",
+                        "outline": "#7b757f",
+                        "on-surface-variant": "#4a454e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "gutter-mobile": "12px",
+                        "section-padding": "32px",
+                        "stack-sm": "8px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Agatho"],
+                        "headline-lg": ["Agatho"],
+                        "display-lg": ["Agatho"],
+                        "title-md": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface selection:bg-secondary-container">
+<!-- Top App Bar (Stable Component) -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 fixed top-0 left-0 w-full z-50 flex justify-between items-center w-full px-margin-mobile h-16">
+<div class="flex items-center gap-stack-md">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="A professional close-up studio portrait of a friendly middle-aged male healthcare administrator. The lighting is soft and warm against a minimalist clinic background. The image has a premium, high-fidelity clinical feel with a focus on empathy and reliability. Soft focus on the background creates a sophisticated depth-of-field effect." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBW7W1LwbFLAauP0ck-OH-OBcqZQlzylLKFEuKk4jtWsD9J_M8yLxUHAKHBS70fMg0vcFuKPAbbLmkOW77trMa6jdQiV3gA6-Zjupj5BGdlTdATxG9twkhNCO5Kyk5NEMcCZbmRcK68dSFFlDi6pc7sX_ze-Wk2kiq4bNA5PyDHu1fOirs80NwOspsQ0QZWi_1MKVOd1N7x0_i321Wn0FL0gVkyImfn73rMiNcsLsFOc0mOzQsaznjLpMCesSHVzU5b-KIrZQKdA25b"/>
+</div>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary dark:text-primary-fixed">MediLink</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-primary">notifications</span>
+</button>
+</header>
+<main class="pt-20 pb-28 px-margin-mobile max-w-2xl mx-auto space-y-stack-lg">
+<!-- Welcome Section Loading -->
+<section>
+<div class="h-8 w-48 skeleton-shimmer rounded-lg mb-2"></div>
+<div class="h-4 w-64 skeleton-shimmer rounded-lg"></div>
+</section>
+<!-- Upcoming Appointment Skeleton -->
+<section>
+<h2 class="text-title-md font-title-md text-primary mb-stack-md">Upcoming Appointment</h2>
+<div class="bg-primary-container rounded-xl p-stack-md relative overflow-hidden h-40 flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="space-y-2">
+<div class="h-6 w-32 skeleton-shimmer-dark rounded-lg opacity-50"></div>
+<div class="h-4 w-40 skeleton-shimmer-dark rounded-lg opacity-30"></div>
+</div>
+<div class="w-12 h-12 rounded-full skeleton-shimmer-dark opacity-40"></div>
+</div>
+<div class="flex gap-stack-sm pt-4 border-t border-primary/20">
+<div class="h-8 flex-1 skeleton-shimmer-dark rounded-full opacity-30"></div>
+<div class="h-8 flex-1 skeleton-shimmer-dark rounded-full opacity-30"></div>
+</div>
+</div>
+</section>
+<!-- Quick Actions Skeleton -->
+<section>
+<h2 class="text-title-md font-title-md text-primary mb-stack-md">Quick Actions</h2>
+<div class="grid grid-cols-4 gap-gutter-mobile">
+<div class="flex flex-col items-center gap-2">
+<div class="w-14 h-14 rounded-2xl skeleton-shimmer"></div>
+<div class="h-3 w-12 skeleton-shimmer rounded"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-14 h-14 rounded-2xl skeleton-shimmer"></div>
+<div class="h-3 w-12 skeleton-shimmer rounded"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-14 h-14 rounded-2xl skeleton-shimmer"></div>
+<div class="h-3 w-12 skeleton-shimmer rounded"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-14 h-14 rounded-2xl skeleton-shimmer"></div>
+<div class="h-3 w-12 skeleton-shimmer rounded"></div>
+</div>
+</div>
+</section>
+<!-- Top Doctors Skeleton (Bento Layout style) -->
+<section>
+<div class="flex justify-between items-center mb-stack-md">
+<h2 class="text-title-md font-title-md text-primary">Nearby Specialists</h2>
+<div class="h-4 w-16 skeleton-shimmer rounded"></div>
+</div>
+<div class="space-y-stack-md">
+<!-- Doctor Card 1 -->
+<div class="flex items-center gap-stack-md p-stack-md bg-white rounded-2xl border border-outline-variant shadow-sm">
+<div class="w-16 h-16 rounded-xl skeleton-shimmer flex-shrink-0"></div>
+<div class="flex-1 space-y-2">
+<div class="h-5 w-3/4 skeleton-shimmer rounded"></div>
+<div class="h-3 w-1/2 skeleton-shimmer rounded"></div>
+<div class="flex gap-2">
+<div class="h-4 w-10 skeleton-shimmer rounded"></div>
+<div class="h-4 w-10 skeleton-shimmer rounded"></div>
+</div>
+</div>
+</div>
+<!-- Doctor Card 2 -->
+<div class="flex items-center gap-stack-md p-stack-md bg-white rounded-2xl border border-outline-variant shadow-sm">
+<div class="w-16 h-16 rounded-xl skeleton-shimmer flex-shrink-0"></div>
+<div class="flex-1 space-y-2">
+<div class="h-5 w-3/5 skeleton-shimmer rounded"></div>
+<div class="h-3 w-1/3 skeleton-shimmer rounded"></div>
+<div class="flex gap-2">
+<div class="h-4 w-10 skeleton-shimmer rounded"></div>
+<div class="h-4 w-10 skeleton-shimmer rounded"></div>
+</div>
+</div>
+</div>
+<!-- Doctor Card 3 -->
+<div class="flex items-center gap-stack-md p-stack-md bg-white rounded-2xl border border-outline-variant shadow-sm">
+<div class="w-16 h-16 rounded-xl skeleton-shimmer flex-shrink-0"></div>
+<div class="flex-1 space-y-2">
+<div class="h-5 w-2/3 skeleton-shimmer rounded"></div>
+<div class="h-3 w-1/2 skeleton-shimmer rounded"></div>
+<div class="flex gap-2">
+<div class="h-4 w-10 skeleton-shimmer rounded"></div>
+<div class="h-4 w-10 skeleton-shimmer rounded"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Health Stats Mini Skeleton -->
+<section class="grid grid-cols-2 gap-stack-md">
+<div class="bg-secondary-container/30 p-stack-md rounded-2xl h-24 flex flex-col justify-between">
+<div class="h-3 w-16 skeleton-shimmer rounded"></div>
+<div class="h-8 w-24 skeleton-shimmer rounded"></div>
+</div>
+<div class="bg-tertiary-fixed/20 p-stack-md rounded-2xl h-24 flex flex-col justify-between">
+<div class="h-3 w-16 skeleton-shimmer rounded"></div>
+<div class="h-8 w-24 skeleton-shimmer rounded"></div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Stable Component) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest dark:bg-surface-container-high rounded-t-xl shadow-[0_-4px_20px_rgba(24,3,49,0.1)] dark:shadow-none">
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-primary-container text-primary dark:text-primary-fixed-dim rounded-full px-4 py-1 scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-label-sm font-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="text-label-sm font-label-sm">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="text-label-sm font-label-sm">Calendar</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-label-sm font-label-sm">Records</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</a>
+</nav>
+<!-- Micro-interaction for loading simulation -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Subtle fade-in of the whole content to prevent flash
+            document.body.style.opacity = '0';
+            setTimeout(() => {
+                document.body.style.transition = 'opacity 0.6s ease';
+                document.body.style.opacity = '1';
+            }, 50);
+
+            // Simulation: If this was real, after a few seconds we might transition to real data
+            /* 
+            setTimeout(() => {
+                // Here you would swap the skeleton classes for real content
+            }, 3000);
+            */
+        });
+    </script>
+</body></html>

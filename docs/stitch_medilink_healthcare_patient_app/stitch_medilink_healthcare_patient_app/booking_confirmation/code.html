@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Booking Confirmation - MediLink</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Manrope & Agatho (Agatho is a serif, using Playfair Display as a high-quality alternative for this simulation) -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#ebe7ec",
+                        "secondary-container": "#efd8f7",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "tertiary-container": "#122637",
+                        "on-error": "#ffffff",
+                        "on-background": "#1c1b1f",
+                        "primary-fixed": "#eedbff",
+                        "tertiary-fixed": "#d0e5fc",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f7f2f8",
+                        "surface-variant": "#e6e1e7",
+                        "on-secondary-container": "#6e5c77",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#1c1b1f",
+                        "on-secondary-fixed": "#24162c",
+                        "background": "#fdf8fe",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "surface-container-highest": "#e6e1e7",
+                        "on-surface-variant": "#4a454e",
+                        "surface-container": "#f1ecf2",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#180331",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#fdf8fe",
+                        "surface-dim": "#ddd8de",
+                        "on-primary-container": "#9981b5",
+                        "outline": "#7b757f",
+                        "inverse-on-surface": "#f4eff5",
+                        "on-tertiary-container": "#7a8ea3",
+                        "on-tertiary-fixed": "#081d2e",
+                        "on-primary-fixed": "#25113e",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#6a5872",
+                        "primary-container": "#2e1a47",
+                        "inverse-primary": "#d6bcf4",
+                        "outline-variant": "#ccc4cf",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#f2dbfa",
+                        "inverse-surface": "#313034",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "error": "#ba1a1a",
+                        "tertiary": "#00101f",
+                        "surface": "#fdf8fe",
+                        "surface-tint": "#6b5585",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "tertiary-fixed-dim": "#b5c9df",
+                        "success-muted": "#E8F5E9",
+                        "success-deep": "#2E7D32"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-padding": "32px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "stack-md": "16px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "12px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Manrope"],
+                        "display-lg": ["Playfair Display"],
+                        "label-sm": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "headline-lg": ["Playfair Display"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "title-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bg-biomorphic {
+            background-image: radial-gradient(circle at 10% 20%, rgba(239, 216, 247, 0.4) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(208, 229, 252, 0.4) 0%, transparent 40%);
+        }
+        .success-checkmark-animation {
+            animation: success-bounce 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+        }
+        @keyframes success-bounce {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen font-body-lg flex flex-col items-center">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 fixed w-full z-50 flex justify-between items-center w-full px-margin-mobile h-16">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant">
+<img alt="User" class="w-full h-full object-cover" data-alt="A professional studio headshot of a friendly man with a warm smile, set against a soft, neutral lavender-tinted background. The lighting is bright and high-key, reflecting a premium medical professional aesthetic with soft shadows and sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjV-s9xae6Coj4iSafPqjJ1V-V-L3J2XkrS9Akq7TY0cLfLcHx3uIHhbgi-_us92zwctD2q85aDihhW-PI16TGqbq-NZlRneZRmgKpZ1hCxoHOhhdPJRyKYxcoZEm9j4IAPPI20Mnmn2Tm_aOn_UwzmmE93BmfaaThzk_Q27zdCkBaqbq7sljTpKJRjOYekYau_x5Ms6sb6iVXGnS61WpuTSDzFmX9lVy1CZ0aZ-7o6sVxNWEBmhm4teYXLfPzC0zQm9tJNEHGIwIo"/>
+</div>
+</div>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary dark:text-primary-fixed">MediLink</h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="notifications">notifications</span>
+</button>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 w-full max-w-md px-margin-mobile pt-24 pb-32 bg-biomorphic">
+<!-- Success Identity Section -->
+<div class="flex flex-col items-center text-center mb-stack-lg">
+<div class="w-24 h-24 rounded-full bg-secondary-container flex items-center justify-center success-checkmark-animation shadow-lg mb-stack-md">
+<span class="material-symbols-outlined text-primary text-[48px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<h2 class="text-headline-lg-mobile font-headline-lg-mobile text-primary mb-2">Appointment Confirmed!</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant max-w-[280px]">Your link to care is ready.</p>
+</div>
+<!-- Appointment Card -->
+<div class="bg-surface-container-lowest rounded-[16px] border border-[#DFC8E7] p-stack-lg shadow-sm mb-stack-lg">
+<div class="flex items-center gap-4 mb-stack-md pb-stack-md border-b border-surface-variant">
+<div class="w-14 h-14 rounded-xl overflow-hidden border border-outline-variant">
+<img alt="Doctor" class="w-full h-full object-cover" data-alt="A high-quality close-up of a professional male doctor wearing a clean white coat and a stethoscope, smiling confidently. The environment is a modern, premium clinical setting with soft natural light and a clean, sterile, yet welcoming atmosphere using a light violet and white color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuANY8m0QDhIiPD4zCFSDJNiFPenI5mCys_6iy7Q78EIGY5hDRFLz7bfzZjRHp0UgGm1kFB9S7K27koLyIwpXrq9_kSJn_poqcbwOq0m3F4PY1msmrHgViqVesltAo-YW8fQkkDttCQ7tcC9TleSUNcJU93qZVGegBP_jFBavXVYyQ_75nvRkCULLTmco46UnAefbFnMcdYfCVJubVb_JY6O4zGvukpxin5bdH5CeTvv8eExdBiV98Ki_vfxJcEAM_XxoMyZo9wRIbRl"/>
+</div>
+<div>
+<h3 class="text-title-md font-title-md text-primary">Dr. Julian Sterling</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Senior Cardiologist</p>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="apartment">apartment</span>
+<div>
+<p class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Clinic</p>
+<p class="text-body-lg font-body-lg text-primary">Lumina Heart Institute, Floor 4</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="calendar_today">calendar_today</span>
+<div>
+<p class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Date &amp; Time</p>
+<p class="text-body-lg font-body-lg text-primary">Thursday, October 24 • 10:30 AM</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="videocam">videocam</span>
+<div>
+<p class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Appointment Type</p>
+<p class="text-body-lg font-body-lg text-primary">In-Person Consultation</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Area -->
+<div class="flex flex-col gap-3">
+<button class="w-full py-4 bg-primary text-on-primary rounded-full font-title-md shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="calendar_add_on">calendar_add_on</span>
+                Add to Calendar
+            </button>
+<button class="w-full py-4 bg-secondary-container text-primary rounded-full font-title-md border border-transparent hover:border-primary active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+                Go to Home
+            </button>
+<button class="w-full py-3 bg-transparent text-primary rounded-full font-body-lg italic underline underline-offset-4 decoration-primary-container active:opacity-60 transition-opacity">
+                Reschedule or Cancel
+            </button>
+</div>
+<!-- Preparation Chip -->
+<div class="mt-stack-lg p-4 bg-tertiary-fixed rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-on-tertiary-fixed-variant" data-icon="info">info</span>
+<p class="text-body-sm font-body-sm text-on-tertiary-fixed">Please arrive 15 minutes early with your digital ID.</p>
+</div>
+</main>
+<!-- BottomNavBar - Suppressed for task focus as per "The Destination Rule" but provided for consistency if user navigates back -->
+<!-- Applying "Shell Visibility & Relevance" rule: suppressed because this is a Success/Confirmation screen -->
+<!-- Micro-interaction script -->
+<script>
+        // Simple ripple effect for buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function (e) {
+                let x = e.clientX - e.target.offsetLeft;
+                let y = e.clientY - e.target.offsetTop;
+                let ripples = document.createElement('span');
+                ripples.style.left = x + 'px';
+                ripples.style.top = y + 'px';
+                this.appendChild(ripples);
+                setTimeout(() => { ripples.remove() }, 1000);
+            });
+        });
+    </script>
+</body></html>

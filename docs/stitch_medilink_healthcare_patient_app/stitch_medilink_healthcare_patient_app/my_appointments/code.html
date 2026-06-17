@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>My Appointments - MediLink</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Agatho&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#f4eff5",
+                        "on-secondary-container": "#6e5c77",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "tertiary-fixed": "#d0e5fc",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#7a8ea3",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "on-surface-variant": "#4a454e",
+                        "outline-variant": "#ccc4cf",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#b5c9df",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#2e1a47",
+                        "surface": "#fdf8fe",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e6e1e7",
+                        "inverse-primary": "#d6bcf4",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "on-secondary-fixed": "#24162c",
+                        "surface-container-low": "#f7f2f8",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#e6e1e7",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "surface-container": "#f1ecf2",
+                        "on-surface": "#1c1b1f",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "background": "#fdf8fe",
+                        "secondary-fixed": "#f2dbfa",
+                        "secondary": "#6a5872",
+                        "outline": "#7b757f",
+                        "on-background": "#1c1b1f",
+                        "surface-container-high": "#ebe7ec",
+                        "on-tertiary-fixed": "#081d2e",
+                        "inverse-surface": "#313034",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#25113e",
+                        "error-container": "#ffdad6",
+                        "surface-dim": "#ddd8de",
+                        "tertiary": "#00101f",
+                        "primary": "#180331",
+                        "primary-fixed": "#eedbff",
+                        "surface-bright": "#fdf8fe",
+                        "surface-tint": "#6b5585",
+                        "on-primary-container": "#9981b5",
+                        "tertiary-container": "#122637",
+                        "secondary-container": "#efd8f7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter-mobile": "12px",
+                        "stack-md": "16px",
+                        "margin-mobile": "20px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "section-padding": "32px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "body-sm": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "headline-lg": ["Agatho"],
+                        "display-lg": ["Agatho"],
+                        "headline-lg-mobile": ["Agatho"]
+                    },
+                    "fontSize": {
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-tab {
+            color: #180331;
+            position: relative;
+        }
+        .active-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: #180331;
+            border-radius: 99px;
+        }
+        .bento-glow {
+            background: radial-gradient(circle at top right, rgba(239, 216, 247, 0.4), transparent 60%);
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-lg antialiased min-h-screen">
+<!-- Top App Bar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-surface flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional studio headshot of a friendly young woman with a warm smile, set against a soft lilac background. The lighting is bright and airy, reflecting a premium healthcare aesthetic with clean lines and a soft, high-key atmosphere consistent with a modern clinical app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpaphVFLKI2YnzGkwyfciJcDBr9frFk3r_wLBJYt9dvA839g1_1MLX0Yoo4WCzG5Dtvqz_rPrl1YoKH3xHBqRM-ooC_pE7pfV2z0C4y8Ygv2Q7a0UqZsCHkhqIwGpBsGeP54_EFNFTZp07ovO0AOPs_Ids6AQHO4aiolvUtcUw4Kv1ppu1FaqqwEW-L8sZ1C2hxbg1yp9pept-qKSY4BsN1Do5Z4OAWa8B75gVDDp0kOAsxcXgEHTcQK5ba1bhYhDrGugWX2QSkLst"/>
+</div>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary">MediLink</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="notifications">notifications</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-20 pb-32 px-margin-mobile max-w-2xl mx-auto">
+<!-- Header Section -->
+<div class="mb-stack-lg">
+<h2 class="text-headline-lg font-headline-lg text-primary">My Appointments</h2>
+<p class="text-on-surface-variant text-body-sm">Manage your health schedule and consult with specialists.</p>
+</div>
+<!-- Tab Switcher -->
+<div class="flex border-b border-outline-variant mb-stack-lg sticky top-16 bg-surface/90 backdrop-blur-md z-40 py-2">
+<button class="flex-1 py-3 text-title-md font-title-md active-tab" id="upcoming-tab-btn" onclick="switchTab('upcoming')">Upcoming</button>
+<button class="flex-1 py-3 text-title-md font-title-md text-on-surface-variant" id="past-tab-btn" onclick="switchTab('past')">Past</button>
+</div>
+<!-- Tab Content: Upcoming -->
+<div class="space-y-stack-md block" id="upcoming-view">
+<!-- Appointment Card 1: Telehealth -->
+<div class="bg-surface-container-low rounded-xl p-4 border border-[#DFC8E7] relative overflow-hidden bento-glow shadow-sm transition-all hover:shadow-md">
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-xl overflow-hidden shadow-sm">
+<img alt="Dr. Aris Thorne" class="w-full h-full object-cover" data-alt="A portrait of a male doctor in his late 30s with a kind expression, wearing a crisp white medical coat and a stethoscope around his neck. The setting is a brightly lit, modern clinical office with soft blue and lavender accents in the background, conveying a sense of premium medical expertise." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFavd2qda2TOCn1TwAgiJS_pBtjdMG5jL2QBQQKC1W4bDjp3u0lxo_9oqX7munIM8zNGepibYH9oeOfxM7OQ90Iv497y521hLWmdswHiBTv-kyezXHj2RWnTI35iCyUkDf6GT9JaHrfoK1MlLwLqBnnuvfFdNFRmmtq5RIJoxZcIEsv8VH-mvcQ5UN3oAZFKSZQL3nSDidcT3ZNxcAPTKKfB38tPgvdUq5-7J2p0Sdit9bcu-MFQLQH_tNSujsQUNoHio8I7J6dd51"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-title-md font-title-md text-primary">Dr. Aris Thorne</h3>
+<p class="text-body-sm text-on-secondary-container">Neurology Specialist</p>
+</div>
+<span class="bg-secondary-container text-on-secondary-container text-label-sm px-2 py-0.5 rounded-full">Telehealth</span>
+</div>
+<div class="flex items-center gap-4 mt-2 text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="calendar_today">calendar_today</span>
+<span class="text-label-sm">Oct 24, 2023</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="schedule">schedule</span>
+<span class="text-label-sm">10:30 AM</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex-1 bg-primary text-surface py-2.5 rounded-full text-label-sm font-label-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]" data-icon="videocam" style="font-variation-settings: 'FILL' 1;">videocam</span>
+                        Join Call
+                    </button>
+<button class="px-4 border border-outline text-on-surface py-2.5 rounded-full text-label-sm font-label-sm hover:bg-surface-variant/20 transition-colors">
+                        Reschedule
+                    </button>
+</div>
+</div>
+<!-- Appointment Card 2: In-Person -->
+<div class="bg-surface-container-low rounded-xl p-4 border border-[#DFC8E7] shadow-sm transition-all hover:shadow-md">
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-xl overflow-hidden shadow-sm">
+<img alt="Dr. Sarah Jenkins" class="w-full h-full object-cover" data-alt="A confident female physician standing in a modern, clean hospital corridor. She is smiling warmly at the camera, wearing professional medical attire. The lighting is soft and natural, with a palette dominated by whites, light purples, and gentle blues, creating a high-end editorial healthcare look." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgy-1PIAdflBybjiT_YuxVo6UTlpkRnLM4NRIJz7P1YjMLg_xAUe8Xxb12Mi56yp5SguVPggRVhuD1JF7grWBz62jwoycp8DSrX3-D8pC1OOMomcK1o3xemUso6J6qx-IvMilMSX18-BO8Ov59ig8py_Oi1KTDC8GKHMqS9aIrsuewPHDfw9H6PkeErbOJIJAoijUx15brSSUTKjQwRAebUkED0bbYbwriE1iAKpbK-5mp79PCyCgEA6wGQPdUBEzlrpGMcpLv_c4N"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-title-md font-title-md text-primary">Dr. Sarah Jenkins</h3>
+<p class="text-body-sm text-on-secondary-container">Cardiology</p>
+</div>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed-variant text-label-sm px-2 py-0.5 rounded-full">Clinic Visit</span>
+</div>
+<div class="flex items-center gap-4 mt-2 text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="calendar_today">calendar_today</span>
+<span class="text-label-sm">Oct 28, 2023</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="schedule">schedule</span>
+<span class="text-label-sm">02:15 PM</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex-1 bg-secondary text-surface py-2.5 rounded-full text-label-sm font-label-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]" data-icon="how_to_reg">how_to_reg</span>
+                        Check-in
+                    </button>
+<button class="w-12 border border-outline text-on-surface py-2.5 rounded-full flex items-center justify-center hover:bg-surface-variant/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="map">map</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Tab Content: Past (Hidden by default) -->
+<div class="space-y-stack-md hidden" id="past-view">
+<!-- Past Card 1 -->
+<div class="bg-surface-container rounded-xl p-4 opacity-90 border border-outline-variant grayscale-[0.2]">
+<div class="flex gap-4 mb-4">
+<div class="w-14 h-14 rounded-full overflow-hidden opacity-80">
+<img alt="Dr. Michael Chen" class="w-full h-full object-cover" data-alt="A professional medical headshot of a mature male doctor with grey-flecked hair, wearing glasses and a lab coat. He is set against a minimalist clinical background with soft-focus medical equipment. The overall tone is calm, trustworthy, and premium, utilizing a soft violet and white color scheme." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLD8wd-aCSDD5f8qBtlZd3qxMRRd8lk-tp7aHv1bElAGDIaWKjZUzKbDM5mobJ1HrDuo5a7OWVPJIeQc0t2485I4OX6gE7M20vvD2ny7hDpVoIoHmctP20Iw8DbbXCrOBSw9-ehl2OU-5tP2dHYypiWLQ18pgwvnAcGn-FuvItvsnEQr34SiHy5woHw3GN9x67gGMp-nW5Xan1-4tR2AkLHUyFv8rOaFuGC1izHodNyZb3YSlthA1U2E5mVGaCpnwPc9SeRuIJbTa6"/>
+</div>
+<div class="flex-1">
+<h3 class="text-title-md font-title-md text-on-surface-variant">Dr. Michael Chen</h3>
+<p class="text-body-sm text-outline">General Practitioner</p>
+<p class="text-label-sm text-outline mt-1">September 12, 2023 • Completed</p>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex-1 border border-primary text-primary py-2 rounded-full text-label-sm font-label-sm font-bold hover:bg-primary/5 transition-colors">
+                        View Summary
+                    </button>
+<button class="flex-1 bg-surface-variant text-on-surface-variant py-2 rounded-full text-label-sm font-label-sm hover:bg-outline-variant/30 transition-colors">
+                        Rebook
+                    </button>
+</div>
+</div>
+<!-- Past Card 2 -->
+<div class="bg-surface-container rounded-xl p-4 opacity-90 border border-outline-variant grayscale-[0.2]">
+<div class="flex gap-4 mb-4">
+<div class="w-14 h-14 rounded-full overflow-hidden opacity-80">
+<img alt="Dr. Elena Rossi" class="w-full h-full object-cover" data-alt="A close-up portrait of a female dentist with a bright smile, wearing a modern teal medical scrub top. The background is a high-tech, clean dental office with soft-focus technology. The lighting is crisp and inviting, reflecting a modern, premium healthcare brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMxi5Hfz64inQLUc5fzwiuY8tVlXGaizURTR5nUJfrS0vxOPcrETEDXzQ12Bz-0gOiCOuGOWZyxU7Qg5wNUa0BVV4mM8IhmVyq9V0npXUET2ZVqPwmLMxF0T3T1TWvyaZHluNE8gSK7ZRKgDcjq_p5n-XaPT9ifAx-uXHsqT8nip_n5OD-AgCazpDyc43Vx5NXrhRQMLUyLbiFIX6zHPS4vgJXF6XKl2_7GuWf9FCLgfxjicJu0ZcnZBScLdnx5to_sLmf0zyJvN3N"/>
+</div>
+<div class="flex-1">
+<h3 class="text-title-md font-title-md text-on-surface-variant">Dr. Elena Rossi</h3>
+<p class="text-body-sm text-outline">Dental Surgeon</p>
+<p class="text-label-sm text-outline mt-1">August 05, 2023 • Follow-up sent</p>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex-1 border border-primary text-primary py-2 rounded-full text-label-sm font-label-sm font-bold hover:bg-primary/5 transition-colors">
+                        View Summary
+                    </button>
+<button class="flex-1 bg-surface-variant text-on-surface-variant py-2 rounded-full text-label-sm font-label-sm hover:bg-outline-variant/30 transition-colors">
+                        Rebook
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest rounded-t-xl shadow-[0_-4px_20px_rgba(24,3,49,0.1)]">
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-label-sm font-label-sm">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="text-label-sm font-label-sm">Search</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-secondary-container text-primary rounded-full px-4 py-1 scale-90">
+<span class="material-symbols-outlined" data-icon="event" style="font-variation-settings: 'FILL' 1;">event</span>
+<span class="text-label-sm font-label-sm font-bold">Calendar</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-label-sm font-label-sm">Records</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</button>
+</nav>
+<script>
+        function switchTab(tab) {
+            const upcomingBtn = document.getElementById('upcoming-tab-btn');
+            const pastBtn = document.getElementById('past-tab-btn');
+            const upcomingView = document.getElementById('upcoming-view');
+            const pastView = document.getElementById('past-view');
+
+            if (tab === 'upcoming') {
+                upcomingBtn.classList.add('active-tab', 'text-primary');
+                upcomingBtn.classList.remove('text-on-surface-variant');
+                pastBtn.classList.remove('active-tab', 'text-primary');
+                pastBtn.classList.add('text-on-surface-variant');
+                
+                upcomingView.classList.remove('hidden');
+                upcomingView.classList.add('block');
+                pastView.classList.add('hidden');
+                pastView.classList.remove('block');
+            } else {
+                pastBtn.classList.add('active-tab', 'text-primary');
+                pastBtn.classList.remove('text-on-surface-variant');
+                upcomingBtn.classList.remove('active-tab', 'text-primary');
+                upcomingBtn.classList.add('text-on-surface-variant');
+                
+                pastView.classList.remove('hidden');
+                pastView.classList.add('block');
+                upcomingView.classList.add('hidden');
+                upcomingView.classList.remove('block');
+            }
+        }
+
+        // Simple observer to add micro-interactions to cards
+        const cards = document.querySelectorAll('.bg-surface-container-low, .bg-surface-container');
+        cards.forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transform = 'scale(0.98)';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

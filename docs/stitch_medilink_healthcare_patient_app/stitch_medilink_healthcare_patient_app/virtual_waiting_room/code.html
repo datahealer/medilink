@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MediLink | Virtual Waiting Room</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Agatho&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Agatho:wght@100..900&family=Manrope:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        @font-face {
+            font-family: 'Agatho';
+            src: url('https://fonts.cdnfonts.com/s/73562/Agatho-Regular.woff') format('woff');
+        }
+        
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+
+        .premium-blur {
+            backdrop-filter: blur(12px);
+            background: rgba(253, 248, 254, 0.7);
+        }
+
+        .pulse-soft {
+            animation: pulse-soft 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.98); }
+        }
+
+        .floating-blob {
+            position: absolute;
+            filter: blur(60px);
+            z-index: -1;
+            opacity: 0.4;
+        }
+
+        .disabled-join {
+            background-color: #ddd8de;
+            color: #7b757f;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#fdf8fe",
+                        "on-tertiary-container": "#7a8ea3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#1c1b1f",
+                        "secondary-container": "#efd8f7",
+                        "surface-dim": "#ddd8de",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "primary-container": "#2e1a47",
+                        "error": "#ba1a1a",
+                        "surface": "#fdf8fe",
+                        "on-surface-variant": "#4a454e",
+                        "on-primary-container": "#9981b5",
+                        "secondary": "#6a5872",
+                        "surface-variant": "#e6e1e7",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "surface-tint": "#6b5585",
+                        "tertiary-fixed": "#d0e5fc",
+                        "outline-variant": "#ccc4cf",
+                        "background": "#fdf8fe",
+                        "surface-container": "#f1ecf2",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#b5c9df",
+                        "on-primary-fixed": "#25113e",
+                        "surface-container-highest": "#e6e1e7",
+                        "secondary-fixed": "#f2dbfa",
+                        "outline": "#7b757f",
+                        "inverse-surface": "#313034",
+                        "on-secondary-fixed": "#24162c",
+                        "tertiary-container": "#122637",
+                        "inverse-on-surface": "#f4eff5",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#081d2e",
+                        "on-background": "#1c1b1f",
+                        "surface-container-high": "#ebe7ec",
+                        "on-secondary-container": "#6e5c77",
+                        "surface-container-low": "#f7f2f8",
+                        "tertiary": "#00101f",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "inverse-primary": "#d6bcf4",
+                        "primary-fixed": "#eedbff",
+                        "primary": "#180331"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "16px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "12px",
+                        "stack-lg": "24px",
+                        "section-padding": "32px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Manrope"],
+                        "headline-lg": ["Agatho"],
+                        "headline-lg-mobile": ["Agatho"],
+                        "body-lg": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "display-lg": ["Agatho"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col relative overflow-hidden">
+<!-- Biomorphic Accents -->
+<div class="floating-blob w-[400px] h-[400px] bg-secondary-container rounded-full -top-20 -right-20"></div>
+<div class="floating-blob w-[300px] h-[300px] bg-tertiary-fixed-dim rounded-full bottom-0 -left-20"></div>
+<!-- Top App Bar -->
+<header class="fixed top-0 left-0 w-full h-16 flex justify-between items-center px-margin-mobile z-50 bg-surface dark:bg-surface-dim">
+<div class="flex items-center gap-stack-sm">
+<span class="text-headline-lg-mobile font-headline-lg-mobile text-primary dark:text-primary-fixed">MediLink</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant dark:text-outline p-2 hover:bg-surface-variant/50 transition-colors rounded-full" data-icon="notifications">notifications</button>
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A close-up professional studio portrait of a patient in a light-filled clinical environment. The lighting is soft and natural, emphasizing a calm and optimistic mood. The color palette is composed of light lavenders and crisp whites, maintaining the premium healthcare aesthetic. The subject has a peaceful expression, looking slightly off-camera in a modern, minimalist setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDku5ZzKevB4VTq-4TeP1uw5gMYskQQNp2R8ugrgvjxsmMPhJRLQFvaNEuUIG-pu1qF2CLsmAMmBdwagEb4QWtJCEkY34RcmVpLuBS6WxqNdK63pxKrP9tldkozSRd97uuGQaZ_vxhCLTgzzoCQTND_i5dQf-GwA9MXXmdtHziIZpavSCJnAmhyJ3uQJ0coD2nNE6dPOvf4T17c_lnYzHN4ic3QFXT1D0LkdqBWmoUjZGC92QHg40rW7L8Wjy1T9MiFNP-3IOTgNFNk"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col pt-24 px-margin-mobile pb-32 max-w-lg mx-auto w-full relative z-10">
+<!-- Status Header -->
+<div class="text-center mb-stack-lg">
+<div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary-container text-on-secondary-container mb-4 pulse-soft">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-label-sm font-label-sm">Joining Soon</span>
+</div>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary mb-2">Virtual Waiting Room</h1>
+<p class="text-body-lg font-body-lg text-on-surface-variant">Your consultation with</p>
+<p class="text-title-md font-title-md text-primary mt-1 italic">Dr. Aisha Al Harthy</p>
+</div>
+<!-- Camera Preview Card -->
+<div class="relative w-full aspect-video rounded-[32px] overflow-hidden bg-surface-container-highest shadow-[0_20px_40px_rgba(24,3,49,0.1)] mb-stack-lg border border-outline-variant">
+<img class="w-full h-full object-cover grayscale-[0.2] contrast-[1.05]" data-alt="A minimalist camera preview screen from the patient's perspective in a bright, clean home office. The lighting is high-key and soft, illuminating the space with a warm, welcoming glow. The background features a blurred bookshelf and a soft-textured wall in a gentle lavender hue. The aesthetic is professional yet personal, perfectly aligned with a luxury telemedicine platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaJJJ21s5fsdvjlKxXZnyWoosovHyWR1-7BE9sViqBQOb6YgxbHPFIPSsXlcEGDFeYZst2lDHz6ZskMYT9KpY9LVzZQ_s_J46cRYkjTxZRtgcvt2qZdxgaFEfR6ZwEEzKER2_B_kY4-rSMkiGnKEDXNXVmrQsklSv9Byhw7peZMMsLWK3ciM3b8cfwxFNgZPQz-0FYRktnVBmgYz7qfoeAEwAZVME7Fu180KWaVovYqD2ujaZlwpaqE39AJ1z2x57rjs3s7KNrbR_I"/>
+<div class="absolute top-4 right-4 flex gap-2">
+<button class="w-10 h-10 rounded-full premium-blur flex items-center justify-center text-primary shadow-sm active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="videocam">videocam</span>
+</button>
+<button class="w-10 h-10 rounded-full premium-blur flex items-center justify-center text-primary shadow-sm active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="mic">mic</span>
+</button>
+</div>
+<div class="absolute bottom-4 left-4 right-4 px-4 py-2 premium-blur rounded-xl border border-white/40">
+<p class="text-label-sm font-label-sm text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="check_circle">check_circle</span>
+                    Camera & Audio are ready
+                </p>
+</div>
+</div>
+<!-- Tips Section -->
+<section class="bg-surface-container-low rounded-xl p-stack-md border border-[#DFC8E7] mb-stack-lg">
+<h3 class="text-title-md font-title-md text-primary mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="lightbulb">lightbulb</span>
+                Call Tips
+            </h3>
+<ul class="space-y-3">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary-container bg-primary p-1 rounded-full text-[14px] mt-0.5" data-icon="wifi">wifi</span>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Check your internet connection for a stable video call.</p>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary-container bg-primary p-1 rounded-full text-[14px] mt-0.5" data-icon="light_mode">light_mode</span>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Ensure you are in a well-lit area with front-facing light.</p>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary-container bg-primary p-1 rounded-full text-[14px] mt-0.5" data-icon="volume_off">volume_off</span>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Move to a quiet space to minimize background noise.</p>
+</li>
+</ul>
+</section>
+<!-- Join Button -->
+<div class="mt-auto space-y-4">
+<button class="disabled-join w-full py-4 rounded-full font-title-md text-title-md transition-all duration-300 flex items-center justify-center gap-2" disabled="">
+<span class="material-symbols-outlined" data-icon="video_call">video_call</span>
+                Join Consultation
+            </button>
+<p class="text-center text-label-sm font-label-sm text-on-surface-variant opacity-60">The button will activate once the doctor arrives</p>
+</div>
+</main>
+<!-- Bottom Navigation Bar (Hidden because transactional/waiting room) -->
+<!-- [REDACTED PER RELEVANCE CHECK] -->
+<!-- Back Button / Close (Suppressed to keep focus) -->
+<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-max px-6 py-3 premium-blur rounded-full shadow-lg border border-outline-variant flex gap-6">
+<button class="flex flex-col items-center text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-[10px] font-label-sm">Settings</span>
+</button>
+<div class="w-px h-8 bg-outline-variant/30"></div>
+<button class="flex flex-col items-center text-error hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="cancel">cancel</span>
+<span class="text-[10px] font-label-sm">Cancel</span>
+</button>
+</nav>
+<script>
+        // Simulate a delay for the doctor arriving
+        setTimeout(() => {
+            const joinBtn = document.querySelector('button[disabled]');
+            if (joinBtn) {
+                joinBtn.classList.remove('disabled-join');
+                joinBtn.classList.add('bg-primary', 'text-white', 'hover:scale-[1.02]', 'active:scale-95', 'shadow-lg');
+                joinBtn.removeAttribute('disabled');
+                
+                const statusTag = document.querySelector('.bg-secondary-container');
+                statusTag.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+                statusTag.classList.add('bg-primary-container', 'text-on-primary-container');
+                statusTag.querySelector('.text-label-sm').textContent = 'Doctor is Ready';
+                
+                // Alert sound simulation could go here
+                console.log("Doctor is ready for the call.");
+            }
+        }, 12000); // 12 seconds delay for demonstration
+    </script>
+</body></html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>MediLink - Secure Messaging</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Agatho&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* Custom Agatho Font Mockup (Serif) */
+        @font-face {
+            font-family: 'Agatho';
+            src: url('https://fonts.cdnfonts.com/s/16218/Agatho-Regular.woff') format('woff');
+        }
+
+        body {
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Manrope', sans-serif;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid #DFC8E7;
+        }
+
+        .chat-bubble-received {
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-bubble-sent {
+            border-bottom-right-radius: 4px;
+        }
+
+        /* Hide scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e6e1e7",
+                        "on-secondary-container": "#6e5c77",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f7f2f8",
+                        "on-surface": "#1c1b1f",
+                        "tertiary-fixed": "#d0e5fc",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#122637",
+                        "primary-fixed": "#eedbff",
+                        "on-error": "#ffffff",
+                        "on-background": "#1c1b1f",
+                        "surface-container-high": "#ebe7ec",
+                        "secondary-container": "#efd8f7",
+                        "on-secondary-fixed-variant": "#51415a",
+                        "surface-dim": "#ddd8de",
+                        "surface-bright": "#fdf8fe",
+                        "on-primary-container": "#9981b5",
+                        "surface-container": "#f1ecf2",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#180331",
+                        "on-primary-fixed-variant": "#523d6c",
+                        "surface-container-highest": "#e6e1e7",
+                        "on-surface-variant": "#4a454e",
+                        "primary-fixed-dim": "#d6bcf4",
+                        "on-secondary-fixed": "#24162c",
+                        "background": "#fdf8fe",
+                        "on-tertiary-container": "#7a8ea3",
+                        "on-primary-fixed": "#25113e",
+                        "on-tertiary-fixed": "#081d2e",
+                        "outline": "#7b757f",
+                        "inverse-on-surface": "#f4eff5",
+                        "surface-tint": "#6b5585",
+                        "on-tertiary-fixed-variant": "#36495b",
+                        "tertiary-fixed-dim": "#b5c9df",
+                        "tertiary": "#00101f",
+                        "error": "#ba1a1a",
+                        "surface": "#fdf8fe",
+                        "secondary-fixed": "#f2dbfa",
+                        "inverse-surface": "#313034",
+                        "outline-variant": "#ccc4cf",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#d6bfde",
+                        "secondary": "#6a5872",
+                        "on-tertiary": "#ffffff",
+                        "primary-container": "#2e1a47",
+                        "inverse-primary": "#d6bcf4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-padding": "32px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "stack-md": "16px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "12px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Manrope"],
+                        "display-lg": ["Agatho"],
+                        "label-sm": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "headline-lg": ["Agatho"],
+                        "headline-lg-mobile": ["Agatho"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="bg-surface sticky top-0 z-50 flex justify-between items-center w-full px-margin-mobile h-16 border-b border-surface-variant/30">
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<div class="flex items-center gap-3">
+<div class="relative">
+<img alt="Dr. Elena Rodriguez" class="w-10 h-10 rounded-full object-cover border border-secondary-container" data-alt="A professional and friendly portrait of Dr. Elena Rodriguez, a Hispanic female doctor in her late 40s. She wears a clean white medical coat and a stethoscope around her neck, smiling warmly with a background of a soft-focus clinical office. The lighting is bright and airy, reflecting a premium healthcare environment with soft violet and white tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSMttnNaisEvhYoo8b4jB9dq_MW_xgyUv_uRK2pLCXs5mstMV6At0-LUdVDoo9be0KyNHeJ9Up_ipE1t5ReJvAjByZNtUCcB_SEkUbhcpjKNkK8tT-W_qx8DzvORhBaDs7o-FW5nQHBKq8gofGj1M2abp3nY-J4g_D_IP6Euo96cf7Ddmqwt6C9mbG3ZSLbt4LOTCrHgjkytHHc-3LS6JTH1wmQMxo-9zJQLT-5RFUDDaAxcEsgkZ5RBMZfz6Jf4vX6ZNIizpOIAkU"/>
+<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-surface rounded-full"></span>
+</div>
+<div>
+<h1 class="text-on-surface font-title-md text-[16px] leading-tight">Dr. Elena Rodriguez</h1>
+<p class="text-on-surface-variant font-label-sm text-[11px] uppercase tracking-wider">Cardiology • Online</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="videocam">videocam</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Main Content / Chat Canvas -->
+<main class="flex-1 flex flex-col relative overflow-hidden">
+<!-- Background Animation Layer (Subtle Cellular Texture) -->
+<div class="absolute inset-0 z-0 opacity-40 pointer-events-none">
+
+</div>
+<!-- Scrollable Conversation Area -->
+<section class="relative z-10 flex-1 overflow-y-auto px-margin-mobile py-6 flex flex-col gap-6 no-scrollbar">
+<!-- Encryption Badge -->
+<div class="flex justify-center">
+<div class="bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant/30 flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[14px]" style="font-variation-settings: 'FILL' 1;">lock</span>
+<span class="font-label-sm text-on-surface-variant text-[10px] uppercase tracking-widest">End-to-End Encrypted</span>
+</div>
+</div>
+<!-- Date Divider -->
+<div class="flex items-center gap-4 py-2">
+<div class="flex-1 h-px bg-outline-variant/30"></div>
+<span class="font-label-sm text-outline text-[11px]">TODAY</span>
+<div class="flex-1 h-px bg-outline-variant/30"></div>
+</div>
+<!-- Received Message -->
+<div class="flex flex-col gap-1 max-w-[85%] self-start">
+<div class="bg-surface-container-highest text-on-surface px-4 py-3 rounded-2xl chat-bubble-received shadow-sm border border-surface-variant/50">
+<p class="font-body-lg text-body-lg">Good morning. I've reviewed your latest blood pressure logs from the wearable sync. We should discuss adjusting your morning dosage slightly. How have you been feeling today?</p>
+</div>
+<span class="text-[10px] font-label-sm text-outline ml-1">09:15 AM</span>
+</div>
+<!-- Sent Message -->
+<div class="flex flex-col gap-1 max-w-[85%] self-end">
+<div class="bg-primary text-on-primary px-4 py-3 rounded-2xl chat-bubble-sent shadow-md">
+<p class="font-body-lg text-body-lg">Good morning Dr. Rodriguez. I’ve been feeling a bit lightheaded in the afternoons, but otherwise good. I've attached the full PDF report from my home monitor for the last 7 days.</p>
+</div>
+<div class="flex items-center gap-1 self-end mr-1">
+<span class="text-[10px] font-label-sm text-outline">09:18 AM</span>
+<span class="material-symbols-outlined text-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">done_all</span>
+</div>
+</div>
+<!-- Sent Document Attachment -->
+<div class="flex flex-col gap-1 max-w-[80%] self-end">
+<div class="glass-card p-3 rounded-2xl flex items-center gap-3 border border-secondary-container/50">
+<div class="w-12 h-12 bg-secondary-container rounded-xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]" data-icon="description">description</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="font-title-md text-[14px] text-on-surface truncate">Weekly_BP_Report_Sept.pdf</p>
+<p class="font-label-sm text-[11px] text-outline">1.2 MB • PDF Document</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">download</span>
+</div>
+</div>
+<!-- Received Message -->
+<div class="flex flex-col gap-1 max-w-[85%] self-start">
+<div class="bg-surface-container-highest text-on-surface px-4 py-3 rounded-2xl chat-bubble-received shadow-sm border border-surface-variant/50">
+<p class="font-body-lg text-body-lg">The lightheadedness is likely due to the current dosage peaking mid-day. Please send a photo of your current medication bottle just to confirm we are on the 5mg version before I issue the new prescription.</p>
+</div>
+<span class="text-[10px] font-label-sm text-outline ml-1">09:20 AM</span>
+</div>
+<!-- Typing Indicator (Mock) -->
+<div class="flex items-center gap-1 self-start ml-2 mb-4">
+<div class="flex gap-1">
+<span class="w-1.5 h-1.5 bg-outline rounded-full animate-bounce" style="animation-delay: 0s;"></span>
+<span class="w-1.5 h-1.5 bg-outline rounded-full animate-bounce" style="animation-delay: 0.2s;"></span>
+<span class="w-1.5 h-1.5 bg-outline rounded-full animate-bounce" style="animation-delay: 0.4s;"></span>
+</div>
+<span class="font-label-sm text-outline text-[11px] ml-2 italic">Dr. Elena is reviewing...</span>
+</div>
+</section>
+<!-- Quick Reply & Input Area -->
+<section class="relative z-20 bg-surface/90 backdrop-blur-md pb-safe">
+<!-- Quick Reply Chips -->
+<div class="px-margin-mobile py-3 flex gap-2 overflow-x-auto no-scrollbar">
+<button class="shrink-0 px-4 py-2 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-[12px] border border-tertiary-fixed-dim/30 hover:bg-tertiary-fixed-dim transition-colors">
+                    Feeling better now
+                </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-[12px] border border-secondary-fixed-dim/30 hover:bg-secondary-fixed-dim transition-colors">
+                    Sending photo...
+                </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-[12px] border border-outline-variant hover:bg-surface-variant transition-colors">
+                    Confirm dosage
+                </button>
+</div>
+<!-- Input Bar -->
+<div class="px-margin-mobile py-4 flex items-end gap-3 border-t border-surface-variant/20">
+<div class="flex gap-1 mb-1">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined" data-icon="photo_camera">photo_camera</span>
+</button>
+</div>
+<div class="flex-1 relative">
+<textarea class="w-full bg-eye-white border border-outline-variant/60 rounded-[24px] px-5 py-3 pr-12 focus:ring-1 focus:ring-primary focus:border-primary outline-none font-body-lg text-body-lg resize-none min-h-[48px] max-h-32" placeholder="Type a clinical update..." rows="1"></textarea>
+<button class="absolute right-2 bottom-2 w-8 h-8 bg-primary text-on-primary rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Contextual Check: Active for Message Hub) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest shadow-[0_-4px_20px_rgba(24,3,49,0.1)] rounded-t-xl md:hidden">
+<a class="flex flex-col items-center justify-center text-on-secondary-container" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="font-label-sm text-label-sm">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="font-label-sm text-label-sm">Calendar</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-primary rounded-full px-4 py-1 scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="description" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-label-sm text-label-sm">Records</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</a>
+</nav>
+<script>
+        // Auto-expand textarea script
+        const tx = document.getElementsByTagName("textarea");
+        for (let i = 0; i < tx.length; i++) {
+            tx[i].setAttribute("style", "height:" + (tx[i].scrollHeight) + "px;overflow-y:hidden;");
+            tx[i].addEventListener("input", OnInput, false);
+        }
+
+        function OnInput() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + "px";
+            if(this.scrollHeight > 128) {
+                this.style.overflowY = "scroll";
+            } else {
+                this.style.overflowY = "hidden";
+            }
+        }
+
+        // Micro-interaction: Randomly pulse the online indicator
+        setInterval(() => {
+            const indicator = document.querySelector('.bg-green-500');
+            if(indicator) {
+                indicator.classList.add('scale-125');
+                setTimeout(() => indicator.classList.remove('scale-125'), 300);
+            }
+        }, 8000);
+    </script>
+</body></html>

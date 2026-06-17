@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Agatho&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<title>Appointment Details | MediLink</title>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-on-surface": "#f4eff5",
+            "on-secondary-container": "#6e5c77",
+            "on-secondary-fixed-variant": "#51415a",
+            "tertiary-fixed": "#d0e5fc",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-container": "#7a8ea3",
+            "on-tertiary-fixed-variant": "#36495b",
+            "on-surface-variant": "#4a454e",
+            "outline-variant": "#ccc4cf",
+            "on-error": "#ffffff",
+            "tertiary-fixed-dim": "#b5c9df",
+            "on-secondary": "#ffffff",
+            "primary-container": "#2e1a47",
+            "surface": "#fdf8fe",
+            "on-primary": "#ffffff",
+            "surface-variant": "#e6e1e7",
+            "inverse-primary": "#d6bcf4",
+            "primary-fixed-dim": "#d6bcf4",
+            "on-secondary-fixed": "#24162c",
+            "surface-container-low": "#f7f2f8",
+            "on-tertiary": "#ffffff",
+            "surface-container-highest": "#e6e1e7",
+            "error": "#ba1a1a",
+            "on-primary-fixed-variant": "#523d6c",
+            "surface-container": "#f1ecf2",
+            "on-surface": "#1c1b1f",
+            "secondary-fixed-dim": "#d6bfde",
+            "background": "#fdf8fe",
+            "secondary-fixed": "#f2dbfa",
+            "secondary": "#6a5872",
+            "outline": "#7b757f",
+            "on-background": "#1c1b1f",
+            "surface-container-high": "#ebe7ec",
+            "on-tertiary-fixed": "#081d2e",
+            "inverse-surface": "#313034",
+            "on-error-container": "#93000a",
+            "on-primary-fixed": "#25113e",
+            "error-container": "#ffdad6",
+            "surface-dim": "#ddd8de",
+            "tertiary": "#00101f",
+            "primary": "#180331",
+            "primary-fixed": "#eedbff",
+            "surface-bright": "#fdf8fe",
+            "surface-tint": "#6b5585",
+            "on-primary-container": "#9981b5",
+            "tertiary-container": "#122637",
+            "secondary-container": "#efd8f7"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter-mobile": "12px",
+            "stack-md": "16px",
+            "margin-mobile": "20px",
+            "stack-sm": "8px",
+            "stack-lg": "24px",
+            "section-padding": "32px"
+          },
+          "fontFamily": {
+            "title-md": ["Manrope"],
+            "body-lg": ["Manrope"],
+            "body-sm": ["Manrope"],
+            "label-sm": ["Manrope"],
+            "headline-lg": ["Agatho"],
+            "display-lg": ["Agatho"],
+            "headline-lg-mobile": ["Agatho"]
+          },
+          "fontSize": {
+            "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+            "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+            "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+            "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #DFC8E7;
+      border-radius: 10px;
+    }
+    /* Ambient Shadow from Design System */
+    .ambient-shadow {
+      box-shadow: 0 20px 40px -12px rgba(24, 3, 49, 0.12);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-lg min-h-screen pb-20">
+<!-- TopAppBar Component -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 z-50 flex justify-between items-center w-full px-margin-mobile h-16 sticky">
+<div class="flex items-center gap-4">
+<button aria-label="Go back" class="material-symbols-outlined text-primary hover:bg-surface-variant/50 transition-colors p-2 rounded-full">arrow_back</button>
+<h1 class="text-headline-lg-mobile font-headline-lg-mobile text-primary dark:text-primary-fixed">MediLink</h1>
+</div>
+<div class="flex items-center gap-2">
+<button aria-label="Notifications" class="material-symbols-outlined text-primary hover:bg-surface-variant/50 transition-colors p-2 rounded-full">notifications</button>
+<div class="w-10 h-10 rounded-full border-2 border-primary overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional studio headshot of a serene woman with a warm expression. The lighting is soft and diffused, characteristic of a high-end health app's user profile. She is set against a clean, neutral background that emphasizes clarity and clinical professionalism. The color palette is composed of soft purples and pristine whites, creating a premium corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAynZeSQjH_b71YipllXxLDBc49W1XnXnDlHL-3fUKDtmWc9iAQcI5LwRR4XkSfG7vRWoVsTt27VAR8L58B_O16VHPNQFa8--AY5sdbL3t-mGY4dMlmwC1109_wjJ_pZRSIgj_MZTQtr05LEMl42maQBskxqpfx1QzPGLHAlBZkCw51g5x-gVOx1LXtkgnHLlRKrs6CrIz4CHtnXtSsdW9M2VCcW05ka4zQWvx5jF1SYt7Ar5MIxYCFaiMrfpGTwQA3MS67sHcWUmbE"/>
+</div>
+</div>
+</header>
+<main class="px-margin-mobile pt-6 space-y-stack-lg max-w-2xl mx-auto">
+<!-- Hero Section: Date & Status -->
+<section class="flex flex-col items-center text-center space-y-stack-sm animate-fade-in">
+<div class="bg-secondary-container text-on-secondary-container px-4 py-1 rounded-full text-label-sm font-label-sm">
+        Confirmed
+      </div>
+<h2 class="text-display-lg font-display-lg text-primary mt-2">Oct 24</h2>
+<p class="text-title-md font-title-md text-secondary">Thursday, 10:30 AM — 11:15 AM</p>
+</section>
+<!-- Bento Grid - Doctor Snippet & Actions -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-md">
+<!-- Doctor Card -->
+<section class="bg-surface-container-lowest border border-[#DFC8E7] rounded-xl p-6 ambient-shadow hover:scale-[1.02] transition-transform duration-300">
+<div class="flex items-start gap-4">
+<div class="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-surface-variant">
+<img alt="Dr. Julian Vane" class="w-full h-full object-cover" data-alt="Close up portrait of a professional male doctor in his late 40s wearing a clean white lab coat and a stethoscope around his neck. The doctor has a friendly and confident smile, suggesting expert care. The setting is a brightly lit, modern medical office with soft-focus medical equipment in the background. The overall mood is trustworthy, premium, and clean, using a palette of soft blues and crisp whites." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNmPdw-5eWPabPy3lPcI1l2JeaiHN9yge4i35Ut-8e9bf7sjvbigdGgWECgnRyf8F_4pQWjQKrrlQDw3roL1xDlMFRsLKg4MUwWN_i4iMlLdh21maxJx_IigYvoZ98AEr0eNCTQkWmiawxL1kFVrw1P9LJG_KIxyJ0vyAhxgGtUZ3QXFXsYNCkoqL9G0KVIrmo809lXIFP7X6XpKHe-XeOF24vy4sbrp4F32MSorTc4m7djmyEv8P-Ijwmr31UuGWXVkvciUR4Waom"/>
+</div>
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-tertiary-container uppercase tracking-widest">Cardiology</span>
+<h3 class="text-title-md font-title-md text-primary mt-1">Dr. Julian Vane</h3>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[16px] text-tertiary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-body-sm font-body-sm text-outline">4.9 (120 reviews)</span>
+</div>
+</div>
+</div>
+<div class="mt-6 flex gap-2">
+<button class="flex-1 bg-primary text-white rounded-full py-3 text-label-sm font-label-sm hover:opacity-90 transition-opacity active:scale-95">Message</button>
+<button class="flex-1 border border-primary text-primary rounded-full py-3 text-label-sm font-label-sm hover:bg-primary/5 transition-colors">Profile</button>
+</div>
+</section>
+<!-- Video Call / Telehealth Card -->
+<section class="bg-tertiary-container text-tertiary-fixed rounded-xl p-6 ambient-shadow relative overflow-hidden group">
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined">videocam</span>
+<span class="text-label-sm font-label-sm">Digital Consultation</span>
+</div>
+<h3 class="text-title-md font-title-md text-white">Join Video Call</h3>
+<p class="text-body-sm font-body-sm mt-2 text-tertiary-fixed-dim">Link will be active 10 minutes before the session starts.</p>
+</div>
+<button class="mt-6 bg-tertiary-fixed text-tertiary-container rounded-full py-3 text-label-sm font-label-sm font-bold flex items-center justify-center gap-2 group-hover:scale-105 transition-transform">
+            Start Call <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+</div>
+<!-- Decorative Molecular Pattern -->
+<div class="absolute -right-4 -bottom-4 opacity-10 pointer-events-none group-hover:rotate-12 transition-transform duration-700">
+<svg fill="currentColor" height="120" viewbox="0 0 100 100" width="120">
+<circle cx="50" cy="50" fill="none" r="40" stroke="white" stroke-width="2"></circle>
+<circle cx="20" cy="20" r="10"></circle>
+<circle cx="80" cy="80" r="15"></circle>
+</svg>
+</div>
+</section>
+</div>
+<!-- Location & Instructions -->
+<div class="space-y-stack-md">
+<!-- Location Map -->
+<section class="bg-surface-container-lowest border border-[#DFC8E7] rounded-xl overflow-hidden ambient-shadow">
+<div class="h-40 bg-surface-variant relative overflow-hidden">
+<img alt="Map Location" class="w-full h-full object-cover opacity-60" data-alt="A clean, minimalist digital map of a city street layout, specifically showing the area around a medical center. The map design uses a soft color palette of light grays and pastel purples, avoiding harsh contrasts. A single, prominent violet pin marks the location of the clinic. The overall aesthetic is elegant and functional, aligning with a premium healthcare user interface." data-location="New York" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhf8RGMGn4QQBCRgrWgl-Z9y84hm6N8bQM2h1pPvClkXkmusZV3FoJUe2W5v73YP4PvA9fFcP31TEycQqFRPi3y95omzgO9O3Xl6Iy5OmDAlHPS_YTPJsuAaHFomMq8GsG3Lt2CR2I7bRP2Bvt_KCQlM39MOxRaMNRzuKTRsZYsIMASiGaDugofKEi_YqjLuQp83K0-A1SpGrfObhWreV4FuFy4JGidUnMwc2WHgQ-ObrxXcc6zCCvkJPBqAnFFL89OfMTuSGtaHcH"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+<div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+<div class="bg-white/90 backdrop-blur-md p-2 rounded-lg text-primary text-body-sm font-title-md shadow-sm">
+              Manhattan Health Plaza
+            </div>
+<button class="bg-white p-2 rounded-full shadow-lg text-primary hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">directions</span>
+</button>
+</div>
+</div>
+<div class="p-6">
+<h4 class="text-label-sm font-label-sm text-outline uppercase">Physical Address</h4>
+<p class="text-body-lg font-body-lg text-primary mt-1">452 Fifth Avenue, Suite 1200, New York, NY 10018</p>
+</div>
+</section>
+<!-- Preparation Instructions -->
+<section class="bg-secondary-fixed/30 border border-[#DFC8E7] rounded-xl p-6">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-on-secondary-container">assignment</span>
+<h4 class="text-title-md font-title-md text-primary">Prep Instructions</h4>
+</div>
+<ul class="space-y-stack-sm">
+<li class="flex gap-3">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+<p class="text-body-sm font-body-sm text-on-secondary-container">Fast for 8 hours prior to your blood panel.</p>
+</li>
+<li class="flex gap-3">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+<p class="text-body-sm font-body-sm text-on-secondary-container">Wear loose, comfortable clothing for the ECG.</p>
+</li>
+<li class="flex gap-3">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+<p class="text-body-sm font-body-sm text-on-secondary-container">Bring your current medication list and ID.</p>
+</li>
+</ul>
+</section>
+</div>
+<!-- Footnote Actions -->
+<footer class="flex flex-col items-center py-section-padding space-y-6">
+<div class="flex gap-8">
+<button class="text-primary font-title-md hover:underline transition-all">Reschedule</button>
+<button class="text-error font-title-md hover:underline transition-all">Cancel Appointment</button>
+</div>
+<p class="text-label-sm font-label-sm text-outline max-w-xs text-center">
+        Changes made within 24 hours of the appointment may incur a cancellation fee.
+      </p>
+</footer>
+</main>
+<!-- BottomNavBar Component (Inactive, as this is a detail screen, but shown for context of system anchors if needed - normally suppressed on details, but included for complete UI rendering per mandate) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest dark:bg-surface-container-high shadow-[0_-4px_20px_rgba(24,3,49,0.1)] dark:shadow-none rounded-t-xl md:hidden">
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant">
+<span class="material-symbols-outlined">home</span>
+<span class="text-label-sm font-label-sm">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant">
+<span class="material-symbols-outlined">search</span>
+<span class="text-label-sm font-label-sm">Search</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-secondary-container dark:bg-primary-container text-primary dark:text-primary-fixed-dim rounded-full px-4 py-1 scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">event</span>
+<span class="text-label-sm font-label-sm">Calendar</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant">
+<span class="material-symbols-outlined">description</span>
+<span class="text-label-sm font-label-sm">Records</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-surface-variant">
+<span class="material-symbols-outlined">person</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</div>
+</nav>
+<script>
+    // Simple micro-interaction for scroll effects
+    window.addEventListener('scroll', () => {
+      const header = document.querySelector('header');
+      if (window.scrollY > 20) {
+        header.classList.add('shadow-md');
+        header.classList.remove('flat');
+      } else {
+        header.classList.remove('shadow-md');
+        header.classList.add('flat');
+      }
+    });
+
+    // Fade-in animation logic
+    document.addEventListener('DOMContentLoaded', () => {
+      const elements = document.querySelectorAll('.animate-fade-in');
+      elements.forEach((el, index) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(10px)';
+        el.style.transition = `all 0.6s ease-out ${index * 0.1}s`;
+        setTimeout(() => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        }, 100);
+      });
+    });
+  </script>
+</body></html>

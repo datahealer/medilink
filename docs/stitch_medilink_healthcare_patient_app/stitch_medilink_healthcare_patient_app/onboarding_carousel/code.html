@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Agatho:wght@100..900&family=Manrope:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+    @font-face {
+      font-family: 'Agatho';
+      src: url('https://fonts.cdnfonts.com/s/95147/Agatho-Regular.woff');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    body {
+      background-color: #fdf8fe;
+      color: #1c1b1f;
+      overflow-x: hidden;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    /* Custom Gradient for Premium Feel */
+    .premium-overlay {
+      background: linear-gradient(180deg, rgba(24, 3, 49, 0.4) 0%, rgba(24, 3, 49, 0.1) 50%, rgba(24, 3, 49, 0.8) 100%);
+    }
+
+    .dot-active {
+      width: 24px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .blob-bg {
+      position: absolute;
+      width: 150%;
+      height: 150%;
+      background: radial-gradient(circle, rgba(239, 216, 247, 0.4) 0%, rgba(253, 248, 254, 0) 70%);
+      top: -25%;
+      left: -25%;
+      z-index: -1;
+      animation: float 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes float {
+      from { transform: translate(0, 0) rotate(0deg); }
+      to { transform: translate(50px, 50px) rotate(15deg); }
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-high": "#ebe7ec",
+            "secondary-container": "#efd8f7",
+            "on-secondary-fixed-variant": "#51415a",
+            "tertiary-container": "#122637",
+            "on-error": "#ffffff",
+            "on-background": "#1c1b1f",
+            "primary-fixed": "#eedbff",
+            "tertiary-fixed": "#d0e5fc",
+            "error-container": "#ffdad6",
+            "surface-container-low": "#f7f2f8",
+            "surface-variant": "#e6e1e7",
+            "on-secondary-container": "#6e5c77",
+            "on-error-container": "#93000a",
+            "on-surface": "#1c1b1f",
+            "on-secondary-fixed": "#24162c",
+            "background": "#fdf8fe",
+            "primary-fixed-dim": "#d6bcf4",
+            "surface-container-highest": "#e6e1e7",
+            "on-surface-variant": "#4a454e",
+            "surface-container": "#f1ecf2",
+            "surface-container-lowest": "#ffffff",
+            "primary": "#180331",
+            "on-primary-fixed-variant": "#523d6c",
+            "on-secondary": "#ffffff",
+            "surface-bright": "#fdf8fe",
+            "surface-dim": "#ddd8de",
+            "on-primary-container": "#9981b5",
+            "outline": "#7b757f",
+            "inverse-on-surface": "#f4eff5",
+            "on-tertiary-fixed": "#081d2e",
+            "on-primary-fixed": "#25113e",
+            "on-tertiary": "#ffffff",
+            "secondary": "#6a5872",
+            "primary-container": "#2e1a47",
+            "inverse-primary": "#d6bcf4",
+            "outline-variant": "#ccc4cf",
+            "on-primary": "#ffffff",
+            "secondary-fixed": "#f2dbfa",
+            "inverse-surface": "#313034",
+            "secondary-fixed-dim": "#d6bfde",
+            "error": "#ba1a1a",
+            "tertiary": "#00101f",
+            "surface": "#fdf8fe",
+            "surface-tint": "#6b5585",
+            "on-tertiary-fixed-variant": "#36495b",
+            "tertiary-fixed-dim": "#b5c9df"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "section-padding": "32px",
+            "stack-sm": "8px",
+            "stack-lg": "24px",
+            "stack-md": "16px",
+            "margin-mobile": "20px",
+            "gutter-mobile": "12px"
+          },
+          "fontFamily": {
+            "title-md": ["Manrope"],
+            "display-lg": ["Agatho"],
+            "label-sm": ["Manrope"],
+            "body-lg": ["Manrope"],
+            "headline-lg": ["Agatho"],
+            "headline-lg-mobile": ["Agatho"],
+            "body-sm": ["Manrope"]
+          },
+          "fontSize": {
+            "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "display-lg": ["48px", {"lineHeight": "56px", "fontWeight": "400"}],
+            "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "400"}],
+            "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "400"}],
+            "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background flex flex-col min-h-screen">
+<!-- Suppression logic: Onboarding is task-focused/transactional, so we exclude Shared Shells like TopAppBar or BottomNavBar -->
+<main class="relative flex-grow flex flex-col overflow-hidden">
+<!-- Animated background element -->
+<div class="blob-bg"></div>
+<!-- Hero Image Section with Overlay -->
+<section class="relative h-[574px] w-full overflow-hidden">
+<img class="absolute inset-0 w-full h-full object-cover object-center scale-105 transition-transform duration-10000 ease-linear" data-alt="A premium close-up shot of a professional healthcare provider in deep violet scrubs holding a modern stethoscope. The lighting is soft and cinematic, casting gentle highlights that emphasize the textures of the fabric and the precision of the medical instrument. The overall aesthetic is clean, clinical, and high-end, utilizing a palette of deep purples and warm whites to evoke a sense of trust and sophisticated medical care." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjF_fCFJobAUtdg_Z_S09NG1fwnm-Ir-TXy6U6wOstRW3kkz2taMIY-r4bqmGeqBfzRotjfkALxmr6h-edLD6xM8jus84WE0qgKokDis-i2OeQM1GDDisYI8VdN6boRDo_IcBQUJbY7HxSK4rqLGggRrLKJGMJ7vlWMtr5rYDJSgISGF8mwThv7hTxNkWSk9uvUNXiDQZ5KKagHxs8r87b2i_DGYEBLlNBjbxHNm0BLXpzeI8-3EALJbG8yXKuiHZyZtoX7vxRXx76" style="animation: pan-slow 20s infinite alternate;"/>
+<div class="premium-overlay absolute inset-0"></div>
+<!-- Skip Button -->
+<button class="absolute top-8 right-6 z-10 px-4 py-2 text-surface-container-lowest font-title-md transition-all active:scale-95 bg-primary/20 backdrop-blur-md rounded-full border border-white/10">
+        Skip
+      </button>
+<!-- Logo Branding (Anchor) -->
+<div class="absolute top-8 left-6 z-10">
+<span class="text-headline-lg-mobile font-headline-lg-mobile text-white tracking-tight">MediLink</span>
+</div>
+</section>
+<!-- Content Canvas -->
+<section class="relative -mt-12 flex-grow bg-background rounded-t-[32px] px-margin-mobile pt-10 pb-8 flex flex-col justify-between shadow-[0_-10px_40px_rgba(24,3,49,0.08)]">
+<!-- Textual Identity -->
+<div class="space-y-stack-md max-w-md">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary leading-tight">
+          Your Link to <br/>
+<span class="text-on-primary-container italic">Better Care.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+          Connect with top-tier specialists and clinics in just a few taps. Reliable healthcare, simplified for your life.
+        </p>
+</div>
+<!-- Controls Section -->
+<div class="space-y-stack-lg">
+<!-- Pagination Dots -->
+<div class="flex items-center space-x-2 px-1">
+<div class="h-1.5 dot-active bg-primary rounded-full"></div>
+<div class="h-1.5 w-1.5 bg-outline-variant rounded-full"></div>
+<div class="h-1.5 w-1.5 bg-outline-variant rounded-full"></div>
+</div>
+<!-- Action Button -->
+<div class="flex items-center justify-between gap-gutter-mobile">
+<button class="flex-grow bg-primary text-white font-title-md py-4 px-8 rounded-full flex items-center justify-center gap-2 group transition-all hover:bg-primary-container active:scale-95 shadow-lg shadow-primary/20">
+<span>Next</span>
+<span class="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Interactive script for subtle scroll/pan effect on image -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.querySelector('main');
+      
+      // Simple parallax interaction
+      container.addEventListener('mousemove', (e) => {
+        const img = container.querySelector('img');
+        const x = (e.clientX / window.innerWidth - 0.5) * 20;
+        const y = (e.clientY / window.innerHeight - 0.5) * 20;
+        img.style.transform = `scale(1.1) translate(${x}px, ${y}px)`;
+      });
+
+      // Handle next button micro-interaction
+      const nextBtn = document.querySelector('button.bg-primary');
+      nextBtn.addEventListener('click', () => {
+        // Logic to simulate transition to next screen
+        const content = document.querySelector('.space-y-stack-md');
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(10px)';
+        content.style.transition = 'all 0.4s ease';
+        
+        setTimeout(() => {
+          const h1 = content.querySelector('h1');
+          const p = content.querySelector('p');
+          h1.innerHTML = 'Personalized <br><span class="text-on-primary-container italic">Health Insights.</span>';
+          p.innerText = 'Track your wellness journey with AI-driven analytics tailored to your unique medical history.';
+          content.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
+          
+          // Update dots
+          const dots = document.querySelectorAll('.flex.items-center.space-x-2 div');
+          dots[0].className = 'h-1.5 w-1.5 bg-outline-variant rounded-full transition-all';
+          dots[1].className = 'h-1.5 dot-active bg-primary rounded-full transition-all';
+        }, 400);
+      });
+    });
+  </script>
+<style>
+    @keyframes pan-slow {
+      0% { transform: scale(1.1) translateX(-2%); }
+      100% { transform: scale(1.1) translateX(2%); }
+    }
+  </style>
+</body></html>
