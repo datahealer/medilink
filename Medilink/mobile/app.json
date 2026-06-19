@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "MediLink",
+    "slug": "medilink",
+    "scheme": "medilink",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.medilink.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Used to securely unlock your saved session."
+      }
+    },
+    "android": {
+      "package": "com.medilink.app",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-localization",
+      ["expo-notifications", { "color": "#2E1A47" }]
+    ],
+    "extra": {
+      "eas": { "projectId": "" }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS needs_queue_sync BOOLEAN NOT NULL DEFAULT false;

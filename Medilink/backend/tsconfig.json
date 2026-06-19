@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "jsx": "preserve", "noEmit": true, "module": "ESNext", "plugins": [{ "name": "next" }],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noUncheckedIndexedAccess": false,
+    "paths": { "@/*": ["./src/*"], "@medilink/shared": ["../shared/src/index.ts"], "@medilink/shared/*": ["../shared/src/*"] } },
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

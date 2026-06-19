@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+.pnp.*
+
+# env
+.env
+.env.local
+.env.*.local
+
+# Next.js (frontend + backend)
+.next/
+out/
+next-env.d.ts
+
+# Expo / React Native (mobile)
+.expo/
+mobile/dist/
+*.jks
+*.p12
+*.keystore
+
+# build / cache
+dist/
+build/
+*.tsbuildinfo
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# logs / misc
+*.log
+.DS_Store
+coverage/
+
+# design source / binary assets — keep in Drive/Figma, never in Git
+*.ai
+*.eps
+*.psd
+*.indd
+*.sketch
+
+# large design-deliverable export dump (Scope B — remove if keeping docs)
+document/docs/

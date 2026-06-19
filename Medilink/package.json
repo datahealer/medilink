@@ -1,0 +1,30 @@
+{
+  "name": "medilink",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MediLink monorepo — patient web (Next.js) + mobile (Expo) on the reused HAMS Supabase backend.",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=@medilink/backend",
+    "dev:frontend": "npm run dev --workspace=@medilink/frontend",
+    "dev:mobile": "npm run start --workspace=@medilink/mobile",
+    "build:backend": "npm run build --workspace=@medilink/backend",
+    "build:frontend": "npm run build --workspace=@medilink/frontend",
+    "build:shared": "npm run build --workspace=@medilink/shared",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:push": "supabase db push",
+    "db:types": "supabase gen types typescript --linked 2>/dev/null > shared/src/types/supabase.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

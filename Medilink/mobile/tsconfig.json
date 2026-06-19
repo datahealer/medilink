@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "jsx": "react-native", "noEmit": true, "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": { "@/*": ["./src/*"], "@medilink/shared": ["../shared/src/index.ts"], "@medilink/shared/mobile": ["../shared/src/mobile.ts"] } },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "App.tsx"]
+}

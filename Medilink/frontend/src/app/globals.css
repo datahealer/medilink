@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * MediLink design tokens. Brand palette:
+ *   Russian Violet     #2E1A47
+ *   Shocking Lavender  #DFC8E7
+ *   Smooth Pastel Blue #C3D7EE
+ *   Eye White          #F9F4FA
+ * Tokens are surfaced to Tailwind via tailwind.config.ts (`colors.*` → var(--*)).
+ */
+:root {
+  --brand-violet: #2e1a47;
+  --brand-lavender: #dfc8e7;
+  --brand-blue: #c3d7ee;
+  --brand-white: #f9f4fa;
+
+  --background: var(--brand-white);
+  --foreground: var(--brand-violet);
+  --primary: var(--brand-violet);
+  --primary-foreground: var(--brand-white);
+  --accent: var(--brand-lavender);
+  --muted: var(--brand-blue);
+  --border: #e7dcee;
+  --radius: 0.875rem;
+}
+
+.dark {
+  --background: #1c1030;
+  --foreground: var(--brand-white);
+  --primary: var(--brand-lavender);
+  --primary-foreground: var(--brand-violet);
+  --accent: #3a2560;
+  --muted: #2a1c44;
+  --border: #3a2560;
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  /* Logical properties keep spacing correct under RTL (dir="rtl"). */
+  [dir="rtl"] body {
+    text-align: right;
+  }
+}
