@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export async function GET(
   req: NextRequest,
@@ -88,6 +89,8 @@ export async function GET(
     return NextResponse.json({ url: data.url });
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err);
+    if (authRes) return authRes;
     console.error("medical-history/pdf error:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

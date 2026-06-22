@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 import { createServiceSupabase } from "@/lib/supabase/service";
 /* ================= POST (UPLOAD PROFILE PHOTO) ================= */
 export async function POST(req: NextRequest) {
@@ -104,6 +105,8 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     console.error("Profile photo upload error:", err);
 
     return NextResponse.json(
