@@ -1,0 +1,14 @@
+tested api
+POST http://localhost:3001/api/auth/signup
+https://zojrwuvxrkmgnlwyuypg.supabase.co.supabase.co/auth/v1/token?grant_type=password
+http://localhost:3001/api/payments
+http://localhost:3001/api/payments/unpaid
+http://localhost:3001/api/users/me/data-export
+
+
+https://zojrwuvxrkmgnlwyuypg.supabase.co/rest/v1/profiles?select=*&id=eq.0ca03602-6a33-4718-aa1e-b5e8655b1fe5
+
+https://zojrwuvxrkmgnlwyuypg.supabase.co/rest/v1/patient_profiles?select=*&user_id=eq.0ca03602-6a33-4718-aa1e-b5e8655b1fe5
+https://zojrwuvxrkmgnlwyuypg.supabase.co/rest/v1/profiles?select=*&id=eq.0ca03602-6a33-4718-aa1e-b5e8655b1fe5
+https://zojrwuvxrkmgnlwyuypg.supabase.co/rest/v1/patient_profiles?select=*&user_id=eq.0ca03602-6a33-4718-aa1e-b5e8655b1fe5
+-https://zojrwuvxrkmgnlwyuypg.supabase.co/rest/v1/reviews?select=*&target_type=eq.doctor&target_id=eq.a3709705-8018-4d69-8a31-5b5904c165f8&is_visible=eq.true&order=created_at.desc

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,8 @@ export async function GET(
 
     return NextResponse.json({ signed_url: signed.signedUrl });
   } catch (err: any) {
+    const authRes = authErrorResponse(err);
+    if (authRes) return authRes;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
