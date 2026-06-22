@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createApiSupabaseClient(req);
     const user = await getAal2UserOrThrow(supabase);
+
+    const { id } = await params;
 
     const { data: appointment, error } = await supabase
       .from("appointments")
@@ -20,7 +23,7 @@ export async function GET(
           fees
         )
       `)
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error || !appointment) {
@@ -39,6 +42,8 @@ export async function GET(
     });
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err);
+    if (authRes) return authRes;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

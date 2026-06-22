@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,6 +71,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data || []);
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err);
+    if (authRes) return authRes;
     console.error("API ERROR:", err);
     return NextResponse.json(
       { error: err.message },

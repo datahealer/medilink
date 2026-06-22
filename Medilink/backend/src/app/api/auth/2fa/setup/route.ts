@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createAdminSupabaseClient } from "@/lib/supabase/adminClient";
 import { getUserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 import { isStaff } from "@medilink/shared";
 
 /* ================= POST (MFA ENROLL) ================= */
@@ -75,6 +76,8 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     console.error("MFA enroll error:", err);
     return NextResponse.json(
       { success: false, error: err.message || "Server error" },

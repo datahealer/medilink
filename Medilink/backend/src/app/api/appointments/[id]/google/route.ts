@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export async function POST(
   req: NextRequest,
@@ -102,6 +103,8 @@ export async function POST(
     });
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     console.error("GOOGLE EVENT ERROR:", err?.response?.data || err);
 
     return NextResponse.json(

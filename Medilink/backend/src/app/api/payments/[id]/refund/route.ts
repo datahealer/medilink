@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createApiSupabaseClient(req);
     const serviceSupabase = createServiceSupabase();
     const user = await getAal2UserOrThrow(supabase);
 
-    const paymentId = params.id;
+    const { id } = await params;
+    const paymentId = id;
 
     // 🔎 Fetch payment
     const { data: payment } = await supabase
@@ -112,6 +114,8 @@ export async function POST(
     return NextResponse.json({ success: true, refund });
 
   } catch (err: any) {
+    const authRes = authErrorResponse(err);
+    if (authRes) return authRes;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

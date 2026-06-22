@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getUserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 import bcrypt from "bcryptjs";
 
 // Rate limit: 5 attempts per user per 10 minutes
@@ -88,6 +89,8 @@ export async function POST(req: NextRequest) {
       message: "Recovery code accepted. You are now logged in.",
     });
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     console.error("Recovery code use error:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },

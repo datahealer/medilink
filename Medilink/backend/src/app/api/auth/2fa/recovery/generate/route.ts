@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getUserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -61,6 +62,8 @@ export async function POST(req: NextRequest) {
     // Return plain codes ONCE — never stored, never retrievable again
     return NextResponse.json({ success: true, codes: plainCodes });
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     console.error("Recovery code generation error:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },

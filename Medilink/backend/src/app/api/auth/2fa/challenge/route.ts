@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getUserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,6 +27,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     return NextResponse.json(
       { success: false, error: err.message || "Server error" },
       { status: 500 }

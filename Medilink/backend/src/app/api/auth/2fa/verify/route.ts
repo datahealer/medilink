@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getUserOrThrow } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/auth/authError";
 
 // In-memory rate limiter: max 5 attempts per user per 5-minute window.
 // Replace with Redis/Upstash for multi-instance deployments.
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest) {
       message: "MFA verified successfully",
     });
   } catch (err: any) {
+    const authRes = authErrorResponse(err, "success");
+    if (authRes) return authRes;
     console.error("MFA verify error:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
