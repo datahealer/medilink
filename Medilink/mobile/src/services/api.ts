@@ -27,12 +27,15 @@ export async function apiFetch<T = unknown>(
   const token = await getAccessToken();
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
-  if (init.body && !headers.has("Content-Type")) {
+  // Let fetch set the multipart boundary for FormData; only default to JSON otherwise.
+  const isFormData =
+    typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (init.body && !isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const url = path.startsWith("http") ? path : `${env.BACKEND_URL}${path}`;
+  const url = path.startsWith("http") ? path : `${env.API_URL}${path}`;
   const res = await fetch(url, { ...init, headers });
 
   const isJson = res.headers

@@ -4,9 +4,13 @@
     "slug": "medilink",
     "scheme": "medilink",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.medilink.app",
@@ -19,9 +23,12 @@
       "edgeToEdgeEnabled": true
     },
     "plugins": [
+      "expo-router",
       "expo-secure-store",
       "expo-localization",
-      ["expo-notifications", { "color": "#2E1A47" }]
+      "expo-font",
+      ["expo-notifications", { "color": "#2E1A47" }],
+      ["expo-image-picker", { "photosPermission": "MediLink uses your photos to set a profile picture." }]
     ],
     "extra": {
       "eas": { "projectId": "" }

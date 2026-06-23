@@ -1,0 +1,24 @@
+{
+  // Typecheck-only config (used by `npm run typecheck`).
+  //
+  // In this monorepo the root holds react@18 (Next.js backend/frontend) while mobile
+  // uses react@19 (Expo SDK 54). Because `react-native` is hoisted to the root, its
+  // bundled .d.ts files would otherwise resolve the root's @types/react@18, clashing
+  // with the app's @types/react@19 (e.g. `ReactNode` gaining `bigint` in 19).
+  //
+  // Pinning `react` to mobile's @types/react here forces a SINGLE React 19 type
+  // identity across the whole program. This lives in a separate config (NOT the base
+  // tsconfig.json) because Expo's Metro reads tsconfig `paths` — and @types/react has
+  // no runtime entry, so leaking this mapping into Metro would break bundling.
+  // (Runtime single-React is handled separately in metro.config.js.)
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@medilink/shared": ["../shared/src/index.ts"],
+      "@medilink/shared/mobile": ["../shared/src/mobile.ts"],
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"]
+    }
+  }
+}

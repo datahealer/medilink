@@ -4,79 +4,98 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import { I18nManager } from "react-native";
-import * as Localization from "expo-localization";
-import * as SecureStore from "expo-secure-store";
-import { i18n, SUPPORTED_LOCALES, type Locale } from "@medilink/shared/mobile";
+
+import { useLocaleStore, type Locale } from "@/stores/localeStore";
+import { en, type Messages } from "./en";
+import { ar } from "./ar";
+
+const CATALOGS: Record<Locale, Messages> = { en, ar };
+
+/** Dot-path keys into the message catalog, e.g. "signIn.submit". */
+type Leaves<T> = T extends object
+  ? { [K in keyof T & string]: T[K] extends object ? `${K}.${Leaves<T[K]>}` : K }[keyof T & string]
+  : never;
+export type MessageKey = Leaves<Messages>;
 
 type Dir = "ltr" | "rtl";
-type MessageId = Parameters<typeof i18n.translate>[1];
 
 interface I18nContextValue {
   locale: Locale;
   dir: Dir;
-  setLocale: (locale: Locale) => void;
-  t: (id: MessageId) => string;
+  isRTL: boolean;
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  /** Persists the locale + aligns native RTL. Returns `true` if a restart is needed. */
+  setLocale: (locale: Locale) => boolean;
 }
 
-const STORAGE_KEY = "medilink.locale";
-const CATALOGS = { en: i18n.en, ar: i18n.ar } as const;
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-function dirFor(locale: Locale): Dir {
-  return locale === "ar" ? "rtl" : "ltr";
+function resolve(catalog: Messages, key: string): string {
+  return key.split(".").reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === "object" && part in acc) {
+      return (acc as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, catalog) as string | undefined ?? key;
 }
 
-function deviceDefault(): Locale {
-  const tag = Localization.getLocales()[0]?.languageCode ?? "en";
-  return tag === "ar" ? "ar" : "en";
+function interpolate(template: string, vars?: Record<string, string | number>): string {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
+}
+
+/**
+ * Aligns React Native's native layout direction with the locale. `forceRTL` only
+ * takes full effect after a reload, so callers switching language must prompt a
+ * restart. Returns whether the direction actually changed.
+ */
+function applyRtl(locale: Locale): boolean {
+  const shouldBeRTL = locale === "ar";
+  I18nManager.allowRTL(true);
+  if (I18nManager.isRTL !== shouldBeRTL) {
+    I18nManager.forceRTL(shouldBeRTL);
+    return true;
+  }
+  return false;
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(deviceDefault());
+  const locale = useLocaleStore((s) => s.locale);
+  const setStoreLocale = useLocaleStore((s) => s.setLocale);
 
+  // Keep the native RTL flag aligned with the persisted locale on launch.
   useEffect(() => {
-    SecureStore.getItemAsync(STORAGE_KEY).then((stored) => {
-      if (stored && (SUPPORTED_LOCALES as readonly string[]).includes(stored)) {
-        applyLocale(stored as Locale, setLocaleState);
-      } else {
-        applyLocale(deviceDefault(), setLocaleState);
-      }
-    });
-  }, []);
+    applyRtl(locale);
+  }, [locale]);
 
-  const setLocale = useCallback((next: Locale) => {
-    void SecureStore.setItemAsync(STORAGE_KEY, next);
-    applyLocale(next, setLocaleState);
-  }, []);
+  const setLocale = useCallback(
+    (next: Locale): boolean => {
+      setStoreLocale(next);
+      return applyRtl(next);
+    },
+    [setStoreLocale]
+  );
 
-  const t = useCallback(
-    (id: MessageId) => i18n.translateFromMessages(CATALOGS[locale], CATALOGS.en, id),
+  const t = useCallback<I18nContextValue["t"]>(
+    (key, vars) => interpolate(resolve(CATALOGS[locale], key), vars),
     [locale]
   );
 
   const value = useMemo<I18nContextValue>(
-    () => ({ locale, dir: dirFor(locale), setLocale, t }),
-    [locale, setLocale, t]
+    () => ({
+      locale,
+      dir: locale === "ar" ? "rtl" : "ltr",
+      isRTL: locale === "ar",
+      t,
+      setLocale,
+    }),
+    [locale, t, setLocale]
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
-}
-
-/**
- * Align React Native's layout direction with the locale. forceRTL only takes full
- * effect after a reload, so callers that switch language should prompt a restart.
- */
-function applyLocale(next: Locale, set: (l: Locale) => void) {
-  const rtl = next === "ar";
-  if (I18nManager.isRTL !== rtl) {
-    I18nManager.allowRTL(rtl);
-    I18nManager.forceRTL(rtl);
-  }
-  set(next);
 }
 
 export function useI18n(): I18nContextValue {
