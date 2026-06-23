@@ -8,14 +8,13 @@
  *   Shocking Lavender  #DFC8E7
  *   Smooth Pastel Blue #C3D7EE
  *   Eye White          #F9F4FA
- * Tokens are surfaced to Tailwind via tailwind.config.ts (`colors.*` → var(--*)).
  */
 :root {
   --brand-violet: #2e1a47;
+  --brand-accent: #46255f;
   --brand-lavender: #dfc8e7;
   --brand-blue: #c3d7ee;
   --brand-white: #f9f4fa;
-
   --background: var(--brand-white);
   --foreground: var(--brand-violet);
   --primary: var(--brand-violet);
@@ -23,6 +22,7 @@
   --accent: var(--brand-lavender);
   --muted: var(--brand-blue);
   --border: #e7dcee;
+  --input-border: #d8cce4;
   --radius: 0.875rem;
 }
 
@@ -34,6 +34,7 @@
   --accent: #3a2560;
   --muted: #2a1c44;
   --border: #3a2560;
+  --input-border: #3a2560;
 }
 
 @layer base {
@@ -44,8 +45,29 @@
     background-color: var(--background);
     color: var(--foreground);
   }
-  /* Logical properties keep spacing correct under RTL (dir="rtl"). */
   [dir="rtl"] body {
     text-align: right;
   }
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* OTP input — remove browser number spinners */
+.otp-input::-webkit-outer-spin-button,
+.otp-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.otp-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Progress bar animation */
+@keyframes progress-fill {
+  from { width: 0%; }
+  to   { width: var(--progress-to, 72%); }
+}
+.progress-animated {
+  animation: progress-fill 1.4s cubic-bezier(.4,0,.2,1) forwards;
 }
