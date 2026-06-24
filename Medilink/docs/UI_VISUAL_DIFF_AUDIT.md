@@ -242,3 +242,35 @@ Legend — **L/D/AR**: EN-Light / EN-Dark / Arabic status. ✦ = shared componen
 
 > Status discipline: no screen above is marked "matching/approved/complete". Items without a listed delta
 > are "no structural mismatch identified — pending device capture in EN/AR · L/D".
+
+---
+
+# Pass 5 — implementation status (this build)
+
+Shared components rebuilt to the PDF (real code, committed):
+- **OrbPattern** (large/medium/corner/subtle) — official soft-orb treatment; replaces the Me
+  submark watermark everywhere. **PatternCard** now renders orbs on violet surfaces only.
+- **AppointmentCard** (violet orbs, UPCOMING pill + relative-time, concise subtitle),
+  **ClinicCard** (violet orb featured banner), **DoctorCard** (+ violet orb `detail` header),
+  **HubActionTile** (lavender icon sub-tile + notification dot), **SpecialtyTile** (bold names),
+  **StaticTabBar** (tab chrome for pushed screens), **Text** (app-wide `textScale`).
+
+Production screens migrated this build (pending on-device EN/AR · L/D capture — NOT yet
+"matching"/"approved"):
+- **Dashboard** → AppointmentCard + HubActionTile(dot) + Me-badge title + DoctorCard(recent) + ClinicCard
+- **Search** → DoctorCard(searchResult)
+- **Doctor Details** → DoctorCard(detail) orb header
+- **Edit Profile** → Blood Group + DOB side-by-side fields
+- **Specialties** → no back button (tab chrome) + bold SpecialtyTile labels
+- **Appearance** → theme preview tiles + Arabic-RTL toggle + Larger-text toggle (textScale)
+- **Settings** → bottom tab chrome (StaticTabBar, Profile active)
+
+Still to migrate (next): **Profile** (stat/info cards → AppCard), **Family** + **Switch Profile**
+(→ FamilyMemberCard), **Filters** (build a Slider for consultation fee; convert from chips),
+**Map** (light stylised map), **Notifications / Facility Messages / Reviews** (→ AppCard),
+plus device QA of Welcome/Onboarding/auth.
+
+Screenshots: a real Android device/emulator is required to capture EN/AR · L/D — not available in
+this environment (web export needs `react-native-web` + the app boots `expo-secure-store`, which
+has no web runtime, so I won't add web deps just to screenshot). The preview route accepts
+`?m=enl|end|arl|ard` to preset each mode for one-tap capture.
