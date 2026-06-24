@@ -167,7 +167,7 @@ export default function EditProfileScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("profile.bloodGroup")}</Text>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.bloodGroup").toUpperCase()}</Text>
       <View style={styles.chips}>
         {BLOOD_GROUPS.map((b) => (
           <Chip key={b} label={b} selected={bloodGroup === b} onPress={() => setBloodGroup(bloodGroup === b ? undefined : b)} />
@@ -184,7 +184,7 @@ export default function EditProfileScreen() {
       />
 
       {/* Allergies — removable chips + add (PDF p15) */}
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("profile.allergies")}</Text>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.allergies").toUpperCase()}</Text>
       {allergies.length ? (
         <View style={[styles.chips, { marginBottom: 8 }]}>
           {allergies.map((a) => (
@@ -208,7 +208,7 @@ export default function EditProfileScreen() {
       />
 
       {/* Additional profile fields (kept for completeness; surface on Profile p15) */}
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("profile.gender")}</Text>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.gender").toUpperCase()}</Text>
       <View style={styles.chips}>
         {GENDERS.map((g) => (
           <Chip

@@ -65,8 +65,9 @@ export default function ProfileScreen() {
   const conditions = history.data?.conditions ?? [];
   const medications = history.data?.medications ?? [];
 
-  const stats: { label: string; value: string }[] = [
-    { label: t("profile.bloodGroup"), value: patient?.blood_group && patient.blood_group !== "unknown" ? patient.blood_group : t("common.notSet") },
+  const hasBlood = !!patient?.blood_group && patient.blood_group !== "unknown";
+  const stats: { label: string; value: string; pill?: boolean }[] = [
+    { label: t("profile.bloodGroup"), value: hasBlood ? patient!.blood_group! : t("common.notSet"), pill: hasBlood },
     { label: t("profile.age"), value: age ? `${age} ${t("profile.years")}` : t("common.notSet") },
     { label: t("profile.family"), value: String(family.data?.length ?? 0) },
   ];
@@ -88,7 +89,7 @@ export default function ProfileScreen() {
 
       {/* Identity */}
       <View style={styles.identity}>
-        <Avatar name={account?.full_name} uri={patient?.profile_photo_url} size={88} />
+        <Avatar name={account?.full_name} uri={patient?.profile_photo_url} size={76} />
         <Text variant="h2" align="center" style={{ marginTop: spacing.sm }}>
           {account?.full_name ?? "—"}
         </Text>
@@ -109,16 +110,22 @@ export default function ProfileScreen() {
       <View style={[styles.stats, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {stats.map((s) => (
           <Card key={s.label} style={styles.statCard}>
-            {/* Stat values use Manrope (title), not Agatho display: the serif face
-                lacks a clean "+", which rendered "O+" as a broken glyph (audit P2.2). */}
-            <Text variant="title" align="center" style={styles.statValue}>{num(s.value)}</Text>
-            <Text variant="caption" color="textMuted" align="center">{s.label}</Text>
+            {/* Stat values use Manrope (title), not Agatho display (serif lacks a clean
+                "+"). Blood group shows in a pale-red pill per the p36 artboard. */}
+            {s.pill ? (
+              <View style={[styles.bloodPill, { backgroundColor: "#FBE7EC" }]}>
+                <Text variant="label" align="center" style={{ color: colors.error }}>{s.value}</Text>
+              </View>
+            ) : (
+              <Text variant="title" align="center" style={styles.statValue}>{num(s.value)}</Text>
+            )}
+            <Text variant="caption" color="textMuted" align="center" style={{ marginTop: 4 }}>{s.label}</Text>
           </Card>
         ))}
       </View>
 
       {/* Emergency contact */}
-      <Card style={{ marginTop: spacing.md }}>
+      <Card style={{ marginTop: spacing.sm + 2 }}>
         <Text variant="caption" color="textMuted">{t("profile.emergencyContact")}</Text>
         <Text variant="body" style={{ marginTop: 4 }}>
           {patient?.emergency_contact || t("common.notSet")}
@@ -126,7 +133,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Medical conditions */}
-      <Card style={{ marginTop: spacing.md }}>
+      <Card style={{ marginTop: spacing.sm + 2 }}>
         <Text variant="caption" color="textMuted">{t("profile.conditions")}</Text>
         {conditions.length ? (
           <View style={styles.chips}>{conditions.map((c) => <Chip key={c} label={c} />)}</View>
@@ -136,7 +143,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Allergies */}
-      <Card style={{ marginTop: spacing.md }}>
+      <Card style={{ marginTop: spacing.sm + 2 }}>
         <Text variant="caption" color="textMuted">{t("profile.allergies")}</Text>
         {allergies.length ? (
           <View style={styles.chips}>{allergies.map((a) => <Chip key={a} label={a} />)}</View>
@@ -147,7 +154,7 @@ export default function ProfileScreen() {
 
       {/* Medications (shown when recorded) */}
       {medications.length ? (
-        <Card style={{ marginTop: spacing.md }}>
+        <Card style={{ marginTop: spacing.sm + 2 }}>
           <Text variant="caption" color="textMuted">{t("medical.medications")}</Text>
           <View style={styles.chips}>{medications.map((m) => <Chip key={m} label={m} />)}</View>
         </Card>
@@ -159,9 +166,10 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   topRow: { justifyContent: "flex-end", marginTop: 4 },
   gear: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: StyleSheet.hairlineWidth * 2 },
-  identity: { alignItems: "center", marginBottom: 16 },
+  identity: { alignItems: "center", marginBottom: 12 },
   stats: { gap: 8 },
-  statCard: { flex: 1, alignItems: "center", paddingVertical: 16 },
+  statCard: { flex: 1, alignItems: "center", paddingVertical: 12 },
   statValue: { fontSize: 20, lineHeight: 26 },
+  bloodPill: { paddingHorizontal: 12, paddingVertical: 3, borderRadius: 999, minWidth: 44, alignItems: "center" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
 });

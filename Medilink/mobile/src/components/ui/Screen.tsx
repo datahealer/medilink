@@ -95,7 +95,7 @@ export function Screen({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingVertical: 24 },
+  scrollContent: { flexGrow: 1, paddingVertical: 16 },
   center: { justifyContent: "center", alignItems: "center" },
   footer: { paddingTop: 8, paddingBottom: 8 },
 });

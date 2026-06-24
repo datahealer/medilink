@@ -87,7 +87,7 @@ export default function MeFamilyScreen() {
           <Icon name="plus" size={22} tint={colors.textOnPrimary} strokeWidth={2.2} />
         </Pressable>
       </View>
-      <Text variant="body" color="textMuted" style={{ marginBottom: spacing.md }}>
+      <Text variant="body" color="textMuted" style={{ marginBottom: spacing.sm }}>
         {t("family.subtitle")}
       </Text>
 

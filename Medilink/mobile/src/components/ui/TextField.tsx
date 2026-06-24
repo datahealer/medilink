@@ -41,8 +41,8 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   return (
     <View style={[styles.container, containerStyle]}>
       {label ? (
-        <Text variant="label" color="textMuted" style={styles.label}>
-          {label}
+        <Text variant="label" color="textMuted" style={[styles.label, { letterSpacing: 0.5 }]}>
+          {label.toUpperCase()}
         </Text>
       ) : null}
       <View
