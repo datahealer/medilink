@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
-import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, Screen, Text } from "@/components/ui";
+import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, Screen, StaticTabBar, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -22,7 +22,13 @@ export default function FacilityMessagesScreen() {
   const items = messages.data ?? [];
 
   return (
-    <Screen scroll padded edges={["top", "left", "right", "bottom"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
+    <Screen
+      scroll
+      padded
+      edges={["top", "left", "right"]}
+      contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.md }}
+      footer={<View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}><StaticTabBar active="home" /></View>}
+    >
       <AppHeader title={t("notif.messagesTitle")} />
       <Text variant="caption" color="textMuted" style={{ marginBottom: spacing.md }}>
         {t("notif.messagesSubtitle")}
@@ -38,8 +44,8 @@ export default function FacilityMessagesScreen() {
         items.map((m) => (
           <Card key={m.id} style={{ marginBottom: spacing.sm }}>
             <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}>
-                <Icon name={iconFor(m.source)} size={18} tint={colors.primary} />
+              <View style={[styles.iconWrap, { backgroundColor: colors.accent }]}>
+                <Icon name={iconFor(m.source)} size={20} tint={colors.primary} />
               </View>
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
                 <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -59,7 +65,7 @@ export default function FacilityMessagesScreen() {
 
 const styles = StyleSheet.create({
   row: { alignItems: "flex-start" },
-  iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   titleRow: { alignItems: "center", gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, marginStart: 6, marginTop: 6 },
 });

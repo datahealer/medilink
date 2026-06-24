@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { shadow } from "@/utils/platform";
 import { AppCard } from "./AppCard";
 import { Icon, type IconName, resolveIconName } from "./Icon";
 import { Text } from "./Text";
@@ -18,8 +19,9 @@ export function SpecialtyTile({ name, icon, onPress }: SpecialtyTileProps) {
   const { colors, radii } = useTheme();
   const resolved: IconName = resolveIconName(icon ?? "medkit-outline");
   return (
-    <AppCard variant="specialty" onPress={onPress} accessibilityLabel={name} style={styles.card}>
-      <View style={[styles.iconWrap, { backgroundColor: colors.accent, borderRadius: radii.md }]}>
+    <AppCard variant="specialty" backgroundColor={colors.accent} bordered={false} onPress={onPress} accessibilityLabel={name} style={styles.card}>
+      {/* PDF: lavender tile holding a WHITE rounded icon chip (app previously inverted). */}
+      <View style={[styles.iconWrap, { backgroundColor: colors.surface, borderRadius: radii.md }, shadow(1)]}>
         <Icon name={resolved} size={24} tint={colors.primary} />
       </View>
       {/* Single-word names (e.g. "Dermatology") must stay on one line — auto-shrink

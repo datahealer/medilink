@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { AppScreen, Icon, LoadingState, SpecialtyTile, Text, TextField } from "@/components/ui";
+import { AppScreen, Icon, LoadingState, SpecialtyTile, StaticTabBar, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -32,7 +32,16 @@ export default function SpecialtiesScreen() {
   };
 
   return (
-    <AppScreen headerVariant="tabs" title={t("specialties.title")} constrain={false}>
+    <AppScreen
+      headerVariant="tabs"
+      title={t("specialties.title")}
+      constrain={false}
+      footer={
+        <View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}>
+          <StaticTabBar active="search" />
+        </View>
+      }
+    >
       <Text variant="h2" style={{ marginBottom: spacing.md }}>{t("specialties.title")}</Text>
 
       <TextField
