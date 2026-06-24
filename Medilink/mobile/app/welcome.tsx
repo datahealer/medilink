@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Button, Logo, Screen, Text } from "@/components/ui";
+import { CtaButton, HeroBackground, Logo, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 
@@ -12,20 +12,19 @@ import { useI18n } from "@/i18n";
  * Settings) — matching the design.
  */
 export default function WelcomeScreen() {
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, isRTL } = useTheme();
   const { t } = useI18n();
 
   return (
     <Screen scroll padded dismissKeyboardOnTap={false}>
-      {/* Brand hero / connected-shape field (PDF patterned violet hero) */}
+      {/* Brand hero — patterned violet field with the official connected-dot motif. */}
       <View
         style={[
           styles.hero,
           { backgroundColor: colors.primary, borderRadius: radii.xl, marginTop: spacing.lg, marginBottom: spacing.xl },
         ]}
       >
-        <View style={[styles.blob, { backgroundColor: colors.primaryMuted, top: -30, right: -20 }]} />
-        <View style={[styles.blob, styles.blobSm, { backgroundColor: colors.accent, opacity: 0.25, bottom: 20, left: -10 }]} />
+        <HeroBackground tone="onViolet" radius={radii.xl} />
         <Logo variant="full" size="lg" onDark />
       </View>
 
@@ -38,7 +37,8 @@ export default function WelcomeScreen() {
 
       <View style={{ height: spacing.xl }} />
 
-      <Button label={t("welcome.createAccount")} onPress={() => router.push("/auth/sign-up")} />
+      {/* Official angled brand CTA for this hero moment (PDF "BRAND CTA"). */}
+      <CtaButton label={t("welcome.createAccount")} mirror={isRTL} onPress={() => router.push("/auth/sign-up")} />
 
       <Pressable
         onPress={() => router.push("/auth/sign-in")}
@@ -61,6 +61,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  blob: { position: "absolute", width: 160, height: 160, borderRadius: 999 },
-  blobSm: { width: 90, height: 90 },
 });

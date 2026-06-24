@@ -39,10 +39,17 @@ export default function AppLayout() {
       <Stack.Screen name="family/add" />
       <Stack.Screen name="family/[id]" />
       <Stack.Screen name="patient-switcher" />
-      {/* Filters presents as a bottom-sheet-style modal (PDF p18). Other Batch-2
-          routes (search/doctors/notifications/settings) auto-register with the
-          default slide animation. */}
-      <Stack.Screen name="search/filters" options={{ presentation: "modal" }} />
+      {/* Filters presents as a true bottom sheet — partial-height detents + grabber
+          (PDF p18). Falls back to a slide-up modal where formSheet is unsupported. */}
+      <Stack.Screen
+        name="search/filters"
+        options={{
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.65, 0.95],
+          sheetGrabberVisible: true,
+          sheetCornerRadius: 24,
+        }}
+      />
     </Stack>
   );
 }

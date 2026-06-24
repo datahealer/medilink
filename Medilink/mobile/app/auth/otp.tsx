@@ -16,6 +16,8 @@ export default function OtpScreen() {
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const { target, phone } = useLocalSearchParams<{ target?: string; phone?: string }>();
+  // Prefer the display target; fall back to the raw phone, then a generic phrase.
+  const shownTarget = (target || phone || "").trim();
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -66,7 +68,8 @@ export default function OtpScreen() {
 
       <Text variant="h1">{t("otp.title")}</Text>
       <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, marginBottom: spacing.xl }}>
-        {t("otp.subtitle", { target: target ?? "" })}
+        {/* Show the real number when we have it; never render a dangling "sent to ." (audit P2.1). */}
+        {shownTarget ? t("otp.subtitle", { target: shownTarget }) : t("otp.subtitleGeneric")}
       </Text>
 
       <OtpInput

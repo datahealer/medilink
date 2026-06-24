@@ -86,6 +86,7 @@ export const en = {
   otp: {
     title: "Verify phone",
     subtitle: "Enter the 6-digit code sent to {target}.",
+    subtitleGeneric: "Enter the 6-digit code we sent to your phone.",
     resendIn: "Resend code in {seconds}",
     resend: "Resend code",
     verify: "Verify",
@@ -385,6 +386,7 @@ export const en = {
     deleteAccount: "Delete account",
     deleteComingSoon: "Account deletion opens in a later update.",
     exportComingSoon: "Data export opens in a later update.",
+    privacyComingSoon: "Privacy & security controls open in a later update.",
   },
 } as const;
 

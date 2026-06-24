@@ -87,6 +87,7 @@ export const ar: Messages = {
   otp: {
     title: "تأكيد الهاتف",
     subtitle: "أدخل الرمز المكوّن من 6 أرقام المُرسل إلى {target}.",
+    subtitleGeneric: "أدخل الرمز المكوّن من 6 أرقام المُرسل إلى هاتفك.",
     resendIn: "إعادة الإرسال خلال {seconds}",
     resend: "إعادة إرسال الرمز",
     verify: "تأكيد",
@@ -386,5 +387,6 @@ export const ar: Messages = {
     deleteAccount: "حذف الحساب",
     deleteComingSoon: "حذف الحساب متاح في تحديث لاحق.",
     exportComingSoon: "تصدير البيانات متاح في تحديث لاحق.",
+    privacyComingSoon: "إعدادات الخصوصية والأمان متاحة في تحديث لاحق.",
   },
 };

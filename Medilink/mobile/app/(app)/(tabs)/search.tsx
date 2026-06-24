@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { Avatar, Button, Card, Chip, EmptyState, ErrorState, LoadingState, Screen, Text, TextField } from "@/components/ui";
+import { Avatar, Button, Card, Chip, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -15,7 +14,7 @@ import type { Doctor } from "@/data/types";
 export default function SearchScreen() {
   const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
-  const { t } = useI18n();
+  const { t, num } = useI18n();
 
   const filters = useSearchFilterStore();
   const setFilters = useSearchFilterStore((s) => s.setFilters);
@@ -40,16 +39,16 @@ export default function SearchScreen() {
         <Avatar name={d.full_name} size={48} />
         <View style={[styles.docText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
           <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <Text variant="title" numberOfLines={1} style={{ flex: 1 }}>{d.full_name}</Text>
+            <Text variant="title" numberOfLines={1} style={styles.name}>{d.full_name}</Text>
             {d.available_today ? (
               <View style={[styles.todayTag, { backgroundColor: colors.surfaceAlt, borderColor: colors.success }]}>
-                <Text variant="caption" color="success">{t("search.availableToday")}</Text>
+                <Text variant="caption" color="success" numberOfLines={1}>{t("search.availableToday")}</Text>
               </View>
             ) : null}
           </View>
           <Text variant="caption" color="textMuted" numberOfLines={1}>{`${d.specialty} · ${d.facility}`}</Text>
           <Text variant="caption" color="textMuted">
-            {`★ ${d.rating}   OMR ${d.fee_omr}${d.distance_km != null ? ` · ${d.distance_km} km` : ""}`}
+            {num(`★ ${d.rating}   OMR ${d.fee_omr}${d.distance_km != null ? ` · ${d.distance_km} km` : ""}`)}
           </Text>
           <View style={[styles.actions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={{ flex: 1 }}>
@@ -65,15 +64,15 @@ export default function SearchScreen() {
   );
 
   return (
-    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
       {/* Header (tab root — no back) */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Text variant="h2" style={{ flex: 1 }}>{t("search.findDoctor")}</Text>
         <Pressable onPress={() => router.push("/search/map")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("map.title")} style={[styles.iconBtn, { borderColor: colors.border }]}>
-          <Ionicons name="map-outline" size={18} color={colors.text} />
+          <Icon name="map" size={18} tint={colors.text} />
         </Pressable>
         <Pressable onPress={() => router.push("/search/filters")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("filters.title")} style={[styles.iconBtn, { borderColor: colors.border, marginStart: 8 }]}>
-          <Ionicons name="options-outline" size={18} color={colors.text} />
+          <Icon name="filter" size={18} tint={colors.text} />
           {filterBadge > 0 ? <View style={[styles.badge, { backgroundColor: colors.primary }]} /> : null}
         </Pressable>
       </View>
@@ -84,7 +83,7 @@ export default function SearchScreen() {
         onChangeText={setQuery}
         placeholder={t("search.placeholder")}
         autoCapitalize="none"
-        leading={<Ionicons name="search-outline" size={18} color={colors.textMuted} />}
+        leading={<Icon name="search" size={18} tint={colors.textMuted} />}
         containerStyle={{ marginBottom: spacing.md }}
       />
 
@@ -109,7 +108,7 @@ export default function SearchScreen() {
 
       {/* Count + sort */}
       <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
-        <Text variant="caption" color="textMuted">{t("search.results", { count })}</Text>
+        <Text variant="caption" color="textMuted">{t("search.results", { count: num(count) })}</Text>
         <Text variant="caption" color="textMuted">{t("search.sortRating")}</Text>
       </View>
 
@@ -137,6 +136,7 @@ const styles = StyleSheet.create({
   rowBetween: { alignItems: "center", justifyContent: "space-between" },
   docRow: { alignItems: "flex-start" },
   docText: { flex: 1 },
-  todayTag: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth * 2, marginStart: 6 },
+  name: { flex: 1, flexShrink: 1 },
+  todayTag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth * 2, marginStart: 6 },
   actions: { gap: 8, marginTop: 10 },
 });

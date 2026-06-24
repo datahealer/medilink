@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import {
   StyleSheet,
   TextInput,
@@ -28,10 +28,15 @@ export interface TextFieldProps extends Omit<TextInputProps, "style"> {
  * PasswordField. Shows label + inline error; error state recolours the border.
  */
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  { label, error, trailing, leading, containerStyle, ...rest },
+  { label, error, trailing, leading, containerStyle, onFocus, onBlur, ...rest },
   ref
 ) {
   const { colors, radii, isRTL } = useTheme();
+  const [focused, setFocused] = useState(false);
+
+  // Focused state recolours the border to the brand violet (PDF p6 active input),
+  // unless an error is present (error always wins).
+  const borderColor = error ? colors.error : focused ? colors.primary : colors.border;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -45,7 +50,8 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           styles.field,
           {
             backgroundColor: colors.inputBackground,
-            borderColor: error ? colors.error : colors.border,
+            borderColor,
+            borderWidth: focused && !error ? 2 : StyleSheet.hairlineWidth * 2,
             borderRadius: radii.md,
             flexDirection: isRTL ? "row-reverse" : "row",
           },
@@ -55,6 +61,14 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         <TextInput
           ref={ref}
           placeholderTextColor={colors.textMuted}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
           style={[
             styles.input,
             {

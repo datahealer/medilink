@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 
-import { Button, MeMark, ProgressDots, Screen, Text } from "@/components/ui";
+import { Button, CtaButton, HeroBackground, MeMark, ProgressDots, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
@@ -28,7 +28,7 @@ const SLIDES: Slide[] = [
 ];
 
 export default function OnboardingScreen() {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, isRTL } = useTheme();
   const { t } = useI18n();
   const { width } = useWindowDimensions();
   const complete = useOnboardingStore((s) => s.complete);
@@ -55,6 +55,8 @@ export default function OnboardingScreen() {
 
   return (
     <Screen padded={false} dismissKeyboardOnTap={false}>
+      {/* Subtle brand pattern across the onboarding canvas. */}
+      <HeroBackground tone="onSurface" intensity={0.8} />
       {/* Skip */}
       <View style={[styles.skipRow, { paddingHorizontal: spacing.lg }]}>
         <Pressable onPress={finish} accessibilityRole="button" accessibilityLabel={t("common.skip")} hitSlop={8}>
@@ -98,11 +100,12 @@ export default function OnboardingScreen() {
             ) : null}
           </View>
           <View style={styles.controlSide}>
-            <Button
-              label={isLast ? t("common.getStarted") : t("common.next")}
-              fullWidth={false}
-              onPress={() => (isLast ? finish() : goTo(index + 1))}
-            />
+            {isLast ? (
+              // Brand moment — finish onboarding with the official angled CTA.
+              <CtaButton label={t("common.getStarted")} mirror={isRTL} onPress={finish} />
+            ) : (
+              <Button label={t("common.next")} fullWidth={false} onPress={() => goTo(index + 1)} />
+            )}
           </View>
         </View>
       </View>

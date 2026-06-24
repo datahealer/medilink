@@ -1,9 +1,8 @@
 import React from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { Avatar, Button, Card, Screen, Text } from "@/components/ui";
+import { Avatar, Button, Card, Icon, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -26,7 +25,6 @@ export default function SettingsScreen() {
   const profile = useProfile();
   const signOut = useSignOut();
 
-  const chevron = isRTL ? "chevron-back" : "chevron-forward";
   const account = profile.data?.account;
 
   const onSignOut = () => {
@@ -60,7 +58,7 @@ export default function SettingsScreen() {
           {value}
         </Text>
       ) : null}
-      <Ionicons name={chevron} size={20} color={colors.textMuted} />
+      <Icon name="chevron" direction={isRTL ? "left" : "right"} size={20} tint={colors.textMuted} />
     </Pressable>
   );
 
@@ -90,7 +88,7 @@ export default function SettingsScreen() {
 
       {/* Account & data */}
       <Text variant="label" color="textMuted" style={styles.section}>{t("settings.accountData")}</Text>
-      {row(t("settings.privacy"), null, () => Alert.alert(t("settings.privacy"), t("settings.exportComingSoon")))}
+      {row(t("settings.privacy"), null, () => Alert.alert(t("settings.privacy"), t("settings.privacyComingSoon")))}
       {row(t("settings.exportData"), null, () => Alert.alert(t("settings.exportData"), t("settings.exportComingSoon")))}
 
       {/* Sign out / delete */}

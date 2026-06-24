@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Logo, Screen, Text } from "@/components/ui";
+import { HeroBackground, Logo, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -57,6 +57,7 @@ export default function SplashScreen() {
 
   return (
     <Screen center padded backgroundColor={colors.primary} dismissKeyboardOnTap={false} edges={["top", "bottom"]}>
+      <HeroBackground tone="onViolet" />
       <View style={styles.center}>
         <Logo variant="full" size="lg" onDark />
         <Text variant="caption" align="center" style={{ color: colors.accent, marginTop: 12 }}>

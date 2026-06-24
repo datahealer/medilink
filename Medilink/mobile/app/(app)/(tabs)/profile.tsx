@@ -1,7 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
 import {
   Avatar,
@@ -9,6 +8,7 @@ import {
   Card,
   Chip,
   ErrorState,
+  Icon,
   LoadingState,
   Screen,
   Text,
@@ -37,7 +37,7 @@ function ageFrom(dob?: string | null): string | null {
 export default function ProfileScreen() {
   const { spacing, colors, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
-  const { t } = useI18n();
+  const { t, num } = useI18n();
 
   const profile = useProfile();
   const history = useMedicalHistory();
@@ -72,7 +72,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
       {/* Settings entry (gear) — Settings holds language/appearance/sign out (PDF p34). */}
       <View style={[styles.topRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Pressable
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
           accessibilityLabel={t("settings.title")}
           style={[styles.gear, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
         >
-          <Ionicons name="settings-outline" size={20} color={colors.text} />
+          <Icon name="settings" size={20} tint={colors.text} />
         </Pressable>
       </View>
 
@@ -109,7 +109,9 @@ export default function ProfileScreen() {
       <View style={[styles.stats, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {stats.map((s) => (
           <Card key={s.label} style={styles.statCard}>
-            <Text variant="h2" align="center">{s.value}</Text>
+            {/* Stat values use Manrope (title), not Agatho display: the serif face
+                lacks a clean "+", which rendered "O+" as a broken glyph (audit P2.2). */}
+            <Text variant="title" align="center" style={styles.statValue}>{num(s.value)}</Text>
             <Text variant="caption" color="textMuted" align="center">{s.label}</Text>
           </Card>
         ))}
@@ -160,5 +162,6 @@ const styles = StyleSheet.create({
   identity: { alignItems: "center", marginBottom: 16 },
   stats: { gap: 8 },
   statCard: { flex: 1, alignItems: "center", paddingVertical: 16 },
+  statValue: { fontSize: 20, lineHeight: 26 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
 });

@@ -1,9 +1,8 @@
 import React from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { Avatar, Button, Card, Chip, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { Avatar, Button, Card, Chip, ErrorState, HeroBackground, Icon, type IconName, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -11,8 +10,6 @@ import { isDev } from "@/config/env";
 import { useProfile, useUpcomingAppointments } from "@/hooks/queries/usePatient";
 import { useRecentDoctors, useFeaturedClinics, useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
-
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
 function greetingKey(): "dashboard.greetingMorning" | "dashboard.greetingAfternoon" | "dashboard.greetingEvening" {
   const h = new Date().getHours();
@@ -24,7 +21,7 @@ function greetingKey(): "dashboard.greetingMorning" | "dashboard.greetingAfterno
 export default function DashboardScreen() {
   const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
-  const { t } = useI18n();
+  const { t, num } = useI18n();
 
   const profile = useProfile();
   const upcoming = useUpcomingAppointments();
@@ -38,15 +35,15 @@ export default function DashboardScreen() {
   const next = upcoming.data?.[0];
 
   // Me Care Hub tiles (PDF p14): Me Assistant · Book · Lab results · Me Vault.
-  const actions: { key: string; label: string; icon: IoniconName; onPress: () => void }[] = [
-    { key: "assistant", label: t("dashboard.meAssistant"), icon: "sparkles-outline", onPress: () => router.push("/ai/assistant") },
-    { key: "book", label: t("dashboard.book"), icon: "calendar-outline", onPress: () => router.push("/search") },
-    { key: "labs", label: t("dashboard.labResults"), icon: "flask-outline", onPress: () => router.push("/records/labs") },
-    { key: "vault", label: t("dashboard.meVault"), icon: "documents-outline", onPress: () => router.push("/records") },
+  const actions: { key: string; label: string; icon: IconName; onPress: () => void }[] = [
+    { key: "assistant", label: t("dashboard.meAssistant"), icon: "ai", onPress: () => router.push("/ai/assistant") },
+    { key: "book", label: t("dashboard.book"), icon: "calendar", onPress: () => router.push("/search") },
+    { key: "labs", label: t("dashboard.labResults"), icon: "lab", onPress: () => router.push("/records/labs") },
+    { key: "vault", label: t("dashboard.meVault"), icon: "document", onPress: () => router.push("/records") },
   ];
 
   return (
-    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
       {/* Greeting header */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.headerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -65,7 +62,7 @@ export default function DashboardScreen() {
               accessibilityLabel="Open dev Screen Gallery"
               style={[styles.bell, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
             >
-              <Ionicons name="grid-outline" size={18} color={colors.textMuted} />
+              <Icon name="grid" size={18} tint={colors.textMuted} />
             </Pressable>
           ) : null}
           <Pressable
@@ -75,7 +72,7 @@ export default function DashboardScreen() {
             accessibilityLabel={t("dashboard.notifications")}
             style={[styles.bell, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
           >
-            <Ionicons name="notifications-outline" size={20} color={colors.text} />
+            <Icon name="alerts" size={20} tint={colors.text} />
           </Pressable>
         </View>
       </View>
@@ -87,7 +84,7 @@ export default function DashboardScreen() {
         accessibilityLabel={t("dashboard.searchPlaceholder")}
         style={[styles.search, { backgroundColor: colors.surfaceAlt, borderRadius: radii.md, borderColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
-        <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+        <Icon name="search" size={18} tint={colors.textMuted} />
         <Text variant="body" color="textMuted" style={isRTL ? { marginEnd: 8 } : { marginStart: 8 }}>
           {t("dashboard.searchPlaceholder")}
         </Text>
@@ -108,8 +105,12 @@ export default function DashboardScreen() {
             <Avatar name={next.doctor?.full_name} size={44} />
             <View style={[styles.nextText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
               <Text variant="title" numberOfLines={1}>{next.doctor?.full_name ?? "—"}</Text>
-              <Text variant="body" color="textMuted" numberOfLines={1}>
-                {[next.facility?.name, next.slot_date, next.slot_start].filter(Boolean).join(" · ")}
+              {/* Facility + date/time on two lines so the date is never truncated (audit P2.4). */}
+              {next.facility?.name ? (
+                <Text variant="caption" color="textMuted" numberOfLines={1}>{next.facility.name}</Text>
+              ) : null}
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                {num([next.slot_date, next.slot_start].filter(Boolean).join(" · "))}
               </Text>
             </View>
           </View>
@@ -140,7 +141,7 @@ export default function DashboardScreen() {
         {actions.map((a) => (
           <View key={a.key} style={styles.gridCell}>
             <Card onPress={a.onPress} accessibilityLabel={a.label} style={styles.actionCard}>
-              <Ionicons name={a.icon} size={24} color={colors.primary} />
+              <Icon name={a.icon} size={24} tint={colors.primary} />
               <Text variant="caption" align="center" numberOfLines={2} style={{ marginTop: 6 }}>{a.label}</Text>
             </Card>
           </View>
@@ -196,7 +197,7 @@ export default function DashboardScreen() {
                   {`${d.specialty} · ${d.facility}`}
                 </Text>
                 <Text variant="caption" color="textMuted">
-                  {`★ ${d.rating}   OMR ${d.fee_omr}`}
+                  {num(`★ ${d.rating}   OMR ${d.fee_omr}`)}
                 </Text>
               </View>
             </View>
@@ -210,14 +211,17 @@ export default function DashboardScreen() {
       </Text>
       {(featured.data ?? []).map((c) => (
         <Card key={c.id} onPress={() => router.push("/search")}>
-          <View style={[styles.clinicHero, { backgroundColor: colors.accent, borderRadius: radii.md }]}>
+          {/* Branded clinic hero — connected-dot/orb treatment on the violet field
+              stands in for clinic imagery until photos land (audit P2.4). */}
+          <View style={[styles.clinicHero, { backgroundColor: colors.primary, borderRadius: radii.md }]}>
+            <HeroBackground tone="onViolet" radius={radii.md} intensity={0.9} />
             <View style={[styles.tag, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text variant="caption" color="primary">{`★ ${c.rating} · ${t("dashboard.featured")}`}</Text>
+              <Text variant="caption" color="primary">{num(`★ ${c.rating} · ${t("dashboard.featured")}`)}</Text>
             </View>
           </View>
           <Text variant="title" style={{ marginTop: spacing.sm }} numberOfLines={1}>{c.name}</Text>
           <Text variant="caption" color="textMuted">
-            {[c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · ")}
+            {num([c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
           </Text>
         </Card>
       ))}
