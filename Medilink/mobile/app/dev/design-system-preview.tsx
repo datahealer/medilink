@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 
 import {
   AppCard,
@@ -46,6 +47,7 @@ export default function DesignSystemPreview() {
   const { setMode } = useThemeContext();
   const { locale } = useI18n();
   const setLocale = useLocaleStore((s) => s.setLocale);
+  const { m } = useLocalSearchParams<{ m?: string }>();
 
   const modes: { key: string; label: string; mode: "light" | "dark"; loc: "en" | "ar" }[] = [
     { key: "enl", label: "EN Light", mode: "light", loc: "en" },
@@ -53,6 +55,13 @@ export default function DesignSystemPreview() {
     { key: "arl", label: "AR Light", mode: "light", loc: "ar" },
     { key: "ard", label: "AR Dark", mode: "dark", loc: "ar" },
   ];
+
+  // Allow ?m=enl|end|arl|ard to preset the mode (used for headless screenshots).
+  useEffect(() => {
+    const sel = modes.find((x) => x.key === m);
+    if (sel) { setMode(sel.mode); setLocale(sel.loc); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m]);
 
   return (
     <AppScreen headerVariant="none">
@@ -119,12 +128,13 @@ export default function DesignSystemPreview() {
       </Section>
 
       {/* Appointment card */}
-      <Section title="AppointmentCard (violet + official submark watermark)">
+      <Section title="AppointmentCard (violet + official orb pattern)">
         <AppointmentCard
           statusLabel="Upcoming"
-          doctorName="Dr. Khalid Al Balushi"
-          subtitle="Royal Hospital · Wed 18 Jun · 10:30 AM"
-          initials="DB"
+          relativeLabel="in 2 days"
+          doctorName="Dr. Aisha Al Harthy"
+          subtitle="General Care · Today 4:30 PM"
+          initials="AH"
           primaryLabel="Check in"
           secondaryLabel="Reschedule"
           isRTL={isRTL}
@@ -133,17 +143,22 @@ export default function DesignSystemPreview() {
 
       {/* Doctor + clinic cards */}
       <Section title="Doctor & clinic cards">
+        <DoctorCard variant="detail" name="Dr. Khalid Al Balushi" specialty="Cardiologist" facility="Royal Hospital" initials="KB" availableTodayLabel="Available today" />
         <DoctorCard name="Dr. Khalid Al Balushi" specialty="Cardiologist" facility="Royal Hospital" metaText="★ 4.9   OMR 25 · 2.1 km" availableTodayLabel="Available today" />
         <DoctorCard variant="recent" name="Dr. Sara Nasser" specialty="Dermatologist" facility="DermaCare" metaText="★ 4.8   OMR 20" visitedLabel="Visited" />
         <ClinicCard name="Aster Clinic — Al Khuwair" meta="Al Khuwair · 24 doctors · 0.8 km" tagLabel="★ 4.7 · Featured" isRTL={isRTL} />
       </Section>
 
-      {/* PatternCard modes */}
-      <Section title="PatternCard — none · submark · watermark">
-        <View style={{ gap: spacing.sm }}>
-          <PatternCard variant="detail" surface="dark" pattern="none"><AppText role="cardTitle">pattern: none</AppText></PatternCard>
-          <PatternCard variant="detail" surface="primary" pattern="submark"><AppText role="cardTitle" style={{ color: "#FFFFFF" }}>pattern: submark</AppText></PatternCard>
-          <PatternCard variant="detail" surface="secondary" pattern="watermark"><AppText role="cardTitle">pattern: watermark</AppText></PatternCard>
+      {/* Orb pattern variants */}
+      <Section title="Orb pattern variants (violet hero surfaces only)">
+        <View style={[styles.tiles, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          {(["large", "medium", "corner", "subtle"] as const).map((v) => (
+            <View key={v} style={styles.orbCell}>
+              <PatternCard variant="specialty" surface="primary" pattern="orbs" orbVariant={v}>
+                <Text variant="caption" style={{ color: "#FFFFFF" }} align="center">{v}</Text>
+              </PatternCard>
+            </View>
+          ))}
         </View>
       </Section>
 
@@ -190,6 +205,7 @@ const styles = StyleSheet.create({
   wrap: { flexWrap: "wrap", gap: 8 },
   tiles: { flexWrap: "wrap", gap: 8 },
   tileCell: { width: "23%" },
+  orbCell: { width: "23%", height: 72 },
   nav: { borderWidth: 1, borderRadius: 16, paddingVertical: 8 },
   navInner: { alignItems: "flex-start", justifyContent: "space-between" },
   navItem: { flex: 1, alignItems: "center", gap: 2 },

@@ -8,6 +8,8 @@ export type { BrandIconName } from "./BrandIcon";
 export { Button } from "./Button";
 export { CtaButton } from "./CtaButton";
 export { HeroBackground } from "./HeroBackground";
+export { OrbPattern } from "./OrbPattern";
+export type { OrbVariant } from "./OrbPattern";
 export { AppScreen } from "./AppScreen";
 export type { HeaderVariant } from "./AppScreen";
 export { AppCard } from "./AppCard";
