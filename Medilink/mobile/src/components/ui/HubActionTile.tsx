@@ -36,16 +36,29 @@ export function HubActionTile({ label, brandIcon, icon, dot = false, onPress }: 
         </View>
         {dot ? <View style={[styles.dot, { backgroundColor: colors.primary, borderColor: colors.surface }]} /> : null}
       </View>
-      <Text variant="label" weight="600" align="center" numberOfLines={2} style={styles.label}>
-        {label}
-      </Text>
+      {/* Fixed 2-line label box + auto-shrink so long words ("Assistant") never
+          break mid-word and all four tiles stay identical height. */}
+      <View style={styles.labelBox}>
+        <Text
+          variant="caption"
+          weight="600"
+          align="center"
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+          style={styles.label}
+        >
+          {label}
+        </Text>
+      </View>
     </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: "center", justifyContent: "center" },
-  iconWrap: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  card: { alignItems: "center", justifyContent: "flex-start" },
+  iconWrap: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   dot: { position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
-  label: { marginTop: 8 },
+  labelBox: { height: 32, justifyContent: "center", marginTop: 8, alignSelf: "stretch" },
+  label: { lineHeight: 15 },
 });

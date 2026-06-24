@@ -17,6 +17,7 @@ export type { AppCardVariant } from "./AppCard";
 export { PatternCard } from "./PatternCard";
 export { AppointmentCard } from "./AppointmentCard";
 export { DoctorCard } from "./DoctorCard";
+export { RecentlyVisitedCard } from "./RecentlyVisitedCard";
 export { ClinicCard } from "./ClinicCard";
 export { HubActionTile } from "./HubActionTile";
 export { SpecialtyTile } from "./SpecialtyTile";

@@ -41,7 +41,7 @@ export default function SearchScreen() {
         specialty={d.specialty}
         facility={d.facility}
         metaText={num(`★ ${d.rating}   OMR ${d.fee_omr}${d.distance_km != null ? ` · ${d.distance_km} km` : ""}`)}
-        availableTodayLabel={d.available_today ? t("search.availableToday") : undefined}
+        availableTodayLabel={d.available_today ? t("search.today") : undefined}
         bookLabel={t("search.book")}
         profileLabel={t("search.profile")}
         onBook={() => router.push(`/booking/${d.id}/schedule`)}

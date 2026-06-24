@@ -2,7 +2,7 @@ import React from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { AppointmentCard, Avatar, Card, Chip, ClinicCard, DoctorCard, ErrorState, HubActionTile, Icon, type IconName, LoadingState, MeMark, Screen, Text } from "@/components/ui";
+import { AppointmentCard, Avatar, Card, Chip, ClinicCard, ErrorState, HubActionTile, Icon, type IconName, LoadingState, MeMark, RecentlyVisitedCard, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -174,13 +174,12 @@ export default function DashboardScreen() {
       ) : (
         (recents.data ?? []).map((d) => (
           <View key={d.id} style={{ marginBottom: spacing.sm }}>
-            <DoctorCard
-              variant="recent"
+            <RecentlyVisitedCard
               name={d.full_name}
               specialty={d.specialty}
               facility={d.facility}
-              metaText={num(`★ ${d.rating}   OMR ${d.fee_omr}`)}
-              visitedLabel={d.visited ? t("dashboard.visited") : undefined}
+              metaText={num(`★ ${d.rating} · OMR ${d.fee_omr}`)}
+              visitedLabel={t("dashboard.visited")}
               onPress={() => router.push(`/doctors/${d.id}`)}
             />
           </View>

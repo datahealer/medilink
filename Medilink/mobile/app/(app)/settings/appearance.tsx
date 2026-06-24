@@ -84,8 +84,9 @@ export default function AppearanceScreen() {
         />
       </View>
 
-      {/* Arabic preview */}
-      <View style={[styles.preview, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg }]}>
+      {/* Arabic preview — labelled and bordered so it reads as part of the RTL section */}
+      <View style={[styles.preview, { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radii.lg }]}>
+        <Text variant="caption" color="textMuted" style={{ marginBottom: 6, letterSpacing: 0.5 }}>{t("appearance.preview").toUpperCase()}</Text>
         <Text variant="h2" align="right" style={{ writingDirection: "rtl" }}>معاينة عربية</Text>
         <Text variant="caption" color="textMuted" align="right" style={{ writingDirection: "rtl" }}>رابطك لرعاية أفضل</Text>
       </View>
@@ -114,5 +115,5 @@ const styles = StyleSheet.create({
   tileBar: { height: 8, width: "70%", borderRadius: 4 },
   tileBarSm: { height: 6, width: "45%", borderRadius: 3 },
   row: { alignItems: "center", borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  preview: { padding: 14, marginTop: 8 },
+  preview: { padding: 14, marginTop: 8, borderWidth: 1 },
 });

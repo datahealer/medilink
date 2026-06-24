@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Switch, View } from "react-native";
 
-import { AppHeader, Chip, LoadingState, Screen, Text } from "@/components/ui";
+import { AppCard, AppHeader, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -26,7 +26,7 @@ const CHANNELS: { key: ChannelKey; label: "push" | "email" | "sms" }[] = [
   { key: "sms", label: "sms" },
 ];
 
-/** Notification Preferences (PDF p32): per-category toggles + channels. */
+/** Notification Preferences (PDF p32): per-category toggles + channels, grouped into rounded cards. */
 export default function NotificationPrefsScreen() {
   const { colors, spacing, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
@@ -36,6 +36,27 @@ export default function NotificationPrefsScreen() {
   const update = useUpdateNotificationPrefs();
   const p = prefs.data;
 
+  const toggleRow = (label: string, value: boolean, onChange: (v: boolean) => void, showDivider: boolean) => (
+    <View
+      key={label}
+      style={[
+        styles.row,
+        { flexDirection: isRTL ? "row-reverse" : "row" },
+        showDivider ? { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: colors.border } : null,
+      ]}
+    >
+      <Text variant="body" weight="500" style={{ flex: 1 }} align={isRTL ? "right" : "left"}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: colors.primary, false: colors.border }}
+        thumbColor={colors.surface}
+        ios_backgroundColor={colors.border}
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+
   return (
     <Screen scroll padded edges={["top", "left", "right", "bottom"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
       <AppHeader title={t("notif.prefsTitle")} />
@@ -44,32 +65,28 @@ export default function NotificationPrefsScreen() {
         <LoadingState />
       ) : (
         <>
-          {CATEGORIES.map((c) => (
-            <View key={c.key} style={[styles.row, { borderColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <Text variant="title" style={{ flex: 1 }}>{t(`notif.${c.label}`)}</Text>
-              <Switch
-                value={p[c.key]}
-                onValueChange={(v) => update.mutate({ [c.key]: v })}
-                trackColor={{ true: colors.primary, false: colors.border }}
-                thumbColor={colors.surface}
-                accessibilityLabel={t(`notif.${c.label}`)}
-              />
-            </View>
-          ))}
+          {/* Categories */}
+          <Text variant="label" color="textMuted" style={styles.section}>{t("notif.categories")}</Text>
+          <AppCard variant="detail" style={styles.group}>
+            {CATEGORIES.map((c, i) =>
+              toggleRow(t(`notif.${c.label}`), p[c.key], (v) => update.mutate({ [c.key]: v }), i > 0),
+            )}
+          </AppCard>
 
-          <Text variant="label" color="textMuted" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
-            {t("notif.channels")}
-          </Text>
-          <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            {CHANNELS.map((ch) => (
-              <Chip
-                key={ch.key}
-                label={t(`notif.${ch.label}`)}
-                selected={p.channels[ch.key]}
-                onPress={() => update.mutate({ channels: { ...p.channels, [ch.key]: !p.channels[ch.key] } })}
-              />
-            ))}
-          </View>
+          {/* Channels */}
+          <Text variant="label" color="textMuted" style={styles.section}>{t("notif.channels")}</Text>
+          <AppCard variant="detail" style={styles.group}>
+            {CHANNELS.map((ch, i) =>
+              toggleRow(
+                t(`notif.${ch.label}`),
+                p.channels[ch.key],
+                (v) => update.mutate({ channels: { ...p.channels, [ch.key]: v } }),
+                i > 0,
+              ),
+            )}
+          </AppCard>
+
+          <View style={{ height: spacing.lg }} />
         </>
       )}
     </Screen>
@@ -77,11 +94,7 @@ export default function NotificationPrefsScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    alignItems: "center",
-    minHeight: 56,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth * 2,
-  },
-  chips: { flexWrap: "wrap", gap: 8 },
+  section: { marginTop: 20, marginBottom: 8 },
+  group: { paddingVertical: 0, paddingHorizontal: 16 },
+  row: { alignItems: "center", minHeight: 52, paddingVertical: 12 },
 });

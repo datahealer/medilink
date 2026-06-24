@@ -22,16 +22,29 @@ export function SpecialtyTile({ name, icon, onPress }: SpecialtyTileProps) {
       <View style={[styles.iconWrap, { backgroundColor: colors.accent, borderRadius: radii.md }]}>
         <Icon name={resolved} size={24} tint={colors.primary} />
       </View>
-      {/* Specialty names must be semibold/bold (audit) */}
-      <Text variant="label" weight="700" align="center" numberOfLines={2} style={styles.label}>
-        {name}
-      </Text>
+      {/* Single-word names (e.g. "Dermatology") must stay on one line — auto-shrink
+          to fit the tile width rather than break mid-word. Fixed label box keeps all
+          tiles identical height. */}
+      <View style={styles.labelBox}>
+        <Text
+          variant="caption"
+          weight="700"
+          align="center"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+          style={styles.label}
+        >
+          {name}
+        </Text>
+      </View>
     </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: "center", justifyContent: "center" },
+  card: { alignItems: "center", justifyContent: "flex-start" },
   iconWrap: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  label: { marginTop: 8 },
+  labelBox: { height: 18, justifyContent: "center", marginTop: 8, alignSelf: "stretch" },
+  label: { lineHeight: 16 },
 });
