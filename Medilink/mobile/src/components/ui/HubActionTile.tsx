@@ -13,23 +13,28 @@ export interface HubActionTileProps {
   brandIcon?: BrandIconName;
   /** … or a single-stroke UI icon otherwise. */
   icon?: IconName;
+  /** Small notification dot on the icon sub-tile (PDF dashboard tiles). */
+  dot?: boolean;
   onPress?: () => void;
 }
 
 /**
  * Me Care Hub tile (PDF dashboard): a white card with the icon inside a lavender
- * rounded-square sub-tile, label below in semibold. Sized to the larger artboard tile.
+ * rounded-square sub-tile (with a small notification dot), label below in semibold.
  */
-export function HubActionTile({ label, brandIcon, icon, onPress }: HubActionTileProps) {
+export function HubActionTile({ label, brandIcon, icon, dot = false, onPress }: HubActionTileProps) {
   const { colors, radii } = useTheme();
   return (
     <AppCard variant="specialty" onPress={onPress} accessibilityLabel={label} style={styles.card}>
-      <View style={[styles.iconWrap, { backgroundColor: colors.accent, borderRadius: radii.md }]}>
-        {brandIcon ? (
-          <BrandIcon name={brandIcon} size={26} color="primary" />
-        ) : (
-          <Icon name={icon ?? "ai"} size={24} tint={colors.primary} />
-        )}
+      <View>
+        <View style={[styles.iconWrap, { backgroundColor: colors.accent, borderRadius: radii.md }]}>
+          {brandIcon ? (
+            <BrandIcon name={brandIcon} size={26} color="primary" />
+          ) : (
+            <Icon name={icon ?? "ai"} size={24} tint={colors.primary} />
+          )}
+        </View>
+        {dot ? <View style={[styles.dot, { backgroundColor: colors.primary, borderColor: colors.surface }]} /> : null}
       </View>
       <Text variant="label" weight="600" align="center" numberOfLines={2} style={styles.label}>
         {label}
@@ -41,5 +46,6 @@ export function HubActionTile({ label, brandIcon, icon, onPress }: HubActionTile
 const styles = StyleSheet.create({
   card: { alignItems: "center", justifyContent: "center" },
   iconWrap: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  dot: { position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   label: { marginTop: 8 },
 });

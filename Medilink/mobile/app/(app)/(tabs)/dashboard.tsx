@@ -2,7 +2,7 @@ import React from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Avatar, Card, Chip, ErrorState, HeroBackground, Icon, type IconName, LoadingState, Screen, Text } from "@/components/ui";
+import { AppointmentCard, Avatar, Card, Chip, ClinicCard, DoctorCard, ErrorState, HubActionTile, Icon, type IconName, LoadingState, MeMark, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -97,50 +97,24 @@ export default function DashboardScreen() {
         </Text>
       </Pressable>
 
-      {/* Upcoming / next visit */}
-      <Text variant="label" color="textMuted" style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
-        {t("dashboard.upcoming")}
-      </Text>
+      {/* Upcoming / next visit — AppointmentCard carries its own "UPCOMING" pill */}
+      <View style={{ height: spacing.md }} />
       {upcoming.isLoading ? (
         <Card><View style={{ height: 72 }}><LoadingState /></View></Card>
       ) : upcoming.isError ? (
         <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
       ) : next ? (
-        // Filled VIOLET upcoming card (white content), matching the p36 artboard.
-        <View style={[styles.upcoming, { backgroundColor: colors.heroFrom, borderRadius: radii.lg }]}>
-          <View style={[styles.upcomingTop, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <View style={styles.upcomingPill}>
-              <Text variant="caption" style={styles.upcomingPillText}>{t("dashboard.nextVisit").toUpperCase()}</Text>
-            </View>
-          </View>
-          <View style={[styles.nextRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <View style={styles.whiteAvatar}>
-              <Text variant="title" style={{ color: colors.heroFrom }}>{initialsOf(next.doctor?.full_name)}</Text>
-            </View>
-            <View style={[styles.nextText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-              <Text variant="title" numberOfLines={1} style={{ color: "#FFFFFF" }}>{next.doctor?.full_name ?? "—"}</Text>
-              <Text variant="caption" numberOfLines={1} style={{ color: "rgba(255,255,255,0.78)" }}>
-                {[next.facility?.name, next.slot_date, next.slot_start].filter(Boolean).join(" · ")}
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.nextActions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <Pressable
-              onPress={() => router.push(`/appointments/${next.id}/check-in`)}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.checkInBtn, { borderRadius: radii.md, opacity: pressed ? 0.9 : 1 }]}
-            >
-              <Text variant="title" style={{ color: colors.heroFrom }}>{t("dashboard.checkIn")}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push(`/appointments/${next.id}`)}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.rescheduleBtn, { borderRadius: radii.md, opacity: pressed ? 0.85 : 1 }]}
-            >
-              <Text variant="title" style={{ color: "#FFFFFF" }}>{t("dashboard.reschedule")}</Text>
-            </Pressable>
-          </View>
-        </View>
+        <AppointmentCard
+          statusLabel={t("dashboard.upcoming")}
+          doctorName={next.doctor?.full_name ?? "—"}
+          subtitle={[next.facility?.name, next.slot_start].filter(Boolean).join(" · ")}
+          initials={initialsOf(next.doctor?.full_name)}
+          primaryLabel={t("dashboard.checkIn")}
+          secondaryLabel={t("dashboard.reschedule")}
+          onPrimary={() => router.push(`/appointments/${next.id}/check-in`)}
+          onSecondary={() => router.push(`/appointments/${next.id}`)}
+          isRTL={isRTL}
+        />
       ) : (
         <Card>
           <Text variant="title">{t("dashboard.noUpcomingTitle")}</Text>
@@ -150,7 +124,10 @@ export default function DashboardScreen() {
 
       {/* Me Care Hub */}
       <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
-        <Text variant="label" color="textMuted">{t("dashboard.careHub")}</Text>
+        <View style={[styles.hubTitle, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <MeMark height={16} color={colors.primary} />
+          <Text variant="label" color="textMuted" style={isRTL ? { marginEnd: 6 } : { marginStart: 6 }}>{t("dashboard.careHub")}</Text>
+        </View>
         <Pressable onPress={() => Alert.alert(t("dashboard.careHub"), t("dashboard.comingSoon"))} hitSlop={8}>
           <Text variant="caption" color="primary">{t("dashboard.customize")}</Text>
         </Pressable>
@@ -158,12 +135,7 @@ export default function DashboardScreen() {
       <View style={[styles.grid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {actions.map((a) => (
           <View key={a.key} style={styles.gridCell}>
-            <Card onPress={a.onPress} accessibilityLabel={a.label} style={styles.actionCard}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.accent, borderRadius: radii.md }]}>
-                <Icon name={a.icon} size={20} tint={colors.primary} />
-              </View>
-              <Text variant="caption" align="center" numberOfLines={2} style={{ marginTop: 6 }}>{a.label}</Text>
-            </Card>
+            <HubActionTile label={a.label} icon={a.icon} dot onPress={a.onPress} />
           </View>
         ))}
       </View>
@@ -201,27 +173,17 @@ export default function DashboardScreen() {
         <Card><View style={{ height: 64 }}><LoadingState /></View></Card>
       ) : (
         (recents.data ?? []).map((d) => (
-          <Card key={d.id} onPress={() => router.push(`/doctors/${d.id}`)} style={{ marginBottom: spacing.sm }}>
-            <View style={[styles.docRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <Avatar name={d.full_name} size={44} />
-              <View style={[styles.docText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-                <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                  <Text variant="title" numberOfLines={1} style={{ flex: 1 }}>{d.full_name}</Text>
-                  {d.visited ? (
-                    <View style={[styles.tag, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-                      <Text variant="caption" color="textMuted">{t("dashboard.visited")}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text variant="caption" color="textMuted" numberOfLines={1}>
-                  {`${d.specialty} · ${d.facility}`}
-                </Text>
-                <Text variant="caption" color="textMuted">
-                  {num(`★ ${d.rating}   OMR ${d.fee_omr}`)}
-                </Text>
-              </View>
-            </View>
-          </Card>
+          <View key={d.id} style={{ marginBottom: spacing.sm }}>
+            <DoctorCard
+              variant="recent"
+              name={d.full_name}
+              specialty={d.specialty}
+              facility={d.facility}
+              metaText={num(`★ ${d.rating}   OMR ${d.fee_omr}`)}
+              visitedLabel={d.visited ? t("dashboard.visited") : undefined}
+              onPress={() => router.push(`/doctors/${d.id}`)}
+            />
+          </View>
         ))
       )}
 
@@ -230,20 +192,14 @@ export default function DashboardScreen() {
         {t("dashboard.featuredClinics")}
       </Text>
       {(featured.data ?? []).map((c) => (
-        <Card key={c.id} onPress={() => router.push("/search")}>
-          {/* Branded clinic hero — soft orbs on the violet field stand in for clinic
-              imagery until photos land. Violet in both themes (heroFrom). */}
-          <View style={[styles.clinicHero, { backgroundColor: colors.heroFrom, borderRadius: radii.md }]}>
-            <HeroBackground tone="onViolet" radius={radii.md} />
-            <View style={[styles.tag, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text variant="caption" color="primary">{num(`★ ${c.rating} · ${t("dashboard.featured")}`)}</Text>
-            </View>
-          </View>
-          <Text variant="title" style={{ marginTop: spacing.sm }} numberOfLines={1}>{c.name}</Text>
-          <Text variant="caption" color="textMuted">
-            {num([c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
-          </Text>
-        </Card>
+        <ClinicCard
+          key={c.id}
+          name={c.name}
+          tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
+          meta={num([c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
+          onPress={() => router.push("/search")}
+          isRTL={isRTL}
+        />
       ))}
 
       {profile.isError ? (
@@ -262,23 +218,8 @@ const styles = StyleSheet.create({
   bell: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: StyleSheet.hairlineWidth * 2 },
   search: { alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, borderWidth: StyleSheet.hairlineWidth * 2, minHeight: 48 },
   rowBetween: { alignItems: "center", justifyContent: "space-between" },
-  upcoming: { padding: 14, overflow: "hidden" },
-  upcomingTop: { alignItems: "center", justifyContent: "flex-start", marginBottom: 4 },
-  upcomingPill: { backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  upcomingPillText: { color: "#FFFFFF", letterSpacing: 0.6, fontSize: 10 },
-  whiteAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
-  checkInBtn: { flex: 1, minHeight: 46, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingVertical: 10 },
-  rescheduleBtn: { flex: 1, minHeight: 46, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.55)", alignItems: "center", justifyContent: "center", paddingVertical: 10 },
-  nextRow: { alignItems: "center", marginTop: 10 },
-  nextText: { flex: 1 },
-  nextActions: { gap: 8, marginTop: 12 },
+  hubTitle: { alignItems: "center" },
   grid: { flexWrap: "wrap", marginHorizontal: -4 },
   gridCell: { width: "25%", padding: 4 },
-  actionCard: { alignItems: "center", paddingVertical: 12, paddingHorizontal: 4 },
-  actionIcon: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   chips: { flexWrap: "wrap", gap: 8 },
-  docRow: { alignItems: "center" },
-  docText: { flex: 1 },
-  tag: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth * 2, marginStart: 6 },
-  clinicHero: { height: 84, alignItems: "flex-start", justifyContent: "flex-start", padding: 10, overflow: "hidden" },
 });
