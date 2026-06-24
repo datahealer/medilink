@@ -57,7 +57,7 @@ export default function NotificationPrefsScreen() {
                 <Switch
                   value={p[c.key]}
                   onValueChange={(v) => update.mutate({ [c.key]: v })}
-                  trackColor={{ true: colors.primary, false: colors.border }}
+                  trackColor={{ true: colors.primaryMuted, false: colors.border }}
                   thumbColor="#FFFFFF"
                   ios_backgroundColor={colors.border}
                   accessibilityLabel={t(`notif.${c.label}`)}

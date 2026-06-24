@@ -50,6 +50,8 @@ export function HubActionTile({ label, brandIcon, icon, dot = false, onPress }: 
         >
           {label}
         </Text>
+        {/* label style starts small so the longest word ("Assistant") fits the
+            narrow 4-across tile without an Android mid-word break. */}
       </View>
     </AppCard>
   );
@@ -59,6 +61,6 @@ const styles = StyleSheet.create({
   card: { alignItems: "center", justifyContent: "flex-start" },
   iconWrap: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   dot: { position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
-  labelBox: { height: 32, justifyContent: "center", marginTop: 8, alignSelf: "stretch" },
-  label: { lineHeight: 15 },
+  labelBox: { height: 30, justifyContent: "center", marginTop: 8, alignSelf: "stretch" },
+  label: { fontSize: 11, lineHeight: 14 },
 });

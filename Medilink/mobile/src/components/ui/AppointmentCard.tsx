@@ -53,7 +53,7 @@ export function AppointmentCard({
         <View style={[styles.info, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
           <Text variant="title" numberOfLines={1} style={{ color: "#FFFFFF" }} align={isRTL ? "right" : "left"}>{doctorName}</Text>
           {subtitle ? (
-            <Text variant="caption" numberOfLines={1} style={{ color: "rgba(255,255,255,0.80)" }} align={isRTL ? "right" : "left"}>{subtitle}</Text>
+            <Text variant="caption" numberOfLines={2} style={{ color: "rgba(255,255,255,0.80)" }} align={isRTL ? "right" : "left"}>{subtitle}</Text>
           ) : null}
         </View>
       </View>

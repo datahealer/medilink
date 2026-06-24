@@ -79,8 +79,8 @@ export default function AppearanceScreen() {
         <Switch
           value={isRTL}
           onValueChange={onToggleRTL}
-          trackColor={{ true: colors.primary, false: colors.border }}
-          thumbColor={colors.surface}
+          trackColor={{ true: colors.primaryMuted, false: colors.border }}
+          thumbColor="#FFFFFF"
         />
       </View>
 
@@ -100,8 +100,8 @@ export default function AppearanceScreen() {
         <Switch
           value={textScale >= LARGE_TEXT_SCALE}
           onValueChange={setLargerText}
-          trackColor={{ true: colors.primary, false: colors.border }}
-          thumbColor={colors.surface}
+          trackColor={{ true: colors.primaryMuted, false: colors.border }}
+          thumbColor="#FFFFFF"
         />
       </View>
     </Screen>
