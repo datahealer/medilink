@@ -1,9 +1,8 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { AppHeader, Avatar, Card, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { AppHeader, Avatar, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -13,7 +12,7 @@ function Stars({ rating, size = 14, color }: { rating: number; size?: number; co
   return (
     <View style={{ flexDirection: "row" }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Ionicons key={n} name={n <= Math.round(rating) ? "star" : "star-outline"} size={size} color={color} />
+        <Icon key={n} name="rating" filled={n <= Math.round(rating)} size={size} tint={color} />
       ))}
     </View>
   );

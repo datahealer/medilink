@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { HIT_TARGET } from "@/theme/tokens";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export interface LanguageCardProps {
@@ -52,7 +52,7 @@ export function LanguageCard({ code, label, hint, selected, onPress, labelRTL }:
           </Text>
         ) : null}
       </View>
-      {selected ? <Ionicons name="checkmark-circle" size={24} color={colors.primary} /> : null}
+      {selected ? <Icon name="done-circle" size={24} tint={colors.primary} filled /> : null}
     </Pressable>
   );
 }

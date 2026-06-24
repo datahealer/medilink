@@ -1,19 +1,16 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
-import { AppHeader, Card, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useFacilityMessages } from "@/hooks/queries/useNotifications";
 
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
-
-function iconFor(source: string): IoniconName {
-  if (/hospital/i.test(source)) return "location-outline";
-  if (/lab/i.test(source)) return "flask-outline";
-  return "business-outline";
+function iconFor(source: string): IconName {
+  if (/hospital/i.test(source)) return "location";
+  if (/lab/i.test(source)) return "lab";
+  return "location";
 }
 
 /** Facility Messages (PDF p32): read-only admin updates from MediLink & clinics. */
@@ -42,7 +39,7 @@ export default function FacilityMessagesScreen() {
           <Card key={m.id} style={{ marginBottom: spacing.sm }}>
             <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}>
-                <Ionicons name={iconFor(m.source)} size={18} color={colors.primary} />
+                <Icon name={iconFor(m.source)} size={18} tint={colors.primary} />
               </View>
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
                 <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>

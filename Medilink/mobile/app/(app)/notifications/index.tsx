@@ -1,24 +1,21 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { AppHeader, Card, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useNotifications } from "@/hooks/queries/useNotifications";
 import type { NotificationItem, NotificationKind } from "@/data/types";
 
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
-
-const ICON: Record<NotificationKind, IoniconName> = {
-  assistant: "sparkles-outline",
-  appointment: "calendar-outline",
-  payment: "card-outline",
-  lab: "flask-outline",
-  prescription: "medkit-outline",
-  facility: "business-outline",
+const ICON: Record<NotificationKind, IconName> = {
+  assistant: "ai",
+  appointment: "calendar",
+  payment: "payment",
+  lab: "lab",
+  prescription: "medication",
+  facility: "location",
 };
 
 const ROUTE: Record<NotificationKind, string> = {
@@ -46,7 +43,7 @@ export default function NotificationsScreen() {
     <Card key={n.id} onPress={() => router.push(ROUTE[n.kind] as never)} style={{ marginBottom: spacing.sm }}>
       <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}>
-          <Ionicons name={ICON[n.kind]} size={18} color={colors.primary} />
+          <Icon name={ICON[n.kind]} size={18} tint={colors.primary} />
         </View>
         <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
           <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -67,7 +64,7 @@ export default function NotificationsScreen() {
         right={
           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12 }}>
             <Pressable onPress={() => router.push("/notifications/messages")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("notif.messagesTitle")}>
-              <Ionicons name="mail-outline" size={20} color={colors.text} />
+              <Icon name="mail" size={20} tint={colors.text} />
             </Pressable>
             <Pressable onPress={() => setAllRead(true)} hitSlop={8} accessibilityRole="button">
               <Text variant="label" color="primary">{t("notif.markAll")}</Text>

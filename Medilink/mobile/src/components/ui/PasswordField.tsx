@@ -1,9 +1,9 @@
 import React, { forwardRef, useState } from "react";
 import { Pressable, type TextInput } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { HIT_TARGET } from "@/theme/tokens";
+import { Icon } from "./Icon";
 import { TextField, type TextFieldProps } from "./TextField";
 
 /**
@@ -30,7 +30,7 @@ export const PasswordField = forwardRef<TextInput, Omit<TextFieldProps, "trailin
             hitSlop={12}
             style={{ minWidth: HIT_TARGET / 2, minHeight: HIT_TARGET / 2, alignItems: "center", justifyContent: "center" }}
           >
-            <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textMuted} />
+            <Icon name={visible ? "eye-off" : "eye"} size={20} tint={colors.textMuted} />
           </Pressable>
         }
         {...props}

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import type { SmokingStatus } from "@/data/types";
 
 import {
@@ -9,6 +8,7 @@ import {
   Button,
   Chip,
   ErrorState,
+  Icon,
   LoadingState,
   Screen,
   Text,
@@ -68,7 +68,7 @@ function TagEditor({
             accessibilityRole="button"
             style={[styles.addBtn, { backgroundColor: colors.surfaceAlt, borderRadius: radii.sm }]}
           >
-            <Ionicons name="add" size={20} color={colors.primary} />
+            <Icon name="plus" size={20} tint={colors.primary} strokeWidth={2.2} />
           </Pressable>
         }
       />

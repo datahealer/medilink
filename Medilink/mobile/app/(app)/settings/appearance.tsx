@@ -1,19 +1,16 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
-import { AppHeader, Screen, Text } from "@/components/ui";
+import { AppHeader, Icon, type IconName, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { ColorMode } from "@/stores/themeStore";
 
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
-
-const OPTIONS: { value: ColorMode; label: "light" | "dark" | "system"; icon: IoniconName }[] = [
-  { value: "light", label: "light", icon: "sunny-outline" },
-  { value: "dark", label: "dark", icon: "moon-outline" },
-  { value: "system", label: "system", icon: "phone-portrait-outline" },
+const OPTIONS: { value: ColorMode; label: "light" | "dark" | "system"; icon: IconName }[] = [
+  { value: "light", label: "light", icon: "sun" },
+  { value: "dark", label: "dark", icon: "moon" },
+  { value: "system", label: "system", icon: "settings" },
 ];
 
 /**
@@ -58,7 +55,7 @@ export default function AppearanceScreen() {
               ]}
             >
               <View style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}>
-                <Ionicons name={opt.icon} size={20} color={colors.primary} />
+                <Icon name={opt.icon} size={20} tint={colors.primary} />
               </View>
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.md } : { marginStart: spacing.md }]}>
                 <Text variant="title">{t(`appearance.${opt.label}`)}</Text>
@@ -66,10 +63,10 @@ export default function AppearanceScreen() {
                   <Text variant="caption" color="textMuted">{t("appearance.systemHint")}</Text>
                 ) : null}
               </View>
-              <Ionicons
-                name={selected ? "radio-button-on" : "radio-button-off"}
+              <Icon
+                name={selected ? "radio-on" : "radio-off"}
                 size={22}
-                color={selected ? colors.primary : colors.textMuted}
+                tint={selected ? colors.primary : colors.textMuted}
               />
             </Pressable>
           );

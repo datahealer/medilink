@@ -1,8 +1,8 @@
 import React from "react";
 import { Pressable, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
+import { Icon } from "./Icon";
 import { useTheme } from "@/hooks/useTheme";
 import { HIT_TARGET } from "@/theme/tokens";
 
@@ -18,7 +18,7 @@ export function BackButton({ onPress }: { onPress?: () => void }) {
       hitSlop={10}
       style={styles.btn}
     >
-      <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={26} color={colors.text} />
+      <Icon name="chevron" direction={isRTL ? "right" : "left"} size={26} tint={colors.text} strokeWidth={2.2} />
     </Pressable>
   );
 }

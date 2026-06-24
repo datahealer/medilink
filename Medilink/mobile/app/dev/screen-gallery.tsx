@@ -1,9 +1,8 @@
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { AppHeader, Screen, Text } from "@/components/ui";
+import { AppHeader, Icon, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { isDev } from "@/config/env";
@@ -67,7 +66,7 @@ export default function ScreenGallery() {
                   {s.built ? "Built" : "Preview"}
                 </Text>
               </View>
-              <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={colors.textMuted} />
+              <Icon name="chevron" direction={isRTL ? "left" : "right"} size={18} tint={colors.textMuted} />
             </Pressable>
           ))}
         </View>

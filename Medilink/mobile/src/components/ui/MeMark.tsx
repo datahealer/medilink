@@ -8,10 +8,12 @@ import { useTheme } from "@/hooks/useTheme";
 // silhouette so it is recoloured per-context via tintColor.
 const ME_MARK = require("../../../assets/brand/me-mark.png");
 const ME_WORDMARK = require("../../../assets/brand/me-wordmark.png");
+const ME_WORDMARK_AR = require("../../../assets/brand/me-wordmark-ar.png");
 
 // Source aspect ratios (px) from the rasteriser.
 const MARK_RATIO = 660 / 457; // width / height
 const WORD_RATIO = 1200 / 289;
+const WORD_RATIO_AR = 1200 / 289;
 
 export interface MeMarkProps {
   /** Rendered height in px (width derives from the brand aspect ratio). */
@@ -42,13 +44,14 @@ export interface MeWordmarkProps {
   style?: StyleProp<ImageStyle>;
 }
 
-/** The official MediLink wordmark (Agatho), tintable per context. */
+/** The official MediLink wordmark (Agatho EN / Arabic in RTL), tintable per context. */
 export function MeWordmark({ height = 22, color, style }: MeWordmarkProps) {
-  const { colors } = useTheme();
+  const { colors, isRTL } = useTheme();
+  const ratio = isRTL ? WORD_RATIO_AR : WORD_RATIO;
   return (
     <Image
-      source={ME_WORDMARK}
-      style={[{ height, width: height * WORD_RATIO, tintColor: color ?? colors.primary }, style]}
+      source={isRTL ? ME_WORDMARK_AR : ME_WORDMARK}
+      style={[{ height, width: height * ratio, tintColor: color ?? colors.primary }, style]}
       resizeMode="contain"
       accessibilityRole="image"
       accessibilityLabel="MediLink"

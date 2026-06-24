@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { HIT_TARGET } from "@/theme/tokens";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export interface ChipProps {
@@ -43,10 +43,10 @@ export function Chip({ label, selected = false, onPress, onRemove, accessibility
           accessibilityLabel={`Remove ${label}`}
           style={isRTL ? { marginEnd: 6 } : { marginStart: 6 }}
         >
-          <Ionicons
+          <Icon
             name="close"
             size={14}
-            color={selected ? colors.textOnPrimary : colors.textMuted}
+            tint={selected ? colors.textOnPrimary : colors.textMuted}
           />
         </Pressable>
       ) : null}

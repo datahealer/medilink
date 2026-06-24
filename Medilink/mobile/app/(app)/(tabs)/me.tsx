@@ -1,10 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import type { FamilyMember, FamilyRelation } from "@/data/types";
 
-import { Avatar, Card, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { Avatar, Card, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -66,14 +65,14 @@ export default function MeFamilyScreen() {
               <Text variant="caption" color="textOnPrimary">{t("family.active")}</Text>
             </View>
           ) : null}
-          <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={colors.textMuted} />
+          <Icon name="chevron" direction={isRTL ? "left" : "right"} size={20} tint={colors.textMuted} />
         </View>
       </Card>
     );
   };
 
   return (
-    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
       {/* Header: "Me Family" + add (sized to content, never wraps) */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Text variant="h2">{t("family.title")}</Text>
@@ -85,7 +84,7 @@ export default function MeFamilyScreen() {
           accessibilityLabel={t("family.addMember")}
           style={[styles.addBtn, { backgroundColor: colors.primary, opacity: atLimit ? 0.4 : 1 }]}
         >
-          <Ionicons name="add" size={22} color={colors.textOnPrimary} />
+          <Icon name="plus" size={22} tint={colors.textOnPrimary} strokeWidth={2.2} />
         </Pressable>
       </View>
       <Text variant="body" color="textMuted" style={{ marginBottom: spacing.md }}>
@@ -127,7 +126,7 @@ export default function MeFamilyScreen() {
           accessibilityRole="button"
           style={[styles.addRow, { borderColor: colors.border, borderRadius: radii.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}
         >
-          <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+          <Icon name="plus-circle" size={22} tint={colors.primary} />
           <Text variant="title" color="primary" style={isRTL ? { marginEnd: 8 } : { marginStart: 8 }}>
             {t("family.addMember")}
           </Text>

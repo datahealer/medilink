@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { HIT_TARGET } from "@/theme/tokens";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export interface CheckboxProps {
@@ -35,7 +35,7 @@ export function Checkbox({ checked, onChange, label, error = false }: CheckboxPr
           },
         ]}
       >
-        {checked ? <Ionicons name="checkmark" size={16} color={colors.textOnPrimary} /> : null}
+        {checked ? <Icon name="done" size={16} tint={colors.textOnPrimary} strokeWidth={2.4} /> : null}
       </View>
       {label ? (
         <Text variant="body" style={styles.label}>

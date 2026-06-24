@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { AppHeader, Avatar, Button, Card, Chip, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { AppHeader, Avatar, Button, Card, Chip, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -63,7 +62,7 @@ export default function DoctorDetailsScreen() {
         title=""
         right={
           <Pressable onPress={() => setFav((v) => !v)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Favourite">
-            <Ionicons name={fav ? "heart" : "heart-outline"} size={24} color={fav ? colors.error : colors.text} />
+            <Icon name="favourite" size={24} filled={fav} tint={fav ? colors.error : colors.text} />
           </Pressable>
         }
       />
@@ -127,7 +126,7 @@ export default function DoctorDetailsScreen() {
           <Text variant="caption" color="textMuted" style={isRTL ? { marginStart: 6 } : { marginEnd: 6 }}>
             {`★ ${d.rating} · ${t("doctor.reviewsCount", { count: d.reviews ?? 0 })}`}
           </Text>
-          <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={colors.textMuted} />
+          <Icon name="chevron" direction={isRTL ? "left" : "right"} size={20} tint={colors.textMuted} />
         </View>
       </Card>
     </Screen>

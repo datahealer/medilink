@@ -1,10 +1,10 @@
 import React from "react";
 import { Pressable, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 import { HIT_TARGET } from "@/theme/tokens";
+import { Icon } from "./Icon";
 
 /**
  * Dev-only light/dark toggle. Hidden in production builds (gated by __DEV__) — the
@@ -25,7 +25,7 @@ export function ThemeToggle() {
       hitSlop={8}
       style={[styles.btn, { backgroundColor: colors.surfaceAlt, borderRadius: radii.pill, borderColor: colors.border }]}
     >
-      <Ionicons name={toDark ? "moon-outline" : "sunny-outline"} size={20} color={colors.text} />
+      <Icon name={toDark ? "moon" : "sun"} size={20} tint={colors.text} />
     </Pressable>
   );
 }

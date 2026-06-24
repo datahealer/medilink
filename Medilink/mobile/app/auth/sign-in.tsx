@@ -9,6 +9,7 @@ import {
   BackButton,
   Button,
   Checkbox,
+  Icon,
   PasswordField,
   Screen,
   Text,
@@ -87,7 +88,7 @@ export default function SignInScreen() {
             { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
           ]}
         >
-          <Ionicons name="flask-outline" size={16} color={colors.primary} />
+          <Icon name="lab" size={16} tint={colors.primary} />
           <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
             Demo mode: use demo@medilink.test / Demo1234!
           </Text>
@@ -155,7 +156,7 @@ export default function SignInScreen() {
           style={[styles.errorBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.error }]}
           accessibilityLiveRegion="polite"
         >
-          <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+          <Icon name="alert" size={16} tint={colors.error} />
           <Text variant="caption" color="error" style={{ flex: 1 }}>
             {formError}
           </Text>

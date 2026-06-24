@@ -10,12 +10,12 @@ import {
   Button,
   Chip,
   ErrorState,
+  Icon,
   LoadingState,
   Screen,
   Text,
   TextField,
 } from "@/components/ui";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -201,7 +201,7 @@ export default function EditProfileScreen() {
         onSubmitEditing={addAllergy}
         trailing={
           <Pressable onPress={addAllergy} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("common.add")}>
-            <Ionicons name="add" size={20} color={colors.primary} />
+            <Icon name="plus" size={20} tint={colors.primary} strokeWidth={2.2} />
           </Pressable>
         }
         containerStyle={{ marginBottom: spacing.md }}

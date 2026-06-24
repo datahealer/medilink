@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
 import {
   AppHeader,
@@ -9,6 +8,7 @@ import {
   Button,
   Card,
   ErrorState,
+  Icon,
   LoadingState,
   Screen,
   Text,
@@ -77,7 +77,7 @@ export default function PatientSwitcherScreen() {
                   <Text variant="title" numberOfLines={1}>{o.name}</Text>
                   {o.sub ? <Text variant="caption" color="textMuted">{o.sub}</Text> : null}
                 </View>
-                {isSel ? <Ionicons name="checkmark-circle" size={22} color={colors.primary} /> : null}
+                {isSel ? <Icon name="done-circle" size={22} tint={colors.primary} filled /> : null}
               </View>
             </Card>
           );

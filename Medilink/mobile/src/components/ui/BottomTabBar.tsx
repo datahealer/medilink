@@ -1,33 +1,34 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n, type MessageKey } from "@/i18n";
 import { HIT_TARGET } from "@/theme/tokens";
 import { shadow } from "@/utils/platform";
+import { Icon, type IconName } from "./Icon";
 import { MeMark } from "./MeMark";
 import { Text } from "./Text";
 
-type IconName = React.ComponentProps<typeof Ionicons>["name"];
-
 interface TabConfig {
-  active: IconName;
-  inactive: IconName;
+  icon: IconName;
   labelKey: MessageKey;
   /** Centre tab — rendered as the raised "Me" submark per the brand system. */
   me?: boolean;
 }
 
-/** The five approved patient tabs. Keys must match the route file names in (tabs)/. */
+/**
+ * The five approved patient tabs (PDF p8 icon set). Keys must match the route file
+ * names in (tabs)/. The brand icons are single-stroke outline; the active tab is
+ * distinguished by the primary colour (not an outline→fill swap), per the PDF.
+ */
 const TABS: Record<string, TabConfig> = {
-  dashboard: { active: "home", inactive: "home-outline", labelKey: "tabs.home" },
-  search: { active: "search", inactive: "search-outline", labelKey: "tabs.search" },
-  me: { active: "people", inactive: "people-outline", labelKey: "tabs.me", me: true },
-  records: { active: "document-text", inactive: "document-text-outline", labelKey: "tabs.records" },
-  profile: { active: "person", inactive: "person-outline", labelKey: "tabs.profile" },
+  dashboard: { icon: "home", labelKey: "tabs.home" },
+  search: { icon: "search", labelKey: "tabs.search" },
+  me: { icon: "people", labelKey: "tabs.me", me: true },
+  records: { icon: "records", labelKey: "tabs.records" },
+  profile: { icon: "profile", labelKey: "tabs.profile" },
 };
 
 /**
@@ -97,10 +98,11 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
             accessibilityState={{ selected: focused }}
             accessibilityLabel={t(cfg.labelKey)}
           >
-            <Ionicons
-              name={focused ? cfg.active : cfg.inactive}
+            <Icon
+              name={cfg.icon}
               size={24}
-              color={focused ? colors.primary : colors.textMuted}
+              tint={focused ? colors.primary : colors.textMuted}
+              strokeWidth={focused ? 2.2 : 1.9}
             />
             <Text variant="caption" color={focused ? "primary" : "textMuted"} style={styles.label}>
               {t(cfg.labelKey)}
