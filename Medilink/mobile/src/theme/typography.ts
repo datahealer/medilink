@@ -71,10 +71,14 @@ export type TypeStyle = {
   family: FontRole;
 };
 
-/** Type scale (design-tokens.json · type/en). `family` resolves per-locale + weight. */
+/**
+ * Type scale (design-tokens.json · type/en + MediLink_Design_Documentation.pdf p5).
+ * `family` resolves per-locale + weight. Display & H1 match the approved PDF
+ * "Typography Scale" page exactly: Display = Agatho 40, Heading 1 = Agatho 28.
+ */
 export const typeScale = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: "700", family: "heading" },
-  h1: { fontSize: 26, lineHeight: 32, fontWeight: "700", family: "heading" },
+  display: { fontSize: 40, lineHeight: 46, fontWeight: "700", family: "heading" },
+  h1: { fontSize: 28, lineHeight: 34, fontWeight: "700", family: "heading" },
   h2: { fontSize: 20, lineHeight: 28, fontWeight: "500", family: "heading" },
   title: { fontSize: 16, lineHeight: 22, fontWeight: "800", family: "body" },
   body: { fontSize: 14, lineHeight: 21, fontWeight: "400", family: "body" },

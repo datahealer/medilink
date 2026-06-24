@@ -1,5 +1,9 @@
 export { Text } from "./Text";
+export { Icon, resolveIconName } from "./Icon";
+export type { IconName } from "./Icon";
 export { Button } from "./Button";
+export { CtaButton } from "./CtaButton";
+export { HeroBackground } from "./HeroBackground";
 export { TextField } from "./TextField";
 export { PasswordField } from "./PasswordField";
 export { PhoneField } from "./PhoneField";

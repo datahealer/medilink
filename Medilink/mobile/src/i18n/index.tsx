@@ -9,6 +9,7 @@ import React, {
 import { I18nManager } from "react-native";
 
 import { useLocaleStore, type Locale } from "@/stores/localeStore";
+import { localizeDigits } from "@/utils/format";
 import { en, type Messages } from "./en";
 import { ar } from "./ar";
 
@@ -27,6 +28,8 @@ interface I18nContextValue {
   dir: Dir;
   isRTL: boolean;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  /** Localize raw numbers/digit-bearing strings (Eastern-Arabic in `ar`). */
+  num: (value: string | number) => string;
   /** Persists the locale + aligns native RTL. Returns `true` if a restart is needed. */
   setLocale: (locale: Locale) => boolean;
 }
@@ -80,9 +83,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   );
 
   const t = useCallback<I18nContextValue["t"]>(
-    (key, vars) => interpolate(resolve(CATALOGS[locale], key), vars),
+    (key, vars) => localizeDigits(interpolate(resolve(CATALOGS[locale], key), vars), locale),
     [locale]
   );
+
+  const num = useCallback((value: string | number) => localizeDigits(value, locale), [locale]);
 
   const value = useMemo<I18nContextValue>(
     () => ({
@@ -90,9 +95,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       dir: locale === "ar" ? "rtl" : "ltr",
       isRTL: locale === "ar",
       t,
+      num,
       setLocale,
     }),
-    [locale, t, setLocale]
+    [locale, t, num, setLocale]
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
