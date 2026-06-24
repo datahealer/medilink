@@ -108,3 +108,37 @@ plus several structural mismatches.
 Notes:
 - Light cards rely on **shadow + a 1px border** (Android shadows are weak), kept.
 - Blood-group red pill is the only place red is used decoratively (it is the semantic error/blood token); matches the artboard.
+
+---
+
+# Pass 3 — Dashboard EN-Light + EN-Dark vs PDF (p14 catalogue / p36 + p42 artboards)
+
+Evidence: 4 supplied Android captures (Dashboard, EN Light top+scroll, EN Dark top+scroll).
+These are PRODUCTION dashboard screenshots (the dashboard still uses inline styles, NOT the
+new shared components). Source of truth = PDF dashboard artboard. **No code changed in this pass.**
+
+Status legend: ▢ shared-component fix needed · ◻ rollout (wire production screen to the shared component, after approval).
+
+| # | Current (screenshot) element | PDF reference | Exact mismatch | Component to change |
+|---|---|---|---|---|
+| 1 | Appointment-card pill reads **"NEXT VISIT"** | p14 pill reads **"UPCOMING"** | wrong pill label | ▢ `AppointmentCard` (statusLabel) + dashboard caller |
+| 2 | No relative time on the pill row | p14 shows **"in 2 days"** right-aligned on the pill row | missing relative-time chip | ▢ `AppointmentCard` (add optional `relativeLabel`, right-aligned, RTL-mirrored) |
+| 3 | Subtitle **truncated**: "Royal Hospital · General Care · Wed 18 Jun · 1…" | p14: concise **"General Care · Today 4:30 PM"** | 4-part string overflows one line → ellipsis | ▢ `AppointmentCard` subtitle = dept + date·time only (drop facility or 2-line); dashboard caller passes concise subtitle |
+| 4 | "Me Care Hub" title has **no leading Me badge** | p14 shows a small **Me submark badge** before the title | missing brand badge | ◻ dashboard section header (use `MeMark` 16px before `sectionTitle`) |
+| 5 | Hub tiles have **no notification dot** | p14 tiles show a small **dot** at the top-right of each icon sub-tile | missing dot indicator | ▢ `HubActionTile` (add optional `dot` prop, top-end, RTL-aware) |
+| 6 | Featured-clinic hero = flat violet + faint orb; **submark watermark not visible** | p14 featured uses a clinic image; brand fallback should still carry the **submark watermark** | watermark too faint / production card not using `ClinicCard` | ▢ `ClinicCard` raise submark watermark opacity slightly · ◻ wire dashboard featured → `ClinicCard` |
+| 7 | Header shows **grid + bell** icons | p14 header = bell (+ optional) | grid icon is **dev-only** (`isDev` Screen Gallery) — will not ship; not a true mismatch | (no change) |
+
+### Verified matching (no change needed)
+- Violet appointment card fill, white avatar, white "Check in" + ghost "Reschedule" — match p14. ✓
+- Me Care Hub icon-in-lavender-sub-tile treatment, tile size — match. ✓
+- Top-specialties chips, Recently-visited cards (avatar, name, specialty·facility, ★rating OMR, Visited tag) — match. ✓
+- **Dark mode**: warm violet bg `#160E26`, raised cards `#221634`, lavender CTA, lavender→violet "Me" tab badge — match p42. ✓
+- Bottom nav order Home·Search·[Me]·Records·Profile + raised submark — match. ✓
+
+### Notes
+- Density/sizing now reads close to the artboard — the remaining deltas are the small structural
+  details above (pill label, relative time, hub dot, Me badge, subtitle truncation), not global sizing.
+- Items #1–3,5,6 are refinements to the **shared components** (AppointmentCard / HubActionTile /
+  ClinicCard) so they are correct BEFORE the production rollout. Item #4 is a dashboard-caller detail.
+- Production screens (Dashboard/Doctor/Search/Family/Profile/etc.) remain unchanged pending approval.
