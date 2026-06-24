@@ -1,11 +1,12 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useTheme";
 import { AppCard } from "./AppCard";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
-import { PatternCard } from "./PatternCard";
+import { OrbPattern } from "./OrbPattern";
 import { Text } from "./Text";
 
 export interface DoctorCardProps {
@@ -40,27 +41,39 @@ export function DoctorCard({
   onProfile,
   onPress,
 }: DoctorCardProps) {
-  const { colors, isRTL } = useTheme();
+  const { colors, radii, scheme, isRTL } = useTheme();
 
-  // Doctor Details hero — violet orb card with white content + green availability.
+  // Doctor Details header — a tall surface card with faint orbs, a large gradient
+  // avatar, dark/light name and a filled green availability pill (PDF artboard).
   if (variant === "detail") {
+    const pillBg = scheme === "dark" ? "rgba(95,207,155,0.18)" : "#D7F0E2";
     return (
-      <PatternCard variant="detail" surface="primary" pattern="orbs" orbVariant="medium">
+      <AppCard variant="detail" accessibilityLabel={name} style={styles.detailCard}>
+        <OrbPattern variant="medium" color={colors.primary} intensity={0.5} radius={radii.lg} />
         <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <View style={styles.heroAvatar}>
-            <Text variant="title" style={{ color: colors.heroFrom }}>{initials}</Text>
+          <View style={styles.detailAvatar}>
+            <Svg style={StyleSheet.absoluteFill}>
+              <Defs>
+                <LinearGradient id="docAvatar" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0" stopColor="#DFC8E7" />
+                  <Stop offset="1" stopColor="#C3D7EE" />
+                </LinearGradient>
+              </Defs>
+              <Circle cx="50%" cy="50%" r="50%" fill="url(#docAvatar)" />
+            </Svg>
+            <Text variant="h2" style={styles.detailInitials}>{initials}</Text>
           </View>
-          <View style={[styles.body, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
-            <Text variant="h2" numberOfLines={2} style={{ color: "#FFFFFF" }} align={isRTL ? "right" : "left"}>{name}</Text>
-            <Text variant="caption" numberOfLines={1} style={{ color: "rgba(255,255,255,0.80)" }} align={isRTL ? "right" : "left"}>{`${specialty} · ${facility}`}</Text>
+          <View style={[styles.body, isRTL ? { marginEnd: 14 } : { marginStart: 14 }]}>
+            <Text variant="h2" numberOfLines={2} color="text" align={isRTL ? "right" : "left"}>{name}</Text>
+            <Text variant="caption" color="textMuted" numberOfLines={2} align={isRTL ? "right" : "left"}>{`${specialty} · ${facility}`}</Text>
             {availableTodayLabel ? (
-              <View style={[styles.availHero, { alignSelf: isRTL ? "flex-end" : "flex-start" }]}>
-                <Text variant="caption" style={{ color: "#9FE7C4" }}>{availableTodayLabel}</Text>
+              <View style={[styles.availPill, { backgroundColor: pillBg, alignSelf: isRTL ? "flex-end" : "flex-start" }]}>
+                <Text variant="caption" weight="600" style={{ color: colors.success }}>{availableTodayLabel}</Text>
               </View>
             ) : null}
           </View>
         </View>
-      </PatternCard>
+      </AppCard>
     );
   }
 
@@ -104,6 +117,8 @@ const styles = StyleSheet.create({
   tag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, marginStart: 6 },
   actions: { gap: 8, marginTop: 10 },
   flex: { flex: 1 },
-  heroAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
-  availHero: { marginTop: 6, borderWidth: 1, borderColor: "rgba(159,231,196,0.6)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  detailCard: { minHeight: 140, justifyContent: "center" },
+  detailAvatar: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
+  detailInitials: { color: "#2E1A47" },
+  availPill: { marginTop: 8, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
 });

@@ -81,8 +81,8 @@ export default function DoctorDetailsScreen() {
       <View style={[styles.stats, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {stats.map((s) => (
           <Card key={s.label} style={styles.statCard}>
-            <Text variant="title" align="center">{s.value}</Text>
-            <Text variant="caption" color="textMuted" align="center" numberOfLines={1}>{s.label}</Text>
+            <Text variant="title" align="center" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{s.value}</Text>
+            <Text variant="caption" color="textMuted" align="center" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{s.label}</Text>
           </Card>
         ))}
       </View>

@@ -1,8 +1,10 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useTheme";
-import { PatternCard } from "./PatternCard";
+import { AppCard } from "./AppCard";
+import { OrbPattern } from "./OrbPattern";
 import { Text } from "./Text";
 
 export interface ClinicCardProps {
@@ -14,30 +16,48 @@ export interface ClinicCardProps {
 }
 
 /**
- * Featured clinic banner — a deep-violet orb-pattern card with a light rating/Featured
- * tag and white clinic name + meta, exactly as the brand "Pattern Usage" reference.
+ * Featured clinic card (PDF dashboard): a soft lavender→pink gradient top band with a
+ * subtle orb pattern and a white "★ rating · Featured" pill, over a clean surface band
+ * carrying the clinic name (dark, one line) and its meta. Not a solid-violet card —
+ * the name/meta sit on the card surface in theme text colour so they're never cropped.
  */
 export function ClinicCard({ name, meta, tagLabel, onPress, isRTL = false }: ClinicCardProps) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, scheme } = useTheme();
+  const g1 = scheme === "dark" ? colors.heroFrom : "#C7D7EF";
+  const g2 = scheme === "dark" ? "#6E4AA0" : "#ECD6EE";
+
   return (
-    <PatternCard variant="featuredClinic" surface="primary" pattern="orbs" orbVariant="corner" onPress={onPress} accessibilityLabel={name}>
-      <View style={styles.inner}>
+    <AppCard variant="featuredClinic" onPress={onPress} accessibilityLabel={name}>
+      {/* Gradient + orb top band with the rating/Featured pill */}
+      <View style={styles.top}>
+        <Svg style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id="clinicGrad" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={g1} />
+              <Stop offset="1" stopColor={g2} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#clinicGrad)" />
+        </Svg>
+        <OrbPattern variant="corner" color="#FFFFFF" intensity={0.8} />
         {tagLabel ? (
           <View style={[styles.tag, { backgroundColor: "#FFFFFF", borderRadius: radii.pill, alignSelf: isRTL ? "flex-end" : "flex-start" }]}>
-            <Text variant="caption" style={{ color: colors.heroFrom }}>{tagLabel}</Text>
+            <Text variant="caption" weight="600" style={{ color: colors.primary }}>{tagLabel}</Text>
           </View>
         ) : null}
-        <View style={styles.foot}>
-          <Text variant="title" numberOfLines={1} style={{ color: "#FFFFFF" }} align={isRTL ? "right" : "left"}>{name}</Text>
-          {meta ? <Text variant="caption" numberOfLines={1} style={{ color: "rgba(255,255,255,0.80)" }} align={isRTL ? "right" : "left"}>{meta}</Text> : null}
-        </View>
       </View>
-    </PatternCard>
+
+      {/* Name + meta band */}
+      <View style={[styles.foot, { backgroundColor: colors.surface }]}>
+        <Text variant="title" numberOfLines={1} color="text" align={isRTL ? "right" : "left"}>{name}</Text>
+        {meta ? <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{meta}</Text> : null}
+      </View>
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  inner: { flex: 1, justifyContent: "space-between", minHeight: 132 },
+  top: { height: 112, padding: 12, overflow: "hidden" },
   tag: { paddingHorizontal: 10, paddingVertical: 4 },
-  foot: { gap: 2 },
+  foot: { flex: 1, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 2 },
 });
