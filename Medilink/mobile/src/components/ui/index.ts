@@ -38,6 +38,7 @@ export { Avatar } from "./Avatar";
 export { Chip } from "./Chip";
 export { AppHeader } from "./AppHeader";
 export { BottomTabBar } from "./BottomTabBar";
+export { StaticTabBar } from "./StaticTabBar";
 export { LoadingState, ErrorState, EmptyState } from "./StateView";
 
 export type { ButtonVariant } from "./Button";

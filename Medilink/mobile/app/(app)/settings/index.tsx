@@ -2,7 +2,7 @@ import React from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Avatar, Button, Card, Icon, Screen, Text } from "@/components/ui";
+import { Avatar, Button, Card, Icon, Screen, StaticTabBar, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -63,7 +63,7 @@ export default function SettingsScreen() {
   );
 
   return (
-    <Screen scroll padded edges={["top", "left", "right", "bottom"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.lg }} footer={<View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}><StaticTabBar active="profile" /></View>}>
       <Text variant="h2" style={{ marginBottom: spacing.md }}>{t("settings.title")}</Text>
 
       {/* Account */}

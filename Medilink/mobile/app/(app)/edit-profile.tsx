@@ -27,7 +27,6 @@ import {
   useUpsertMedicalHistory,
 } from "@/hooks/queries/usePatient";
 
-const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
   { value: "female", key: "genderFemale" },
@@ -35,7 +34,7 @@ const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOthe
 ];
 
 export default function EditProfileScreen() {
-  const { spacing, colors } = useTheme();
+  const { spacing, colors, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
 
@@ -167,21 +166,28 @@ export default function EditProfileScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.bloodGroup").toUpperCase()}</Text>
-      <View style={styles.chips}>
-        {BLOOD_GROUPS.map((b) => (
-          <Chip key={b} label={b} selected={bloodGroup === b} onPress={() => setBloodGroup(bloodGroup === b ? undefined : b)} />
-        ))}
+      {/* Blood group + DOB side-by-side fields (PDF Edit Profile artboard) */}
+      <View style={[styles.fieldRow, { flexDirection: isRTL ? "row-reverse" : "row", marginBottom: spacing.md }]}>
+        <View style={styles.fieldCol}>
+          <TextField
+            label={t("profile.bloodGroup")}
+            value={bloodGroup ?? ""}
+            onChangeText={(v) => setBloodGroup((v.trim() || undefined) as BloodGroup | undefined)}
+            placeholder="O+"
+            autoCapitalize="characters"
+            maxLength={3}
+          />
+        </View>
+        <View style={styles.fieldCol}>
+          <TextField
+            label={t("profile.dob")}
+            value={dob}
+            onChangeText={setDob}
+            placeholder={t("profile.dobPlaceholder")}
+            autoCapitalize="none"
+          />
+        </View>
       </View>
-
-      <TextField
-        label={t("profile.dob")}
-        value={dob}
-        onChangeText={setDob}
-        placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
-        containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
-      />
 
       {/* Allergies — removable chips + add (PDF p15) */}
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.allergies").toUpperCase()}</Text>
@@ -247,4 +253,6 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   photo: { alignItems: "center", marginBottom: 16 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  fieldRow: { gap: 12 },
+  fieldCol: { flex: 1 },
 });

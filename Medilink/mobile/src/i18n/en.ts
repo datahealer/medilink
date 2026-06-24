@@ -371,6 +371,10 @@ export const en = {
     dark: "Dark",
     system: "System",
     systemHint: "Match your device",
+    rtlTitle: "Arabic (RTL) layout",
+    rtlHint: "Mirror the interface right-to-left",
+    largerText: "Larger text",
+    largerTextHint: "Improve readability",
   },
   settings: {
     title: "Settings",

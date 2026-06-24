@@ -2,6 +2,7 @@ import React from "react";
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useThemeStore } from "@/stores/themeStore";
 import type { ThemeColors } from "@/theme/light";
 import { EMIT_FONT_WEIGHT, fontFamilyFor, typeScale, type FontWeight, type TypeVariant } from "@/theme/typography";
 
@@ -27,6 +28,7 @@ export function Text({
   ...rest
 }: TextProps) {
   const { colors, isRTL } = useTheme();
+  const textScale = useThemeStore((s) => s.textScale);
   const scale = typeScale[variant];
   const effWeight = (weight ?? scale.fontWeight) as FontWeight;
   const family = fontFamilyFor(scale.family, effWeight, isRTL);
@@ -36,8 +38,8 @@ export function Text({
       style={[
         {
           color: colors[color],
-          fontSize: scale.fontSize,
-          lineHeight: scale.lineHeight,
+          fontSize: Math.round(scale.fontSize * textScale),
+          lineHeight: Math.round(scale.lineHeight * textScale),
           fontFamily: family,
           ...(EMIT_FONT_WEIGHT ? { fontWeight: effWeight } : null),
           textAlign: align ?? (isRTL ? "right" : "left"),

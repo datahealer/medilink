@@ -372,6 +372,10 @@ export const ar: Messages = {
     dark: "داكن",
     system: "النظام",
     systemHint: "حسب جهازك",
+    rtlTitle: "تخطيط عربي (يمين-يسار)",
+    rtlHint: "عكس الواجهة من اليمين إلى اليسار",
+    largerText: "نص أكبر",
+    largerTextHint: "تحسين القراءة",
   },
   settings: {
     title: "الإعدادات",

@@ -2,14 +2,18 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { AppHeader, Card, Icon, LoadingState, Screen, Text, TextField, resolveIconName } from "@/components/ui";
+import { AppScreen, Icon, LoadingState, SpecialtyTile, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
 
-/** Specialty Categories (PDF p18): searchable grid; tap → filtered results. */
+/**
+ * Specialty Categories (PDF p18/p37): a browse grid reached from Search — it shows the
+ * bottom tab bar and has NO back button. Searchable grid; tap → filtered results.
+ * Category names are semibold (SpecialtyTile).
+ */
 export default function SpecialtiesScreen() {
   const { colors, spacing } = useTheme();
   const { isTablet } = useResponsive();
@@ -28,8 +32,8 @@ export default function SpecialtiesScreen() {
   };
 
   return (
-    <Screen scroll padded contentStyle={{ width: "100%" }}>
-      <AppHeader title={t("specialties.title")} />
+    <AppScreen headerVariant="tabs" title={t("specialties.title")} constrain={false}>
+      <Text variant="h2" style={{ marginBottom: spacing.md }}>{t("specialties.title")}</Text>
 
       <TextField
         value={q}
@@ -46,20 +50,16 @@ export default function SpecialtiesScreen() {
         <View style={styles.grid}>
           {items.map((s) => (
             <View key={s.id} style={[styles.cell, { width: colWidth }]}>
-              <Card onPress={() => open(s.name)} accessibilityLabel={s.name} style={styles.card}>
-                <Icon name={resolveIconName(s.icon ?? "medkit-outline")} size={26} tint={colors.primary} />
-                <Text variant="caption" align="center" numberOfLines={2} style={{ marginTop: 8 }}>{s.name}</Text>
-              </Card>
+              <SpecialtyTile name={s.name} icon={s.icon} onPress={() => open(s.name)} />
             </View>
           ))}
         </View>
       )}
-    </Screen>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4 },
   cell: { padding: 4 },
-  card: { alignItems: "center", paddingVertical: 18, paddingHorizontal: 4 },
 });
