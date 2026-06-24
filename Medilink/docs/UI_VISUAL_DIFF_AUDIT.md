@@ -84,3 +84,27 @@ read from the Android captures in `UIscreenshots/` (37 WhatsApp frames + 2 devic
 - **HeroBackground**: orbs-only (remove connected-dot pattern — not used on any screen).
 
 This audit is the implementation checklist for `UI_VISUAL_DIFF_FIXES.md`.
+
+---
+
+# Pass 2 — English·Light density + structure (vs PDF p36 artboards)
+
+Compared current Android captures (`compare/`) against the p36 EN-Light artboard phones
+(cropped per-screen). Root theme: **current is looser/larger than the compact artboards**,
+plus several structural mismatches.
+
+| Screen | Mismatch (current → reference) | Exact spec | Files |
+|---|---|---|---|
+| Dashboard | **Upcoming card is white** → reference is a **filled VIOLET card** (white content, white avatar, "UPCOMING" pill, white "Check in" + ghost "Reschedule") | violet `heroFrom`, white text, pill | `(tabs)/dashboard.tsx` |
+| Dashboard | Me Care Hub tiles = bare icon+label → reference has the icon inside a **lavender rounded-square sub-tile** within each white card; tiles compact | inner tile `accent`/`surfaceAlt`, ~40px, radius 12 | `(tabs)/dashboard.tsx` |
+| Dashboard | Section gaps too tall | `lg(24)`→`md(16)` between sections | `(tabs)/dashboard.tsx` |
+| Profile | Avatar too large (88) + loose top/gaps | avatar ~76; tighter `marginBottom`; card gaps `md→sm`(10) | `(tabs)/profile.tsx` |
+| Profile | Blood-group stat plain text → reference shows **"O+" in a pale-red pill** (semantic) | bg `#FBE7EC`, text `error #C93B56`, radius pill | `(tabs)/profile.tsx` |
+| Edit Profile | Field labels Title Case → reference **UPPERCASE** small muted | `letterSpacing`, uppercase, `label` variant | `edit-profile.tsx` |
+| Edit Profile | Loose vertical rhythm | field gaps `md→sm/12`; chip rows tighter | `edit-profile.tsx` |
+| Global | Screen scroll padding 24 too tall | `paddingVertical 24→16` | `components/ui/Screen.tsx` |
+| Family/Add/Switch | Looser than artboards | card radius `lg`, list gaps `sm`; tighten header margins | `(tabs)/me.tsx`, `family/add.tsx`, `patient-switcher.tsx` |
+
+Notes:
+- Light cards rely on **shadow + a 1px border** (Android shadows are weak), kept.
+- Blood-group red pill is the only place red is used decoratively (it is the semantic error/blood token); matches the artboard.

@@ -50,3 +50,33 @@ Capture each in **EN-Light / EN-Dark / AR-Light / AR-Dark**:
 | Global | Dark bg `#160E26`; 1px borders; Agatho serif headings; Manrope body; Arabic medium-weight |
 
 After QA, send back any route that still deviates with a screenshot and the mode.
+
+---
+
+## Pass 2 — English·Light density + structure
+
+Checks re-run: `tsc` ✅ · `expo lint` ✅ (0 problems) · `expo export --platform android` ✅.
+
+| Audit item | File(s) | Change | Status |
+|---|---|---|---|
+| Global density | `components/ui/Screen.tsx` | scroll `paddingVertical 24 → 16` | ✅ |
+| Upcoming card white→violet | `app/(app)/(tabs)/dashboard.tsx` | filled **violet** card (`heroFrom`), white content, white avatar w/ initials, **UPCOMING** pill, white "Check in" + ghost "Reschedule" | ✅ |
+| Me Care Hub tiles | `dashboard.tsx` | icon now sits in a **lavender rounded-square sub-tile** (`accent`, 40px, `radii.md`); tile padding 14→12 | ✅ |
+| Section spacing | `dashboard.tsx` | section gaps `lg(24) → md(16)` | ✅ |
+| Profile avatar/gaps | `app/(app)/(tabs)/profile.tsx` | avatar `88→76`; identity `marginBottom 16→12`; stat card `paddingVertical 16→12`; card gaps `md→10` | ✅ |
+| Blood-group pill | `profile.tsx` | "O+" in a **pale-red pill** `#FBE7EC` + `error` text (semantic), per artboard | ✅ |
+| UPPERCASE input labels | `components/ui/TextField.tsx` | label `toUpperCase()` + `letterSpacing 0.5` (matches design-system inputs p6) — applies to all auth/form labels | ✅ |
+| Edit group labels | `app/(app)/edit-profile.tsx` | Blood group / Allergies / Gender labels uppercased + tracked | ✅ |
+| Family header | `app/(app)/(tabs)/me.tsx` | subtitle `marginBottom md→sm` | ✅ |
+
+### Reviewed, only needed global density (no structural change)
+Family list, Add Member, Switch Profile — list cards already compact; they inherit the
+Screen padding reduction. Add-Member already uses the official Me submark (`MeMark`).
+
+### Still blocked / out of scope
+- **Edit Profile blood-group as a single field**: the p36 artboard shows BLOOD GROUP + DOB as
+  two side-by-side *fields*, but the catalogue (p15) and your brief both call for **chips** —
+  kept chips per your explicit instruction.
+- Dark / Arabic density pass: the same spacing tokens apply automatically; verify on device.
+- "in N days" relative label on the upcoming card: omitted (needs reliable date parsing of the
+  data string) — shows the date instead.
