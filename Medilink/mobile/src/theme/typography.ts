@@ -24,7 +24,13 @@ export const BRAND_FONT_FILES = {
   "Manrope-SemiBold": require("../../assets/fonts/Manrope-SemiBold.otf"),
   "Manrope-Bold": require("../../assets/fonts/Manrope-Bold.otf"),
   "Manrope-ExtraBold": require("../../assets/fonts/Manrope-ExtraBold.otf"),
-  "ZaridSans-Regular": require("../../assets/fonts/ZaridSans.ttf"),
+  // 29LT Zarid Sans is shipped as a VARIABLE font whose default master is Thin
+  // (wght=100) — loading it statically rendered all Arabic hairline-thin. We ship
+  // proper static instances (wght 400/500/600/700) and map Arabic per weight.
+  "ZaridSans-Regular": require("../../assets/fonts/ZaridSans-Regular.ttf"),
+  "ZaridSans-Medium": require("../../assets/fonts/ZaridSans-Medium.ttf"),
+  "ZaridSans-SemiBold": require("../../assets/fonts/ZaridSans-SemiBold.ttf"),
+  "ZaridSans-Bold": require("../../assets/fonts/ZaridSans-Bold.ttf"),
 } as const;
 
 const systemSerif = Platform.select({ ios: "Georgia", android: "serif", default: "serif" })!;
@@ -40,7 +46,14 @@ export type FontWeight = "400" | "500" | "600" | "700" | "800";
  */
 export function fontFamilyFor(role: FontRole, weight: FontWeight, isRTL: boolean): string {
   if (isRTL || role === "arabic") {
-    return USE_BRAND_FONTS ? "ZaridSans-Regular" : systemSans;
+    if (!USE_BRAND_FONTS) return systemSans;
+    // Map the requested weight onto a concrete static Zarid Sans instance so Arabic
+    // renders at a readable weight (never the variable font's Thin default).
+    const w = Number(weight);
+    if (w >= 700) return "ZaridSans-Bold";
+    if (w >= 600) return "ZaridSans-SemiBold";
+    if (w >= 500) return "ZaridSans-Medium";
+    return "ZaridSans-Regular";
   }
   if (role === "heading") {
     if (!USE_BRAND_FONTS) return systemSerif;

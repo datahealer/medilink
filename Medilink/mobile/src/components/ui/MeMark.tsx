@@ -3,15 +3,15 @@ import { Image, type StyleProp, type ImageStyle } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
 
-// Official MediLink "Me" submark — rasterised from the approved brand vector
-// (assets/brand/me-mark.png, the M+e ligature). Shipped as a transparent
-// silhouette so it is recoloured per-context via tintColor.
+// Official MediLink "Me" submark — the supplied brand asset (Logo/SUBMARK, white
+// variant, trimmed to the glyph). Shipped as a transparent silhouette so it is
+// recoloured per-context via tintColor.
 const ME_MARK = require("../../../assets/brand/me-mark.png");
 const ME_WORDMARK = require("../../../assets/brand/me-wordmark.png");
 const ME_WORDMARK_AR = require("../../../assets/brand/me-wordmark-ar.png");
 
-// Source aspect ratios (px) from the rasteriser.
-const MARK_RATIO = 660 / 457; // width / height
+// Aspect ratios (px) from the trimmed official assets.
+const MARK_RATIO = 1363 / 926; // width / height (official SUBMARK, trimmed)
 const WORD_RATIO = 1200 / 289;
 const WORD_RATIO_AR = 1200 / 289;
 

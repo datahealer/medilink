@@ -12,7 +12,7 @@ import { radii, spacing } from "./tokens";
  * raised surfaces, accents, selected chips and icons.
  */
 export const darkColors: ThemeColors = {
-  background: "#0F0A18", // bg — near-black violet screen base
+  background: "#160E26", // bg — warm deep-violet screen base (PDF vector, dark artboards)
   surface: "#221634", // cards
   surfaceAlt: "#2B1D40", // surface2 — inputs, search, unselected chips
   text: "#F1EBF8",
@@ -20,7 +20,7 @@ export const darkColors: ThemeColors = {
   textFaint: "#7E7493",
   textOnPrimary: "#241338", // primaryContrast — dark text on the lavender CTA
   primary: "#DFC8E7", // Shocking Lavender becomes primary on dark
-  primaryMuted: "#E8DCF1", // lavender200
+  primaryMuted: "#6E4AA0", // mid-violet (PDF vector) — decorative/pressed/track
   accent: "#4A3168",
   accent2: "#2F4A6B",
   border: "#3A2B53",
@@ -31,9 +31,9 @@ export const darkColors: ThemeColors = {
   warning: "#E0B25A",
   error: "#EF7D93",
   info: "#9CC1EE",
-  // Splash / onboarding hero (deep violet gradient into the near-black base)
+  // Splash / brand hero — always the violet gradient (splash is a brand moment)
   heroFrom: "#2E1A47",
-  heroTo: "#0F0A18",
+  heroTo: "#3B2056",
 };
 
 export const darkTheme = {
