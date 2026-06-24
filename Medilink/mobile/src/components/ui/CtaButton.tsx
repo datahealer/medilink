@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
-import { brand, HIT_TARGET } from "@/theme/tokens";
+import { useTheme } from "@/hooks/useTheme";
+import { HIT_TARGET } from "@/theme/tokens";
 import { Text } from "./Text";
 
 export interface CtaButtonProps {
@@ -44,8 +45,13 @@ export function CtaButton({
   accessibilityLabel,
   style,
 }: CtaButtonProps) {
+  const { colors } = useTheme();
   const [size, setSize] = useState({ w: 0, h: 0 });
   const isDisabled = disabled || loading;
+  // Theme-aware like the standard primary button: violet/white on light,
+  // lavender/violet on dark (matches the Welcome artboards in both themes).
+  const fill = colors.primary;
+  const fg = colors.textOnPrimary;
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -72,14 +78,14 @@ export function CtaButton({
     >
       {w > 0 ? (
         <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
-          <Path d={path} fill={brand.lavender} />
+          <Path d={path} fill={fill} />
         </Svg>
       ) : null}
       <View style={[styles.content, { paddingHorizontal: mirror ? 28 : 20, paddingEnd: mirror ? 20 : 28 }]}>
         {loading ? (
-          <ActivityIndicator color={brand.violet} />
+          <ActivityIndicator color={fg} />
         ) : (
-          <Text variant="title" align="center" style={{ color: brand.violet }}>
+          <Text variant="title" align="center" style={{ color: fg }}>
             {label}
           </Text>
         )}

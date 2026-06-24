@@ -51,7 +51,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           {
             backgroundColor: colors.inputBackground,
             borderColor,
-            borderWidth: focused && !error ? 2 : StyleSheet.hairlineWidth * 2,
+            borderWidth: focused && !error ? 2 : 1,
             borderRadius: radii.md,
             flexDirection: isRTL ? "row-reverse" : "row",
           },

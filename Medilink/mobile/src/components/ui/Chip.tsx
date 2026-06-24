@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderWidth: 1,
     paddingVertical: 6,
   },
 });

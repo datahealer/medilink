@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Pressable,
-  StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
@@ -34,7 +33,7 @@ export function Card({
   const base: ViewStyle = {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderWidth: 1, // solid 1px — hairline*2 (~0.6px on 3x) was near-invisible
     borderColor: colors.border,
     padding: padded ? spacing.md : 0,
     ...(elevation > 0 ? shadow(elevation as 1 | 2) : {}),
