@@ -109,8 +109,10 @@ export default function DashboardScreen() {
               {next.facility?.name ? (
                 <Text variant="caption" color="textMuted" numberOfLines={1}>{next.facility.name}</Text>
               ) : null}
+              {/* Date kept as the data string — digit-localizing a mixed English date
+                  ("Wed 18 Jun") produced jarring "Wed ١٨ Jun"; localize pure numbers only. */}
               <Text variant="caption" color="textMuted" numberOfLines={1}>
-                {num([next.slot_date, next.slot_start].filter(Boolean).join(" · "))}
+                {[next.slot_date, next.slot_start].filter(Boolean).join(" · ")}
               </Text>
             </View>
           </View>
@@ -211,10 +213,10 @@ export default function DashboardScreen() {
       </Text>
       {(featured.data ?? []).map((c) => (
         <Card key={c.id} onPress={() => router.push("/search")}>
-          {/* Branded clinic hero — connected-dot/orb treatment on the violet field
-              stands in for clinic imagery until photos land (audit P2.4). */}
-          <View style={[styles.clinicHero, { backgroundColor: colors.primary, borderRadius: radii.md }]}>
-            <HeroBackground tone="onViolet" radius={radii.md} intensity={0.9} />
+          {/* Branded clinic hero — soft orbs on the violet field stand in for clinic
+              imagery until photos land. Violet in both themes (heroFrom). */}
+          <View style={[styles.clinicHero, { backgroundColor: colors.heroFrom, borderRadius: radii.md }]}>
+            <HeroBackground tone="onViolet" radius={radii.md} />
             <View style={[styles.tag, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text variant="caption" color="primary">{num(`★ ${c.rating} · ${t("dashboard.featured")}`)}</Text>
             </View>

@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 
-import { Button, CtaButton, HeroBackground, MeMark, ProgressDots, Screen, Text } from "@/components/ui";
+import { Button, ProgressDots, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
@@ -28,7 +28,7 @@ const SLIDES: Slide[] = [
 ];
 
 export default function OnboardingScreen() {
-  const { colors, spacing, isRTL } = useTheme();
+  const { colors, spacing } = useTheme();
   const { t } = useI18n();
   const { width } = useWindowDimensions();
   const complete = useOnboardingStore((s) => s.complete);
@@ -55,8 +55,6 @@ export default function OnboardingScreen() {
 
   return (
     <Screen padded={false} dismissKeyboardOnTap={false}>
-      {/* Subtle brand pattern across the onboarding canvas. */}
-      <HeroBackground tone="onSurface" intensity={0.8} />
       {/* Skip */}
       <View style={[styles.skipRow, { paddingHorizontal: spacing.lg }]}>
         <Pressable onPress={finish} accessibilityRole="button" accessibilityLabel={t("common.skip")} hitSlop={8}>
@@ -76,11 +74,9 @@ export default function OnboardingScreen() {
         onMomentumScrollEnd={onScrollEnd}
         renderItem={({ item }) => (
           <View style={[styles.slide, { width, paddingHorizontal: spacing.lg }]}>
-            {/* Brand "Me-circle" illustration (the brand's illustration treatment —
-                lavender circle carrying the official Me submark), not an emoji. */}
-            <View style={[styles.illustration, { backgroundColor: colors.accent }]}>
-              <MeMark height={72} color={colors.primary} />
-            </View>
+            {/* Illustration placeholder — a plain lavender circle, matching the PDF
+                onboarding artboards (no logo/pattern inside). */}
+            <View style={[styles.illustration, { backgroundColor: colors.accent }]} />
             <Text variant="h1" align="center" style={{ marginTop: spacing.xl }}>
               {t(item.titleKey)}
             </Text>
@@ -100,12 +96,12 @@ export default function OnboardingScreen() {
             ) : null}
           </View>
           <View style={styles.controlSide}>
-            {isLast ? (
-              // Brand moment — finish onboarding with the official angled CTA.
-              <CtaButton label={t("common.getStarted")} mirror={isRTL} onPress={finish} />
-            ) : (
-              <Button label={t("common.next")} fullWidth={false} onPress={() => goTo(index + 1)} />
-            )}
+            {/* PDF onboarding uses a rounded button for both Next and Get Started. */}
+            <Button
+              label={isLast ? t("common.getStarted") : t("common.next")}
+              fullWidth={false}
+              onPress={() => (isLast ? finish() : goTo(index + 1))}
+            />
           </View>
         </View>
       </View>
