@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { AppHeader, Avatar, Button, Card, Chip, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
+import { AppHeader, Button, Card, Chip, DoctorCard, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -67,21 +67,15 @@ export default function DoctorDetailsScreen() {
         }
       />
 
-      {/* Hero */}
-      <Card>
-        <View style={[styles.hero, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Avatar name={d.full_name} size={64} />
-          <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.md } : { marginStart: spacing.md }]}>
-            <Text variant="h2" numberOfLines={2}>{d.full_name}</Text>
-            <Text variant="caption" color="textMuted">{`${d.specialty} · ${d.facility}`}</Text>
-            {d.available_today ? (
-              <View style={[styles.todayTag, { backgroundColor: colors.surfaceAlt, borderColor: colors.success }]}>
-                <Text variant="caption" color="success">{t("doctor.availableToday")}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </Card>
+      {/* Hero — violet orb detail header */}
+      <DoctorCard
+        variant="detail"
+        name={d.full_name}
+        specialty={d.specialty}
+        facility={d.facility}
+        initials={(d.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase()}
+        availableTodayLabel={d.available_today ? t("doctor.availableToday") : undefined}
+      />
 
       {/* Stats */}
       <View style={[styles.stats, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -134,8 +128,6 @@ export default function DoctorDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: "center" },
-  todayTag: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, borderWidth: StyleSheet.hairlineWidth * 2, marginTop: 6 },
   stats: { gap: 8, marginTop: 16 },
   statCard: { flex: 1, alignItems: "center", paddingVertical: 14 },
   section: { marginTop: 20, marginBottom: 8 },

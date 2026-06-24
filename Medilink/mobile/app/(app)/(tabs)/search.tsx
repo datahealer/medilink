@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Avatar, Button, Card, Chip, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
+import { Chip, DoctorCard, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -34,33 +34,21 @@ export default function SearchScreen() {
   const filterBadge = activeFilterCount(filters);
 
   const card = (d: Doctor) => (
-    <Card key={d.id} onPress={() => router.push(`/doctors/${d.id}`)} style={{ marginBottom: spacing.sm }}>
-      <View style={[styles.docRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <Avatar name={d.full_name} size={48} />
-        <View style={[styles.docText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-          <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <Text variant="title" numberOfLines={1} style={styles.name}>{d.full_name}</Text>
-            {d.available_today ? (
-              <View style={[styles.todayTag, { backgroundColor: colors.surfaceAlt, borderColor: colors.success }]}>
-                <Text variant="caption" color="success" numberOfLines={1}>{t("search.availableToday")}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text variant="caption" color="textMuted" numberOfLines={1}>{`${d.specialty} · ${d.facility}`}</Text>
-          <Text variant="caption" color="textMuted">
-            {num(`★ ${d.rating}   OMR ${d.fee_omr}${d.distance_km != null ? ` · ${d.distance_km} km` : ""}`)}
-          </Text>
-          <View style={[styles.actions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <View style={{ flex: 1 }}>
-              <Button label={t("search.book")} onPress={() => router.push(`/booking/${d.id}/schedule`)} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button label={t("search.profile")} variant="outline" onPress={() => router.push(`/doctors/${d.id}`)} />
-            </View>
-          </View>
-        </View>
-      </View>
-    </Card>
+    <View key={d.id} style={{ marginBottom: spacing.sm }}>
+      <DoctorCard
+        variant="searchResult"
+        name={d.full_name}
+        specialty={d.specialty}
+        facility={d.facility}
+        metaText={num(`★ ${d.rating}   OMR ${d.fee_omr}${d.distance_km != null ? ` · ${d.distance_km} km` : ""}`)}
+        availableTodayLabel={d.available_today ? t("search.availableToday") : undefined}
+        bookLabel={t("search.book")}
+        profileLabel={t("search.profile")}
+        onBook={() => router.push(`/booking/${d.id}/schedule`)}
+        onProfile={() => router.push(`/doctors/${d.id}`)}
+        onPress={() => router.push(`/doctors/${d.id}`)}
+      />
+    </View>
   );
 
   return (
@@ -134,9 +122,4 @@ const styles = StyleSheet.create({
   badge: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4 },
   chips: { flexWrap: "wrap", gap: 8 },
   rowBetween: { alignItems: "center", justifyContent: "space-between" },
-  docRow: { alignItems: "flex-start" },
-  docText: { flex: 1 },
-  name: { flex: 1, flexShrink: 1 },
-  todayTag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth * 2, marginStart: 6 },
-  actions: { gap: 8, marginTop: 10 },
 });
