@@ -195,7 +195,7 @@ export default function DashboardScreen() {
           key={c.id}
           name={c.name}
           tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
-          meta={num([c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
+          meta={num([c.category ?? c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
           onPress={() => router.push("/search")}
           isRTL={isRTL}
         />

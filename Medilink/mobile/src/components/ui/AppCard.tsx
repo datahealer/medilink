@@ -17,7 +17,7 @@ export type AppCardVariant =
 const SPEC: Record<AppCardVariant, { padding: number; minHeight: number; radius: "md" | "lg" | "xl"; elevation: 0 | 1 | 2 }> = {
   doctorList: { padding: 14, minHeight: 104, radius: "lg", elevation: 1 },
   recentDoctor: { padding: 12, minHeight: 72, radius: "lg", elevation: 1 },
-  featuredClinic: { padding: 0, minHeight: 168, radius: "lg", elevation: 1 },
+  featuredClinic: { padding: 0, minHeight: 152, radius: "lg", elevation: 1 },
   familyMember: { padding: 14, minHeight: 76, radius: "lg", elevation: 1 },
   specialty: { padding: 14, minHeight: 104, radius: "md", elevation: 1 },
   appointment: { padding: 16, minHeight: 168, radius: "lg", elevation: 2 },

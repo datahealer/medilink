@@ -153,6 +153,8 @@ export interface Clinic {
   id: string;
   name: string;
   area: string;
+  /** Care category shown in the featured card meta, e.g. "Multi-speciality". */
+  category?: string;
   doctors_count?: number;
   distance_km?: number;
   rating: number;

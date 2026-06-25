@@ -196,7 +196,7 @@ const reviewsByDoctor: Record<string, Review[]> = {
 
 const mapClinics: Clinic[] = [
   { id: "clinic-royal", name: "Royal Hospital — Ghubra", area: "Ghubra", rating: 4.9, distance_km: 2.1, open_now: true },
-  { id: "clinic-aster", name: "Aster Clinic — Al Khuwair", area: "Al Khuwair", rating: 4.7, distance_km: 0.8, open_now: true, doctors_count: 24, featured: true },
+  { id: "clinic-aster", name: "Aster Clinic — Al Khuwair", area: "Al Khuwair", category: "Multi-speciality", rating: 4.7, distance_km: 0.8, open_now: true, doctors_count: 24, featured: true },
   { id: "clinic-nmc", name: "NMC — Azaiba", area: "Azaiba", rating: 4.6, distance_km: 3.0, open_now: false },
 ];
 
