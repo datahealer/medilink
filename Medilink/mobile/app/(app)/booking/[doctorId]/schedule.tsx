@@ -21,7 +21,7 @@ import { useDoctor, useMapClinics } from "@/hooks/queries/useDoctors";
 import { useBookingStore } from "@/stores/bookingStore";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
-const DEFAULT_SLOTS = ["10:00", "10:30", "11:30", "4:30", "5:00"];
+const DEFAULT_SLOTS = ["10:00 AM", "10:30 AM", "11:30 AM", "12:00 PM", "4:30 PM", "5:00 PM"];
 const DAY_COUNT = 5;
 
 function initialsOf(name: string): string {

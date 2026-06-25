@@ -117,7 +117,7 @@ const allDoctors: Doctor[] = [
     languages: ["Arabic", "English", "Hindi"],
     about:
       "Senior interventional cardiologist focused on preventive care, diagnostics and patient-centred treatment plans.",
-    slots_today: ["10:00", "10:30", "11:30"],
+    slots_today: ["10:00 AM", "10:30 AM", "11:30 AM", "12:00 PM", "4:30 PM", "5:00 PM"],
   },
   {
     id: "doc-fatma",
@@ -133,7 +133,7 @@ const allDoctors: Doctor[] = [
     experience_years: 9,
     languages: ["Arabic", "English"],
     about: "Cardiologist with a focus on women's heart health and preventive screening.",
-    slots_today: ["12:00", "2:30", "4:00"],
+    slots_today: ["9:00 AM", "12:00 PM", "2:30 PM", "4:00 PM", "5:30 PM"],
   },
   {
     id: "doc-sara",
@@ -150,7 +150,7 @@ const allDoctors: Doctor[] = [
     experience_years: 8,
     languages: ["Arabic", "English"],
     about: "Dermatologist specialising in skin health, acne and cosmetic dermatology.",
-    slots_today: ["9:30", "1:00", "3:30"],
+    slots_today: ["9:30 AM", "11:00 AM", "1:00 PM", "3:30 PM", "4:30 PM"],
   },
   {
     id: "doc-yusuf",
@@ -166,7 +166,7 @@ const allDoctors: Doctor[] = [
     experience_years: 11,
     languages: ["Arabic", "English"],
     about: "General and cosmetic dentistry with a gentle, patient-first approach.",
-    slots_today: ["11:00", "1:30"],
+    slots_today: ["11:00 AM", "1:30 PM", "3:00 PM"],
   },
   {
     id: "doc-noura",
@@ -182,7 +182,7 @@ const allDoctors: Doctor[] = [
     experience_years: 10,
     languages: ["Arabic", "English"],
     about: "Paediatrician caring for newborns through adolescents, with a focus on development.",
-    slots_today: ["10:15", "12:45", "5:00"],
+    slots_today: ["10:15 AM", "12:45 PM", "2:15 PM", "5:00 PM"],
   },
 ];
 
