@@ -23,6 +23,7 @@ export const lightColors = {
   overlay: "rgba(36, 19, 56, 0.45)",
   // Status
   success: "#2F8F63",
+  successSurface: "#DCF3E7", // soft success tint (e.g. confirmation badge)
   warning: "#B07D12",
   error: "#C93B56",
   errorSurface: "#FBE7EC", // soft error tint (e.g. blood-group pill)

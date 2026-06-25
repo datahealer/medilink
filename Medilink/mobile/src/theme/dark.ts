@@ -28,6 +28,7 @@ export const darkColors: ThemeColors = {
   overlay: "rgba(0, 0, 0, 0.55)",
   // Status (dark variants)
   success: "#5FCF9B",
+  successSurface: "rgba(95,207,155,0.18)", // soft success tint on dark surface
   warning: "#E0B25A",
   error: "#EF7D93",
   errorSurface: "rgba(239,125,147,0.18)", // soft error tint on dark surface

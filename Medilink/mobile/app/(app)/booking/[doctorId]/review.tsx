@@ -1,7 +1,130 @@
-// Auto-generated PDF-styled preview route (Batch 1 scaffolding). The real screen
-// replaces this file in its scheduled batch. See src/dev/screenRegistry.ts.
-import { ScreenPreview } from "@/dev/ScreenPreview";
+import React, { useEffect } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
 
-export default function PreviewScreen() {
-  return <ScreenPreview id="booking-review" />;
+import {
+  AppCard,
+  AppHeader,
+  Avatar,
+  Button,
+  Icon,
+  Screen,
+  Stepper,
+  SummaryCard,
+  type SummaryRow,
+  Text,
+  TextField,
+} from "@/components/ui";
+import { useTheme } from "@/hooks/useTheme";
+import { useResponsive } from "@/hooks/useResponsive";
+import { useI18n } from "@/i18n";
+import { useProfile } from "@/hooks/queries/usePatient";
+import { usePatientStore } from "@/stores/patientStore";
+import { useBookingStore } from "@/stores/bookingStore";
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name;
 }
+
+/** Booking step 2 — Review & Patient (PDF p21). */
+export default function ReviewScreen() {
+  const { spacing, colors, isRTL } = useTheme();
+  const { contentMaxWidth } = useResponsive();
+  const { t, num } = useI18n();
+
+  const doctorName = useBookingStore((s) => s.doctorName);
+  const specialty = useBookingStore((s) => s.specialty);
+  const facility = useBookingStore((s) => s.facility);
+  const clinicName = useBookingStore((s) => s.clinicName);
+  const dateLabel = useBookingStore((s) => s.dateLabel);
+  const slot = useBookingStore((s) => s.slot);
+  const reason = useBookingStore((s) => s.reason);
+  const setPatient = useBookingStore((s) => s.setPatient);
+  const setReason = useBookingStore((s) => s.setReason);
+  const confirm = useBookingStore((s) => s.confirm);
+
+  const profile = useProfile();
+  const activeId = usePatientStore((s) => s.activePatientId);
+  const activeName = usePatientStore((s) => s.activePatientName);
+
+  const primaryName = profile.data?.account?.full_name ?? t("booking.you");
+  const patientName = activeId
+    ? activeName ?? primaryName
+    : `${firstName(primaryName)} (${t("booking.you")})`;
+
+  // Keep the booking draft's patient in sync with the active-patient selection.
+  useEffect(() => {
+    setPatient(activeId, patientName);
+  }, [activeId, patientName, setPatient]);
+
+  const onProceed = () => {
+    confirm();
+    // Real flow continues to payment (still a preview stub this batch).
+    router.push("/booking/payment");
+  };
+
+  const rows: SummaryRow[] = [
+    { label: t("booking.clinic"), value: clinicName },
+    { label: t("booking.dateTime"), value: `${dateLabel} · ${slot ?? ""}` },
+    { label: t("booking.type"), value: t("booking.inPerson") },
+  ];
+
+  return (
+    <Screen
+      scroll
+      padded
+      edges={["top", "left", "right", "bottom"]}
+      contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
+      footer={<Button label={t("booking.proceedToPayment")} onPress={onProceed} />}
+    >
+      <AppHeader title={t("booking.reviewTitle")} showBack right={<Text variant="caption" color="textMuted">{t("booking.step", { current: num("2"), total: num("4") })}</Text>} />
+
+      <Stepper current={2} total={4} />
+
+      {/* Doctor */}
+      <View style={{ height: spacing.md }} />
+      <AppCard variant="detail">
+        <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <Avatar name={doctorName} size={48} />
+          <View style={[styles.flex, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
+            <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{doctorName}</Text>
+            <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{`${specialty} · ${facility}`}</Text>
+          </View>
+        </View>
+      </AppCard>
+
+      {/* Schedule summary */}
+      <View style={{ height: spacing.sm }} />
+      <SummaryCard rows={rows} />
+
+      {/* Patient */}
+      <Text variant="label" color="textMuted" style={styles.section}>{t("booking.patient")}</Text>
+      <AppCard variant="detail">
+        <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <Avatar name={patientName} size={40} />
+          <Text variant="title" numberOfLines={1} style={[styles.flex, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]} align={isRTL ? "right" : "left"}>{patientName}</Text>
+          <Pressable onPress={() => router.push("/patient-switcher")} hitSlop={8} accessibilityRole="button" style={[styles.changeRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <Text variant="label" color="primary">{t("booking.change")}</Text>
+            <Icon name="chevron" direction={isRTL ? "left" : "right"} size={18} tint={colors.primary} />
+          </Pressable>
+        </View>
+      </AppCard>
+
+      {/* Reason */}
+      <Text variant="label" color="textMuted" style={styles.section}>{t("booking.reasonLabel")}</Text>
+      <TextField
+        value={reason}
+        onChangeText={setReason}
+        placeholder={t("booking.reasonPlaceholder")}
+        autoCapitalize="sentences"
+      />
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { alignItems: "center" },
+  flex: { flex: 1 },
+  section: { marginTop: 20, marginBottom: 10 },
+  changeRow: { alignItems: "center", gap: 2 },
+});

@@ -56,9 +56,9 @@ export const SCREENS: ScreenEntry[] = [
   { id: "doctor-reviews", n: 21, title: "Reviews", flow: "06 Doctor Profile", pdfPage: 20, route: "/doctors/doc-khalid/reviews", built: true },
 
   // 07 — Appointment Booking
-  { id: "booking-schedule", n: 22, title: "Select Location & Time", flow: "07 Appointment Booking", pdfPage: 20, route: "/booking/doc-khalid/schedule", built: false, batch: 3 },
-  { id: "booking-review", n: 23, title: "Review & Patient", flow: "07 Appointment Booking", pdfPage: 21, route: "/booking/doc-khalid/review", built: false, batch: 3 },
-  { id: "booking-success", n: 24, title: "Appointment Success", flow: "07 Appointment Booking", pdfPage: 21, route: "/booking/success", built: false, batch: 3 },
+  { id: "booking-schedule", n: 22, title: "Select Location & Time", flow: "07 Appointment Booking", pdfPage: 20, route: "/booking/doc-khalid/schedule", built: true },
+  { id: "booking-review", n: 23, title: "Review & Patient", flow: "07 Appointment Booking", pdfPage: 21, route: "/booking/doc-khalid/review", built: true },
+  { id: "booking-success", n: 24, title: "Appointment Success", flow: "07 Appointment Booking", pdfPage: 21, route: "/booking/success", built: true },
 
   // 08 — Payments
   { id: "payment-summary", n: 25, title: "Payment Summary", flow: "08 Payments", pdfPage: 22, route: "/booking/payment", built: false, batch: 5 },
