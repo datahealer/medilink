@@ -12,7 +12,7 @@ import { authService } from "@/services/authService";
 import { passwordStrength, resetSchema, type ResetForm } from "@/utils/validation";
 
 export default function ResetPasswordScreen() {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -77,7 +77,7 @@ export default function ResetPasswordScreen() {
       {/* Strength meter */}
       {password ? (
         <View style={{ marginBottom: spacing.md }}>
-          <View style={styles.meterRow}>
+          <View style={[styles.meterRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             {[0, 1, 2, 3].map((i) => (
               <View
                 key={i}

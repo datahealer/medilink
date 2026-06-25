@@ -28,7 +28,7 @@ const SLIDES: Slide[] = [
 ];
 
 export default function OnboardingScreen() {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, isRTL } = useTheme();
   const { t } = useI18n();
   const { width } = useWindowDimensions();
   const complete = useOnboardingStore((s) => s.complete);
@@ -56,7 +56,7 @@ export default function OnboardingScreen() {
   return (
     <Screen padded={false} dismissKeyboardOnTap={false}>
       {/* Skip */}
-      <View style={[styles.skipRow, { paddingHorizontal: spacing.lg }]}>
+      <View style={[styles.skipRow, { paddingHorizontal: spacing.lg, alignItems: isRTL ? "flex-start" : "flex-end" }]}>
         <Pressable onPress={finish} accessibilityRole="button" accessibilityLabel={t("common.skip")} hitSlop={8}>
           <Text variant="label" color="textMuted">
             {t("common.skip")}
@@ -89,7 +89,7 @@ export default function OnboardingScreen() {
 
       <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}>
         <ProgressDots count={SLIDES.length} activeIndex={index} />
-        <View style={[styles.controls, { marginTop: spacing.lg }]}>
+        <View style={[styles.controls, { marginTop: spacing.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <View style={styles.controlSide}>
             {index > 0 ? (
               <Button label={t("common.back")} variant="ghost" fullWidth={false} onPress={() => goTo(index - 1)} />

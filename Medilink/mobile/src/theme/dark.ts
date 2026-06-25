@@ -30,6 +30,7 @@ export const darkColors: ThemeColors = {
   success: "#5FCF9B",
   warning: "#E0B25A",
   error: "#EF7D93",
+  errorSurface: "rgba(239,125,147,0.18)", // soft error tint on dark surface
   info: "#9CC1EE",
   // Splash / brand hero — always the violet gradient (splash is a brand moment)
   heroFrom: "#2E1A47",

@@ -28,7 +28,7 @@ const GENDERS: { value: Gender; key: MessageKey }[] = [
 const MAX_MEMBERS = 5;
 
 export default function AddFamilyMemberScreen() {
-  const { spacing, colors, radii } = useTheme();
+  const { spacing, colors, radii, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
 
@@ -98,8 +98,8 @@ export default function AddFamilyMemberScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("family.relation")}</Text>
-      <View style={styles.chips}>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }} align={isRTL ? "right" : "left"}>{t("family.relation")}</Text>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {RELATIONS.map((r) => (
           <Chip key={r.value} label={t(r.key)} selected={relation === r.value} onPress={() => setRelation(r.value)} />
         ))}
@@ -114,8 +114,8 @@ export default function AddFamilyMemberScreen() {
         containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
 
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("family.gender")}</Text>
-      <View style={styles.chips}>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }} align={isRTL ? "right" : "left"}>{t("family.gender")}</Text>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {GENDERS.map((g) => (
           <Chip
             key={g.value}

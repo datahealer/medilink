@@ -40,7 +40,7 @@ const GENDERS: { value: Gender; key: MessageKey }[] = [
 ];
 
 export default function EditFamilyMemberScreen() {
-  const { spacing } = useTheme();
+  const { spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -144,8 +144,8 @@ export default function EditFamilyMemberScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("family.relation")}</Text>
-      <View style={styles.chips}>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }} align={isRTL ? "right" : "left"}>{t("family.relation")}</Text>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {RELATIONS.map((r) => (
           <Chip key={r.value} label={t(r.key)} selected={relation === r.value} onPress={() => setRelation(r.value)} />
         ))}
@@ -160,8 +160,8 @@ export default function EditFamilyMemberScreen() {
         containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
 
-      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{t("family.gender")}</Text>
-      <View style={styles.chips}>
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8 }} align={isRTL ? "right" : "left"}>{t("family.gender")}</Text>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {GENDERS.map((g) => (
           <Chip
             key={g.value}

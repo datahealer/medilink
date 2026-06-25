@@ -15,7 +15,7 @@ import { useSearchFilterStore } from "@/stores/searchFilterStore";
  * Category names are semibold (SpecialtyTile).
  */
 export default function SpecialtiesScreen() {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, isRTL } = useTheme();
   const { isTablet } = useResponsive();
   const { t } = useI18n();
   const setFilters = useSearchFilterStore((s) => s.setFilters);
@@ -56,7 +56,7 @@ export default function SpecialtiesScreen() {
       {specialties.isLoading ? (
         <LoadingState />
       ) : (
-        <View style={styles.grid}>
+        <View style={[styles.grid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {items.map((s) => (
             <View key={s.id} style={[styles.cell, { width: colWidth }]}>
               <SpecialtyTile name={s.name} icon={s.icon} onPress={() => open(s.name)} />

@@ -111,9 +111,9 @@ export default function ProfileScreen() {
         {stats.map((s) => (
           <Card key={s.label} style={styles.statCard}>
             {/* Stat values use Manrope (title), not Agatho display (serif lacks a clean
-                "+"). Blood group shows in a pale-red pill per the p36 artboard. */}
+                "+"). Blood group shows in a soft error-tint pill (theme token, dark-safe). */}
             {s.pill ? (
-              <View style={[styles.bloodPill, { backgroundColor: "#FBE7EC" }]}>
+              <View style={[styles.bloodPill, { backgroundColor: colors.errorSurface }]}>
                 <Text variant="label" align="center" style={{ color: colors.error }}>{s.value}</Text>
               </View>
             ) : (

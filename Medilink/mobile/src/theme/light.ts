@@ -25,6 +25,7 @@ export const lightColors = {
   success: "#2F8F63",
   warning: "#B07D12",
   error: "#C93B56",
+  errorSurface: "#FBE7EC", // soft error tint (e.g. blood-group pill)
   info: "#3B6AA8",
   // Splash / brand hero (violet gradient — sampled from the PDF splash artboard)
   heroFrom: "#2E1A47",
