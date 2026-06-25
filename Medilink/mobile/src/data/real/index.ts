@@ -25,6 +25,7 @@ import type {
 import type {
   Appointment,
   BloodGroup,
+  Doctor,
   FamilyMember,
   FamilyRelation,
   Gender,
@@ -195,17 +196,88 @@ const discoveryRepo: DiscoveryRepository = {
   },
 };
 
-// Doctor discovery + notifications: HAMS endpoints land when these modules are
-// wired to the backend. Until then return empty results / safe defaults — never
-// fabricate clinical content.
+// ---- doctors ----------------------------------------------------------------
+// Search + details are wired to the real backend (api.doctors.*). The mapper is
+// defensive: backend columns are nullable, and `facilities` may arrive as an
+// object or a single-element array depending on the join. Reviews + map pins
+// have no confirmed endpoint yet, so they stay mock via the hybrid composition.
+
+/** Loose shape of a row from api.doctors.searchDoctors / getDoctor.doctor. */
+interface DoctorRowLoose {
+  id: string;
+  full_name: string | null;
+  specialty: string | null;
+  years_experience: number | null;
+  fees: number | null;
+  avg_rating: number | null;
+  profile_photo_url: string | null;
+  facility_id: string | null;
+  branch_id: string | null;
+  status: string | null;
+  facilities?: { name: string | null } | { name: string | null }[] | null;
+  // detail-only (getDoctor selects doctors.*) — present best-effort:
+  gender?: string | null;
+  languages?: string[] | null;
+  about?: string | null;
+  bio?: string | null;
+  review_count?: number | null;
+  reviews_count?: number | null;
+}
+
+function facilityName(f: DoctorRowLoose["facilities"]): string {
+  if (!f) return "";
+  return Array.isArray(f) ? f[0]?.name ?? "" : f.name ?? "";
+}
+
+function mapDoctorRow(r: DoctorRowLoose): Doctor {
+  return {
+    id: r.id,
+    full_name: r.full_name ?? "",
+    specialty: r.specialty ?? "",
+    facility: facilityName(r.facilities),
+    rating: r.avg_rating ?? 0,
+    fee_omr: r.fees ?? 0,
+    // `status === "available"` is the backend's live-now flag; null → unknown.
+    available_today: r.status == null ? undefined : r.status === "available",
+    experience_years: r.years_experience ?? undefined,
+  };
+}
+
+function mapDoctorDetail(r: DoctorRowLoose): Doctor {
+  return {
+    ...mapDoctorRow(r),
+    gender: (r.gender as Gender | null) ?? undefined,
+    languages: Array.isArray(r.languages) ? r.languages : undefined,
+    about: asText(r.about ?? r.bio ?? null) || undefined,
+    reviews: r.review_count ?? r.reviews_count ?? undefined,
+    // slots_today intentionally omitted: real availability comes from
+    // api.appointments.getAvailableSlots(doctorId, date) when the slots batch
+    // is wired. Until then the schedule screen falls back to DEFAULT_SLOTS.
+  };
+}
+
 const doctorRepo: DoctorRepository = {
-  async search() {
-    return [];
+  async search(params = {}) {
+    const rows = (await api.doctors.searchDoctors(supabase, {
+      specialty: params.specialty,
+      term: params.query,
+    })) as unknown as DoctorRowLoose[];
+    let list = rows.map(mapDoctorRow);
+    // Filters the backend list query does not apply are honoured client-side.
+    if (params.maxFee != null) list = list.filter((d) => d.fee_omr <= params.maxFee!);
+    if (params.minRating != null) list = list.filter((d) => d.rating >= params.minRating!);
+    if (params.availableToday) list = list.filter((d) => d.available_today);
+    // `gender` has no column in the list select, so it cannot be filtered here;
+    // `topRated` is already satisfied by the backend's avg_rating ordering.
+    return list;
   },
-  async get() {
-    return null;
+  async get(id) {
+    const { doctor } = await api.doctors.getDoctor(supabase, id);
+    if (!doctor) return null;
+    return mapDoctorDetail(doctor as unknown as DoctorRowLoose);
   },
   async reviews() {
+    // No confirmed doctor-reviews endpoint yet — kept mock in hybrid mode.
     return { summary: { average: 0, total: 0, distribution: [5, 4, 3, 2, 1].map((stars) => ({ stars, count: 0 })) }, reviews: [] };
   },
   async mapClinics() {

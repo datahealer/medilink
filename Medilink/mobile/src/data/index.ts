@@ -6,9 +6,11 @@
  *     confirmed backend are wired to real (HAMS + Supabase); the rest stay mock so
  *     no screen goes empty while we migrate flow-by-flow.
  *
- * Current hybrid (real): Auth + session restore.
- * Still mock: profile, family, medical history, appointments, doctor discovery,
- * notifications, booking/slots/create-appointment.
+ * Current hybrid (real): Auth + session restore, Patient profile, and Doctor
+ * search + details. Doctor reviews and map pins stay mock (no confirmed
+ * endpoint). Still mock: family, medical history, appointments, dashboard
+ * discovery sections, notifications, booking/slots/create-appointment — so no
+ * screen goes empty while later flows are migrated.
  *
  * The UI imports `repositories` (and the domain types) from here only.
  */
@@ -21,6 +23,12 @@ import type { Repositories } from "./repositories";
 const hybridRepositories: Repositories = {
   ...mockRepositories,
   auth: realRepositories.auth,
+  patient: realRepositories.patient,
+  doctor: {
+    ...mockRepositories.doctor,
+    search: realRepositories.doctor.search,
+    get: realRepositories.doctor.get,
+  },
 };
 
 export const repositories: Repositories =
