@@ -97,8 +97,18 @@ export default function DashboardScreen() {
         </Text>
       </Pressable>
 
-      {/* Upcoming / next visit — AppointmentCard carries its own "UPCOMING" pill */}
-      <View style={{ height: spacing.md }} />
+      {/* Upcoming / next visit — header links to the full Appointments list */}
+      <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
+        <Text variant="label" color="textMuted">{t("dashboard.upcoming")}</Text>
+        <Pressable
+          onPress={() => router.push("/appointments")}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t("appointments.title")}
+        >
+          <Text variant="caption" color="primary">{t("dashboard.seeAll")}</Text>
+        </Pressable>
+      </View>
       {upcoming.isLoading ? (
         <Card><View style={{ height: 72 }}><LoadingState /></View></Card>
       ) : upcoming.isError ? (
