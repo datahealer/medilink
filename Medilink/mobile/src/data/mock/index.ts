@@ -414,9 +414,25 @@ const familyRepo: FamilyRepository = {
 
 // ---- appointments -----------------------------------------------------------
 
+function to12hMock(hhmm: string): string {
+  const [hStr, mStr = "00"] = hhmm.split(":");
+  let h = Number(hStr);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${mStr.slice(0, 2)} ${ampm}`;
+}
+
 const appointmentRepo: AppointmentRepository = {
   async listUpcoming() {
     return delay(appointments.map((a) => ({ ...a })));
+  },
+  async getSlots() {
+    const raw = ["10:00", "10:30", "11:30", "12:00", "16:30", "17:00"];
+    return delay(raw.map((start) => ({ start, label: to12hMock(start) })), 250);
+  },
+  async create() {
+    const id = `ML-${10000 + Math.floor(Math.random() * 89999)}`;
+    return delay({ id, reference: id }, 300);
   },
 };
 

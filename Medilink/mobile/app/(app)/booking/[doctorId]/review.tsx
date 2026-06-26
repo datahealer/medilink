@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -18,7 +18,7 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useProfile } from "@/hooks/queries/usePatient";
+import { useProfile, useCreateAppointment } from "@/hooks/queries/usePatient";
 import { usePatientStore } from "@/stores/patientStore";
 import { useBookingStore } from "@/stores/bookingStore";
 
@@ -39,11 +39,17 @@ export default function ReviewScreen() {
   const dateLabel = useBookingStore((s) => s.dateLabel);
   const slot = useBookingStore((s) => s.slot);
   const reason = useBookingStore((s) => s.reason);
+  const doctorId = useBookingStore((s) => s.doctorId);
+  const facilityId = useBookingStore((s) => s.facilityId);
+  const dateId = useBookingStore((s) => s.dateId);
+  const slotStart = useBookingStore((s) => s.slotStart);
+  const patientId = useBookingStore((s) => s.patientId);
   const setPatient = useBookingStore((s) => s.setPatient);
   const setReason = useBookingStore((s) => s.setReason);
   const confirm = useBookingStore((s) => s.confirm);
 
   const profile = useProfile();
+  const create = useCreateAppointment();
   const activeId = usePatientStore((s) => s.activePatientId);
   const activeName = usePatientStore((s) => s.activePatientName);
 
@@ -58,9 +64,29 @@ export default function ReviewScreen() {
   }, [activeId, patientName, setPatient]);
 
   const onProceed = () => {
-    confirm();
-    // Real flow continues to payment (still a preview stub this batch).
-    router.push("/booking/payment");
+    if (!doctorId || !facilityId || !dateId || !slotStart) {
+      Alert.alert(t("booking.bookingFailed"), t("booking.missingInfo"));
+      return;
+    }
+    // Real atomic booking (payment remains a later batch — go straight to success).
+    create.mutate(
+      {
+        doctorId,
+        facilityId,
+        slotDate: dateId,
+        slotStart,
+        type: "in_person",
+        forFamilyMemberId: patientId ?? undefined,
+      },
+      {
+        onSuccess: (res) => {
+          confirm(res.reference || res.id);
+          router.replace("/booking/success");
+        },
+        onError: (e) =>
+          Alert.alert(t("booking.bookingFailed"), e instanceof Error ? e.message : undefined),
+      }
+    );
   };
 
   const rows: SummaryRow[] = [
@@ -75,7 +101,7 @@ export default function ReviewScreen() {
       padded
       edges={["top", "left", "right", "bottom"]}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
-      footer={<Button label={t("booking.proceedToPayment")} onPress={onProceed} />}
+      footer={<Button label={create.isPending ? t("common.loading") : t("booking.confirmBooking")} onPress={onProceed} disabled={create.isPending} />}
     >
       <AppHeader title={t("booking.reviewTitle")} showBack right={<Text variant="caption" color="textMuted">{t("booking.step", { current: num("2"), total: num("4") })}</Text>} />
 

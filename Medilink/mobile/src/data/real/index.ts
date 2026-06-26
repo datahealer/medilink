@@ -184,6 +184,15 @@ interface ApptRow {
   facility: { name: string | null } | null;
 }
 
+/** "14:30" / "14:30:00" → "2:30 PM" for display (raw start is kept for the RPC). */
+function to12h(hhmm: string): string {
+  const [hStr, mStr = "00"] = hhmm.split(":");
+  let h = Number(hStr);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${mStr.slice(0, 2)} ${ampm}`;
+}
+
 const appointmentRepo: AppointmentRepository = {
   async listUpcoming() {
     const rows = (await api.appointments.listMyAppointments(supabase, "upcoming")) as unknown as ApptRow[];
@@ -197,6 +206,29 @@ const appointmentRepo: AppointmentRepository = {
         status: r.status ?? null,
       })
     );
+  },
+  async getSlots(params) {
+    const slots = await api.appointments.getAvailableSlots(supabase, params);
+    return slots
+      .map((s) => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
+      .filter((start) => start !== "")
+      .map((start) => ({ start, label: to12h(start) }));
+  },
+  async create(input) {
+    const res = await api.appointments.bookAppointment(supabase, {
+      doctorId: input.doctorId,
+      facilityId: input.facilityId,
+      slotDate: input.slotDate,
+      slotStart: input.slotStart,
+      type: input.type,
+      forFamilyMemberId: input.forFamilyMemberId ?? undefined,
+    });
+    // book_appointment_atomic returns Json — extract the id/reference defensively.
+    const r = (res ?? {}) as Record<string, unknown>;
+    const id = String(r.appointment_id ?? r.id ?? "");
+    const reference = (r.reference_number ?? r.reference ?? null) as string | null;
+    if (!id) throw new Error("Booking did not return an appointment id");
+    return { id, reference };
   },
 };
 
@@ -276,7 +308,8 @@ interface DoctorRowLoose {
   full_name: string | null;
   specialty: string | null;
   years_experience: number | null;
-  fees: number | null;
+  // doctors.fees is JSONB { in_person, online } (not a scalar).
+  fees: unknown;
   avg_rating: number | null;
   profile_photo_url: string | null;
   facility_id: string | null;
@@ -297,14 +330,26 @@ function facilityName(f: DoctorRowLoose["facilities"]): string {
   return Array.isArray(f) ? f[0]?.name ?? "" : f.name ?? "";
 }
 
+/** doctors.fees is JSONB `{ in_person, online }`; tolerate a scalar too. */
+function feeOf(fees: unknown): number {
+  if (typeof fees === "number") return fees;
+  if (fees && typeof fees === "object") {
+    const f = fees as Record<string, unknown>;
+    const v = f.in_person ?? f.online;
+    return typeof v === "number" ? v : Number(v) || 0;
+  }
+  return Number(fees) || 0;
+}
+
 function mapDoctorRow(r: DoctorRowLoose): Doctor {
   return {
     id: r.id,
     full_name: r.full_name ?? "",
     specialty: r.specialty ?? "",
     facility: facilityName(r.facilities),
+    facility_id: r.facility_id ?? undefined,
     rating: r.avg_rating ?? 0,
-    fee_omr: r.fees ?? 0,
+    fee_omr: feeOf(r.fees),
     // `status === "available"` is the backend's live-now flag; null → unknown.
     available_today: r.status == null ? undefined : r.status === "available",
     experience_years: r.years_experience ?? undefined,

@@ -5,6 +5,8 @@
 import type {
   Appointment,
   AuthResult,
+  AvailableSlot,
+  BookedAppointment,
   Clinic,
   Doctor,
   DoctorReviews,
@@ -13,6 +15,7 @@ import type {
   FamilyMember,
   MedicalHistory,
   MedicalHistoryPatch,
+  NewAppointment,
   NewFamilyMember,
   NotificationItem,
   NotificationPrefs,
@@ -60,6 +63,10 @@ export interface FamilyRepository {
 
 export interface AppointmentRepository {
   listUpcoming(): Promise<Appointment[]>;
+  /** Available slots for a doctor on a date (YYYY-MM-DD). */
+  getSlots(params: { doctorId: string; date: string; branchId?: string }): Promise<AvailableSlot[]>;
+  /** Book an appointment (atomic create). Returns the new appointment id/reference. */
+  create(input: NewAppointment): Promise<BookedAppointment>;
 }
 
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */

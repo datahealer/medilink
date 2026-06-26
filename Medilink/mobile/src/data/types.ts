@@ -114,6 +114,26 @@ export interface Appointment {
   status?: string | null;
 }
 
+/** A bookable time slot: `start` (raw HH:MM) is sent to the RPC, `label` is shown. */
+export interface AvailableSlot {
+  start: string;
+  label: string;
+}
+
+export interface NewAppointment {
+  doctorId: string;
+  facilityId: string;
+  slotDate: string; // YYYY-MM-DD
+  slotStart: string; // HH:MM
+  type: "in_person" | "online";
+  forFamilyMemberId?: string | null;
+}
+
+export interface BookedAppointment {
+  id: string;
+  reference?: string | null;
+}
+
 export interface PhotoAsset {
   uri: string;
   name?: string;
@@ -134,6 +154,8 @@ export interface Doctor {
   full_name: string;
   specialty: string;
   facility: string;
+  /** Real facility id — the booking target (the clinic picker is cosmetic in real mode). */
+  facility_id?: string;
   rating: number;
   reviews?: number;
   fee_omr: number;

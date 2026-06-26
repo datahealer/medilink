@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
-import type { MedicalHistoryPatch, PhotoAsset, ProfilePatch } from "@/data/types";
+import type { MedicalHistoryPatch, NewAppointment, PhotoAsset, ProfilePatch } from "@/data/types";
 
 /** Query keys (centralised so mutations can invalidate precisely). */
 export const patientKeys = {
@@ -51,6 +51,26 @@ export function useUpcomingAppointments() {
   return useQuery({
     queryKey: patientKeys.appointmentsUpcoming,
     queryFn: () => repositories.appointment.listUpcoming(),
+  });
+}
+
+/** Available booking slots for a doctor on a given date (YYYY-MM-DD). */
+export function useAvailableSlots(params: { doctorId: string; date: string; branchId?: string }) {
+  return useQuery({
+    queryKey: ["appointments", "slots", params.doctorId, params.date, params.branchId ?? null],
+    queryFn: () => repositories.appointment.getSlots(params),
+    enabled: !!params.doctorId && !!params.date,
+  });
+}
+
+/** Create (book) an appointment; refresh the upcoming list on success. */
+export function useCreateAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: NewAppointment) => repositories.appointment.create(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: patientKeys.appointmentsUpcoming });
+    },
   });
 }
 

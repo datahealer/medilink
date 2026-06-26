@@ -18,10 +18,10 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctor, useMapClinics } from "@/hooks/queries/useDoctors";
+import { useAvailableSlots } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
-const DEFAULT_SLOTS = ["10:00 AM", "10:30 AM", "11:30 AM", "12:00 PM", "4:30 PM", "5:00 PM"];
 const DAY_COUNT = 5;
 
 function initialsOf(name: string): string {
@@ -62,11 +62,19 @@ export default function ScheduleScreen() {
   }, [t, num]);
 
   const clinicList = useMemo(() => clinics.data ?? [], [clinics.data]);
-  const slots = doctor.data?.slots_today?.length ? doctor.data.slots_today : DEFAULT_SLOTS;
 
   const [clinicId, setClinicId] = useState<string | undefined>(undefined);
   const [dateId, setDateId] = useState<string>(days[0]?.id ?? "");
   const [slot, setSlot] = useState<string | undefined>(undefined);
+
+  // Real availability for the selected day (refetches when the date changes).
+  const slotsQuery = useAvailableSlots({ doctorId: id, date: dateId });
+  const availableSlots = slotsQuery.data ?? [];
+
+  const onSelectDate = (d: string) => {
+    setDateId(d);
+    setSlot(undefined); // a slot valid for one day may not exist on another
+  };
 
   // Default the clinic selection to the nearest once data arrives.
   useEffect(() => {
@@ -84,9 +92,20 @@ export default function ScheduleScreen() {
 
   const onContinue = () => {
     const clinic = clinicList.find((c) => c.id === clinicId);
-    if (!clinic || !slot) return;
+    const picked = availableSlots.find((s) => s.label === slot);
+    if (!clinic || !picked || !doctor.data) return;
     const meta = `${num(`${clinic.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`;
-    setSchedule({ clinicId: clinic.id, clinicName: clinic.name, clinicMeta: meta, dateId, dateLabel: dateLabels[dateId] ?? "", slot });
+    setSchedule({
+      clinicId: clinic.id,
+      clinicName: clinic.name,
+      clinicMeta: meta,
+      // Real bookings target the doctor's facility; fall back to the clinic id (mock mode).
+      facilityId: doctor.data.facility_id || clinic.id,
+      dateId,
+      dateLabel: dateLabels[dateId] ?? "",
+      slot: picked.label,
+      slotStart: picked.start,
+    });
     router.push(`/booking/${id}/review`);
   };
 
@@ -141,11 +160,17 @@ export default function ScheduleScreen() {
 
       {/* Select date */}
       <Text variant="label" color="textMuted" style={styles.section}>{t("booking.selectDate")}</Text>
-      <DayGrid items={days} selectedId={dateId} onSelect={setDateId} />
+      <DayGrid items={days} selectedId={dateId} onSelect={onSelectDate} />
 
       {/* Available slots */}
       <Text variant="label" color="textMuted" style={styles.section}>{t("booking.availableSlots")}</Text>
-      <SlotGrid slots={slots} selected={slot} onSelect={setSlot} emptyLabel={t("booking.noSlots")} />
+      {slotsQuery.isLoading ? (
+        <LoadingState />
+      ) : slotsQuery.isError ? (
+        <ErrorState message={t("booking.slotsError")} onRetry={() => slotsQuery.refetch()} />
+      ) : (
+        <SlotGrid slots={availableSlots.map((s) => s.label)} selected={slot} onSelect={setSlot} emptyLabel={t("booking.noSlots")} />
+      )}
 
       {!slot ? (
         <Text variant="caption" color="textMuted" style={{ marginTop: spacing.sm }} align={isRTL ? "right" : "left"}>
