@@ -25,6 +25,7 @@ import type {
 import type {
   Appointment,
   BloodGroup,
+  Clinic,
   Doctor,
   FamilyMember,
   FamilyRelation,
@@ -182,17 +183,66 @@ const appointmentRepo: AppointmentRepository = {
 };
 
 // ---- discovery --------------------------------------------------------------
-// Doctor discovery is Batch-2 work; the real HAMS endpoints are not wired yet.
-// We return empty results rather than fake data (never fabricate clinical content).
+// Dashboard discovery. Featured clinics + recently-visited doctors are wired to
+// the real backend; specialties has no backend list source yet (only a search
+// filter) so it stays mock via the hybrid composition.
+
+/** Loose shape of a row from api.facilities.listFacilities. */
+interface FacilityRowLoose {
+  id: string;
+  name: string | null;
+  type: string | null;
+  address: unknown;
+  rating: number | null;
+  review_count: number | null;
+  doctors?: { id: string }[] | null;
+}
+
+function mapFacilityToClinic(f: FacilityRowLoose): Clinic {
+  return {
+    id: f.id,
+    name: f.name ?? "",
+    area: asText(f.address) || "",
+    category: f.type ?? undefined,
+    doctors_count: Array.isArray(f.doctors) ? f.doctors.length : undefined,
+    rating: f.rating ?? 0,
+    featured: true,
+  };
+}
+
+const RECENT_DOCTORS_LIMIT = 5;
+
 const discoveryRepo: DiscoveryRepository = {
   async listSpecialties() {
+    // No "list specialties" endpoint exists (only a search filter). Kept mock
+    // via the hybrid composition until a real source is confirmed.
     return [];
   },
   async recentDoctors() {
-    return [];
+    // Derived from the patient's past appointments (newest first) — there is no
+    // dedicated "recently visited" endpoint. Hydrate up to N unique doctors so
+    // the cards carry specialty / rating / fee.
+    const past = (await api.appointments.listMyAppointments(supabase, "past")) as unknown as ApptRow[];
+    const ids: string[] = [];
+    const seen = new Set<string>();
+    for (const a of past) {
+      const id = (a.doctor as { id?: string } | null)?.id;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+      if (ids.length >= RECENT_DOCTORS_LIMIT) break;
+    }
+    const docs = await Promise.all(ids.map((id) => api.doctors.getDoctor(supabase, id)));
+    return docs
+      .map((d): Doctor | null =>
+        d.doctor ? { ...mapDoctorRow(d.doctor as unknown as DoctorRowLoose), visited: true } : null
+      )
+      .filter((d): d is Doctor => d != null);
   },
   async featuredClinics() {
-    return [];
+    const rows = (await api.facilities.listFacilities(supabase, { limit: 6 })) as unknown as FacilityRowLoose[];
+    return rows.map(mapFacilityToClinic);
   },
 };
 
