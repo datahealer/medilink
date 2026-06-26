@@ -99,14 +99,19 @@ const patientRepo: PatientRepository = {
       (asset.name?.split(".").pop() || asset.mimeType?.split("/").pop() || "jpg")
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `patient-profiles/${auth.user.id}/${Date.now()}.${ext}`;
+    // The account_image bucket's storage policy casts the object's filename stem
+    // to uuid and checks it against auth.uid(), so the filename MUST be the auth
+    // user's UUID — a Date.now() timestamp here produced the runtime error
+    // `invalid input syntax for type uuid: "1782453774429"`. upsert overwrites the
+    // user's single avatar; cache-busting lives in a ?v= query param (not the path).
+    const path = `patient-profiles/${auth.user.id}/${auth.user.id}.${ext}`;
     const body = await fetch(asset.uri).then((r) => r.arrayBuffer());
     const { error: uploadErr } = await supabase.storage
       .from("account_image")
       .upload(path, body, { contentType: asset.mimeType ?? "image/jpeg", upsert: true });
     if (uploadErr) throw uploadErr;
     const { data: pub } = supabase.storage.from("account_image").getPublicUrl(path);
-    const url = pub.publicUrl;
+    const url = `${pub.publicUrl}?v=${Date.now()}`;
     // Persist so the new avatar survives reload (Dashboard / Profile read this).
     await api.profile.updateMyProfile(supabase, { profile_photo_url: url });
     return { profile_photo_url: url };
