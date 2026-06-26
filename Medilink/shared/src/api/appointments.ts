@@ -27,6 +27,19 @@ export async function listMyAppointments(db: DB, tab: AppointmentTab = "all") {
   return data ?? [];
 }
 
+/** A single appointment (same shape as the list rows), scoped to the caller. */
+export async function getAppointment(db: DB, id: string) {
+  const patientId = await getMyPatientProfileId(db);
+  const { data, error } = await db
+    .from("appointments")
+    .select(LIST_SELECT)
+    .eq("id", id)
+    .eq("patient_id", patientId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export interface BookAppointmentInput {
   doctorId: string;
   facilityId: string;

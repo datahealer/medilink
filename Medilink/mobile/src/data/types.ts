@@ -107,12 +107,20 @@ export interface NewFamilyMember {
 
 export interface Appointment {
   id: string;
+  reference_number?: string | null;
   slot_date: string | null;
   slot_start: string | null;
-  doctor: { full_name: string | null } | null;
-  facility: { name: string | null } | null;
+  slot_end?: string | null;
+  type?: "in_person" | "online" | null;
   status?: string | null;
+  payment_status?: string | null;
+  reason_for_visit?: string | null;
+  doctor: { full_name: string | null } | null;
+  facility: { name: string | null; address?: string | null } | null;
+  for_family_member?: { full_name: string | null } | null;
 }
+
+export type AppointmentTab = "upcoming" | "past" | "all";
 
 /** A bookable time slot: `start` (raw HH:MM) is sent to the RPC, `label` is shown. */
 export interface AvailableSlot {

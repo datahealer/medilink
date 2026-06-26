@@ -190,11 +190,34 @@ const familyRepo: FamilyRepository = {
 
 interface ApptRow {
   id: string;
+  reference_number: string | null;
   slot_date: string | null;
   slot_start: string | null;
+  slot_end: string | null;
+  type: string | null;
   status: string | null;
+  payment_status: string | null;
+  reason_for_visit: string | null;
   doctor: { full_name: string | null } | null;
-  facility: { name: string | null } | null;
+  facility: { name: string | null; address?: string | null } | null;
+  family_member: { full_name: string | null } | null;
+}
+
+function mapAppointment(r: ApptRow): Appointment {
+  return {
+    id: r.id,
+    reference_number: r.reference_number ?? null,
+    slot_date: r.slot_date ?? null,
+    slot_start: r.slot_start ?? null,
+    slot_end: r.slot_end ?? null,
+    type: (r.type as Appointment["type"]) ?? null,
+    status: r.status ?? null,
+    payment_status: r.payment_status ?? null,
+    reason_for_visit: r.reason_for_visit ?? null,
+    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null } : null,
+    facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null } : null,
+    for_family_member: r.family_member ? { full_name: r.family_member.full_name ?? null } : null,
+  };
 }
 
 /** "14:30" / "14:30:00" → "2:30 PM" for display (raw start is kept for the RPC). */
@@ -209,16 +232,15 @@ function to12h(hhmm: string): string {
 const appointmentRepo: AppointmentRepository = {
   async listUpcoming() {
     const rows = (await api.appointments.listMyAppointments(supabase, "upcoming")) as unknown as ApptRow[];
-    return rows.map(
-      (r): Appointment => ({
-        id: r.id,
-        slot_date: r.slot_date ?? null,
-        slot_start: r.slot_start ?? null,
-        doctor: r.doctor ? { full_name: r.doctor.full_name ?? null } : null,
-        facility: r.facility ? { name: r.facility.name ?? null } : null,
-        status: r.status ?? null,
-      })
-    );
+    return rows.map(mapAppointment);
+  },
+  async list(tab) {
+    const rows = (await api.appointments.listMyAppointments(supabase, tab)) as unknown as ApptRow[];
+    return rows.map(mapAppointment);
+  },
+  async get(id) {
+    const row = (await api.appointments.getAppointment(supabase, id)) as unknown as ApptRow | null;
+    return row ? mapAppointment(row) : null;
   },
   async getSlots(params) {
     const slots = await api.appointments.getAvailableSlots(supabase, params);

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
-import type { MedicalHistoryPatch, NewAppointment, PhotoAsset, ProfilePatch } from "@/data/types";
+import type { AppointmentTab, MedicalHistoryPatch, NewAppointment, PhotoAsset, ProfilePatch } from "@/data/types";
 
 /** Query keys (centralised so mutations can invalidate precisely). */
 export const patientKeys = {
@@ -51,6 +51,23 @@ export function useUpcomingAppointments() {
   return useQuery({
     queryKey: patientKeys.appointmentsUpcoming,
     queryFn: () => repositories.appointment.listUpcoming(),
+  });
+}
+
+/** Appointments for a tab (upcoming / past / all). */
+export function useAppointments(tab: AppointmentTab) {
+  return useQuery({
+    queryKey: ["appointments", "list", tab],
+    queryFn: () => repositories.appointment.list(tab),
+  });
+}
+
+/** A single appointment by id. */
+export function useAppointment(id: string) {
+  return useQuery({
+    queryKey: ["appointments", "detail", id],
+    queryFn: () => repositories.appointment.get(id),
+    enabled: !!id,
   });
 }
 

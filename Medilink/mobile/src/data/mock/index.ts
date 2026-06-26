@@ -77,13 +77,32 @@ let family: FamilyMember[] = [
 const appointments: Appointment[] = [
   {
     id: "mock-appt-1",
+    reference_number: "HAMS-3F2A9C01",
     slot_date: "Wed 18 Jun",
     slot_start: "10:30 AM",
+    type: "in_person",
     doctor: { full_name: "Dr. Khalid Al Balushi" },
-    facility: { name: "Royal Hospital · General Care" },
+    facility: { name: "Royal Hospital · General Care", address: "Al Ghubrah, Muscat" },
     status: "confirmed",
+    payment_status: "paid",
+    reason_for_visit: "Follow-up consultation",
+  },
+  {
+    id: "mock-appt-2",
+    reference_number: "HAMS-7B1D4E22",
+    slot_date: "Mon 2 Jun",
+    slot_start: "4:00 PM",
+    type: "in_person",
+    doctor: { full_name: "Dr. Said Al Hinai" },
+    facility: { name: "Aster Clinic · Dermatology", address: "Al Khuwair, Muscat" },
+    status: "completed",
+    payment_status: "paid",
+    reason_for_visit: "Skin check",
   },
 ];
+
+/** Statuses considered "upcoming" (vs past) for the mock tab split. */
+const UPCOMING_STATUSES = ["pending", "confirmed", "checked_in"];
 
 // ---- discovery (dashboard recents/featured; mirrors PDF p14) ----------------
 
@@ -424,7 +443,19 @@ function to12hMock(hhmm: string): string {
 
 const appointmentRepo: AppointmentRepository = {
   async listUpcoming() {
-    return delay(appointments.map((a) => ({ ...a })));
+    return delay(
+      appointments.filter((a) => UPCOMING_STATUSES.includes(a.status ?? "")).map((a) => ({ ...a }))
+    );
+  },
+  async list(tab) {
+    const all = appointments.map((a) => ({ ...a }));
+    if (tab === "all") return delay(all, 300);
+    const wantUpcoming = tab === "upcoming";
+    return delay(all.filter((a) => UPCOMING_STATUSES.includes(a.status ?? "") === wantUpcoming), 300);
+  },
+  async get(id) {
+    const found = appointments.find((a) => a.id === id);
+    return delay(found ? { ...found } : null, 250);
   },
   async getSlots() {
     const raw = ["10:00", "10:30", "11:30", "12:00", "16:30", "17:00"];

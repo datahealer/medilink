@@ -4,6 +4,7 @@
  */
 import type {
   Appointment,
+  AppointmentTab,
   AuthResult,
   AvailableSlot,
   BookedAppointment,
@@ -63,6 +64,10 @@ export interface FamilyRepository {
 
 export interface AppointmentRepository {
   listUpcoming(): Promise<Appointment[]>;
+  /** Appointments for a tab (upcoming / past / all), newest first. */
+  list(tab: AppointmentTab): Promise<Appointment[]>;
+  /** A single appointment by id (scoped to the caller), or null. */
+  get(id: string): Promise<Appointment | null>;
   /** Available slots for a doctor on a date (YYYY-MM-DD). */
   getSlots(params: { doctorId: string; date: string; branchId?: string }): Promise<AvailableSlot[]>;
   /** Book an appointment (atomic create). Returns the new appointment id/reference. */
