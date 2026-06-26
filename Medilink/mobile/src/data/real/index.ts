@@ -37,6 +37,17 @@ import type {
   SmokingStatus,
 } from "../types";
 
+/** Best-effort message from an unknown throwable (Error | PostgrestError | string). */
+function errText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    const parts = [o.message, o.details, o.hint, o.code].filter(Boolean).map(String);
+    return parts.length ? parts.join(" · ") : JSON.stringify(o);
+  }
+  return String(e);
+}
+
 // ---- auth -------------------------------------------------------------------
 
 const authRepo: AuthRepository = {
@@ -215,20 +226,33 @@ const appointmentRepo: AppointmentRepository = {
       .map((start) => ({ start, label: to12h(start) }));
   },
   async create(input) {
-    const res = await api.appointments.bookAppointment(supabase, {
+    const payload = {
       doctorId: input.doctorId,
       facilityId: input.facilityId,
       slotDate: input.slotDate,
       slotStart: input.slotStart,
       type: input.type,
       forFamilyMemberId: input.forFamilyMemberId ?? undefined,
-    });
-    // book_appointment_atomic returns Json — extract the id/reference defensively.
+    };
+    if (__DEV__) console.warn("[booking] book_appointment_atomic payload", payload);
+
+    let res: unknown;
+    try {
+      res = await api.appointments.bookAppointment(supabase, payload);
+    } catch (e) {
+      // Transport / Postgres error (the RPC raised, or RLS/grant denied it).
+      if (__DEV__) console.warn("[booking] RPC threw", e);
+      throw new Error(errText(e));
+    }
+    if (__DEV__) console.warn("[booking] book_appointment_atomic result", res);
+
+    // book_appointment_atomic does NOT throw on business failures — it returns
+    // { success: false, error: <CODE|SQLERRM> }. Honour that and surface the code.
     const r = (res ?? {}) as Record<string, unknown>;
+    if (r.success === false) throw new Error(String(r.error ?? "BOOKING_FAILED"));
     const id = String(r.appointment_id ?? r.id ?? "");
-    const reference = (r.reference_number ?? r.reference ?? null) as string | null;
     if (!id) throw new Error("Booking did not return an appointment id");
-    return { id, reference };
+    return { id, reference: (r.reference_number ?? r.reference ?? null) as string | null };
   },
 };
 

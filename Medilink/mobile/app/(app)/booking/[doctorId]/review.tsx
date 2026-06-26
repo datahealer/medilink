@@ -83,8 +83,17 @@ export default function ReviewScreen() {
           confirm(res.reference || res.id);
           router.replace("/booking/success");
         },
-        onError: (e) =>
-          Alert.alert(t("booking.bookingFailed"), e instanceof Error ? e.message : undefined),
+        onError: (e) => {
+          // Surface the real backend reason (RPC error code / Postgres message),
+          // never a generic string — see bookingStore + appointment.create().
+          const detail =
+            e instanceof Error
+              ? e.message
+              : e && typeof e === "object" && "message" in e
+                ? String((e as { message: unknown }).message)
+                : String(e);
+          Alert.alert(t("booking.bookingFailed"), detail);
+        },
       }
     );
   };
