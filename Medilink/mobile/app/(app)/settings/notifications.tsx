@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Switch, View } from "react-native";
 
-import { AppCard, AppHeader, Chip, LoadingState, Screen, Text } from "@/components/ui";
+import { AppCard, AppHeader, Chip, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -43,8 +43,10 @@ export default function NotificationPrefsScreen() {
     <Screen scroll padded edges={["top", "left", "right", "bottom"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}>
       <AppHeader title={t("notif.prefsTitle")} />
 
-      {prefs.isLoading || !p ? (
+      {prefs.isLoading ? (
         <LoadingState />
+      ) : prefs.isError || !p ? (
+        <ErrorState message={t("notif.loadError")} onRetry={() => prefs.refetch()} />
       ) : (
         <>
           {/* One rounded card per preference (PDF) */}

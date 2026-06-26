@@ -38,3 +38,11 @@ export function useUpdateNotificationPrefs() {
     onSuccess: (data) => qc.setQueryData(notificationKeys.prefs, data),
   });
 }
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => repositories.notification.markAllRead(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.list }),
+  });
+}

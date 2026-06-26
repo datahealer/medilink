@@ -6,7 +6,7 @@ import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingSt
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useNotifications } from "@/hooks/queries/useNotifications";
+import { useNotifications, useMarkAllNotificationsRead } from "@/hooks/queries/useNotifications";
 import type { NotificationItem, NotificationKind } from "@/data/types";
 
 const ICON: Record<NotificationKind, IconName> = {
@@ -44,7 +44,13 @@ export default function NotificationsScreen() {
   const { contentMaxWidth } = useResponsive();
   const { t } = useI18n();
   const notifications = useNotifications();
+  const markAll = useMarkAllNotificationsRead();
   const [allRead, setAllRead] = useState(false);
+
+  const onMarkAll = () => {
+    setAllRead(true); // optimistic
+    markAll.mutate();
+  };
 
   const items = notifications.data ?? [];
   const today = items.filter((n) => n.group === "today");
@@ -92,7 +98,7 @@ export default function NotificationsScreen() {
             <Pressable onPress={() => router.push("/notifications/messages")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("notif.messagesTitle")}>
               <Icon name="mail" size={20} tint={colors.text} />
             </Pressable>
-            <Pressable onPress={() => setAllRead(true)} hitSlop={8} accessibilityRole="button">
+            <Pressable onPress={onMarkAll} hitSlop={8} accessibilityRole="button" disabled={markAll.isPending}>
               <Text variant="label" color="primary">{t("notif.markAll")}</Text>
             </Pressable>
           </View>

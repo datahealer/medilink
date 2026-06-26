@@ -295,6 +295,10 @@ const notificationRepo: NotificationRepository = {
     };
     return delay({ ...notificationPrefs, channels: { ...notificationPrefs.channels } }, 150);
   },
+  async markAllRead() {
+    for (const n of notifications) n.unread = false;
+    return delay(undefined, 150);
+  },
 };
 
 // ---- auth -------------------------------------------------------------------

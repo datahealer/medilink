@@ -31,6 +31,9 @@ import type {
   FamilyRelation,
   Gender,
   MedicalHistory,
+  NotificationItem,
+  NotificationKind,
+  NotificationPrefs,
   PatientProfile,
   SmokingStatus,
 } from "../types";
@@ -335,38 +338,137 @@ const doctorRepo: DoctorRepository = {
   },
 };
 
+// ---- notifications ----------------------------------------------------------
+// List + preferences are wired to the real backend (in_app_notifications +
+// notification_preferences). Facility messages have no inbox endpoint yet and
+// stay mock via the hybrid composition.
+
+interface NotificationRowLoose {
+  id: string;
+  type: string | null;
+  title: string | null;
+  body: string | null;
+  is_read: boolean | null;
+  created_at: string | null;
+}
+
+/** Backend `type` strings are mapped onto the UI's notification kinds. */
+function mapNotificationKind(type: string | null): NotificationKind {
+  const t = (type ?? "").toLowerCase();
+  if (t.includes("appointment") || t.includes("reminder") || t.includes("booking") || t.includes("check")) return "appointment";
+  if (t.includes("payment") || t.includes("invoice") || t.includes("refund")) return "payment";
+  if (t.includes("lab") || t.includes("result")) return "lab";
+  if (t.includes("prescription") || t.includes("medication")) return "prescription";
+  if (t.includes("assistant") || t.includes("insight") || t.includes("ai")) return "assistant";
+  return "facility";
+}
+
+/** Compact relative label (e.g. "3h", "2d") matching the design. */
+function relativeTime(iso: string | null): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const min = Math.floor((Date.now() - then) / 60000);
+  if (min < 1) return "now";
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d`;
+  return `${Math.floor(day / 7)}w`;
+}
+
+function isToday(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
+function mapNotification(r: NotificationRowLoose): NotificationItem {
+  return {
+    id: r.id,
+    kind: mapNotificationKind(r.type),
+    title: r.title ?? "",
+    body: r.body ?? "",
+    time: relativeTime(r.created_at),
+    group: isToday(r.created_at) ? "today" : "earlier",
+    unread: !r.is_read,
+  };
+}
+
+const PREF_DEFAULTS: NotificationPrefs = {
+  appointmentReminders: true,
+  paymentsInvoices: true,
+  labResults: true,
+  prescriptions: true,
+  facilityUpdates: true,
+  promotions: false,
+  channels: { push: true, email: true, sms: false },
+};
+
+interface PrefsRowLoose {
+  push: boolean | null;
+  email: boolean | null;
+  sms: boolean | null;
+  categories?: Record<string, boolean> | null;
+}
+
+function mapPrefs(row: PrefsRowLoose | null): NotificationPrefs {
+  const cats = (row?.categories ?? {}) as Record<string, boolean>;
+  return {
+    appointmentReminders: cats.appointmentReminders ?? PREF_DEFAULTS.appointmentReminders,
+    paymentsInvoices: cats.paymentsInvoices ?? PREF_DEFAULTS.paymentsInvoices,
+    labResults: cats.labResults ?? PREF_DEFAULTS.labResults,
+    prescriptions: cats.prescriptions ?? PREF_DEFAULTS.prescriptions,
+    facilityUpdates: cats.facilityUpdates ?? PREF_DEFAULTS.facilityUpdates,
+    promotions: cats.promotions ?? PREF_DEFAULTS.promotions,
+    channels: {
+      push: row?.push ?? PREF_DEFAULTS.channels.push,
+      email: row?.email ?? PREF_DEFAULTS.channels.email,
+      sms: row?.sms ?? PREF_DEFAULTS.channels.sms,
+    },
+  };
+}
+
 const notificationRepo: NotificationRepository = {
   async list() {
-    return [];
+    const rows = (await api.notifications.listNotifications(supabase, { limit: 50 })) as unknown as NotificationRowLoose[];
+    return rows.map(mapNotification);
   },
   async facilityMessages() {
+    // No facility-messages inbox endpoint yet — kept mock in hybrid mode.
     return [];
   },
   async getPreferences() {
-    return {
-      appointmentReminders: true,
-      paymentsInvoices: true,
-      labResults: true,
-      prescriptions: true,
-      facilityUpdates: true,
-      promotions: false,
-      channels: { push: true, email: true, sms: false },
-    };
+    return mapPrefs((await api.notifications.getPreferences(supabase)) as unknown as PrefsRowLoose | null);
   },
   async updatePreferences(patch) {
-    const base = {
-      appointmentReminders: true,
-      paymentsInvoices: true,
-      labResults: true,
-      prescriptions: true,
-      facilityUpdates: true,
-      promotions: false,
-    };
-    return {
-      ...base,
+    // Merge against current so a single-field toggle never clobbers the rest of
+    // the categories JSONB / channel flags on upsert.
+    const current = mapPrefs((await api.notifications.getPreferences(supabase)) as unknown as PrefsRowLoose | null);
+    const next: NotificationPrefs = {
+      ...current,
       ...patch,
-      channels: { push: true, email: true, sms: false, ...(patch.channels ?? {}) },
+      channels: { ...current.channels, ...(patch.channels ?? {}) },
     };
+    const row = await api.notifications.updatePreferences(supabase, {
+      push: next.channels.push,
+      email: next.channels.email,
+      sms: next.channels.sms,
+      categories: {
+        appointmentReminders: next.appointmentReminders,
+        paymentsInvoices: next.paymentsInvoices,
+        labResults: next.labResults,
+        prescriptions: next.prescriptions,
+        facilityUpdates: next.facilityUpdates,
+        promotions: next.promotions,
+      },
+    });
+    return mapPrefs(row as unknown as PrefsRowLoose);
+  },
+  async markAllRead() {
+    await api.notifications.markAllRead(supabase);
   },
 };
 

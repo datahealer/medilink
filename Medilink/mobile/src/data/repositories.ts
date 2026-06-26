@@ -84,6 +84,8 @@ export interface NotificationRepository {
   facilityMessages(): Promise<FacilityMessage[]>;
   getPreferences(): Promise<NotificationPrefs>;
   updatePreferences(patch: Partial<NotificationPrefs>): Promise<NotificationPrefs>;
+  /** Mark every unread notification as read. */
+  markAllRead(): Promise<void>;
 }
 
 export interface Repositories {

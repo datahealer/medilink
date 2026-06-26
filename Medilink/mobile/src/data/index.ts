@@ -11,7 +11,8 @@
  * patient's upcoming appointments, and the Dashboard discovery sections that
  * have a backend source (featured clinics, recently-visited doctors). Doctor
  * reviews + map pins stay mock (no confirmed endpoint); Top Specialties stays
- * mock (no backend list source). Still mock: notifications, booking/slots/
+ * mock (no backend list source). Notifications list + preferences are real;
+ * facility messages stay mock (no inbox endpoint). Still mock: booking/slots/
  * create-appointment — so no screen goes empty while later flows are migrated.
  *
  * The UI imports `repositories` (and the domain types) from here only.
@@ -39,6 +40,14 @@ const hybridRepositories: Repositories = {
     // Top Specialties has no backend list source yet → stays mock.
     featuredClinics: realRepositories.discovery.featuredClinics,
     recentDoctors: realRepositories.discovery.recentDoctors,
+  },
+  notification: {
+    ...mockRepositories.notification,
+    // Facility messages have no inbox endpoint yet → stays mock.
+    list: realRepositories.notification.list,
+    getPreferences: realRepositories.notification.getPreferences,
+    updatePreferences: realRepositories.notification.updatePreferences,
+    markAllRead: realRepositories.notification.markAllRead,
   },
 };
 
