@@ -46,6 +46,9 @@ export { Chip } from "./Chip";
 export { AppHeader } from "./AppHeader";
 export { BottomTabBar } from "./BottomTabBar";
 export { StaticTabBar } from "./StaticTabBar";
+export { SegmentedTabs, type SegmentedTab } from "./SegmentedTabs";
+export { HeroAppointmentCard } from "./HeroAppointmentCard";
+export { AppointmentCompactCard } from "./AppointmentCompactCard";
 export { LoadingState, ErrorState, EmptyState } from "./StateView";
 
 export type { ButtonVariant } from "./Button";

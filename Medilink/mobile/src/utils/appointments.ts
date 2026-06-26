@@ -1,4 +1,5 @@
 import type { useI18n } from "@/i18n";
+import type { ThemeColors } from "@/theme/light";
 
 type T = ReturnType<typeof useI18n>["t"];
 type Num = ReturnType<typeof useI18n>["num"];
@@ -31,23 +32,41 @@ export function formatApptTime(value: string | null | undefined, num: Num): stri
   return `${num(String(h))}:${num(min)} ${ampm}`;
 }
 
-export type ApptStatusCategory = "info" | "success" | "danger" | "muted";
+export type ApptStatusCategory = "success" | "warning" | "danger" | "muted";
 
-/** Map a backend status to a semantic tone category (screens map this to colors). */
+/** Map a backend status to a semantic tone category (no blue — per design). */
 export function apptStatusCategory(status: string | null | undefined): ApptStatusCategory {
   switch (status) {
-    case "completed":
-      return "success";
+    case "confirmed":
+    case "checked_in":
+      return "success"; // green "Confirmed" chip
+    case "pending":
+      return "warning"; // amber (replaces the old blue Pending badge)
     case "cancelled":
     case "no_show":
       return "danger";
-    case "checked_in":
-      return "info";
-    case "pending":
-    case "confirmed":
-      return "info";
+    case "completed":
     default:
       return "muted";
+  }
+}
+
+export interface ApptTone {
+  bg: string;
+  fg: string;
+}
+
+/** Resolve a status category to concrete theme colors (pill bg + dot/text). */
+export function apptTone(colors: ThemeColors, cat: ApptStatusCategory): ApptTone {
+  switch (cat) {
+    case "success":
+      return { bg: colors.successSurface, fg: colors.success };
+    case "warning":
+      return { bg: colors.surfaceAlt, fg: colors.warning };
+    case "danger":
+      return { bg: colors.errorSurface, fg: colors.error };
+    default:
+      return { bg: colors.surfaceAlt, fg: colors.textMuted };
   }
 }
 
