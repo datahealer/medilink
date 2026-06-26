@@ -78,26 +78,30 @@ const appointments: Appointment[] = [
   {
     id: "mock-appt-1",
     reference_number: "HAMS-3F2A9C01",
+    doctor_id: "doc-khalid",
     slot_date: "Wed 18 Jun",
     slot_start: "10:30 AM",
     type: "in_person",
-    doctor: { full_name: "Dr. Khalid Al Balushi" },
+    doctor: { full_name: "Dr. Khalid Al Balushi", specialty: "Cardiology" },
     facility: { name: "Royal Hospital · General Care", address: "Al Ghubrah, Muscat" },
     status: "confirmed",
     payment_status: "paid",
     reason_for_visit: "Follow-up consultation",
+    fee_omr: 12,
   },
   {
     id: "mock-appt-2",
     reference_number: "HAMS-7B1D4E22",
+    doctor_id: "doc-said",
     slot_date: "Mon 2 Jun",
     slot_start: "4:00 PM",
     type: "in_person",
-    doctor: { full_name: "Dr. Said Al Hinai" },
+    doctor: { full_name: "Dr. Said Al Hinai", specialty: "Dermatology" },
     facility: { name: "Aster Clinic · Dermatology", address: "Al Khuwair, Muscat" },
     status: "completed",
     payment_status: "paid",
     reason_for_visit: "Skin check",
+    fee_omr: 15,
   },
 ];
 
@@ -464,6 +468,24 @@ const appointmentRepo: AppointmentRepository = {
   async create() {
     const id = `ML-${10000 + Math.floor(Math.random() * 89999)}`;
     return delay({ id, reference: id }, 300);
+  },
+  async cancel(id) {
+    const a = appointments.find((x) => x.id === id);
+    if (a) a.status = "cancelled";
+    return delay(undefined, 300);
+  },
+  async reschedule(id, slot) {
+    const a = appointments.find((x) => x.id === id);
+    if (a) {
+      a.slot_date = slot.date;
+      a.slot_start = slot.start;
+    }
+    return delay(undefined, 300);
+  },
+  async checkIn(id) {
+    const a = appointments.find((x) => x.id === id);
+    if (a) a.status = "checked_in";
+    return delay(undefined, 300);
   },
 };
 

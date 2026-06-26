@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -17,7 +17,7 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useAppointments } from "@/hooks/queries/usePatient";
+import { useAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
 import type { Appointment } from "@/data/types";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
 
@@ -46,6 +46,24 @@ export default function AppointmentsScreen() {
   const all = query.data ?? [];
   const upcomingList = all.filter(isUpcoming);
   const pastList = all.filter((a) => !isUpcoming(a));
+
+  const checkIn = useCheckInAppointment();
+  const onHeroCheckIn = (apptId: string) =>
+    Alert.alert(t("appointments.checkInTitle"), t("appointments.checkInMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("appointments.confirmCheckIn"),
+        onPress: () =>
+          checkIn.mutate(apptId, {
+            onSuccess: () => Alert.alert(t("appointments.checkedInDone")),
+            onError: (e) =>
+              Alert.alert(
+                t("appointments.actionFailed"),
+                e instanceof Error ? e.message : String(e)
+              ),
+          }),
+      },
+    ]);
 
   const dateLabel = (a: Appointment) => formatApptDate(a.slot_date, t, num);
   const timeLabel = (a: Appointment) => formatApptTime(a.slot_start, num);
@@ -139,7 +157,7 @@ export default function AppointmentsScreen() {
                   subtitle={heroSubtitle(hero)}
                   checkInLabel={t("appointments.checkIn")}
                   detailsLabel={t("appointments.details")}
-                  onCheckIn={() => router.push(`/appointments/${hero.id}/check-in`)}
+                  onCheckIn={() => onHeroCheckIn(hero.id)}
                   onDetails={() => router.push(`/appointments/${hero.id}`)}
                   isRTL={isRTL}
                 />

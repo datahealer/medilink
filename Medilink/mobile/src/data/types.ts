@@ -108,6 +108,7 @@ export interface NewFamilyMember {
 export interface Appointment {
   id: string;
   reference_number?: string | null;
+  doctor_id?: string | null;
   slot_date: string | null;
   slot_start: string | null;
   slot_end?: string | null;
@@ -115,9 +116,13 @@ export interface Appointment {
   status?: string | null;
   payment_status?: string | null;
   reason_for_visit?: string | null;
-  doctor: { full_name: string | null } | null;
+  notes?: string | null;
+  /** Consultation fee (OMR) for this appointment's type, from the doctor. */
+  fee_omr?: number | null;
+  doctor: { full_name: string | null; specialty?: string | null } | null;
   facility: { name: string | null; address?: string | null } | null;
   for_family_member?: { full_name: string | null } | null;
+  payment?: { amount: number | null; currency: string | null; status: string | null } | null;
 }
 
 export type AppointmentTab = "upcoming" | "past" | "all";
@@ -125,6 +130,7 @@ export type AppointmentTab = "upcoming" | "past" | "all";
 /** A bookable time slot: `start` (raw HH:MM) is sent to the RPC, `label` is shown. */
 export interface AvailableSlot {
   start: string;
+  end?: string;
   label: string;
 }
 

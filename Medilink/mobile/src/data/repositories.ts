@@ -72,6 +72,12 @@ export interface AppointmentRepository {
   getSlots(params: { doctorId: string; date: string; branchId?: string }): Promise<AvailableSlot[]>;
   /** Book an appointment (atomic create). Returns the new appointment id/reference. */
   create(input: NewAppointment): Promise<BookedAppointment>;
+  /** Cancel an appointment (atomic RPC; throws with the backend reason on failure). */
+  cancel(id: string, reason?: string): Promise<void>;
+  /** Reschedule to a new slot (atomic RPC; throws with the backend reason on failure). */
+  reschedule(id: string, slot: { date: string; start: string; end: string }): Promise<void>;
+  /** Check in to a confirmed appointment (throws with the backend reason on failure). */
+  checkIn(id: string): Promise<void>;
 }
 
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */

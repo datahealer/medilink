@@ -1,10 +1,27 @@
 // APPOINTMENTS — RE-HOMED from HAMS `patients/me/appointments`, `appointments/book`,
 // `appointments/[id]`, `slots` → direct Supabase + RPCs (RLS / SECURITY DEFINER).
 import type { DB, Enums, Json } from "./client";
-import { getCurrentUserId, getMyPatientProfileId, today } from "./client";
+import { getMyPatientProfileId, today } from "./client";
+
+/**
+ * Call an RPC not present in the generated types (e.g. the patient-action wrappers).
+ * IMPORTANT: invoke `db.rpc(...)` directly — assigning it to a local (`const call =
+ * db.rpc`) detaches `this`, and supabase-js's rpc reads `this.rest`, throwing
+ * "Cannot read property 'rest' of undefined" before any request is made.
+ */
+async function rpcLoose(db: DB, fn: string, args: Record<string, unknown>): Promise<Json> {
+  const res = await db.rpc(fn as never, args as never);
+  const dev = (globalThis as { __DEV__?: boolean }).__DEV__;
+  if (dev) {
+    const r = res as { data?: unknown; error?: unknown; status?: number; statusText?: string };
+    console.warn(`[rpc ${fn}]`, { data: r.data, error: r.error, status: r.status, statusText: r.statusText });
+  }
+  if (res.error) throw res.error;
+  return (res.data ?? null) as Json;
+}
 
 const LIST_SELECT =
-  "*, doctor:doctor_id ( id, full_name ), facility:facility_id ( id, name, address ), " +
+  "*, doctor:doctor_id ( id, full_name, specialty, fees ), facility:facility_id ( id, name, address ), " +
   "family_member:for_family_member_id ( full_name ), " +
   "payments ( id, status, amount, currency, invoice_url )";
 
@@ -67,40 +84,43 @@ export async function bookAppointment(db: DB, input: BookAppointmentInput): Prom
   return data;
 }
 
-/** Cancel (RPC enforces cutoff + refund side-effects). */
+/**
+ * Cancel via the patient wrapper (cancel_my_appointment): SECURITY DEFINER, checks
+ * ownership against auth.uid(), then runs cancel_appointment_safe with the rights
+ * its waitlist trigger needs. `skipCutoff` is admin-only and not honoured here.
+ */
 export async function cancelAppointment(
   db: DB,
   id: string,
   opts: { reason?: string; skipCutoff?: boolean } = {}
 ): Promise<Json> {
-  const userId = await getCurrentUserId(db);
-  const { data, error } = await db.rpc("cancel_appointment_safe", {
-    p_id: id,
-    p_user_id: userId,
-    p_reason: opts.reason,
-    p_skip_cutoff: opts.skipCutoff ?? false,
-  });
-  if (error) throw error;
-  return data;
+  return rpcLoose(db, "cancel_my_appointment", { p_id: id, p_reason: opts.reason ?? null });
 }
 
-/** Reschedule atomically to a new slot. */
+/** Reschedule via the patient wrapper (reschedule_my_appointment). */
 export async function rescheduleAppointment(
   db: DB,
   id: string,
   slot: { date: string; start: string; end: string; skipCutoff?: boolean }
 ): Promise<Json> {
-  const userId = await getCurrentUserId(db);
-  const { data, error } = await db.rpc("reschedule_appointment_atomic", {
+  return rpcLoose(db, "reschedule_my_appointment", {
     p_id: id,
-    p_user_id: userId,
     p_new_date: slot.date,
     p_new_start: slot.start,
     p_new_end: slot.end,
-    p_skip_cutoff: slot.skipCutoff ?? false,
   });
-  if (error) throw error;
-  return data;
+}
+
+/** Check in via the patient wrapper (checkin_my_appointment); enqueues into the facility queue. */
+export async function checkInAppointment(
+  db: DB,
+  input: { appointmentId: string; patientName: string; patientPhone: string }
+): Promise<Json> {
+  return rpcLoose(db, "checkin_my_appointment", {
+    p_id: input.appointmentId,
+    p_patient_name: input.patientName,
+    p_patient_phone: input.patientPhone,
+  });
 }
 
 /** Re-book a fresh appointment from a previous one. */

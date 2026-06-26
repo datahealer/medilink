@@ -7,7 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { isDev } from "@/config/env";
-import { useProfile, useUpcomingAppointments } from "@/hooks/queries/usePatient";
+import { useProfile, useUpcomingAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
 import { useRecentDoctors, useFeaturedClinics, useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
 
@@ -40,6 +40,20 @@ export default function DashboardScreen() {
   const name = profile.data?.account?.full_name ?? "";
   const photo = profile.data?.patient?.profile_photo_url ?? null;
   const next = upcoming.data?.[0];
+
+  const checkIn = useCheckInAppointment();
+  const onCheckIn = (apptId: string) =>
+    Alert.alert(t("appointments.checkInTitle"), t("appointments.checkInMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("appointments.confirmCheckIn"),
+        onPress: () =>
+          checkIn.mutate(apptId, {
+            onSuccess: () => Alert.alert(t("appointments.checkedInDone")),
+            onError: (e) => Alert.alert(t("appointments.actionFailed"), e instanceof Error ? e.message : String(e)),
+          }),
+      },
+    ]);
 
   // Me Care Hub tiles (PDF p14): Me Assistant · Book · Lab results · Me Vault.
   const actions: { key: string; label: string; icon: IconName; onPress: () => void }[] = [
@@ -121,8 +135,8 @@ export default function DashboardScreen() {
           initials={initialsOf(next.doctor?.full_name)}
           primaryLabel={t("dashboard.checkIn")}
           secondaryLabel={t("dashboard.reschedule")}
-          onPrimary={() => router.push(`/appointments/${next.id}/check-in`)}
-          onSecondary={() => router.push(`/appointments/${next.id}`)}
+          onPrimary={() => onCheckIn(next.id)}
+          onSecondary={() => router.push(`/appointments/${next.id}/reschedule`)}
           isRTL={isRTL}
         />
       ) : (

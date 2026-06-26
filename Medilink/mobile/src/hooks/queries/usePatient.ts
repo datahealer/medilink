@@ -91,6 +91,37 @@ export function useCreateAppointment() {
   });
 }
 
+/** Invalidate every appointment view after a mutation (list, details, dashboard). */
+function invalidateAppointments(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["appointments"] }); // list + detail + slots
+  qc.invalidateQueries({ queryKey: patientKeys.appointmentsUpcoming }); // dashboard card
+}
+
+export function useCancelAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; reason?: string }) => repositories.appointment.cancel(vars.id, vars.reason),
+    onSuccess: () => invalidateAppointments(qc),
+  });
+}
+
+export function useRescheduleAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; slot: { date: string; start: string; end: string } }) =>
+      repositories.appointment.reschedule(vars.id, vars.slot),
+    onSuccess: () => invalidateAppointments(qc),
+  });
+}
+
+export function useCheckInAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => repositories.appointment.checkIn(id),
+    onSuccess: () => invalidateAppointments(qc),
+  });
+}
+
 /**
  * Upload a profile photo, then refresh the profile so the new URL shows immediately.
  * `asset` is an expo-image-picker-style local file ref.

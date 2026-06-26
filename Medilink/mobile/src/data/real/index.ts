@@ -188,9 +188,16 @@ const familyRepo: FamilyRepository = {
 
 // ---- appointments -----------------------------------------------------------
 
+interface ApptPaymentRow {
+  amount: number | null;
+  currency: string | null;
+  status: string | null;
+}
+
 interface ApptRow {
   id: string;
   reference_number: string | null;
+  doctor_id: string | null;
   slot_date: string | null;
   slot_start: string | null;
   slot_end: string | null;
@@ -198,15 +205,29 @@ interface ApptRow {
   status: string | null;
   payment_status: string | null;
   reason_for_visit: string | null;
-  doctor: { full_name: string | null } | null;
+  notes: string | null;
+  doctor: { full_name: string | null; specialty?: string | null; fees?: unknown } | null;
   facility: { name: string | null; address?: string | null } | null;
   family_member: { full_name: string | null } | null;
+  payments?: ApptPaymentRow[] | null;
+}
+
+/** Consultation fee for this appointment's type from the doctor's fees JSONB. */
+function feeForType(fees: unknown, type: string | null): number {
+  if (fees && typeof fees === "object") {
+    const f = fees as Record<string, unknown>;
+    const v = (type === "online" ? f.online : f.in_person) ?? f.in_person ?? f.online;
+    return typeof v === "number" ? v : Number(v) || 0;
+  }
+  return Number(fees) || 0;
 }
 
 function mapAppointment(r: ApptRow): Appointment {
+  const pay = Array.isArray(r.payments) ? r.payments[0] : null;
   return {
     id: r.id,
     reference_number: r.reference_number ?? null,
+    doctor_id: r.doctor_id ?? null,
     slot_date: r.slot_date ?? null,
     slot_start: r.slot_start ?? null,
     slot_end: r.slot_end ?? null,
@@ -214,9 +235,12 @@ function mapAppointment(r: ApptRow): Appointment {
     status: r.status ?? null,
     payment_status: r.payment_status ?? null,
     reason_for_visit: r.reason_for_visit ?? null,
-    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null } : null,
+    notes: r.notes ?? null,
+    fee_omr: r.doctor ? feeForType(r.doctor.fees, r.type) : null,
+    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null, specialty: r.doctor.specialty ?? null } : null,
     facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null } : null,
     for_family_member: r.family_member ? { full_name: r.family_member.full_name ?? null } : null,
+    payment: pay ? { amount: pay.amount ?? null, currency: pay.currency ?? null, status: pay.status ?? null } : null,
   };
 }
 
@@ -245,9 +269,12 @@ const appointmentRepo: AppointmentRepository = {
   async getSlots(params) {
     const slots = await api.appointments.getAvailableSlots(supabase, params);
     return slots
-      .map((s) => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
-      .filter((start) => start !== "")
-      .map((start) => ({ start, label: to12h(start) }));
+      .map((s) => ({
+        start: typeof s.start === "string" ? s.start.slice(0, 5) : "",
+        end: typeof s.end === "string" ? s.end.slice(0, 5) : undefined,
+      }))
+      .filter((s) => s.start !== "")
+      .map((s) => ({ start: s.start, end: s.end, label: to12h(s.start) }));
   },
   async create(input) {
     // Boundary guard: the RPC's UUID columns reject any non-UUID id (e.g. a stale
@@ -284,6 +311,44 @@ const appointmentRepo: AppointmentRepository = {
     const id = String(r.appointment_id ?? r.id ?? "");
     if (!id) throw new Error("Booking did not return an appointment id");
     return { id, reference: (r.reference_number ?? r.reference ?? null) as string | null };
+  },
+  async cancel(id, reason) {
+    let res: unknown;
+    try {
+      res = await api.appointments.cancelAppointment(supabase, id, { reason });
+    } catch (e) {
+      throw new Error(errText(e));
+    }
+    // cancel_appointment_safe returns { success: false, error } on business failures.
+    const r = (res ?? {}) as Record<string, unknown>;
+    if (r.success === false) throw new Error(String(r.error ?? "CANCEL_FAILED"));
+  },
+  async reschedule(id, slot) {
+    let res: unknown;
+    try {
+      res = await api.appointments.rescheduleAppointment(supabase, id, {
+        date: slot.date,
+        start: slot.start,
+        end: slot.end,
+      });
+    } catch (e) {
+      throw new Error(errText(e));
+    }
+    const r = (res ?? {}) as Record<string, unknown>;
+    if (r.success === false) throw new Error(String(r.error ?? "RESCHEDULE_FAILED"));
+  },
+  async checkIn(id) {
+    // checkin_and_enqueue needs the patient's name/phone; pull them from the profile.
+    const profile = await api.profile.getMyProfile(supabase);
+    try {
+      await api.appointments.checkInAppointment(supabase, {
+        appointmentId: id,
+        patientName: profile.account?.full_name ?? "",
+        patientPhone: profile.account?.phone ?? "",
+      });
+    } catch (e) {
+      throw new Error(errText(e));
+    }
   },
 };
 
