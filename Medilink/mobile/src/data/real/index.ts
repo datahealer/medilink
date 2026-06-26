@@ -37,6 +37,8 @@ import type {
   SmokingStatus,
 } from "../types";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Best-effort message from an unknown throwable (Error | PostgrestError | string). */
 function errText(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -226,13 +228,20 @@ const appointmentRepo: AppointmentRepository = {
       .map((start) => ({ start, label: to12h(start) }));
   },
   async create(input) {
+    // Boundary guard: the RPC's UUID columns reject any non-UUID id (e.g. a stale
+    // mock "mock-100"). Drop a malformed family id rather than fail the booking.
+    const fam = input.forFamilyMemberId ?? undefined;
+    const forFamilyMemberId = fam && UUID_RE.test(fam) ? fam : undefined;
+    if (__DEV__ && fam && !forFamilyMemberId) {
+      console.warn("[booking] dropping non-UUID forFamilyMemberId", fam);
+    }
     const payload = {
       doctorId: input.doctorId,
       facilityId: input.facilityId,
       slotDate: input.slotDate,
       slotStart: input.slotStart,
       type: input.type,
-      forFamilyMemberId: input.forFamilyMemberId ?? undefined,
+      forFamilyMemberId,
     };
     if (__DEV__) console.warn("[booking] book_appointment_atomic payload", payload);
 

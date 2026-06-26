@@ -19,6 +19,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useProfile, useCreateAppointment } from "@/hooks/queries/usePatient";
+import { useFamily } from "@/hooks/queries/useFamily";
 import { usePatientStore } from "@/stores/patientStore";
 import { useBookingStore } from "@/stores/bookingStore";
 
@@ -43,25 +44,38 @@ export default function ReviewScreen() {
   const facilityId = useBookingStore((s) => s.facilityId);
   const dateId = useBookingStore((s) => s.dateId);
   const slotStart = useBookingStore((s) => s.slotStart);
-  const patientId = useBookingStore((s) => s.patientId);
   const setPatient = useBookingStore((s) => s.setPatient);
   const setReason = useBookingStore((s) => s.setReason);
   const confirm = useBookingStore((s) => s.confirm);
 
   const profile = useProfile();
+  const family = useFamily();
   const create = useCreateAppointment();
   const activeId = usePatientStore((s) => s.activePatientId);
-  const activeName = usePatientStore((s) => s.activePatientName);
+  const setActivePatient = usePatientStore((s) => s.setActivePatient);
 
   const primaryName = profile.data?.account?.full_name ?? t("booking.you");
-  const patientName = activeId
-    ? activeName ?? primaryName
+  // Only honour the active-patient selection if it's a REAL member of the current
+  // family list. A stale/mock id (e.g. a persisted "mock-100" from mock mode) must
+  // never reach the booking RPC, which expects a real UUID — fall back to "self".
+  const activeMember = activeId && family.data ? family.data.find((m) => m.id === activeId) : undefined;
+  const bookForId = activeMember ? activeMember.id : null;
+  const patientName = activeMember
+    ? activeMember.full_name
     : `${firstName(primaryName)} (${t("booking.you")})`;
 
-  // Keep the booking draft's patient in sync with the active-patient selection.
+  // Keep the booking draft's patient in sync with the validated selection.
   useEffect(() => {
-    setPatient(activeId, patientName);
-  }, [activeId, patientName, setPatient]);
+    setPatient(bookForId, patientName);
+  }, [bookForId, patientName, setPatient]);
+
+  // Self-heal: clear a persisted active-patient id that no longer matches a real
+  // family member (stale mock id, or a since-deleted member).
+  useEffect(() => {
+    if (activeId && family.data && !family.data.some((m) => m.id === activeId)) {
+      setActivePatient(null, null);
+    }
+  }, [activeId, family.data, setActivePatient]);
 
   const onProceed = () => {
     if (!doctorId || !facilityId || !dateId || !slotStart) {
@@ -76,7 +90,7 @@ export default function ReviewScreen() {
         slotDate: dateId,
         slotStart,
         type: "in_person",
-        forFamilyMemberId: patientId ?? undefined,
+        forFamilyMemberId: bookForId ?? undefined,
       },
       {
         onSuccess: (res) => {
