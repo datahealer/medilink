@@ -8,7 +8,6 @@
 import { api } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
-import { apiFetch } from "@/services/api";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
 import type {
@@ -89,17 +88,28 @@ const patientRepo: PatientRepository = {
     return toDomainProfile(await api.profile.updateMyProfile(supabase, patch));
   },
   async uploadProfilePhoto(asset) {
-    const form = new FormData();
-    form.append("file", {
-      uri: asset.uri,
-      name: asset.name ?? "profile.jpg",
-      type: asset.mimeType ?? "image/jpeg",
-    } as unknown as Blob);
-    const res = await apiFetch<{ success: boolean; data?: { profile_photo_url: string } }>(
-      "/api/patients/me/profile-photo",
-      { method: "POST", body: form }
-    );
-    return { profile_photo_url: res.data?.profile_photo_url ?? asset.uri };
+    // Supabase-direct (consistent with every other real feature) — the previous
+    // path went through the HAMS REST server (apiFetch + EXPO_PUBLIC_API_URL),
+    // the only feature that did, so an unreachable/unset API host failed only
+    // here. Upload to the same `account_image` bucket/path the web app uses,
+    // then persist the public URL onto patient_profiles via the profile update.
+    const { data: auth, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !auth.user) throw authErr ?? new Error("Not authenticated");
+    const ext =
+      (asset.name?.split(".").pop() || asset.mimeType?.split("/").pop() || "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `patient-profiles/${auth.user.id}/${Date.now()}.${ext}`;
+    const body = await fetch(asset.uri).then((r) => r.arrayBuffer());
+    const { error: uploadErr } = await supabase.storage
+      .from("account_image")
+      .upload(path, body, { contentType: asset.mimeType ?? "image/jpeg", upsert: true });
+    if (uploadErr) throw uploadErr;
+    const { data: pub } = supabase.storage.from("account_image").getPublicUrl(path);
+    const url = pub.publicUrl;
+    // Persist so the new avatar survives reload (Dashboard / Profile read this).
+    await api.profile.updateMyProfile(supabase, { profile_photo_url: url });
+    return { profile_photo_url: url };
   },
 };
 
@@ -339,9 +349,11 @@ const doctorRepo: DoctorRepository = {
 };
 
 // ---- notifications ----------------------------------------------------------
-// List + preferences are wired to the real backend (in_app_notifications +
-// notification_preferences). Facility messages have no inbox endpoint yet and
-// stay mock via the hybrid composition.
+// List comes from in_app_notifications; preferences are the JSONB blob on
+// profiles.notification_prefs (there is NO notification_preferences table). The
+// blob carries channel flags (push/email/sms/whatsapp) at the top level; we
+// nest the app's category flags under `categories` and preserve any other keys.
+// Facility messages have no inbox endpoint yet and stay mock via the hybrid.
 
 interface NotificationRowLoose {
   id: string;
@@ -444,15 +456,17 @@ const notificationRepo: NotificationRepository = {
     return mapPrefs((await api.notifications.getPreferences(supabase)) as unknown as PrefsRowLoose | null);
   },
   async updatePreferences(patch) {
-    // Merge against current so a single-field toggle never clobbers the rest of
-    // the categories JSONB / channel flags on upsert.
-    const current = mapPrefs((await api.notifications.getPreferences(supabase)) as unknown as PrefsRowLoose | null);
+    // Read the current JSONB so a single-field toggle never clobbers the rest of
+    // the categories / channel flags (and we preserve unknown keys like whatsapp).
+    const currentJson = ((await api.notifications.getPreferences(supabase)) ?? {}) as Record<string, unknown>;
+    const current = mapPrefs(currentJson as unknown as PrefsRowLoose);
     const next: NotificationPrefs = {
       ...current,
       ...patch,
       channels: { ...current.channels, ...(patch.channels ?? {}) },
     };
-    const row = await api.notifications.updatePreferences(supabase, {
+    const merged = {
+      ...currentJson,
       push: next.channels.push,
       email: next.channels.email,
       sms: next.channels.sms,
@@ -464,8 +478,12 @@ const notificationRepo: NotificationRepository = {
         facilityUpdates: next.facilityUpdates,
         promotions: next.promotions,
       },
-    });
-    return mapPrefs(row as unknown as PrefsRowLoose);
+    };
+    const saved = await api.notifications.updatePreferences(
+      supabase,
+      merged as Parameters<typeof api.notifications.updatePreferences>[1]
+    );
+    return mapPrefs(saved as unknown as PrefsRowLoose);
   },
   async markAllRead() {
     await api.notifications.markAllRead(supabase);

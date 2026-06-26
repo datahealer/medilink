@@ -94,7 +94,8 @@ export default function EditProfileScreen() {
       { uri: a.uri, name: a.fileName ?? "profile.jpg", mimeType: a.mimeType ?? "image/jpeg" },
       {
         onSuccess: () => Alert.alert(t("profile.photoUpdated")),
-        onError: () => Alert.alert(t("profile.photoError")),
+        onError: (e) =>
+          Alert.alert(t("profile.photoError"), e instanceof Error ? e.message : undefined),
       }
     );
   };

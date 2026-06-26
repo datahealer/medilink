@@ -67,41 +67,37 @@ export async function deleteNotification(db: DB, id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---- Preferences (additive table) ----
+// ---- Preferences ----
+// Stored on `profiles.notification_prefs` (JSONB). There is NO separate
+// `notification_preferences` table — channel flags (push/email/sms/whatsapp)
+// live at the top level; the mobile app nests its category flags under
+// `categories`. Read/write goes through the profiles_select_own /
+// profiles_update_own RLS policies (id = auth.uid()).
 
-export type NotificationPreferences = Row<"notification_preferences">;
-
-export async function getPreferences(db: DB): Promise<NotificationPreferences | null> {
+export async function getPreferences(
+  db: DB
+): Promise<Row<"profiles">["notification_prefs"] | null> {
   const userId = await getCurrentUserId(db);
   const { data, error } = await db
-    .from("notification_preferences")
-    .select("*")
-    .eq("user_id", userId)
+    .from("profiles")
+    .select("notification_prefs")
+    .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data;
-}
-
-export interface PreferencesPatch {
-  push?: boolean;
-  email?: boolean;
-  sms?: boolean;
-  categories?: Update<"notification_preferences">["categories"];
+  return data?.notification_prefs ?? null;
 }
 
 export async function updatePreferences(
   db: DB,
-  patch: PreferencesPatch
-): Promise<NotificationPreferences> {
+  prefs: Update<"profiles">["notification_prefs"]
+): Promise<Row<"profiles">["notification_prefs"]> {
   const userId = await getCurrentUserId(db);
   const { data, error } = await db
-    .from("notification_preferences")
-    .upsert(
-      { user_id: userId, ...patch, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" }
-    )
-    .select()
+    .from("profiles")
+    .update({ notification_prefs: prefs })
+    .eq("id", userId)
+    .select("notification_prefs")
     .single();
   if (error) throw error;
-  return data;
+  return data.notification_prefs;
 }
