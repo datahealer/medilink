@@ -7,7 +7,6 @@ import {
   AppointmentCompactCard,
   EmptyState,
   ErrorState,
-  HeroAppointmentCard,
   LoadingState,
   Screen,
   SegmentedTabs,
@@ -20,13 +19,6 @@ import { useI18n } from "@/i18n";
 import { useAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
 import type { Appointment } from "@/data/types";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
-
-function initialsOf(name?: string | null): string {
-  if (!name) return "?";
-  const p = name.trim().split(/\s+/).filter(Boolean);
-  if (!p.length) return "?";
-  return ((p[0]?.[0] ?? "") + (p.length > 1 ? p[p.length - 1]?.[0] ?? "" : "")).toUpperCase();
-}
 
 /** A status that is still active (vs. an ended/past appointment). */
 function isUpcoming(a: Appointment): boolean {
@@ -84,13 +76,10 @@ export default function AppointmentsScreen() {
     return dateLabel(a);
   };
 
-  const heroSubtitle = (a: Appointment) =>
-    [a.facility?.name, dateLabel(a), timeLabel(a)].filter(Boolean).join(" · ");
-  const upcomingSubtitle = (a: Appointment) => [a.facility?.name, timeLabel(a)].filter(Boolean).join(" · ");
+  // Design p24 subtitle: "Cardiology · Royal Hospital · 10:30 AM".
+  const upcomingSubtitle = (a: Appointment) =>
+    [a.doctor?.specialty, a.facility?.name, timeLabel(a)].filter(Boolean).join(" · ");
   const pastSubtitle = (a: Appointment) => [apptStatusLabel(a.status, t), dateLabel(a)].filter(Boolean).join(" · ");
-
-  const hero = upcomingList[0];
-  const restUpcoming = upcomingList.slice(1);
 
   const pastSection = (
     <>
@@ -147,34 +136,28 @@ export default function AppointmentsScreen() {
             <EmptyState title={t("appointments.emptyUpcomingTitle")} body={t("appointments.emptyUpcomingBody")} />
           ) : (
             <>
-              {hero ? (
-                <HeroAppointmentCard
-                  statusLabel={apptStatusLabel(hero.status, t)}
-                  statusColor={apptTone(colors, apptStatusCategory(hero.status)).fg}
-                  relativeLabel={relativeLabel(hero)}
-                  doctorName={hero.doctor?.full_name || "—"}
-                  initials={initialsOf(hero.doctor?.full_name)}
-                  subtitle={heroSubtitle(hero)}
-                  checkInLabel={t("appointments.checkIn")}
-                  detailsLabel={t("appointments.details")}
-                  onCheckIn={() => onHeroCheckIn(hero.id)}
-                  onDetails={() => router.push(`/appointments/${hero.id}`)}
-                  isRTL={isRTL}
-                />
-              ) : null}
-              <View style={{ height: spacing.sm }} />
-              {restUpcoming.map((a) => (
-                <AppointmentCompactCard
-                  key={a.id}
-                  doctorName={a.doctor?.full_name || "—"}
-                  subtitle={upcomingSubtitle(a)}
-                  statusLabel={apptStatusLabel(a.status, t)}
-                  statusTone={apptTone(colors, apptStatusCategory(a.status))}
-                  topRight={dateLabel(a)}
-                  onPress={() => router.push(`/appointments/${a.id}`)}
-                  isRTL={isRTL}
-                />
-              ))}
+              {upcomingList.map((a, i) => {
+                // The next (first) actionable card carries inline Check in / Details (design p24).
+                const isNext = i === 0;
+                const canCheckIn = a.status === "confirmed";
+                return (
+                  <AppointmentCompactCard
+                    key={a.id}
+                    doctorName={a.doctor?.full_name || "—"}
+                    subtitle={upcomingSubtitle(a)}
+                    statusLabel={apptStatusLabel(a.status, t)}
+                    statusTone={apptTone(colors, apptStatusCategory(a.status))}
+                    topRight={isNext ? relativeLabel(a) : dateLabel(a)}
+                    onPress={() => router.push(`/appointments/${a.id}`)}
+                    checkInLabel={isNext && canCheckIn ? t("appointments.checkIn") : undefined}
+                    detailsLabel={isNext ? t("appointments.details") : undefined}
+                    onCheckIn={isNext && canCheckIn ? () => onHeroCheckIn(a.id) : undefined}
+                    onDetails={isNext ? () => router.push(`/appointments/${a.id}`) : undefined}
+                    checkInLoading={checkIn.isPending}
+                    isRTL={isRTL}
+                  />
+                );
+              })}
             </>
           )}
 
