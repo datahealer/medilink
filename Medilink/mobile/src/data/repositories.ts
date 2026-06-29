@@ -89,6 +89,11 @@ export interface PaymentRepository {
   get(id: string): Promise<Payment | null>;
   /** The payment for a given appointment, or null. */
   getByAppointment(appointmentId: string): Promise<Payment | null>;
+  /**
+   * Create a Thawani hosted-checkout session for an appointment. Returns the URL
+   * to open in the browser. `checkoutUrl` is null when no gateway is wired (mock).
+   */
+  createCheckout(input: { appointmentId: string; amount: number }): Promise<{ checkoutUrl: string | null }>;
 }
 
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */

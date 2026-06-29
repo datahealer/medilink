@@ -549,6 +549,11 @@ const paymentRepo: PaymentRepository = {
     const found = payments.find((p) => p.appointment?.id === appointmentId);
     return delay(found ? { ...found } : null, 250);
   },
+  async createCheckout() {
+    // No hosted gateway in mock — a null URL tells the Summary screen to simulate
+    // a successful payment and continue to the confirmation.
+    return delay({ checkoutUrl: null }, 300);
+  },
 };
 
 export const mockRepositories: Repositories = {

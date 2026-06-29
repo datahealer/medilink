@@ -8,6 +8,7 @@
 import { api } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/services/api";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
 import type {
@@ -316,6 +317,15 @@ const paymentRepo: PaymentRepository = {
   async getByAppointment(appointmentId) {
     const row = (await api.payments.getPaymentByAppointment(supabase, appointmentId)) as unknown as PaymentRow | null;
     return row ? mapPayment(row) : null;
+  },
+  async createCheckout({ appointmentId, amount }) {
+    // Privileged op: the Thawani secret lives server-side, so this goes through the
+    // HAMS route (Bearer = the Supabase access token). Returns a hosted checkout URL.
+    const res = await apiFetch<{ checkoutUrl?: string }>("/api/payments/checkout", {
+      method: "POST",
+      body: JSON.stringify({ appointment_id: appointmentId, amount }),
+    });
+    return { checkoutUrl: res?.checkoutUrl ?? null };
   },
 };
 

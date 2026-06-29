@@ -18,6 +18,7 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { isMockData } from "@/data";
 import { useProfile, useCreateAppointment } from "@/hooks/queries/usePatient";
 import { useFamily } from "@/hooks/queries/useFamily";
 import { usePatientStore } from "@/stores/patientStore";
@@ -82,7 +83,9 @@ export default function ReviewScreen() {
       Alert.alert(t("booking.bookingFailed"), t("booking.missingInfo"));
       return;
     }
-    // Real atomic booking (payment remains a later batch — go straight to success).
+    // Real atomic booking creates the appointment as `pending`; payment (Thawani
+    // hosted checkout) then confirms it. Mock has no gateway, so it still shows the
+    // confirmed-booking success screen directly.
     create.mutate(
       {
         doctorId,
@@ -95,7 +98,11 @@ export default function ReviewScreen() {
       {
         onSuccess: (res) => {
           confirm(res.reference || res.id);
-          router.replace("/booking/success");
+          if (isMockData) {
+            router.replace("/booking/success");
+          } else {
+            router.replace(`/booking/payment?appointment_id=${res.id}`);
+          }
         },
         onError: (e) => {
           // Surface the real backend reason (RPC error code / Postgres message),

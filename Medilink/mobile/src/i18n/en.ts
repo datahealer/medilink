@@ -174,6 +174,12 @@ export const en = {
     viewAppointment: "View appointment",
   },
   payments: {
+    // Payment Summary (design p22)
+    summaryTitle: "Payment",
+    totalDue: "Total due",
+    payNow: "Pay {amount}",
+    secured: "Secured & encrypted",
+    payFailed: "Couldn't start payment",
     // Payment History (read side)
     title: "Payments",
     empty: "No payments yet",

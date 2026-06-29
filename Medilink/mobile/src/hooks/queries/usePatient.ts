@@ -97,6 +97,13 @@ export function usePaymentByAppointment(appointmentId: string) {
   });
 }
 
+/** Create a Thawani hosted-checkout session for an appointment (returns the URL). */
+export function useCreateCheckout() {
+  return useMutation({
+    mutationFn: (input: { appointmentId: string; amount: number }) => repositories.payment.createCheckout(input),
+  });
+}
+
 /** Available booking slots for a doctor on a given date (YYYY-MM-DD). */
 export function useAvailableSlots(params: { doctorId: string; date: string; branchId?: string }) {
   return useQuery({

@@ -173,6 +173,12 @@ export const ar: Messages = {
     viewAppointment: "عرض الموعد",
   },
   payments: {
+    // ملخص الدفع (تصميم ص٢٢)
+    summaryTitle: "الدفع",
+    totalDue: "الإجمالي المستحق",
+    payNow: "ادفع {amount}",
+    secured: "آمن ومشفّر",
+    payFailed: "تعذّر بدء الدفع",
     // سجل المدفوعات
     title: "المدفوعات",
     empty: "لا توجد مدفوعات بعد",

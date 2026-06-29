@@ -61,7 +61,7 @@ export const SCREENS: ScreenEntry[] = [
   { id: "booking-success", n: 24, title: "Appointment Success", flow: "07 Appointment Booking", pdfPage: 21, route: "/booking/success", built: true },
 
   // 08 — Payments
-  { id: "payment-summary", n: 25, title: "Payment Summary", flow: "08 Payments", pdfPage: 22, route: "/booking/payment", built: false, batch: 5 },
+  { id: "payment-summary", n: 25, title: "Payment Summary", flow: "08 Payments", pdfPage: 22, route: "/booking/payment?appointment_id=mock-appt-1", built: true, batch: 5 },
   // Add New Card dropped: Thawani is a hosted redirect checkout — the card is entered on
   // Thawani's secure page and never stored by us, so there is no in-app card form to build.
   { id: "payment-confirmation", n: 27, title: "Payment Confirmation", flow: "08 Payments", pdfPage: 23, route: "/booking/payment-success?appointment_id=mock-appt-1", built: true, batch: 5 },
