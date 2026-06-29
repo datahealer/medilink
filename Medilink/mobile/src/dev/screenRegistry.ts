@@ -69,7 +69,8 @@ export const SCREENS: ScreenEntry[] = [
   // 09 — Appointments Module
   { id: "appointments", n: 29, title: "Upcoming & Past", flow: "09 Appointments Module", pdfPage: 24, route: "/appointments", built: true, batch: 3 },
   { id: "appointment-details", n: 30, title: "Appointment Details", flow: "09 Appointments Module", pdfPage: 24, route: "/appointments/mock-appt-1", built: true, batch: 3 },
-  { id: "cancel-appointment", n: 31, title: "Cancel Appointment", flow: "09 Appointments Module", pdfPage: 25, route: "/appointments/mock-appt-1/cancel", built: false, batch: 3 },
+  // Cancel is a bottom-sheet on the Details screen (design p25), not a standalone route — open Details and tap "Cancel appointment".
+  { id: "cancel-appointment", n: 31, title: "Cancel Appointment", flow: "09 Appointments Module", pdfPage: 25, route: "/appointments/mock-appt-1", built: true, batch: 3 },
   { id: "check-in", n: 32, title: "Check-in", flow: "09 Appointments Module", pdfPage: 25, route: "/appointments/mock-appt-1/check-in", built: false, batch: 3 },
   { id: "refund-policy", n: 33, title: "Refund Policy", flow: "09 Appointments Module", pdfPage: 26, route: "/appointments/refund-policy", built: true, batch: 3 },
 

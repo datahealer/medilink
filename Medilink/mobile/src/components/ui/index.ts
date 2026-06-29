@@ -6,6 +6,7 @@ export type { IconName } from "./Icon";
 export { BrandIcon } from "./BrandIcon";
 export type { BrandIconName } from "./BrandIcon";
 export { Button } from "./Button";
+export { BottomSheet } from "./BottomSheet";
 export { CtaButton } from "./CtaButton";
 export { HeroBackground } from "./HeroBackground";
 export { OrbPattern } from "./OrbPattern";

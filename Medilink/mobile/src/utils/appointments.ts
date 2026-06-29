@@ -70,6 +70,33 @@ export function apptTone(colors: ThemeColors, cat: ApptStatusCategory): ApptTone
   }
 }
 
+/** Hours from now until an appointment's start. Negative once it has begun. */
+export function hoursUntilAppt(date: string | null | undefined, start: string | null | undefined): number {
+  if (!date) return Number.POSITIVE_INFINITY;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return Number.POSITIVE_INFINITY; // mock display rows — treat as far out
+  const time = /^(\d{1,2}):(\d{2})/.exec(start ?? "00:00");
+  const hh = time ? time[1]?.padStart(2, "0") : "00";
+  const mm = time ? time[2] : "00";
+  const when = new Date(`${date}T${hh}:${mm}:00`);
+  return (when.getTime() - Date.now()) / 3_600_000;
+}
+
+export interface RefundTier {
+  /** Refund percentage applied to the consultation fee. */
+  pct: 100 | 50 | 10 | 0;
+  /** i18n key for the cancellation-window label. */
+  windowKey: "appointments.policyWindowFull" | "appointments.policyWindow50" | "appointments.policyWindow10" | "appointments.policyWindowNone";
+}
+
+/** Tiered refund rule (design p26) by hours remaining before the appointment. */
+export function refundTier(hours: number): RefundTier {
+  if (hours <= 0) return { pct: 0, windowKey: "appointments.policyWindowNone" };
+  if (hours < 24) return { pct: 10, windowKey: "appointments.policyWindow10" };
+  if (hours < 48) return { pct: 50, windowKey: "appointments.policyWindow50" };
+  return { pct: 100, windowKey: "appointments.policyWindowFull" };
+}
+
 const STATUS_KEYS: Record<string, Parameters<T>[0]> = {
   pending: "appointments.status_pending",
   confirmed: "appointments.status_confirmed",

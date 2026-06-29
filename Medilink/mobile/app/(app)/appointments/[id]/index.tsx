@@ -1,15 +1,16 @@
-import React from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import {
   AppCard,
   AppHeader,
   Avatar,
+  BottomSheet,
   Button,
+  Chip,
   EmptyState,
   ErrorState,
-  Icon,
   LoadingState,
   Screen,
   SummaryCard,
@@ -20,7 +21,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useAppointment, useCancelAppointment, useCheckInAppointment, useProfile } from "@/hooks/queries/usePatient";
-import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
+import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime, hoursUntilAppt, refundTier } from "@/utils/appointments";
+import type { Appointment } from "@/data/types";
 
 function errMsg(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -32,7 +34,7 @@ function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
-/** Appointment Details (PDF p24) — full detail + status-driven actions. */
+/** Appointment Details (design p24) — status, doctor, date/location/patient + actions. */
 export default function AppointmentDetailsScreen() {
   const { colors, spacing, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
@@ -42,9 +44,9 @@ export default function AppointmentDetailsScreen() {
 
   const query = useAppointment(id);
   const profile = useProfile();
-  const cancel = useCancelAppointment();
   const checkIn = useCheckInAppointment();
   const a = query.data;
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const onCheckIn = () =>
     Alert.alert(t("appointments.checkInTitle"), t("appointments.checkInMessage"), [
@@ -56,23 +58,6 @@ export default function AppointmentDetailsScreen() {
             onSuccess: () => Alert.alert(t("appointments.checkedInDone")),
             onError: (e) => Alert.alert(t("appointments.actionFailed"), errMsg(e)),
           }),
-      },
-    ]);
-
-  const onCancel = () =>
-    Alert.alert(t("appointments.cancelTitle"), t("appointments.cancelMessage"), [
-      { text: t("appointments.keep"), style: "cancel" },
-      {
-        text: t("appointments.confirmCancel"),
-        style: "destructive",
-        onPress: () =>
-          cancel.mutate(
-            { id },
-            {
-              onSuccess: () => router.back(),
-              onError: (e) => Alert.alert(t("appointments.actionFailed"), errMsg(e)),
-            }
-          ),
       },
     ]);
 
@@ -103,27 +88,14 @@ export default function AppointmentDetailsScreen() {
 
   const status = a.status ?? "";
   const tone = apptTone(colors, apptStatusCategory(status));
-  const typeLabel = a.type === "online" ? t("appointments.online") : t("appointments.inPerson");
-  const patient = a.for_family_member?.full_name || profile.data?.account?.full_name || t("appointments.you");
+  const patientName = a.for_family_member?.full_name || profile.data?.account?.full_name || t("appointments.you");
 
-  const fee = a.fee_omr ?? 0;
-  const vat = round3(fee * 0.05);
-  const total = round3(fee + vat);
-  const money = (n: number) => `OMR ${num(n.toFixed(3))}`;
-
+  // Design p24 details rows: Date & time, Location (with floor where available), Patient.
+  const location = [a.facility?.name, a.facility?.address].filter(Boolean).join(" — ") || "—";
   const detailRows: SummaryRow[] = [
-    { label: t("appointments.reference"), value: a.reference_number || "—" },
     { label: t("appointments.dateTime"), value: `${formatApptDate(a.slot_date, t, num)} · ${formatApptTime(a.slot_start, num)}`.trim() || "—" },
-    { label: t("appointments.type"), value: typeLabel },
-    { label: t("appointments.clinic"), value: a.facility?.name || "—" },
-    { label: t("appointments.patient"), value: patient },
-    { label: t("appointments.reason"), value: a.reason_for_visit || "—" },
-    ...(a.notes ? [{ label: t("appointments.notes"), value: a.notes }] : []),
-  ];
-  const feeRows: SummaryRow[] = [
-    { label: t("appointments.consultationFee"), value: money(fee) },
-    { label: t("appointments.vat"), value: money(vat) },
-    { label: t("appointments.total"), value: money(total) },
+    { label: t("appointments.location"), value: location },
+    { label: t("appointments.patient"), value: patientName },
   ];
 
   const showCheckIn = status === "confirmed";
@@ -167,40 +139,124 @@ export default function AppointmentDetailsScreen() {
       <View style={{ height: spacing.sm }} />
       <SummaryCard rows={detailRows} />
 
-      <View style={{ height: spacing.sm }} />
-      <SummaryCard rows={feeRows} />
-
-      {/* Policy link */}
-      <Pressable
-        onPress={() => router.push("/appointments/refund-policy")}
-        hitSlop={8}
-        accessibilityRole="button"
-        style={[styles.policyRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-      >
-        <Icon name="info" size={16} tint={colors.textMuted} />
-        <Text variant="caption" color="primary" style={isRTL ? { marginEnd: 6 } : { marginStart: 6 }}>
-          {t("appointments.policyTitle")}
-        </Text>
-      </Pressable>
-
-      {/* Status-driven actions */}
+      {/* Status-driven actions (design p24: Check in / Reschedule / Cancel) */}
       {hasActions ? (
         <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
           {showCheckIn ? (
-            <Button label={t("appointments.confirmCheckIn")} onPress={onCheckIn} disabled={checkIn.isPending} />
+            <Button label={t("appointments.confirmCheckIn")} onPress={onCheckIn} loading={checkIn.isPending} />
           ) : null}
           {showReschedule ? (
             <Button variant="outline" label={t("appointments.reschedule")} onPress={() => router.push(`/appointments/${id}/reschedule`)} />
           ) : null}
           {showCancel ? (
-            <Button variant="outline" label={cancel.isPending ? t("common.loading") : t("appointments.cancelAction")} onPress={onCancel} disabled={cancel.isPending} />
+            <Button variant="outline" label={t("appointments.cancelAction")} onPress={() => setCancelOpen(true)} />
           ) : null}
           {showRate ? (
             <Button label={t("appointments.rate")} onPress={() => Alert.alert(t("appointments.rate"), t("appointments.comingSoon"))} />
           ) : null}
         </View>
       ) : null}
+
+      <CancelSheet
+        visible={cancelOpen}
+        appointment={a}
+        onClose={() => setCancelOpen(false)}
+        onCancelled={() => {
+          setCancelOpen(false);
+          router.back();
+        }}
+      />
     </Screen>
+  );
+}
+
+const REASONS = [
+  { key: "appointments.reasonScheduleClash", code: "Schedule clash" },
+  { key: "appointments.reasonFeelingBetter", code: "Feeling better" },
+  { key: "appointments.reasonFoundAnother", code: "Found another" },
+  { key: "appointments.reasonOther", code: "Other" },
+] as const;
+
+/** Cancel bottom-sheet (design p25): refund amount, policy link, reason chips, confirm/keep. */
+function CancelSheet({
+  visible,
+  appointment,
+  onClose,
+  onCancelled,
+}: {
+  visible: boolean;
+  appointment: Appointment;
+  onClose: () => void;
+  onCancelled: () => void;
+}) {
+  const { spacing, isRTL } = useTheme();
+  const { t, num } = useI18n();
+  const cancel = useCancelAppointment();
+  const [reason, setReason] = useState<string | null>(null);
+
+  const fee = appointment.fee_omr ?? 0;
+  const hours = hoursUntilAppt(appointment.slot_date, appointment.slot_start);
+  const tier = refundTier(hours);
+  const amount = round3((fee * tier.pct) / 100);
+  const amountStr = amount.toFixed(3);
+  const money = `OMR ${num(amountStr)}`;
+
+  const refundLine =
+    tier.pct === 100
+      ? t("appointments.cancelRefundFull", { amount: money })
+      : tier.pct > 0
+        ? t("appointments.cancelRefundPartial", { amount: money })
+        : t("appointments.cancelRefundNone");
+
+  const onConfirm = () => {
+    const selected = REASONS.find((r) => r.key === reason);
+    cancel.mutate(
+      { id: appointment.id, reason: selected?.code },
+      {
+        onSuccess: onCancelled,
+        onError: (e) => Alert.alert(t("appointments.actionFailed"), errMsg(e)),
+      }
+    );
+  };
+
+  return (
+    <BottomSheet visible={visible} onClose={onClose} title={t("appointments.cancelSheetTitle")} closeLabel={t("appointments.keepAppointment")}>
+      <Text variant="body" color="textMuted" align={isRTL ? "right" : "left"}>
+        {refundLine}
+      </Text>
+
+      <Button
+        variant="ghost"
+        fullWidth={false}
+        label={t("appointments.viewRefundPolicy")}
+        style={{ alignSelf: isRTL ? "flex-end" : "flex-start", paddingHorizontal: 0, marginTop: 4 }}
+        onPress={() =>
+          router.push({
+            pathname: "/appointments/refund-policy",
+            params: { fee: fee.toFixed(3), pct: String(tier.pct), amount: amountStr },
+          })
+        }
+      />
+
+      <Text variant="label" color="textMuted" style={{ marginTop: spacing.md, marginBottom: spacing.sm }} align={isRTL ? "right" : "left"}>
+        {t("appointments.reasonLabel").toUpperCase()}
+      </Text>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        {REASONS.map((r) => (
+          <Chip
+            key={r.key}
+            label={t(r.key)}
+            selected={reason === r.key}
+            onPress={() => setReason((cur) => (cur === r.key ? null : r.key))}
+          />
+        ))}
+      </View>
+
+      <View style={{ gap: spacing.sm, marginTop: spacing.lg }}>
+        <Button variant="destructive" label={t("appointments.confirmCancellation")} loading={cancel.isPending} onPress={onConfirm} />
+        <Button variant="ghost" label={t("appointments.keepAppointment")} onPress={onClose} />
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -209,5 +265,5 @@ const styles = StyleSheet.create({
   pill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   row: { alignItems: "center" },
   flex: { flex: 1 },
-  policyRow: { alignItems: "center", justifyContent: "center", marginTop: 14 },
+  chips: { flexWrap: "wrap", gap: 8 },
 });
