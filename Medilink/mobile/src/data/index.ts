@@ -30,6 +30,7 @@ const hybridRepositories: Repositories = {
   family: realRepositories.family,
   medicalHistory: realRepositories.medicalHistory,
   appointment: realRepositories.appointment,
+  payment: realRepositories.payment,
   doctor: {
     ...mockRepositories.doctor,
     search: realRepositories.doctor.search,

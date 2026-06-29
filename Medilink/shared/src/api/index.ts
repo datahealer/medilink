@@ -7,6 +7,7 @@ export * as doctors from "./doctors";
 export * as favourites from "./favourites";
 export * as facilities from "./facilities";
 export * as appointments from "./appointments";
+export * as payments from "./payments";
 export * as records from "./records";
 export * as labs from "./labs";
 export * as prescriptions from "./prescriptions";

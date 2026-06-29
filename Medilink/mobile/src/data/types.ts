@@ -127,6 +127,31 @@ export interface Appointment {
 
 export type AppointmentTab = "upcoming" | "past" | "all";
 
+/** A payment record (Thawani). Read-side only — checkout happens on Thawani's hosted page. */
+export interface Payment {
+  id: string;
+  amount: number | null;
+  currency: string | null;
+  /** unpaid | pending | paid | failed | refunded | partial_refund */
+  status: string | null;
+  /** Human-facing reference (gateway_ref, else the payment id). */
+  reference?: string | null;
+  /** Card/gateway label when the gateway returns one (e.g. "thawani"). */
+  method?: string | null;
+  invoiceUrl?: string | null;
+  createdAt?: string | null;
+  appointment?: {
+    id: string;
+    reference_number?: string | null;
+    slot_date: string | null;
+    slot_start: string | null;
+    doctor?: { full_name: string | null; specialty?: string | null } | null;
+    facility?: { name: string | null } | null;
+    /** Consultation fee (OMR) derived from the doctor's fees for this type. */
+    fee_omr?: number | null;
+  } | null;
+}
+
 /** A bookable time slot: `start` (raw HH:MM) is sent to the RPC, `label` is shown. */
 export interface AvailableSlot {
   start: string;

@@ -21,6 +21,7 @@ import type {
   NotificationItem,
   NotificationPrefs,
   PatientProfile,
+  Payment,
   PhotoAsset,
   ProfilePatch,
   SessionUser,
@@ -80,6 +81,16 @@ export interface AppointmentRepository {
   checkIn(id: string): Promise<void>;
 }
 
+/** Payments — read side (Thawani checkout is hosted; cards are never stored by us). */
+export interface PaymentRepository {
+  /** The caller's payments (newest first). */
+  list(): Promise<Payment[]>;
+  /** A single payment by id (scoped to the caller), or null. */
+  get(id: string): Promise<Payment | null>;
+  /** The payment for a given appointment, or null. */
+  getByAppointment(appointmentId: string): Promise<Payment | null>;
+}
+
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */
 export interface DiscoveryRepository {
   listSpecialties(): Promise<Specialty[]>;
@@ -112,6 +123,7 @@ export interface Repositories {
   medicalHistory: MedicalHistoryRepository;
   family: FamilyRepository;
   appointment: AppointmentRepository;
+  payment: PaymentRepository;
   discovery: DiscoveryRepository;
   doctor: DoctorRepository;
   notification: NotificationRepository;

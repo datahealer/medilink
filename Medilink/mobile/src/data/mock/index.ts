@@ -15,6 +15,7 @@ import type {
   MedicalHistoryRepository,
   NotificationRepository,
   PatientRepository,
+  PaymentRepository,
   Repositories,
 } from "../repositories";
 import type {
@@ -30,6 +31,7 @@ import type {
   NotificationItem,
   NotificationPrefs,
   PatientProfile,
+  Payment,
   ProfilePatch,
   Review,
   SessionUser,
@@ -493,12 +495,69 @@ function structuredCloneSafe<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+// ---- payments (read side) — mirrors the two paid mock appointments ----------
+const payments: Payment[] = [
+  {
+    id: "mock-pay-1",
+    amount: 12.6, // 12.000 fee + 5% VAT
+    currency: "OMR",
+    status: "paid",
+    reference: "TX-90021",
+    method: "Visa •••• 4421",
+    invoiceUrl: null,
+    createdAt: "2026-06-16",
+    appointment: {
+      id: "mock-appt-1",
+      reference_number: "HAMS-3F2A9C01",
+      slot_date: "Wed 18 Jun",
+      slot_start: "10:30 AM",
+      doctor: { full_name: "Dr. Khalid Al Balushi", specialty: "Cardiology" },
+      facility: { name: "Royal Hospital · General Care" },
+      fee_omr: 12,
+    },
+  },
+  {
+    id: "mock-pay-2",
+    amount: 15.75, // 15.000 fee + 5% VAT
+    currency: "OMR",
+    status: "paid",
+    reference: "TX-90022",
+    method: "Mastercard •••• 8830",
+    invoiceUrl: null,
+    createdAt: "2026-06-01",
+    appointment: {
+      id: "mock-appt-2",
+      reference_number: "HAMS-7B1D4E22",
+      slot_date: "Mon 2 Jun",
+      slot_start: "4:00 PM",
+      doctor: { full_name: "Dr. Said Al Hinai", specialty: "Dermatology" },
+      facility: { name: "Aster Clinic · Dermatology" },
+      fee_omr: 15,
+    },
+  },
+];
+
+const paymentRepo: PaymentRepository = {
+  async list() {
+    return delay(payments.map((p) => ({ ...p })), 300);
+  },
+  async get(id) {
+    const found = payments.find((p) => p.id === id);
+    return delay(found ? { ...found } : null, 250);
+  },
+  async getByAppointment(appointmentId) {
+    const found = payments.find((p) => p.appointment?.id === appointmentId);
+    return delay(found ? { ...found } : null, 250);
+  },
+};
+
 export const mockRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
   medicalHistory: medicalHistoryRepo,
   family: familyRepo,
   appointment: appointmentRepo,
+  payment: paymentRepo,
   discovery: discoveryRepo,
   doctor: doctorRepo,
   notification: notificationRepo,

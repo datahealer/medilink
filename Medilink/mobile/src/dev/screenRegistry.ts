@@ -62,9 +62,11 @@ export const SCREENS: ScreenEntry[] = [
 
   // 08 — Payments
   { id: "payment-summary", n: 25, title: "Payment Summary", flow: "08 Payments", pdfPage: 22, route: "/booking/payment", built: false, batch: 5 },
-  { id: "add-card", n: 26, title: "Add New Card", flow: "08 Payments", pdfPage: 22, route: "/payments/add-card", built: false, batch: 5 },
-  { id: "payment-confirmation", n: 27, title: "Payment Confirmation", flow: "08 Payments", pdfPage: 23, route: "/booking/payment-success", built: false, batch: 5 },
-  { id: "invoice", n: 28, title: "Invoice & Receipt", flow: "08 Payments", pdfPage: 23, route: "/payments/invoice/ML-INV-48213", built: false, batch: 5 },
+  // Add New Card dropped: Thawani is a hosted redirect checkout — the card is entered on
+  // Thawani's secure page and never stored by us, so there is no in-app card form to build.
+  { id: "payment-confirmation", n: 27, title: "Payment Confirmation", flow: "08 Payments", pdfPage: 23, route: "/booking/payment-success?appointment_id=mock-appt-1", built: true, batch: 5 },
+  { id: "invoice", n: 28, title: "Invoice & Receipt", flow: "08 Payments", pdfPage: 23, route: "/payments/invoice/mock-pay-1", built: true, batch: 5 },
+  { id: "payment-history", n: 28, title: "Payment History", flow: "08 Payments", pdfPage: 22, route: "/payments", built: true, batch: 5 },
 
   // 09 — Appointments Module
   { id: "appointments", n: 29, title: "Upcoming & Past", flow: "09 Appointments Module", pdfPage: 24, route: "/appointments", built: true, batch: 3 },

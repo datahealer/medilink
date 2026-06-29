@@ -19,6 +19,7 @@ import type {
   MedicalHistoryRepository,
   NotificationRepository,
   PatientRepository,
+  PaymentRepository,
   Repositories,
 } from "../repositories";
 import type {
@@ -34,6 +35,7 @@ import type {
   NotificationKind,
   NotificationPrefs,
   PatientProfile,
+  Payment,
   SmokingStatus,
 } from "../types";
 
@@ -252,6 +254,70 @@ function to12h(hhmm: string): string {
   h = h % 12 || 12;
   return `${h}:${mStr.slice(0, 2)} ${ampm}`;
 }
+
+// ---- payments (read side) ---------------------------------------------------
+
+interface PaymentRow {
+  id: string;
+  amount: number | null;
+  currency: string | null;
+  status: string | null;
+  payment_method: string | null;
+  gateway: string | null;
+  gateway_ref: string | null;
+  invoice_url: string | null;
+  created_at: string | null;
+  appointment: {
+    id: string;
+    patient_id: string | null;
+    reference_number: string | null;
+    slot_date: string | null;
+    slot_start: string | null;
+    type: string | null;
+    doctor: { full_name: string | null; specialty?: string | null; fees?: unknown } | null;
+    facility: { name: string | null; address?: string | null } | null;
+  } | null;
+}
+
+function mapPayment(r: PaymentRow): Payment {
+  const a = r.appointment;
+  return {
+    id: r.id,
+    amount: r.amount ?? null,
+    currency: r.currency ?? null,
+    status: r.status ?? null,
+    reference: r.gateway_ref ?? r.id ?? null,
+    method: r.payment_method ?? r.gateway ?? null,
+    invoiceUrl: r.invoice_url ?? null,
+    createdAt: r.created_at ?? null,
+    appointment: a
+      ? {
+          id: a.id,
+          reference_number: a.reference_number ?? null,
+          slot_date: a.slot_date ?? null,
+          slot_start: a.slot_start ?? null,
+          doctor: a.doctor ? { full_name: a.doctor.full_name ?? null, specialty: a.doctor.specialty ?? null } : null,
+          facility: a.facility ? { name: a.facility.name ?? null } : null,
+          fee_omr: a.doctor ? feeForType(a.doctor.fees, a.type) : null,
+        }
+      : null,
+  };
+}
+
+const paymentRepo: PaymentRepository = {
+  async list() {
+    const rows = (await api.payments.listMyPayments(supabase)) as unknown as PaymentRow[];
+    return rows.map(mapPayment);
+  },
+  async get(id) {
+    const row = (await api.payments.getPayment(supabase, id)) as unknown as PaymentRow | null;
+    return row ? mapPayment(row) : null;
+  },
+  async getByAppointment(appointmentId) {
+    const row = (await api.payments.getPaymentByAppointment(supabase, appointmentId)) as unknown as PaymentRow | null;
+    return row ? mapPayment(row) : null;
+  },
+};
 
 const appointmentRepo: AppointmentRepository = {
   async listUpcoming() {
@@ -666,6 +732,7 @@ export const realRepositories: Repositories = {
   medicalHistory: medicalHistoryRepo,
   family: familyRepo,
   appointment: appointmentRepo,
+  payment: paymentRepo,
   discovery: discoveryRepo,
   doctor: doctorRepo,
   notification: notificationRepo,

@@ -1,7 +1,112 @@
-// Auto-generated PDF-styled preview route (Batch 1 scaffolding). The real screen
-// replaces this file in its scheduled batch. See src/dev/screenRegistry.ts.
-import { ScreenPreview } from "@/dev/ScreenPreview";
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 
-export default function PreviewScreen() {
-  return <ScreenPreview id="payment-confirmation" />;
+import { Button, Icon, LoadingState, Screen, SummaryCard, type SummaryRow, Text } from "@/components/ui";
+import { useTheme } from "@/hooks/useTheme";
+import { useResponsive } from "@/hooks/useResponsive";
+import { useI18n } from "@/i18n";
+import { usePaymentByAppointment } from "@/hooks/queries/usePatient";
+import { formatApptDate, formatApptTime } from "@/utils/appointments";
+
+/**
+ * Payment Confirmation (design p23) — shown after returning from Thawani's hosted
+ * checkout. Reads the payment for the appointment; until the webhook flips it to
+ * paid it shows a "processing" state the patient can refresh.
+ */
+export default function PaymentConfirmationScreen() {
+  const { colors, spacing } = useTheme();
+  const { contentMaxWidth } = useResponsive();
+  const { t, num } = useI18n();
+  const params = useLocalSearchParams<{ appointment_id?: string; appointmentId?: string }>();
+  const appointmentId = String(params.appointment_id ?? params.appointmentId ?? "");
+
+  const query = usePaymentByAppointment(appointmentId);
+  const payment = query.data;
+  const money = (n: number | null | undefined) => `OMR ${num((n ?? 0).toFixed(3))}`;
+
+  const goDone = () => router.replace("/appointments");
+
+  if (query.isLoading) {
+    return (
+      <Screen padded edges={["top", "left", "right", "bottom"]}>
+        <LoadingState />
+      </Screen>
+    );
+  }
+
+  // No paid payment yet (webhook still in flight, or none) — let the patient retry.
+  if (!payment || payment.status !== "paid") {
+    return (
+      <Screen
+        padded
+        edges={["top", "left", "right", "bottom"]}
+        contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
+        footer={
+          <View style={{ gap: spacing.sm }}>
+            <Button label={t("common.retry")} onPress={() => query.refetch()} loading={query.isFetching} />
+            <Button variant="ghost" label={t("payments.done")} onPress={goDone} />
+          </View>
+        }
+      >
+        <View style={styles.center}>
+          <View style={[styles.badge, { backgroundColor: colors.surfaceAlt }]}>
+            <Icon name="time" size={40} tint={colors.warning} />
+          </View>
+          <Text variant="h2" align="center" style={{ marginTop: spacing.md }}>
+            {payment ? t("payments.pendingTitle") : t("payments.notFoundTitle")}
+          </Text>
+          <Text variant="body" color="textMuted" align="center" style={{ marginTop: spacing.xs }}>
+            {payment ? t("payments.pendingBody") : t("payments.notFoundBody")}
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const a = payment.appointment;
+  const recapRows: SummaryRow[] = [
+    { label: t("payments.reference"), value: payment.reference || "—" },
+    {
+      label: t("payments.appointment"),
+      value: a ? `${formatApptDate(a.slot_date, t, num)} · ${formatApptTime(a.slot_start, num)}`.trim() : "—",
+    },
+    { label: t("payments.doctor"), value: a?.doctor?.full_name || "—" },
+  ];
+
+  const paidSummary = payment.method
+    ? t("payments.paidSummary", { amount: money(payment.amount), method: payment.method })
+    : t("payments.paidSummaryNoCard", { amount: money(payment.amount) });
+
+  return (
+    <Screen
+      padded
+      edges={["top", "left", "right", "bottom"]}
+      contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
+      footer={
+        <View style={{ gap: spacing.sm }}>
+          <Button label={t("payments.viewInvoice")} onPress={() => router.push(`/payments/invoice/${payment.id}`)} />
+          <Button variant="ghost" label={t("payments.done")} onPress={goDone} />
+        </View>
+      }
+    >
+      <View style={styles.center}>
+        <View style={[styles.badge, { backgroundColor: colors.successSurface }]}>
+          <Icon name="done-circle" size={44} tint={colors.success} />
+        </View>
+        <Text variant="h2" align="center" style={{ marginTop: spacing.md }}>{t("payments.successTitle")}</Text>
+        <Text variant="body" color="textMuted" align="center" style={{ marginTop: spacing.xs }}>
+          {paidSummary}
+        </Text>
+      </View>
+
+      <View style={{ height: spacing.lg }} />
+      <SummaryCard rows={recapRows} />
+    </Screen>
+  );
 }
+
+const styles = StyleSheet.create({
+  center: { alignItems: "center", marginTop: 24 },
+  badge: { width: 88, height: 88, borderRadius: 44, alignItems: "center", justifyContent: "center" },
+});

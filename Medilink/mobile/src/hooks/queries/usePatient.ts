@@ -71,6 +71,32 @@ export function useAppointment(id: string) {
   });
 }
 
+/** The caller's payments (newest first) — Payment History (read side). */
+export function usePayments() {
+  return useQuery({
+    queryKey: ["payments", "list"],
+    queryFn: () => repositories.payment.list(),
+  });
+}
+
+/** A single payment by id (Invoice & Receipt). */
+export function usePayment(id: string) {
+  return useQuery({
+    queryKey: ["payments", "detail", id],
+    queryFn: () => repositories.payment.get(id),
+    enabled: !!id,
+  });
+}
+
+/** The payment for an appointment (Payment Confirmation after returning from checkout). */
+export function usePaymentByAppointment(appointmentId: string) {
+  return useQuery({
+    queryKey: ["payments", "by-appointment", appointmentId],
+    queryFn: () => repositories.payment.getByAppointment(appointmentId),
+    enabled: !!appointmentId,
+  });
+}
+
 /** Available booking slots for a doctor on a given date (YYYY-MM-DD). */
 export function useAvailableSlots(params: { doctorId: string; date: string; branchId?: string }) {
   return useQuery({
