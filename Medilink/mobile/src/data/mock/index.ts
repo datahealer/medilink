@@ -79,7 +79,7 @@ let family: FamilyMember[] = [
 const appointments: Appointment[] = [
   {
     id: "mock-appt-1",
-    reference_number: "HAMS-3F2A9C01",
+    reference_number: "ML-3F2A9C01",
     doctor_id: "doc-khalid",
     slot_date: "Wed 18 Jun",
     slot_start: "10:30 AM",
@@ -93,7 +93,7 @@ const appointments: Appointment[] = [
   },
   {
     id: "mock-appt-2",
-    reference_number: "HAMS-7B1D4E22",
+    reference_number: "ML-7B1D4E22",
     doctor_id: "doc-said",
     slot_date: "Mon 2 Jun",
     slot_start: "4:00 PM",
@@ -508,7 +508,7 @@ const payments: Payment[] = [
     createdAt: "2026-06-16",
     appointment: {
       id: "mock-appt-1",
-      reference_number: "HAMS-3F2A9C01",
+      reference_number: "ML-3F2A9C01",
       slot_date: "Wed 18 Jun",
       slot_start: "10:30 AM",
       doctor: { full_name: "Dr. Khalid Al Balushi", specialty: "Cardiology" },
@@ -527,7 +527,7 @@ const payments: Payment[] = [
     createdAt: "2026-06-01",
     appointment: {
       id: "mock-appt-2",
-      reference_number: "HAMS-7B1D4E22",
+      reference_number: "ML-7B1D4E22",
       slot_date: "Mon 2 Jun",
       slot_start: "4:00 PM",
       doctor: { full_name: "Dr. Said Al Hinai", specialty: "Dermatology" },
@@ -553,6 +553,11 @@ const paymentRepo: PaymentRepository = {
     // No hosted gateway in mock — a null URL tells the Summary screen to simulate
     // a successful payment and continue to the confirmation.
     return delay({ checkoutUrl: null }, 300);
+  },
+  async verify(appointmentId) {
+    // Mock has no gateway; surface the seeded mock payment as paid.
+    const found = payments.find((p) => p.appointment?.id === appointmentId);
+    return delay({ status: "paid", payment: found ? { ...found, status: "paid" } : null }, 300);
   },
 };
 

@@ -1,6 +1,6 @@
 /**
  * Repository interfaces — the contract every data source (mock / real) implements.
- * The UI talks to these, never to Supabase or HAMS directly.
+ * The UI talks to these, never to Supabase or the backend directly.
  */
 import type {
   Appointment,
@@ -94,6 +94,12 @@ export interface PaymentRepository {
    * to open in the browser. `checkoutUrl` is null when no gateway is wired (mock).
    */
   createCheckout(input: { appointmentId: string; amount: number }): Promise<{ checkoutUrl: string | null }>;
+  /**
+   * Verify a payment on return from Thawani (authoritative session-status check on
+   * the backend). Finalizes paid → confirmed server-side and returns the latest status
+   * plus a service-role recap (so confirmation doesn't depend on the patient RLS read).
+   */
+  verify(appointmentId: string): Promise<{ status: string; payment?: Payment | null }>;
 }
 
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */

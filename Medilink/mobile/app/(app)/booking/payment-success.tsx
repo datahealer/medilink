@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -6,7 +6,7 @@ import { Button, Icon, LoadingState, Screen, SummaryCard, type SummaryRow, Text 
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { usePaymentByAppointment } from "@/hooks/queries/usePatient";
+import { usePaymentByAppointment, useVerifyPayment } from "@/hooks/queries/usePatient";
 import { formatApptDate, formatApptTime } from "@/utils/appointments";
 
 /**
@@ -22,12 +22,25 @@ export default function PaymentConfirmationScreen() {
   const appointmentId = String(params.appointment_id ?? params.appointmentId ?? "");
 
   const query = usePaymentByAppointment(appointmentId);
-  const payment = query.data;
+  const verify = useVerifyPayment();
+  // Prefer the verify recap (server-authoritative, RLS-independent); fall back to the
+  // direct read (works once the payments RLS policy is corrected).
+  const verified = verify.data;
+  const payment = verified?.payment ?? query.data;
+  const status = verified?.status ?? payment?.status ?? null;
   const money = (n: number | null | undefined) => `OMR ${num((n ?? 0).toFixed(3))}`;
 
   const goDone = () => router.replace("/appointments");
 
-  if (query.isLoading) {
+  // On return from Thawani, confirm the payment authoritatively (the webhook can't
+  // reach a local backend). verify() finalizes paid → confirmed server-side and
+  // returns the recap, so the screen resolves to success without needing the RLS read.
+  useEffect(() => {
+    if (appointmentId) verify.mutate(appointmentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointmentId]);
+
+  if ((query.isLoading && !verified) || (verify.isPending && !verified)) {
     return (
       <Screen padded edges={["top", "left", "right", "bottom"]}>
         <LoadingState />
@@ -35,8 +48,8 @@ export default function PaymentConfirmationScreen() {
     );
   }
 
-  // No paid payment yet (webhook still in flight, or none) — let the patient retry.
-  if (!payment || payment.status !== "paid") {
+  // No paid payment yet (still processing, or none) — let the patient retry (re-verify).
+  if (!payment || status !== "paid") {
     return (
       <Screen
         padded
@@ -44,7 +57,7 @@ export default function PaymentConfirmationScreen() {
         contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
         footer={
           <View style={{ gap: spacing.sm }}>
-            <Button label={t("common.retry")} onPress={() => query.refetch()} loading={query.isFetching} />
+            <Button label={t("common.retry")} onPress={() => verify.mutate(appointmentId)} loading={verify.isPending || query.isFetching} />
             <Button variant="ghost" label={t("payments.done")} onPress={goDone} />
           </View>
         }

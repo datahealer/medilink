@@ -1,7 +1,7 @@
 /**
  * Domain models for the UI layer.
  *
- * Screens and hooks depend ONLY on these types — never on Supabase/HAMS row shapes.
+ * Screens and hooks depend ONLY on these types — never on Supabase/backend row shapes.
  * The real repositories (`data/real`) map backend rows → these models; the mock
  * repositories (`data/mock`) construct them directly. This is the boundary that lets
  * us build UI-first with `EXPO_PUBLIC_DATA_MODE=mock` and swap in real APIs per

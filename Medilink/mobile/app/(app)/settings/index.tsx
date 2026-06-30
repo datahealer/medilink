@@ -19,8 +19,10 @@ export default function SettingsScreen() {
   const { contentMaxWidth } = useResponsive();
   const { t, locale } = useI18n();
 
-  const appearanceValue =
+  const themeWord =
     mode === "system" ? t("appearance.system") : mode === "dark" ? t("appearance.dark") : t("appearance.light");
+  // Design p34 shows the appearance value as "Light · RTL"; the RTL tag only when Arabic is active.
+  const appearanceValue = isRTL ? `${themeWord} · RTL` : themeWord;
 
   const profile = useProfile();
   const signOut = useSignOut();

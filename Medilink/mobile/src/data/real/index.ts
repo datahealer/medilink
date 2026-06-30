@@ -1,9 +1,9 @@
 /**
- * REAL repositories — back the UI with HAMS + Supabase
- * (`EXPO_PUBLIC_DATA_MODE=staging|production`). Each method wraps the existing,
- * untouched transport (`@medilink/shared` `api.*`, `authService`, `apiFetch`) and
- * maps backend rows → domain models. The backend foundation is preserved; this is
- * only the boundary the UI consumes.
+ * REAL repositories — back the UI with the MediLink backend + Supabase
+ * (`EXPO_PUBLIC_DATA_MODE=staging|production`). Privileged ops (auth, payments) go
+ * to `@medilink/backend` over HTTPS via `apiFetch` (EXPO_PUBLIC_API_URL); RLS-safe
+ * reads go directly to Supabase via the shared `@medilink/shared` `api.*` modules.
+ * This is only the boundary the UI consumes.
  */
 import { api } from "@medilink/shared/mobile";
 
@@ -105,7 +105,7 @@ const patientRepo: PatientRepository = {
   },
   async uploadProfilePhoto(asset) {
     // Supabase-direct (consistent with every other real feature) — the previous
-    // path went through the HAMS REST server (apiFetch + EXPO_PUBLIC_API_URL),
+    // path went through the backend REST server (apiFetch + EXPO_PUBLIC_API_URL),
     // the only feature that did, so an unreachable/unset API host failed only
     // here. Upload to the same `account_image` bucket/path the web app uses,
     // then persist the public URL onto patient_profiles via the profile update.
@@ -320,12 +320,22 @@ const paymentRepo: PaymentRepository = {
   },
   async createCheckout({ appointmentId, amount }) {
     // Privileged op: the Thawani secret lives server-side, so this goes through the
-    // HAMS route (Bearer = the Supabase access token). Returns a hosted checkout URL.
+    // MediLink backend route (Bearer = the Supabase access token). Returns a hosted checkout URL.
     const res = await apiFetch<{ checkoutUrl?: string }>("/api/payments/checkout", {
       method: "POST",
       body: JSON.stringify({ appointment_id: appointmentId, amount }),
     });
     return { checkoutUrl: res?.checkoutUrl ?? null };
+  },
+  async verify(appointmentId) {
+    // On return from Thawani, ask the backend to confirm against the Thawani session
+    // (the webhook can't reach a local backend). Finalizes paid → confirmed server-side
+    // and returns a service-role recap (RLS-independent) for the confirmation screen.
+    const res = await apiFetch<{ status?: string; payment?: Payment | null }>("/api/payments/verify", {
+      method: "POST",
+      body: JSON.stringify({ appointment_id: appointmentId }),
+    });
+    return { status: res?.status ?? "pending", payment: res?.payment ?? null };
   },
 };
 

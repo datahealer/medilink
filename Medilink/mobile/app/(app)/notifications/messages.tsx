@@ -1,16 +1,20 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
-import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, Screen, StaticTabBar, Text } from "@/components/ui";
+import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, MeMark, Screen, StaticTabBar, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useFacilityMessages } from "@/hooks/queries/useNotifications";
 
+/** MediLink's own announcements carry the brand "Me" submark; facility rows use a typed icon. */
+function isBrand(source: string): boolean {
+  return /medilink|ميديلينك/i.test(source);
+}
 function iconFor(source: string): IconName {
-  if (/hospital/i.test(source)) return "location";
-  if (/lab/i.test(source)) return "lab";
-  return "location";
+  if (/hospital|مستشفى/i.test(source)) return "location";
+  if (/lab|مختبر/i.test(source)) return "lab";
+  return "mail";
 }
 
 /** Facility Messages (PDF p32): read-only admin updates from MediLink & clinics. */
@@ -45,7 +49,11 @@ export default function FacilityMessagesScreen() {
           <Card key={m.id} style={{ marginBottom: spacing.sm }}>
             <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View style={[styles.iconWrap, { backgroundColor: colors.accent }]}>
-                <Icon name={iconFor(m.source)} size={20} tint={colors.primary} />
+                {isBrand(m.source) ? (
+                  <MeMark height={20} color={colors.primary} />
+                ) : (
+                  <Icon name={iconFor(m.source)} size={20} tint={colors.primary} />
+                )}
               </View>
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
                 <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>

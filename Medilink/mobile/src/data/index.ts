@@ -3,7 +3,7 @@
  * `EXPO_PUBLIC_DATA_MODE`:
  *   • mock                  → typed in-memory data (no backend) — UI-first default
  *   • staging / production  → CONTROLLED HYBRID: only the modules that have a clean,
- *     confirmed backend are wired to real (HAMS + Supabase); the rest stay mock so
+ *     confirmed backend are wired to real (MediLink backend + Supabase); the rest stay mock so
  *     no screen goes empty while we migrate flow-by-flow.
  *
  * Current hybrid (real): Auth + session restore, Patient profile, the Profile

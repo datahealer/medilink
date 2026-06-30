@@ -9,8 +9,8 @@
 /**
  * Data source for the whole app:
  *   • mock        — typed in-memory data, no backend (UI-first; the dev default)
- *   • staging     — real HAMS/Supabase against the staging API
- *   • production  — real HAMS/Supabase against production
+ *   • staging     — real MediLink backend + Supabase against the staging API
+ *   • production  — real MediLink backend + Supabase against production
  */
 export type DataMode = "mock" | "staging" | "production";
 const RAW_DATA_MODE = (process.env.EXPO_PUBLIC_DATA_MODE ?? "mock").toLowerCase();

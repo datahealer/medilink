@@ -20,7 +20,8 @@
     },
     "android": {
       "package": "com.medilink.app",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": true
     },
     "plugins": [
       "expo-router",

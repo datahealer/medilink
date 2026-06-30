@@ -104,6 +104,19 @@ export function useCreateCheckout() {
   });
 }
 
+/** Verify/finalize a payment on return from Thawani; refreshes payment + appointment views. */
+export function useVerifyPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appointmentId: string) => repositories.payment.verify(appointmentId),
+    onSuccess: (_res, appointmentId) => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["payments", "by-appointment", appointmentId] });
+      invalidateAppointments(qc);
+    },
+  });
+}
+
 /** Available booking slots for a doctor on a given date (YYYY-MM-DD). */
 export function useAvailableSlots(params: { doctorId: string; date: string; branchId?: string }) {
   return useQuery({
