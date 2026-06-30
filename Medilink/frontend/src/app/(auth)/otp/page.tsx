@@ -78,19 +78,19 @@ function OTPForm() {
           ✉️
         </div>
 
-        <h2 className="font-bold text-[#2E1A47] mb-2"
+        <h2 className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2"
           style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px" }}>
           {ar ? "أدخل الرمز المكون من ٦ أرقام" : "Enter the 6-digit code"}
         </h2>
-        <p className="text-sm text-[#2E1A47]/55 mb-1">
+        <p className="text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 mb-1">
           {ar ? "أرسلنا رمزاً مكوناً من ٦ أرقام إلى" : "We sent a 6-digit code to"}
         </p>
-        <p className="text-sm font-semibold text-[#2E1A47] mb-7">{maskedEmail || (ar ? "بريدك الإلكتروني" : "your email")}</p>
+        <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] mb-7">{maskedEmail || (ar ? "بريدك الإلكتروني" : "your email")}</p>
 
         <OTPInput length={6} value={otp} onChange={setOtp} />
 
         {error && (
-          <p className="mt-3 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 w-full">
+          <p className="mt-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2 w-full">
             {error}
           </p>
         )}
@@ -100,11 +100,11 @@ function OTPForm() {
           {ar ? "تحقق" : "Verify"}
         </Button>
 
-        <div className="mt-5 text-sm text-[#2E1A47]/55">
+        <div className="mt-5 text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
           {countdown > 0 ? (
             <p>
               {ar ? "إعادة الإرسال بعد " : "Resend code in "}
-              <span className="font-semibold text-[#2E1A47]">
+              <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">
                 {String(Math.floor(countdown / 60)).padStart(2, "0")}:
                 {String(countdown % 60).padStart(2, "0")}
               </span>
@@ -112,14 +112,14 @@ function OTPForm() {
             </p>
           ) : (
             <button onClick={handleResend} disabled={resendLoading}
-              className="font-semibold text-[#46255f] hover:underline disabled:opacity-50">
+              className="font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline disabled:opacity-50">
               {resendLoading ? (ar ? "جارٍ الإرسال…" : "Sending…") : (ar ? "إعادة إرسال الرمز" : "Resend code")}
             </button>
           )}
         </div>
 
         <button onClick={() => router.back()}
-          className="mt-4 text-xs text-[#2E1A47]/40 hover:text-[#2E1A47] transition-colors">
+          className="mt-4 text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">
           {ar ? "→ رجوع" : "← Back"}
         </button>
       </div>

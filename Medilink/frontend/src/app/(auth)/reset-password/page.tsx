@@ -56,12 +56,12 @@ export default function ResetPasswordPage() {
             ✅
           </div>
           <h2
-            className="font-bold text-[#2E1A47]"
+            className="font-bold text-[#2E1A47] dark:text-[#DFC8E7]"
             style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px" }}
           >
             {ar ? "تم تحديث كلمة المرور!" : "Password updated!"}
           </h2>
-          <p className="text-sm text-[#2E1A47]/60">
+          <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
             {ar ? "تم تغيير كلمة مرورك. يمكنك الآن تسجيل الدخول." : "Your password has been changed. You can now sign in with your new password."}
           </p>
           <Button variant="cta" fullWidth onClick={() => router.push("/sign-in")}>
@@ -76,12 +76,12 @@ export default function ResetPasswordPage() {
     <AuthCard>
       <div className="mb-7">
         <h2
-          className="font-bold text-[#2E1A47]"
+          className="font-bold text-[#2E1A47] dark:text-[#DFC8E7]"
           style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px", margin: "0 0 6px" }}
         >
           {ar ? "إعادة تعيين كلمة المرور" : "Reset password"}
         </h2>
-        <p className="mt-1 text-sm text-[#2E1A47]/55">
+        <p className="mt-1 text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
           {ar ? "اختر كلمة مرور قوية لحسابك." : "Choose a strong password for your account."}
         </p>
       </div>
@@ -114,7 +114,7 @@ export default function ResetPasswordPage() {
         />
 
         {error && (
-          <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
             {error}
           </p>
         )}

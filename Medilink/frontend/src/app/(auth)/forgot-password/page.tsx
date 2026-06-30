@@ -43,17 +43,17 @@ export default function ForgotPasswordPage() {
             style={{ background: "#DFC8E7" }}>
             📧
           </div>
-          <h2 className="font-bold text-[#2E1A47]"
+          <h2 className="font-bold text-[#2E1A47] dark:text-[#DFC8E7]"
             style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px" }}>
             {ar ? "تحقق من بريدك الوارد" : "Check your inbox"}
           </h2>
-          <p className="text-sm text-[#2E1A47]/60">
+          <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
             {ar
-              ? <>أرسلنا رابط إعادة التعيين إلى <span className="font-semibold text-[#2E1A47]">{email}</span>. اتبع الرابط لإنشاء كلمة مرور جديدة.</>
-              : <>We sent a reset link to <span className="font-semibold text-[#2E1A47]">{email}</span>. Follow the link to create a new password.</>
+              ? <>أرسلنا رابط إعادة التعيين إلى <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{email}</span>. اتبع الرابط لإنشاء كلمة مرور جديدة.</>
+              : <>We sent a reset link to <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{email}</span>. Follow the link to create a new password.</>
             }
           </p>
-          <Link href="/sign-in" className="mt-2 text-sm font-semibold text-[#46255f] hover:underline">
+          <Link href="/sign-in" className="mt-2 text-sm font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline">
             {ar ? "العودة لتسجيل الدخول" : "Back to sign in"}
           </Link>
         </div>
@@ -64,11 +64,11 @@ export default function ForgotPasswordPage() {
   return (
     <AuthCard>
       <div className="mb-7">
-        <h2 className="font-bold text-[#2E1A47]"
+        <h2 className="font-bold text-[#2E1A47] dark:text-[#DFC8E7]"
           style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px", margin: "0 0 6px" }}>
           {ar ? "نسيت كلمة المرور؟" : "Forgot password?"}
         </h2>
-        <p className="mt-1 text-sm text-[#2E1A47]/55">
+        <p className="mt-1 text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
           {ar ? "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين." : "Enter your email and we'll send you a reset link."}
         </p>
       </div>
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
           required
         />
         {error && (
-          <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
@@ -94,9 +94,9 @@ export default function ForgotPasswordPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-[#2E1A47]/55">
+      <p className="mt-6 text-center text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
         {ar ? "تذكرتها؟" : "Remembered it?"}{" "}
-        <Link href="/sign-in" className="font-semibold text-[#46255f] hover:underline">
+        <Link href="/sign-in" className="font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline">
           {ar ? "تسجيل الدخول" : "Sign in"}
         </Link>
       </p>

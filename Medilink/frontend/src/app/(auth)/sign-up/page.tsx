@@ -7,7 +7,6 @@ import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function SignUpPage() {
@@ -18,8 +17,6 @@ export default function SignUpPage() {
   const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState<Partial<typeof form & { terms: string }>>({});
-  const [serverError, setServerError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -33,37 +30,18 @@ export default function SignUpPage() {
     return errs;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    setErrors({});
-    setServerError("");
-    setLoading(true);
-    try {
-      const supabase = createBrowserSupabaseClient();
-      const { error: err } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-          data: { full_name: form.fullName, phone: form.phone },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (err) setServerError(err.message);
-      else router.push(`/otp?email=${encodeURIComponent(form.email)}`);
-    } catch {
-      setServerError(ar ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    router.push("/dashboard");
   };
 
   return (
     <AuthCard>
       <div className="mb-[18px]">
         <h2
-          className="font-bold text-[#2E1A47]"
+          className="font-bold text-[#2E1A47] dark:text-[#DFC8E7]"
           style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px", margin: "0 0 6px" }}
         >
           {ar ? "إنشاء حساب" : "Create account"}
@@ -122,33 +100,27 @@ export default function SignUpPage() {
             onChange={(e) => setAgreed(e.target.checked)}
             className="mt-0.5 w-4 h-4 rounded border-[#d8cce4] accent-[#2E1A47]"
           />
-          <span className="text-xs text-[#2E1A47]/65 leading-relaxed">
+          <span className="text-xs text-[#2E1A47]/65 dark:text-[#DFC8E7]/65 leading-relaxed">
             {ar ? "أوافق على " : "I agree to MediLink's "}
-            <a href="#" className="text-[#46255f] hover:underline">
+            <a href="#" className="text-[#46255f] dark:text-[#DFC8E7] hover:underline">
               {ar ? "شروط الخدمة" : "Terms of Service"}
             </a>
             {ar ? " و" : " and "}
-            <a href="#" className="text-[#46255f] hover:underline">
+            <a href="#" className="text-[#46255f] dark:text-[#DFC8E7] hover:underline">
               {ar ? "سياسة الخصوصية" : "Privacy Policy"}
             </a>
           </span>
         </label>
         {errors.terms && <p className="text-xs text-red-500 -mt-2">{errors.terms}</p>}
 
-        {serverError && (
-          <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {serverError}
-          </p>
-        )}
-
-        <Button type="submit" variant="cta" fullWidth loading={loading} className="mt-1">
+        <Button type="submit" variant="cta" fullWidth className="mt-1">
           {ar ? "إنشاء الحساب" : "Create account"}
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-[#2E1A47]/55">
+      <p className="mt-6 text-center text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
         {ar ? "لديك حساب بالفعل؟" : "Already have an account?"}{" "}
-        <Link href="/sign-in" className="font-semibold text-[#46255f] hover:underline">
+        <Link href="/sign-in" className="font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline">
           {ar ? "سجل الدخول" : "Sign in"}
         </Link>
       </p>

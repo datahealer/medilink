@@ -1,257 +1,345 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { HomeNav } from "@/components/home/HomeNav";
+import { HomeFooter } from "@/components/home/HomeFooter";
 
-/* ─── Data ─────────────────────────────────────────────────────── */
+/* ─── Data ──────────────────────────────────────────────────────── */
 
-const STATS = [
-  { numEn: "500+",  numAr: "+٥٠٠",  labelEn: "Healthcare Providers", labelAr: "مزود رعاية صحية" },
-  { numEn: "50K+",  numAr: "+٥٠ك",  labelEn: "Patients Served",      labelAr: "مريض خُدم"         },
-  { numEn: "200+",  numAr: "+٢٠٠",  labelEn: "Specialties",          labelAr: "تخصص طبي"          },
-  { numEn: "4.9★",  numAr: "٤.٩★", labelEn: "Average Rating",        labelAr: "متوسط التقييم"     },
-];
-
-const SPECIALTIES = [
-  { icon: "🫀", nameEn: "Cardiology",      nameAr: "أمراض القلب",    count: 23, color: "#f0e8f5" },
-  { icon: "🧴", nameEn: "Dermatology",     nameAr: "الأمراض الجلدية", count: 18, color: "#e8f0f8" },
-  { icon: "🦷", nameEn: "Dentistry",       nameAr: "طب الأسنان",     count: 28, color: "#dfe9f3" },
-  { icon: "👁️", nameEn: "Ophthalmology",  nameAr: "طب العيون",      count: 12, color: "#e5dff0" },
-  { icon: "🧠", nameEn: "Neurology",       nameAr: "طب الأعصاب",     count: 9,  color: "#f5f0fa" },
-  { icon: "🦴", nameEn: "Orthopedics",     nameAr: "جراحة العظام",   count: 15, color: "#eaddf5" },
-  { icon: "👶", nameEn: "Pediatrics",      nameAr: "طب الأطفال",     count: 31, color: "#e0ebf6" },
-  { icon: "🩺", nameEn: "General Medicine",nameAr: "الطب العام",     count: 45, color: "#f2edf8" },
+const WHY_FEATURES = [
+  { icon: "⚡", titleEn: "Book in seconds",            titleAr: "احجز في ثوانٍ",
+    descEn: "Search by specialty, clinic, or symptom. Double-booking protection and instant confirmation via SMS, email, and WhatsApp.",
+    descAr: "ابحث حسب التخصص أو العيادة أو الأعراض. تأكيد فوري برسالة نصية أو بريد إلكتروني." },
+  { icon: "🩺", titleEn: "A doctor for every concern", titleAr: "طبيب لكل مشكلة",
+    descEn: "Describe your symptoms — our AI symptom checker guides you to the right care and specialty.",
+    descAr: "صف أعراضك وسيوجهك الذكاء الاصطناعي للرعاية والتخصص المناسب." },
+  { icon: "📋", titleEn: "Records that travel with you",titleAr: "سجلات في كل مكان",
+    descEn: "Photos, lab results, and visit summaries live in your private vault — shared via a secure 24-hour link.",
+    descAr: "الصور والنتائج وملخصات الزيارات في خزنتك الخاصة." },
+  { icon: "💬", titleEn: "Care after the visit",        titleAr: "الرعاية بعد الزيارة",
+    descEn: "Message your doctor securely for 7 days after every appointment for quick follow-up questions.",
+    descAr: "راسل طبيبك بأمان لمدة 7 أيام بعد كل موعد." },
 ];
 
 const STEPS = [
-  {
-    num: "01",
-    iconEn: "🔍", titleEn: "Find Your Doctor",       descEn: "Search by specialty, location, language, or availability. Filter to find the perfect match.",
-               titleAr: "ابحث عن طبيبك",              descAr: "ابحث حسب التخصص أو الموقع أو اللغة أو التوفر. فلتر للعثور على التطابق المثالي.",
-  },
-  {
-    num: "02",
-    iconEn: "📅", titleEn: "Book Instantly",          descEn: "Pick a time slot that works for you and confirm in seconds — no calls, no waiting.",
-               titleAr: "احجز فوراً",                  descAr: "اختر الوقت المناسب وأكد الحجز في ثوانٍ — بدون مكالمات أو انتظار.",
-  },
-  {
-    num: "03",
-    iconEn: "✅", titleEn: "Check In & Visit",        descEn: "Check in from your phone before you arrive. Get real-time queue updates.",
-               titleAr: "سجل الدخول وزر طبيبك",       descAr: "سجل الدخول من هاتفك قبل وصولك. احصل على تحديثات الطابور الفورية.",
-  },
+  { num: "01", titleEn: "Find",      titleAr: "ابحث",
+    descEn: "Search by specialty, browse trusted clinics, or describe your symptoms to our AI.",
+    descAr: "ابحث حسب التخصص أو أعراضك." },
+  { num: "02", titleEn: "Book",      titleAr: "احجز",
+    descEn: "Pick a slot in real time, choose in-person or video, and pay securely via OMR.",
+    descAr: "اختر موعداً وادفع بأمان." },
+  { num: "03", titleEn: "Visit",     titleAr: "زر",
+    descEn: "Check in from your phone, join a video call, or arrive at the clinic ready to go.",
+    descAr: "سجّل دخولك وزر طبيبك." },
+  { num: "04", titleEn: "Follow up", titleAr: "المتابعة",
+    descEn: "Receive a plain-English visit summary, digital prescription, and lab results.",
+    descAr: "اقرأ ملخص زيارتك ووصفتك الرقمية." },
 ];
 
-const FEATURES = [
-  { icon: "🔒", gradFrom: "#2E1A47", gradTo: "#46255f",
-    titleEn: "Secure Health Records",   titleAr: "سجلات صحية آمنة",
-    descEn:  "Military-grade encryption keeps your medical history, prescriptions, and documents private.",
-    descAr:  "تشفير عالي المستوى يحافظ على خصوصية تاريخك الطبي والوصفات والوثائق." },
-  { icon: "👨‍👩‍👧‍👦", gradFrom: "#DFC8E7", gradTo: "#C3D7EE",
-    titleEn: "Family Account",          titleAr: "حساب عائلي",
-    descEn:  "Manage appointments for your whole family — children, parents, everyone — from one account.",
-    descAr:  "أدر مواعيد عائلتك كلها — الأطفال والآباء والجميع — من حساب واحد." },
-  { icon: "🤖", gradFrom: "#C3D7EE", gradTo: "#2E1A47",
-    titleEn: "AI Doctor Suggestions",   titleAr: "اقتراحات الطبيب بالذكاء الاصطناعي",
-    descEn:  "Describe your symptoms and get smart recommendations for the right specialist.",
-    descAr:  "صف أعراضك واحصل على توصيات ذكية للمتخصص المناسب." },
-  { icon: "📊", gradFrom: "#46255f", gradTo: "#2E1A47",
-    titleEn: "Live Queue Tracking",     titleAr: "تتبع الطابور المباشر",
-    descEn:  "Know your exact position in the queue and estimated wait time, updated in real time.",
-    descAr:  "اعرف موضعك الدقيق في الطابور ووقت الانتظار المقدر، محدث في الوقت الفعلي." },
+const ROLES = [
+  { num: "01", active: false,
+    titleEn: "For patients", titleAr: "للمرضى",
+    featuresEn: ["Search & book trusted doctors","Family profiles (up to 5)","AI symptom checker","Document vault & prescriptions"],
+    featuresAr: ["ابحث واحجز أطباء موثوقين","ملفات عائلية حتى 5 أفراد","فاحص الأعراض بالذكاء الاصطناعي","خزنة المستندات والوصفات"],
+    ctaEn: "Open patient app →", ctaAr: "افتح تطبيق المريض →" },
+  { num: "02", active: true,
+    titleEn: "For clinics",  titleAr: "للعيادات",
+    featuresEn: ["Team calendar & live queue","Doctor & technician onboarding","Earnings & analytics","Reviews and announcements"],
+    featuresAr: ["تقويم الفريق وطابور مباشر","تعداد الأطباء والفنيين","الأرباح والتحليلات","التقييمات والإعلانات"],
+    ctaEn: "See clinic dashboard →", ctaAr: "شاهد لوحة العيادة →" },
+  { num: "03", active: false,
+    titleEn: "For doctors",  titleAr: "للأطباء",
+    featuresEn: ["Status toggle in real time","Patient history at a glance","Video consults via Daily.co","AI-assisted visit summaries"],
+    featuresAr: ["تبديل الحالة في الوقت الفعلي","تاريخ المريض بلمحة","استشارات مرئية","ملخصات الزيارة بالذكاء الاصطناعي"],
+    ctaEn: "Explore for doctors →", ctaAr: "استكشف للأطباء →" },
+];
+
+const DOCTORS = [
+  { initials: "AH", bg: "from-[#e8d5f0] to-[#d5e8f5]",
+    nameEn: "Dr. Aisha Al Harthy",  nameAr: "د. عائشة الحارثي",
+    specEn: "General Care · Al Huwair", specAr: "طب عام · الحويرة",
+    rating: 4.9, priceEn: "From OMR 12", priceAr: "من 12 ريال" },
+  { initials: "OB", bg: "from-[#d5e8f5] to-[#e8d5f0]",
+    nameEn: "Dr. Omar Al Balushi",  nameAr: "د. عمر البلوشي",
+    specEn: "Cardiology · Gurum Heart Centre", specAr: "قلب · مركز قرم",
+    rating: 4.8, priceEn: "From OMR 18", priceAr: "من 18 ريال" },
+  { initials: "FR", bg: "from-[#ede0f8] to-[#d5e8f5]",
+    nameEn: "Dr. Fatma Al Riyami", nameAr: "د. فاطمة الريامي",
+    specEn: "Dermatology · Skin & Co. Clinic", specAr: "جلدية · عيادة سكين",
+    rating: 4.9, priceEn: "From OMR 15", priceAr: "من 15 ريال" },
 ];
 
 const TESTIMONIALS = [
-  { avatar: "MA", avatarBg: "#DFC8E7", avatarColor: "#2E1A47",
-    nameEn: "Maryam Al-Hinai",    nameAr: "مريم الهنائي",
-    roleEn: "Patient",            roleAr: "مريضة",
-    textEn: "Found a specialist within minutes and the check-in process was seamless. Best healthcare app I've used.",
-    textAr: "وجدت متخصصاً في دقائق وكانت عملية التسجيل سلسة للغاية. أفضل تطبيق رعاية صحية استخدمته.", rating: 5 },
-  { avatar: "RK", avatarBg: "#C3D7EE", avatarColor: "#2E1A47",
-    nameEn: "Dr. Rashid Al-Kindi", nameAr: "د. راشد الكندي",
-    roleEn: "Cardiologist",        roleAr: "طبيب قلب",
-    textEn: "Queue management and patient communication are now effortless. My patients love the experience.",
-    textAr: "إدارة الطابور والتواصل مع المرضى أصبح بكل سهولة. مرضاي يحبون التجربة.", rating: 5 },
-  { avatar: "AL", avatarBg: "#DFC8E7", avatarColor: "#46255f",
-    nameEn: "Aisha Al-Lawati",    nameAr: "عائشة اللواتية",
-    roleEn: "Mother of 3",        roleAr: "أم لثلاثة أطفال",
-    textEn: "Managing appointments for my children and elderly parents in one place is incredibly convenient.",
-    textAr: "إدارة مواعيد أطفالي ووالديّ الكبار في مكان واحد مريح جداً.", rating: 5 },
+  { textEn: "\"Booked a same-day visit for my mother in under a minute. The visit summary was easy to read — finally.\"",
+    textAr: "\"حجزت زيارة في نفس اليوم لوالدتي في أقل من دقيقة. ملخص الزيارة كان سهل القراءة — أخيراً.\"",
+    authorEn: "— Mariam, Muscat", authorAr: "— مريم، مسقط" },
+  { textEn: "\"Our front desk runs the whole day from the team calendar. The live queue is a quiet kind of magic.\"",
+    textAr: "\"مكتب الاستقبال لدينا يدير اليوم كله من تقويم الفريق. الطابور المباشر نوع هادئ من السحر.\"",
+    authorEn: "— Dr. Khaled, Clinic Director", authorAr: "— د. خالد، مدير العيادة" },
+  { textEn: "\"Lab results in the patient's app before they leave the building. Patients notice this stuff.\"",
+    textAr: "\"نتائج المختبر في تطبيق المريض قبل أن يغادر المبنى. المرضى يلاحظون هذه الأشياء.\"",
+    authorEn: "— Lab Technician", authorAr: "— فني المختبر" },
 ];
 
-/* ─── Animated counter ─────────────────────────────────────────── */
-function useInView(ref: React.RefObject<Element | null>) {
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    if (!ref.current) return;
-    const obs = new IntersectionObserver((entries) => { const e = entries[0]; if (e?.isIntersecting) { setInView(true); obs.disconnect(); } }, { threshold: 0.3 });
-    obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, [ref]);
-  return inView;
+const MARQUEE = [
+  "Find · Book · Connect", "Bilingual care", "Verified clinicians",
+  "Digital prescriptions", "Secure document vault", "AI symptom guidance", "Family accounts",
+];
+
+/* ─── Section label pill ─────────────────────────────────────────── */
+function SectionPill({ en, ar: arText, isAr }: { en: string; ar: string; isAr: boolean }) {
+  return (
+    <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
+      style={{ background: "#DFC8E7", color: "#2E1A47" }}>
+      {isAr ? arText : en}
+    </span>
+  );
 }
 
-/* ─── Page ─────────────────────────────────────────────────────── */
+/* ─── Brand CTA button (skewed) ─────────────────────────────────── */
+function BrandCTA({ href, en, ar: arText, isAr, outline }: { href: string; en: string; ar: string; isAr: boolean; outline?: boolean }) {
+  if (outline) {
+    return (
+      <Link href={href}
+        className="inline-flex items-center justify-center gap-2 px-9 py-4 rounded-2xl font-bold text-sm no-underline border-2 border-[#2E1A47]/14 dark:border-[#DFC8E7]/14 text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#2E1A47]/35 dark:hover:border-[#DFC8E7]/35 hover:bg-[#2E1A47]/5 active:scale-[0.97] transition-all">
+        {isAr ? arText : en}
+      </Link>
+    );
+  }
+  return (
+    <Link href={href}
+      className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+      style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
+        {isAr ? arText : en} <span style={{ direction: "ltr" }}>→</span>
+      </span>
+    </Link>
+  );
+}
+
+/* ─── Hero card ─────────────────────────────────────────────────── */
+function HeroCard({ ar }: { ar: boolean }) {
+  return (
+    <div className="relative select-none">
+      <div className="bg-white rounded-2xl border border-[#ece4f4] p-5"
+        style={{ boxShadow: "0 24px 80px rgba(46,26,71,0.13), 0 0 0 1px rgba(46,26,71,0.04)" }}>
+
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 mb-2">
+          {ar ? "الموعد القادم" : "Next Appointment"}
+        </p>
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#faf8fc] mb-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0"
+            style={{ background: "linear-gradient(135deg, #DFC8E7, #C3D7EE)", color: "#2E1A47" }}>AH</div>
+          <div>
+            <p className="text-sm font-bold text-[#2E1A47]">{ar ? "د. عائشة الحارثي" : "Dr. Aisha Al Harthy"}</p>
+            <p className="text-xs text-[#2E1A47]/45">{ar ? "طب عام · الحويرة" : "General Care · Al Huwair"}</p>
+          </div>
+        </div>
+
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 mb-2">
+          {ar ? "نتائج المختبر" : "Lab Results"}
+        </p>
+        <div className="flex items-center gap-3 p-3 rounded-xl border border-[#ece4f4] mb-4">
+          <div className="w-8 h-8 rounded-lg bg-[#f0e8f5] flex items-center justify-center text-sm flex-shrink-0">📊</div>
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-[#2E1A47]">{ar ? "CBC جاهزة" : "CBC Ready"}</p>
+            <p className="text-[10px] text-[#2E1A47]/40">{ar ? "تم التسليم للتطبيق" : "Delivered to your app"}</p>
+          </div>
+          <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+        </div>
+
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 mb-2">
+          {ar ? "فاحص الأعراض" : "AI Symptom Check"}
+        </p>
+        <div className="p-3 rounded-xl bg-[#faf8fc] border border-[#ece4f4] mb-4">
+          <p className="text-xs text-[#2E1A47]/60 mb-2 italic">
+            {ar ? "\"أشعر بضيق في الصدر منذ الأمس\"" : "\"Mild sore throat & fever since yesterday.\""}
+          </p>
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-[#f0e8f5]">
+            <span className="text-sm">🩺</span>
+            <div>
+              <p className="text-xs font-semibold text-[#2E1A47]">{ar ? "اقتراح: الطب العام" : "Suggested: General Care"}</p>
+              <p className="text-[10px] text-[#2E1A47]/45">{ar ? "٣ أطباء متاحون" : "3 doctors available today"}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full py-3 rounded-xl text-sm font-bold text-white text-center"
+          style={{ background: "linear-gradient(135deg, #2E1A47, #46255f)" }}>
+          {ar ? "تسجيل الدخول ←" : "Check in →"}
+        </div>
+      </div>
+
+      <div className="absolute -bottom-4 -left-5 flex items-center gap-2 bg-white rounded-xl px-3.5 py-2.5 border border-[#ece4f4]"
+        style={{ boxShadow: "0 8px 30px rgba(46,26,71,0.12)" }}>
+        <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-sm flex-shrink-0">✅</div>
+        <div>
+          <p className="text-xs font-bold text-[#2E1A47] whitespace-nowrap">{ar ? "أنت رقم ٢ في الطابور" : "You're #2 in queue"}</p>
+          <p className="text-[10px] text-[#2E1A47]/40">~12 min</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Page ──────────────────────────────────────────────────────── */
 export default function HomePage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
 
   return (
-    <div className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] overflow-x-hidden">
+    <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] overflow-x-hidden">
       <HomeNav />
 
-      {/* ═══════════════════════════════════════════════════
-          HERO
-      ═══════════════════════════════════════════════════ */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16 overflow-hidden">
-
-        {/* Animated gradient bg */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 inset-x-0 h-full"
-            style={{ background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(70,37,95,0.18) 0%, transparent 70%)" }} />
-          <div className="absolute bottom-0 left-[-20%] w-[60%] h-[60%] rounded-full opacity-10 dark:opacity-20"
-            style={{ background: "radial-gradient(circle, #DFC8E7, transparent)", filter: "blur(80px)" }} />
-          <div className="absolute top-[30%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-10 dark:opacity-15"
-            style={{ background: "radial-gradient(circle, #C3D7EE, transparent)", filter: "blur(60px)" }} />
+      {/* ══════════ HERO ══════════ */}
+      <section className="relative min-h-screen flex items-center pt-24 pb-16 overflow-hidden bg-[#faf8fc] dark:bg-[#0a0518]">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-8%] right-[-6%] w-[550px] h-[550px] rounded-full opacity-40 dark:opacity-15"
+            style={{ background: "radial-gradient(circle, #e8d5f0, transparent 70%)", filter: "blur(90px)" }} />
+          <div className="absolute bottom-[-5%] left-[-5%] w-[400px] h-[400px] rounded-full opacity-30 dark:opacity-10"
+            style={{ background: "radial-gradient(circle, #d5e8f5, transparent 70%)", filter: "blur(80px)" }} />
         </div>
 
-        {/* Floating decoration dots */}
-        <div className="absolute top-32 left-[8%] w-3 h-3 rounded-full bg-[#DFC8E7] opacity-60 animate-bounce" style={{ animationDelay: "0s", animationDuration: "3s" }} />
-        <div className="absolute top-48 right-[12%] w-2 h-2 rounded-full bg-[#C3D7EE] opacity-40 animate-bounce" style={{ animationDelay: "1s", animationDuration: "4s" }} />
-        <div className="absolute bottom-32 left-[15%] w-2 h-2 rounded-full bg-[#DFC8E7] opacity-50 animate-bounce" style={{ animationDelay: "2s", animationDuration: "3.5s" }} />
-
-        <div className="relative z-10 max-w-4xl mx-auto text-center">
-          {/* Trust badge */}
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold mb-8 border"
-            style={{ background: "rgba(223,200,231,0.25)", borderColor: "rgba(223,200,231,0.5)", color: "#46255f", backdropFilter: "blur(8px)" }}
-            >
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="dark:text-[#DFC8E7]">
-              {ar ? "موثوق به من أكثر من ٥٠٠ مزود رعاية صحية في عمان" : "Trusted by 500+ Healthcare Providers across Oman"}
-            </span>
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium  border border-[#e7dcee] dark:border-[#3a2560] bg-white dark:bg-[#1a1030] shadow-sm text-[#46255f] dark:text-[#DFC8E7]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+            {ar ? "نرحّب الآن بالعيادات في جميع أنحاء عمان" : "Now welcoming clinics across Oman"}
           </div>
 
-          {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6 font-serif">
-            <span className="block text-[#2E1A47] dark:text-white">
-              {ar ? "الرعاية الصحية" : "Healthcare,"}
-            </span>
-            <span className="block" style={{
-              background: "linear-gradient(135deg, #46255f 0%, #2E1A47 60%, #46255f 100%)",
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text"
-            }}>
-              {ar ? "بكل بساطة." : "Made Simple."}
-            </span>
-          </h1>
+          <div className={`flex flex-col gap-16 lg:gap-14 items-center ${ar ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
+            {/* Left */}
+            <div className="flex-1 max-w-xl lg:max-w-none">
+              <h1 className="font-black leading-[1.06] tracking-tight mb-6 font-serif text-[#2E1A47] dark:text-white"
+                style={{ fontSize: "clamp(2.8rem, 5vw, 4.6rem)" }}>
+                {ar ? (
+                  <>
+                    <span className="block">{ar ? "رابطك للرعاية" : "Your link to"}</span>
+                    <span className="block italic text-[#46255f] dark:text-[#DFC8E7]">
+                      {ar ? "الصحية الأفضل." : "better care."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block">Your link to</span>
+                    <span className="block italic text-[#46255f] dark:text-[#DFC8E7]">better care.</span>
+                  </>
+                )}
+              </h1>
 
-          <p className="text-lg sm:text-xl text-[#2E1A47]/65 dark:text-[#DFC8E7]/65 max-w-2xl mx-auto mb-10 leading-relaxed">
-            {ar
-              ? "ابحث عن الطبيب المناسب، احجز فوراً، وأدر صحة عائلتك بأكملها — كل ذلك من منصة واحدة."
-              : "Find the right doctor, book instantly, and manage your entire family's health — all from one beautiful platform."}
-          </p>
+              <p className="text-base leading-relaxed mb-8 max-w-md text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
+                {ar
+                  ? "ابحث عن أطباء موثوقين، احجز في ثوانٍ، واحتفظ بكل وصفة وتقرير مختبر وزيارة في مكان رقمي هادئ واحد."
+                  : "Find trusted doctors, book in seconds, and keep every prescription, lab report, and visit summary in one calm digital home. Medilink makes healthcare simpler, and more human."}
+              </p>
 
-          {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-14 items-center">
-            <Link href="/sign-up"
-              className="inline-flex items-center justify-center px-10 py-4 font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase"
-              style={{ background: "#DFC8E7", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 8px 28px rgba(223,200,231,0.45)" }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
-                {ar ? "ابدأ مجاناً" : "Get Started Free"}
-                <span style={{ direction: "ltr" }}>→</span>
-              </span>
-            </Link>
-            <Link href="/sign-in"
-              className="inline-flex items-center justify-center gap-2 px-9 py-4 rounded-2xl font-bold text-sm no-underline border-2 border-[#2E1A47]/20 dark:border-[#DFC8E7]/20 text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#2E1A47] dark:hover:border-[#DFC8E7] hover:bg-[#2E1A47]/5 active:scale-[0.97] transition-all">
-              {ar ? "تسجيل الدخول" : "Sign In"}
-            </Link>
-          </div>
-
-          {/* Search bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-center gap-3 bg-white dark:bg-[#1a1030] rounded-2xl px-5 py-4 shadow-2xl border border-[#e7dcee] dark:border-[#3a2560]"
-              style={{ boxShadow: "0 20px 60px rgba(46,26,71,0.12)" }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, #2E1A47, #46255f)" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
+              <div className={`flex flex-col sm:flex-row gap-4 mb-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
+                <BrandCTA href="/sign-up" en="Find your care" ar="ابحث عن رعايتك" isAr={ar} />
+                <BrandCTA href="/sign-up" en="I'm a clinic" ar="أنا عيادة" isAr={ar} outline />
               </div>
-              <input readOnly
-                className="flex-1 bg-transparent outline-none text-sm text-[#2E1A47] dark:text-[#DFC8E7] placeholder:text-[#2E1A47]/35 dark:placeholder:text-[#DFC8E7]/35 cursor-text"
-                placeholder={ar ? "ابحث عن الأطباء، التخصصات، المستشفيات..." : "Search doctors, specialties, hospitals…"} />
-              <button className="px-6 py-2.5 text-sm font-bold text-[#2E1A47] flex-shrink-0 hover:opacity-90 active:scale-[0.97] transition-all tracking-wider uppercase"
-                style={{ background: "#DFC8E7", transform: "skewX(-12deg)", borderRadius: "8px" }}>
-                <span style={{ display: "inline-block", transform: "skewX(12deg)" }}>
-                  {ar ? "بحث" : "Search"}
-                </span>
-              </button>
+
+              <div className={`flex flex-wrap gap-x-5 gap-y-1.5 text-xs font-medium text-[#2E1A47]/42 dark:text-[#DFC8E7]/42 ${ar ? "flex-row-reverse" : ""}`}>
+                {(ar
+                  ? ["✓ أطباء وتراخيص موثّقة", "✓ مدفوعات OMR عبر ثواني ودرباي", "✓ ثنائي اللغة: عربي وإنجليزي"]
+                  : ["✓ Verified physicians & licenses", "✓ OMR payments via Thawani & Drupay", "✓ Bilingual: English & العربية"]
+                ).map(t => <span key={t}>{t}</span>)}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2 justify-center mt-3">
-              {(ar
-                ? ["أمراض القلب", "الجلدية", "طب الأطفال", "طب الأسنان"]
-                : ["Cardiologist", "Dermatologist", "Pediatrician", "Dentist"]
-              ).map((tag) => (
-                <button key={tag}
-                  className="px-3 py-1 rounded-full text-xs font-medium border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:bg-[#2E1A47]/5 dark:hover:bg-white/5 transition-colors">
-                  {tag}
-                </button>
-              ))}
+
+            {/* Right: card */}
+            <div className="hidden lg:flex flex-1 items-center justify-end" style={{ padding: "16px 0px 44px 16px" }}>
+              <div className="w-full max-w-[400px]">
+                <HeroCard ar={ar} />
+              </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Floating stats cards */}
-        <div className="relative z-10 mt-16 w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {STATS.map((s) => (
-            <div key={s.labelEn}
-              className="flex flex-col items-center p-4 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white/80 dark:bg-[#1a1030]/80 text-center hover:shadow-lg transition-all"
-              style={{ backdropFilter: "blur(12px)" }}>
-              <span className="text-2xl font-black font-serif text-[#2E1A47] dark:text-[#DFC8E7]">
-                {ar ? s.numAr : s.numEn}
-              </span>
-              <span className="text-xs text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 mt-0.5">
-                {ar ? s.labelAr : s.labelEn}
-              </span>
-            </div>
+      {/* ══════════ MARQUEE ══════════ */}
+      <section className="py-3.5 overflow-hidden border-y border-[#e7dcee] dark:border-[#2a1c44] bg-white dark:bg-[#0d0820]">
+        <div className="flex animate-marquee gap-10 items-center whitespace-nowrap">
+          {[...MARQUEE, ...MARQUEE].map((item, i) => (
+            <span key={i} className="flex items-center gap-3 flex-shrink-0 text-sm font-medium text-[#2E1A47]/38 dark:text-[#DFC8E7]/38">
+              {item} <span className="opacity-30">·</span>
+            </span>
           ))}
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════
-          HOW IT WORKS
-      ═══════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ background: "#DFC8E7", color: "#2E1A47" }}>
-              {ar ? "كيف يعمل" : "How It Works"}
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black font-serif text-[#2E1A47] dark:text-[#DFC8E7]">
-              {ar ? "ثلاث خطوات بسيطة" : "Three Simple Steps"}
+      {/* ══════════ WHY MEDILINK ══════════ */}
+      <section id="features" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
+        <div className="max-w-6xl mx-auto">
+          <div className={`mb-12 ${ar ? "text-right" : ""}`}>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+              {ar ? "لماذا ميديلينك" : "Why Medilink"}
+            </p>
+            <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
+              style={{ fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.08 }}>
+              {ar
+                ? <>Healthcare that feels <em className="italic text-[#46255f] dark:text-[#DFC8E7]">أقرب.</em></>
+                : <>Healthcare that feels <em className="italic text-[#46255f] dark:text-[#DFC8E7]">closer.</em></>}
             </h2>
+            <p className="text-base text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 mt-4 max-w-lg leading-relaxed">
+              {ar
+                ? "لقد أزلنا الاحتكاك — المكالمات الهاتفية، الأوراق الضائعة، التخمين. ما تبقى طريقة هادئة وحديثة."
+                : "We've stripped away the friction — the phone trees, the lost paperwork, the guesswork. What's left is a calm, modern way to find care, manage it, and keep it organised."}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
-            {/* Connector line */}
-            <div className="hidden sm:block absolute top-10 left-[16%] right-[16%] h-0.5"
-              style={{ background: "linear-gradient(90deg, #DFC8E7, #46255f, #DFC8E7)" }} />
-
-            {STEPS.map((step, i) => (
-              <div key={i} className="relative flex flex-col items-center text-center group">
-                <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-lg transition-transform group-hover:-translate-y-1"
-                  style={{ background: i === 1 ? "linear-gradient(135deg, #2E1A47, #46255f)" : "linear-gradient(135deg, #DFC8E7, #C3D7EE)" }}>
-                  <span>{step.iconEn}</span>
-                  <div className="absolute -top-3 -right-3 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white shadow-md"
-                    style={{ background: "linear-gradient(135deg, #46255f, #2E1A47)" }}>
-                    {step.num}
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {WHY_FEATURES.map(f => (
+              <div key={f.titleEn}
+                className="p-6 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#241540] border border-[#e7dcee] dark:border-[#3a2560] flex items-center justify-center text-lg mb-4 shadow-sm">
+                  {f.icon}
                 </div>
-                <h3 className="text-lg font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">
+                <h3 className={`font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7] mb-2 leading-snug ${ar ? "text-right" : ""}`}>
+                  {ar ? f.titleAr : f.titleEn}
+                </h3>
+                <p className={`text-xs text-[#2E1A47]/52 dark:text-[#DFC8E7]/52 leading-relaxed ${ar ? "text-right" : ""}`}>
+                  {ar ? f.descAr : f.descEn}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════ JOURNEY — dark band ══════════ */}
+      <section id="how-it-works" className="py-20 px-6"
+        style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 50%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto">
+          <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8 mb-14 ${ar ? "sm:flex-row-reverse" : ""}`}>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
+                {ar ? "رحلة ميديلينك" : "The Medilink Journey"}
+              </p>
+              <h2 className="font-black font-serif text-white" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
+                {ar
+                  ? <>أربع خطوات هادئة<br />من القلق إلى الرعاية.</>
+                  : <>Four calm steps<br />from concern to care.</>}
+              </h2>
+            </div>
+            <Link href="/sign-up"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm no-underline transition-all flex-shrink-0 self-start sm:self-auto"
+              style={{ border: "1.5px solid rgba(223,200,231,0.28)", color: "#DFC8E7" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(223,200,231,0.07)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              {ar ? "شاهد الخدمات ←" : "See services →"}
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+            {STEPS.map(step => (
+              <div key={step.num}>
+                <p className="text-4xl font-black font-serif mb-4 leading-none" style={{ color: "rgba(223,200,231,0.2)" }}>
+                  {step.num}
+                </p>
+                <h3 className="text-lg font-bold text-white mb-2 font-serif">
                   {ar ? step.titleAr : step.titleEn}
                 </h3>
-                <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 leading-relaxed max-w-xs">
+                <p className="text-sm leading-relaxed" style={{ color: "rgba(223,200,231,0.58)" }}>
                   {ar ? step.descAr : step.descEn}
                 </p>
               </div>
@@ -260,85 +348,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════
-          SPECIALTIES
-      ═══════════════════════════════════════════════════ */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ background: "#DFC8E7", color: "#2E1A47" }}>
-              {ar ? "التخصصات" : "Specialties"}
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black font-serif text-[#2E1A47] dark:text-[#DFC8E7]">
-              {ar ? "تصفح حسب التخصص" : "Browse by Specialty"}
+      {/* ══════════ ROLES ══════════ */}
+      <section id="specialties" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
+        <div className="max-w-6xl mx-auto">
+          <div className={`mb-12 ${ar ? "text-right" : ""}`}>
+            <SectionPill en="Platform" ar="المنصة" isAr={ar} />
+            <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
+              style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
+              {ar ? "منصة واحدة. كل الأدوار." : "One platform. Every role."}
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {SPECIALTIES.map((sp) => (
-              <button key={sp.nameEn}
-                className="group relative flex flex-col items-center gap-3 p-6 rounded-3xl border-2 border-transparent
-                  hover:border-[#2E1A47] hover:shadow-xl transition-all duration-300 text-center overflow-hidden"
-                style={{ background: sp.color + "cc" }}>
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ background: "linear-gradient(135deg, rgba(46,26,71,0.06), transparent)" }} />
-                <span className="relative z-10 text-4xl drop-shadow-sm">{sp.icon}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {ROLES.map(role => (
+              <div key={role.titleEn}
+                className="relative p-7 rounded-2xl border-2 overflow-hidden"
+                style={role.active
+                  ? { background: "linear-gradient(150deg, #2E1A47, #46255f)", borderColor: "#46255f" }
+                  : { background: "var(--background)", borderColor: "#e7dcee" }}>
+                {!role.active && <div className="absolute inset-0 bg-[#faf8fc] dark:bg-[#1a1030] rounded-2xl" />}
                 <div className="relative z-10">
-                  <p className="font-bold text-sm text-[#2E1A47]">{ar ? sp.nameAr : sp.nameEn}</p>
-                  <p className="text-xs text-[#2E1A47]/55 mt-0.5">{sp.count} {ar ? "طبيب" : "doctors"}</p>
-                </div>
-                <div className="relative z-10 w-full h-1 rounded-full overflow-hidden" style={{ background: "rgba(46,26,71,0.1)" }}>
-                  <div className="h-full rounded-full transition-all duration-500 group-hover:w-full"
-                    style={{ width: `${(sp.count / 50) * 100}%`, background: "linear-gradient(90deg, #46255f, #2E1A47)" }} />
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════
-          FEATURES
-      ═══════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ background: "#DFC8E7", color: "#2E1A47" }}>
-              {ar ? "المميزات" : "Features"}
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black font-serif text-[#2E1A47] dark:text-[#DFC8E7]">
-              {ar ? "كل ما تحتاجه" : "Everything You Need"}
-            </h2>
-            <p className="mt-3 text-base text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 max-w-lg mx-auto">
-              {ar
-                ? "منصة رعاية صحية شاملة مصممة للمرضى والأطباء والمنشآت الطبية."
-                : "A comprehensive healthcare platform designed for patients, doctors, and facilities."}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {FEATURES.map((f) => (
-              <div key={f.titleEn}
-                className="group relative p-8 rounded-3xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#f9f4fa] dark:bg-[#1a1030] overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                {/* bg gradient glow */}
-                <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-10 group-hover:opacity-20 transition-opacity"
-                  style={{ background: `radial-gradient(circle, ${f.gradFrom}, transparent)` }} />
-
-                <div className="relative z-10 flex items-start gap-5">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 shadow-lg"
-                    style={{ background: `linear-gradient(135deg, ${f.gradFrom}, ${f.gradTo})` }}>
-                    {f.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">
-                      {ar ? f.titleAr : f.titleEn}
-                    </h3>
-                    <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 leading-relaxed">
-                      {ar ? f.descAr : f.descEn}
-                    </p>
-                  </div>
+                  <p className={`text-xs font-bold uppercase tracking-widest mb-5 ${role.active ? "" : "dark:text-[#DFC8E7]/30"}`}
+                    style={{ color: role.active ? "rgba(223,200,231,0.45)" : "rgba(46,26,71,0.3)" }}>
+                    {role.num}
+                  </p>
+                  <h3 className={`text-xl font-bold mb-5 font-serif ${role.active ? "text-white" : "text-[#2E1A47] dark:text-[#DFC8E7]"}`}>
+                    {ar ? role.titleAr : role.titleEn}
+                  </h3>
+                  <ul className="flex flex-col gap-2.5 mb-7">
+                    {(ar ? role.featuresAr : role.featuresEn).map(f => (
+                      <li key={f} className={`flex items-start gap-2 text-sm ${role.active ? "" : "text-[#2E1A47]/62 dark:text-[#DFC8E7]/62"}`}
+                        style={role.active ? { color: "rgba(223,200,231,0.72)" } : {}}>
+                        <span className="mt-px flex-shrink-0 font-bold"
+                          style={{ color: role.active ? "#DFC8E7" : "#46255f" }}>✓</span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <button className={`text-sm font-bold transition-opacity hover:opacity-70 ${role.active ? "text-[#DFC8E7]" : "text-[#2E1A47] dark:text-[#DFC8E7]"}`}>
+                    {ar ? role.ctaAr : role.ctaEn}
+                  </button>
                 </div>
               </div>
             ))}
@@ -346,151 +395,113 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════
-          TESTIMONIALS
-      ═══════════════════════════════════════════════════ */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ background: "#DFC8E7", color: "#2E1A47" }}>
-              {ar ? "آراء المستخدمين" : "Testimonials"}
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black font-serif text-[#2E1A47] dark:text-[#DFC8E7]">
-              {ar ? "ماذا يقول مستخدمونا" : "What Our Users Say"}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((tm) => (
-              <div key={tm.nameEn}
-                className="group relative flex flex-col p-7 rounded-3xl border border-[#e7dcee] dark:border-[#3a2560]
-                  bg-white dark:bg-[#1a1030] hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-                {/* Large quote mark */}
-                <div className="absolute top-4 right-5 text-7xl font-serif leading-none opacity-8 dark:opacity-5 select-none pointer-events-none"
-                  style={{ color: "#DFC8E7" }}>
-                  &ldquo;
-                </div>
-
-                {/* Stars */}
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: tm.rating }).map((_, i) => (
-                    <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                  ))}
-                </div>
-
-                <p className="relative z-10 text-sm text-[#2E1A47]/75 dark:text-[#DFC8E7]/75 leading-relaxed mb-6 flex-1">
-                  "{ar ? tm.textAr : tm.textEn}"
-                </p>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 shadow-md"
-                    style={{ background: tm.avatarBg, color: tm.avatarColor }}>
-                    {tm.avatar}
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7]">
-                      {ar ? tm.nameAr : tm.nameEn}
-                    </p>
-                    <p className="text-xs text-[#2E1A47]/50 dark:text-[#DFC8E7]/50">
-                      {ar ? tm.roleAr : tm.roleEn}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════
-          CTA BANNER
-      ═══════════════════════════════════════════════════ */}
-      <section className="py-8 px-6 pb-20">
-        <div className="max-w-4xl mx-auto relative overflow-hidden rounded-3xl p-12 text-center"
-          style={{ background: "linear-gradient(135deg, #2E1A47 0%, #46255f 60%, #2E1A47 100%)", boxShadow: "0 30px 80px rgba(46,26,71,0.4)" }}>
-          {/* Decorative orbs */}
-          <div className="absolute top-[-40px] left-[-40px] w-40 h-40 rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, #DFC8E7, transparent)" }} />
-          <div className="absolute bottom-[-30px] right-[-30px] w-32 h-32 rounded-full opacity-15"
-            style={{ background: "radial-gradient(circle, #C3D7EE, transparent)" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full opacity-5"
-            style={{ background: "radial-gradient(circle, #ffffff, transparent)" }} />
-
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-6"
-              style={{ background: "rgba(223,200,231,0.2)", color: "#DFC8E7", border: "1px solid rgba(223,200,231,0.3)" }}>
-              🚀 {ar ? "انضم اليوم — مجاناً تماماً" : "Join Today — Completely Free"}
+      {/* ══════════ DOCTORS ══════════ */}
+      <section className="py-20 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
+        <div className="max-w-6xl mx-auto">
+          <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 ${ar ? "sm:flex-row-reverse" : ""}`}>
+            <div>
+              <SectionPill en="Trusted Providers" ar="مزودون موثوقون" isAr={ar} />
+              <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
+                style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
+                {ar ? "تعرف على بعض أطبائنا." : "Meet a few of our clinicians."}
+              </h2>
             </div>
-
-            <h2 className="text-3xl sm:text-4xl font-black font-serif text-white mb-4">
-              {ar ? "هل أنت مستعد للسيطرة على صحتك؟" : "Ready to Take Control of Your Health?"}
-            </h2>
-            <p className="text-base mb-10 max-w-lg mx-auto" style={{ color: "rgba(223,200,231,0.75)" }}>
-              {ar
-                ? "انضم إلى آلاف المرضى ومزودي الخدمات الصحية الذين يستخدمون MediLink بالفعل."
-                : "Join thousands of patients and healthcare providers already using MediLink."}
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
-              <Link href="/sign-up"
-                className="inline-flex items-center justify-center px-10 py-4 font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase"
-                style={{ background: "#DFC8E7", transform: "skewX(-12deg)", borderRadius: "10px" }}>
-                <span style={{ display: "inline-block", transform: "skewX(12deg)" }}>
-                  {ar ? "إنشاء حساب مجاني" : "Find Your Care"}
-                </span>
-              </Link>
-              <Link href="/sign-in"
-                className="inline-flex items-center justify-center gap-2 px-9 py-4 font-bold text-sm no-underline transition-all"
-                style={{ border: "2px solid rgba(223,200,231,0.4)", color: "#DFC8E7", borderRadius: "16px" }}
-                onMouseEnter={e => { if (e.currentTarget) e.currentTarget.style.background = "rgba(223,200,231,0.1)"; }}
-                onMouseLeave={e => { if (e.currentTarget) e.currentTarget.style.background = "transparent"; }}>
-                {ar ? "تسجيل الدخول" : "Sign In"}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Footer ───────────────────────────────────────── */}
-      <footer className="border-t border-[#e7dcee] dark:border-[#2a1c44] pt-12 pb-8 px-6">
-        <div className="max-w-5xl mx-auto">
-          {/* Footer top: logo + CTA */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-8 mb-10">
-            {/* Brand */}
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0">
-                <img src="/logo/submark-icon.png" alt="Medilink" className="w-full h-full object-cover" />
-              </div>
-              <img src="/logo/wordmark-violet.svg" alt="Medilink" className="h-5 w-auto dark:hidden" />
-              <img src="/logo/wordmark-lavender.svg" alt="Medilink" className="h-5 w-auto hidden dark:block" />
-            </div>
-
-            {/* CTA button */}
             <Link href="/sign-up"
-              className="inline-flex items-center justify-center px-10 py-3.5 font-bold text-xs text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase"
-              style={{ background: "#DFC8E7", transform: "skewX(-12deg)", borderRadius: "10px" }}>
-              <span style={{ display: "inline-block", transform: "skewX(12deg)" }}>
-                {ar ? "ابدأ الآن" : "Find Your Care"}
-              </span>
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline flex-shrink-0">
+              {ar ? "تصفح الكل ←" : "Browse all →"}
             </Link>
           </div>
 
-          {/* Footer bottom: links + copyright */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-[#e7dcee]/60 dark:border-[#2a1c44]/60">
-            <div className="flex gap-6 text-xs text-[#2E1A47]/50 dark:text-[#DFC8E7]/50">
-              <a href="#" className="hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">{ar ? "الخصوصية" : "Privacy"}</a>
-              <a href="#" className="hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">{ar ? "الشروط" : "Terms"}</a>
-              <a href="#" className="hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">{ar ? "الدعم" : "Support"}</a>
-            </div>
-            <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
-              © 2026 Medilink. {ar ? "جميع الحقوق محفوظة." : "All rights reserved."}
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {DOCTORS.map(doc => (
+              <div key={doc.nameEn}
+                className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+                <div className={`h-28 flex items-center justify-center bg-gradient-to-br ${doc.bg}`}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-black"
+                    style={{ background: "rgba(255,255,255,0.75)", color: "#2E1A47" }}>
+                    {doc.initials}
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className={`flex items-start justify-between gap-2 mb-1 ${ar ? "flex-row-reverse" : ""}`}>
+                    <h3 className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7]">
+                      {ar ? doc.nameAr : doc.nameEn}
+                    </h3>
+                    <span className="text-xs font-bold text-amber-500 flex-shrink-0">★ {doc.rating}</span>
+                  </div>
+                  <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 mb-5">
+                    {ar ? doc.specAr : doc.specEn}
+                  </p>
+                  <div className={`flex items-center justify-between ${ar ? "flex-row-reverse" : ""}`}>
+                    <span className="text-xs font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+                      {ar ? doc.priceAr : doc.priceEn}
+                    </span>
+                    <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-90 transition-opacity"
+                      style={{ background: "#2E1A47" }}>
+                      {ar ? "احجز الآن" : "Book online"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* ══════════ TESTIMONIALS ══════════ */}
+      <section id="testimonials" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <SectionPill en="Testimonials" ar="آراء المستخدمين" isAr={ar} />
+            <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
+              style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)" }}>
+              {ar ? "ماذا يقول مستخدمونا" : "What our users say"}
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {TESTIMONIALS.map((tm, i) => (
+              <div key={i} className={`p-7 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030] ${ar ? "text-right" : ""}`}>
+                <p className="text-sm text-[#2E1A47]/68 dark:text-[#DFC8E7]/68 leading-relaxed mb-5 italic">
+                  {ar ? tm.textAr : tm.textEn}
+                </p>
+                <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+                  {ar ? tm.authorAr : tm.authorEn}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════ FINAL CTA ══════════ */}
+      <section className="py-20 px-6" style={{ background: "linear-gradient(140deg, #1e1038, #2E1A47, #1e1038)" }}>
+        <div className={`max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
+              {ar ? "ابدأ رحلتك الصحية" : "Start your care journey"}
+            </p>
+            <h2 className="font-black font-serif text-white" style={{ fontSize: "clamp(2rem, 3.5vw, 3rem)", lineHeight: 1.08 }}>
+              {ar ? (
+                <>الرعاية، بهدوء.<br /><em className="italic text-[#DFC8E7]">ابدأ مع ميديلينك.</em></>
+              ) : (
+                <>Care, made calm.<br /><em className="italic text-[#DFC8E7]">Start with Medilink.</em></>
+              )}
+            </h2>
+          </div>
+          <div className="flex flex-col gap-4 flex-shrink-0">
+            <BrandCTA href="/sign-up" en="Open the patient app" ar="افتح تطبيق المريض" isAr={ar} />
+            <Link href="/sign-in"
+              className="inline-flex items-center justify-center gap-2 px-9 py-4 rounded-2xl font-bold text-sm no-underline transition-all text-center"
+              style={{ border: "1.5px solid rgba(223,200,231,0.28)", color: "rgba(223,200,231,0.82)" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(223,200,231,0.07)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              {ar ? "تحدث مع فريقنا" : "Talk to our team"}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <HomeFooter />
     </div>
   );
 }

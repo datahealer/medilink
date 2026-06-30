@@ -28,6 +28,9 @@ const agatho = localFont({
 export const metadata: Metadata = {
   title: "MediLink",
   description: "MediLink — patient healthcare app",
+  icons: {
+    icon: "/logo/submark-light.svg",
+  },
 };
 
 export const viewport: Viewport = {
