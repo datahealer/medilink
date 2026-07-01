@@ -558,6 +558,8 @@ export const ar: Messages = {
     addDocument: "إضافة مستند",
     emptyTitle: "لا توجد مستندات بعد",
     emptyBody: "ارفع وصفة أو تقرير مختبر أو صورة أشعة لحفظها بأمان هنا.",
+    all: "الكل",
+    loadError: "تعذّر تحميل مستنداتك.",
   },
   upload: {
     // Upload Documents (design p28)
@@ -574,6 +576,12 @@ export const ar: Messages = {
     fileSelected: "المستند جاهز للرفع",
     upload: "رفع",
     pickerSoon: "اختيار الملفات يُفعَّل عند ربط مزامنة السجلات.",
+    defaultName: "مستند",
+    uploadSuccess: "تم رفع المستند.",
+    uploadFailed: "تعذّر رفع المستند.",
+    permissionTitle: "الإذن مطلوب",
+    cameraPermission: "اسمح بالوصول إلى الكاميرا لمسح مستند.",
+    libraryPermission: "اسمح بالوصول إلى الصور لإرفاق ملف.",
   },
   docPreview: {
     // Document Preview (design p29)
@@ -585,6 +593,13 @@ export const ar: Messages = {
     download: "تنزيل",
     notFoundTitle: "المستند غير موجود",
     notFoundBody: "ربما تمت إزالة هذا المستند.",
+    loadError: "تعذّر تحميل هذا المستند.",
+    type: "النوع",
+    open: "فتح الملف",
+    delete: "حذف",
+    deleteTitle: "حذف المستند؟",
+    deleteMessage: "سيؤدي هذا إلى إزالته من خزينتك.",
+    deleteFailed: "تعذّر حذف المستند.",
   },
   labs: {
     // Lab Reports + Result detail (design p29–30)

@@ -17,9 +17,11 @@ import type {
   MedicalHistory,
   MedicalHistoryPatch,
   NewAppointment,
+  NewDocumentUpload,
   NewFamilyMember,
   NotificationItem,
   NotificationPrefs,
+  PatientDoc,
   PatientProfile,
   Payment,
   PhotoAsset,
@@ -128,6 +130,20 @@ export interface NotificationRepository {
   markAllRead(): Promise<void>;
 }
 
+/** Document Vault (PDF p28-29) — `patient_documents` + the `patient-docs` bucket. */
+export interface DocumentRepository {
+  /** The caller's documents (newest first), excluding soft-deleted. */
+  list(): Promise<PatientDoc[]>;
+  /** A single document by id (scoped to the caller), or null. */
+  get(id: string): Promise<PatientDoc | null>;
+  /** Upload a local file to the bucket, then record it. Returns the new document. */
+  upload(input: NewDocumentUpload): Promise<PatientDoc>;
+  /** Soft-delete a document. */
+  remove(id: string): Promise<void>;
+  /** Short-lived signed URL to preview/download a stored object (by storage path). */
+  signedUrl(filePath: string): Promise<string>;
+}
+
 export interface Repositories {
   auth: AuthRepository;
   patient: PatientRepository;
@@ -138,4 +154,5 @@ export interface Repositories {
   discovery: DiscoveryRepository;
   doctor: DoctorRepository;
   notification: NotificationRepository;
+  document: DocumentRepository;
 }

@@ -559,6 +559,8 @@ export const en = {
     addDocument: "Add document",
     emptyTitle: "No documents yet",
     emptyBody: "Upload a prescription, lab report or scan to keep it safe here.",
+    all: "All",
+    loadError: "Couldn't load your documents.",
   },
   upload: {
     // Upload Documents (design p28)
@@ -575,6 +577,12 @@ export const en = {
     fileSelected: "Document ready to upload",
     upload: "Upload",
     pickerSoon: "File picking opens when records sync is wired.",
+    defaultName: "Document",
+    uploadSuccess: "Document uploaded.",
+    uploadFailed: "Couldn't upload the document.",
+    permissionTitle: "Permission needed",
+    cameraPermission: "Allow camera access to scan a document.",
+    libraryPermission: "Allow photo access to attach a file.",
   },
   docPreview: {
     // Document Preview (design p29)
@@ -586,6 +594,13 @@ export const en = {
     download: "Download",
     notFoundTitle: "Document not found",
     notFoundBody: "This document may have been removed.",
+    loadError: "Couldn't load this document.",
+    type: "Type",
+    open: "Open file",
+    delete: "Delete",
+    deleteTitle: "Delete document?",
+    deleteMessage: "This removes it from your vault.",
+    deleteFailed: "Couldn't delete the document.",
   },
   labs: {
     // Lab Reports + Result detail (design p29–30)

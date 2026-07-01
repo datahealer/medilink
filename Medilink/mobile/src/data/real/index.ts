@@ -15,6 +15,7 @@ import type {
   AppointmentRepository,
   AuthRepository,
   DiscoveryRepository,
+  DocumentRepository,
   DoctorRepository,
   FamilyRepository,
   MedicalHistoryRepository,
@@ -28,6 +29,7 @@ import type {
   BloodGroup,
   Clinic,
   Doctor,
+  DocumentType,
   FamilyMember,
   FamilyRelation,
   Gender,
@@ -35,6 +37,7 @@ import type {
   NotificationItem,
   NotificationKind,
   NotificationPrefs,
+  PatientDoc,
   PatientProfile,
   Payment,
   SmokingStatus,
@@ -746,6 +749,85 @@ const notificationRepo: NotificationRepository = {
   },
 };
 
+// ---- document vault (PDF p28-29) --------------------------------------------
+
+interface DocRowLoose {
+  id: string;
+  name: string;
+  type: DocumentType;
+  file_url: string;
+  file_type: string;
+  file_size_bytes?: number | null;
+  uploaded_at: string | null;
+  appointment?: {
+    slot_date: string | null;
+    slot_start: string | null;
+    doctor?: { full_name: string | null } | null;
+  } | null;
+}
+
+function mapDoc(r: DocRowLoose): PatientDoc {
+  return {
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    file_url: r.file_url,
+    file_type: r.file_type,
+    size_bytes: r.file_size_bytes ?? null,
+    uploaded_at: r.uploaded_at ?? null,
+    linked_appointment: r.appointment
+      ? {
+          slot_date: r.appointment.slot_date ?? null,
+          slot_start: r.appointment.slot_start ?? null,
+          doctor: r.appointment.doctor ? { full_name: r.appointment.doctor.full_name ?? null } : null,
+        }
+      : null,
+  };
+}
+
+const documentRepo: DocumentRepository = {
+  async list() {
+    const rows = (await api.records.listDocuments(supabase)) as unknown as DocRowLoose[];
+    return rows.map(mapDoc);
+  },
+  async get(id) {
+    // No single-document endpoint; the list is small and RLS-scoped, so filter it.
+    const rows = (await api.records.listDocuments(supabase)) as unknown as DocRowLoose[];
+    const r = rows.find((x) => x.id === id);
+    return r ? mapDoc(r) : null;
+  },
+  async upload(input) {
+    // Upload the local file to the `patient-docs` bucket, then record the row
+    // (same fetch→arrayBuffer→storage.upload pattern as the profile photo).
+    const { data: auth, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !auth.user) throw authErr ?? new Error("Not authenticated");
+    const ext =
+      (input.asset.name?.split(".").pop() || input.asset.mimeType?.split("/").pop() || "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `${auth.user.id}/${Date.now()}.${ext}`;
+    const body = await fetch(input.asset.uri).then((r) => r.arrayBuffer());
+    const contentType = input.asset.mimeType ?? "image/jpeg";
+    const { error: upErr } = await supabase.storage
+      .from("patient-docs")
+      .upload(path, body, { contentType, upsert: false });
+    if (upErr) throw upErr;
+    const row = (await api.records.addDocument(supabase, {
+      name: input.name,
+      type: input.type,
+      file_url: path,
+      file_type: contentType,
+    })) as unknown as DocRowLoose;
+    return mapDoc(row);
+  },
+  async remove(id) {
+    await api.records.deleteDocument(supabase, id);
+  },
+  async signedUrl(filePath) {
+    return api.records.getDocumentSignedUrl(supabase, filePath);
+  },
+};
+
 export const realRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -756,4 +838,5 @@ export const realRepositories: Repositories = {
   discovery: discoveryRepo,
   doctor: doctorRepo,
   notification: notificationRepo,
+  document: documentRepo,
 };

@@ -10,6 +10,7 @@ import type {
   AppointmentRepository,
   AuthRepository,
   DiscoveryRepository,
+  DocumentRepository,
   DoctorRepository,
   FamilyRepository,
   MedicalHistoryRepository,
@@ -27,9 +28,11 @@ import type {
   FacilityMessage,
   FamilyMember,
   MedicalHistory,
+  NewDocumentUpload,
   NewFamilyMember,
   NotificationItem,
   NotificationPrefs,
+  PatientDoc,
   PatientProfile,
   Payment,
   ProfilePatch,
@@ -561,6 +564,44 @@ const paymentRepo: PaymentRepository = {
   },
 };
 
+const documentRepo: DocumentRepository = (() => {
+  let docs: PatientDoc[] = [
+    { id: "doc-cbc", name: "Blood test — CBC", type: "report", file_url: "mock/cbc.pdf", file_type: "application/pdf", size_bytes: 245760, uploaded_at: "2026-05-02T09:00:00Z", linked_appointment: null },
+    { id: "doc-xray", name: "Chest X-Ray", type: "imaging", file_url: "mock/chest-xray.jpg", file_type: "image/jpeg", size_bytes: 1258291, uploaded_at: "2026-04-28T09:00:00Z", linked_appointment: null },
+    { id: "doc-rx", name: "Salbutamol prescription", type: "prescription", file_url: "mock/rx.pdf", file_type: "application/pdf", size_bytes: 102400, uploaded_at: "2026-04-12T09:00:00Z", linked_appointment: null },
+  ];
+  return {
+    async list() {
+      return delay([...docs]);
+    },
+    async get(id) {
+      return delay(docs.find((d) => d.id === id) ?? null);
+    },
+    async upload(input: NewDocumentUpload) {
+      const doc: PatientDoc = {
+        id: nextId(),
+        name: input.name,
+        type: input.type,
+        file_url: input.asset.uri,
+        file_type: input.asset.mimeType ?? "image/jpeg",
+        size_bytes: null,
+        uploaded_at: new Date().toISOString(),
+        linked_appointment: null,
+      };
+      docs = [doc, ...docs];
+      return delay(doc, 300);
+    },
+    async remove(id: string) {
+      docs = docs.filter((d) => d.id !== id);
+      return delay(undefined, 250);
+    },
+    async signedUrl(filePath: string) {
+      // In mock mode the stored "path" is already a local/asset uri.
+      return delay(filePath, 100);
+    },
+  };
+})();
+
 export const mockRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -571,4 +612,5 @@ export const mockRepositories: Repositories = {
   discovery: discoveryRepo,
   doctor: doctorRepo,
   notification: notificationRepo,
+  document: documentRepo,
 };

@@ -179,6 +179,37 @@ export interface PhotoAsset {
   mimeType?: string;
 }
 
+// ---- document vault (PDF p28-29) --------------------------------------------
+
+/** Backend `document_type` enum. NOTE: there is no `vaccination` value; the
+ *  design's "Vaccinations" category maps to `other` until the enum gains one. */
+export type DocumentType = "prescription" | "report" | "imaging" | "insurance" | "other";
+
+export interface PatientDoc {
+  id: string;
+  name: string;
+  type: DocumentType;
+  /** Storage object path within the `patient-docs` bucket (not a URL). */
+  file_url: string;
+  /** MIME type, e.g. "image/jpeg" / "application/pdf". */
+  file_type: string;
+  size_bytes?: number | null;
+  uploaded_at: string | null;
+  /** The appointment this document was attached to, when linked. */
+  linked_appointment?: {
+    slot_date: string | null;
+    slot_start: string | null;
+    doctor?: { full_name: string | null } | null;
+  } | null;
+}
+
+export interface NewDocumentUpload {
+  name: string;
+  type: DocumentType;
+  /** Local file to upload to the `patient-docs` bucket. */
+  asset: PhotoAsset;
+}
+
 // ---- discovery (dashboard recents/featured + Batch-2 doctor search) ----------
 
 export interface Specialty {
