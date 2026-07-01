@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { Avatar, Button, Card, Icon, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
@@ -8,13 +8,15 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 
 const STARS = [0, 1, 2, 3, 4] as const;
-const SUBMITTED_RATING = 4;
 
-/** Review Submission — centred confirmation after a rating (design p33). STATIC / UI-only. */
+/** Review Submission — centred confirmation after a rating (design p33). */
 export default function RatingSuccessScreen() {
   const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t } = useI18n();
+  const { rating, doctor } = useLocalSearchParams<{ rating?: string; doctor?: string }>();
+  const submittedRating = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
+  const doctorName = typeof doctor === "string" && doctor.length ? doctor : t("reviews.verifiedPatient");
 
   const onBackToAppointments = () => router.replace("/appointments");
   const onRateClinic = () => router.back();
@@ -56,16 +58,16 @@ export default function RatingSuccessScreen() {
       {/* Recap card */}
       <Card style={{ width: "100%" }}>
         <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Avatar name="Dr. Khalid Al Balushi" size={48} />
+          <Avatar name={doctorName} size={48} />
           <View style={styles.recapMeta}>
-            <Text variant="title">Dr. Khalid Al Balushi</Text>
+            <Text variant="title">{doctorName}</Text>
             <View style={[styles.stars, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               {STARS.map((i) => (
                 <Icon
                   key={i}
                   name="rating"
                   size={16}
-                  filled={i < SUBMITTED_RATING}
+                  filled={i < submittedRating}
                   tint={colors.warning}
                 />
               ))}

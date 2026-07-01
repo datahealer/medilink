@@ -517,6 +517,7 @@ export const ar: Messages = {
     title: "التقييمات",
     count: "{count} تقييم",
     empty: "لا توجد تقييمات بعد.",
+    verifiedPatient: "مريض موثّق",
   },
   notif: {
     title: "الإشعارات",

@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctorReviews } from "@/hooks/queries/useDoctors";
+import { formatApptDate } from "@/utils/appointments";
 
 function Stars({ rating, size = 14, color }: { rating: number; size?: number; color: string }) {
   return (
@@ -23,7 +24,7 @@ export default function DoctorReviewsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
-  const { t } = useI18n();
+  const { t, num } = useI18n();
 
   const data = useDoctorReviews(String(id ?? ""));
   const starColor = colors.warning;
@@ -72,17 +73,24 @@ export default function DoctorReviewsScreen() {
       {reviews.length === 0 ? (
         <EmptyState title={t("reviews.empty")} />
       ) : (
-        reviews.map((r) => (
-          <Card key={r.id} style={{ marginTop: spacing.md }}>
-            <View style={[styles.reviewHead, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <Avatar name={r.author} size={36} />
-              <Text variant="title" numberOfLines={1} style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>{r.author}</Text>
-              <Stars rating={r.rating} color={starColor} />
-            </View>
-            <Text variant="body" color="textMuted" style={{ marginTop: 8 }}>{r.comment}</Text>
-            <Text variant="caption" color="textMuted" style={{ marginTop: 4 }}>{r.date}</Text>
-          </Card>
-        ))
+        reviews.map((r) => {
+          const authorName = r.author || t("reviews.verifiedPatient");
+          return (
+            <Card key={r.id} style={{ marginTop: spacing.md }}>
+              <View style={[styles.reviewHead, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <Avatar name={authorName} size={36} />
+                <Text variant="title" numberOfLines={1} style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>{authorName}</Text>
+                <Stars rating={r.rating} color={starColor} />
+              </View>
+              {r.comment ? (
+                <Text variant="body" color="textMuted" style={{ marginTop: 8 }}>{r.comment}</Text>
+              ) : null}
+              <Text variant="caption" color="textMuted" style={{ marginTop: 4 }}>
+                {formatApptDate(r.date?.slice(0, 10) ?? null, t, num)}
+              </Text>
+            </Card>
+          );
+        })
       )}
     </Screen>
   );

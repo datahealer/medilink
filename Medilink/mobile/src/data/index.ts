@@ -35,6 +35,7 @@ const hybridRepositories: Repositories = {
     ...mockRepositories.doctor,
     search: realRepositories.doctor.search,
     get: realRepositories.doctor.get,
+    reviews: realRepositories.doctor.reviews,
   },
   discovery: {
     ...mockRepositories.discovery,
@@ -45,6 +46,7 @@ const hybridRepositories: Repositories = {
   // Document Vault: real (patient_documents + patient-docs bucket).
   document: realRepositories.document,
   prescription: realRepositories.prescription,
+  review: realRepositories.review,
   notification: {
     ...mockRepositories.notification,
     // Facility messages have no inbox endpoint yet → stays mock.

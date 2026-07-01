@@ -19,6 +19,7 @@ import type {
   NewAppointment,
   NewDocumentUpload,
   NewFamilyMember,
+  NewReviewSubmission,
   NotificationItem,
   NotificationPrefs,
   PatientDoc,
@@ -158,6 +159,11 @@ export interface PrescriptionRepository {
   shareLink(id: string): Promise<PrescriptionShareLink>;
 }
 
+/** Reviews (PDF p20, p33) - submit a rating/review for a doctor. */
+export interface ReviewRepository {
+  submit(input: NewReviewSubmission): Promise<void>;
+}
+
 export interface Repositories {
   auth: AuthRepository;
   patient: PatientRepository;
@@ -170,4 +176,5 @@ export interface Repositories {
   notification: NotificationRepository;
   document: DocumentRepository;
   prescription: PrescriptionRepository;
+  review: ReviewRepository;
 }

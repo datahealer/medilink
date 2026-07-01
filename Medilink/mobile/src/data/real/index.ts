@@ -24,6 +24,7 @@ import type {
   PatientRepository,
   PaymentRepository,
   PrescriptionRepository,
+  ReviewRepository,
   Repositories,
 } from "../repositories";
 import type {
@@ -601,9 +602,39 @@ const doctorRepo: DoctorRepository = {
     if (!doctor) return null;
     return mapDoctorDetail(doctor as unknown as DoctorRowLoose);
   },
-  async reviews() {
-    // No confirmed doctor-reviews endpoint yet — kept mock in hybrid mode.
-    return { summary: { average: 0, total: 0, distribution: [5, 4, 3, 2, 1].map((stars) => ({ stars, count: 0 })) }, reviews: [] };
+  async reviews(id) {
+    // Public read of the doctor's visible reviews (RLS: reviews_public_read) + the
+    // authoritative aggregate on the doctor row. Reviewer names are not exposed to
+    // patients (no field + profiles RLS) -> shown as "verified patient".
+    const [{ data: doc }, { data: rows, error }] = await Promise.all([
+      supabase.from("doctors").select("avg_rating, review_count").eq("id", id).maybeSingle(),
+      supabase
+        .from("reviews")
+        .select("id, rating, review_text, created_at")
+        .eq("target_type", "doctor")
+        .eq("target_id", id)
+        .eq("is_visible", true)
+        .order("created_at", { ascending: false })
+        .limit(100),
+    ]);
+    if (error) throw error;
+    const list = (rows ?? []) as { id: string; rating: number; review_text: string | null; created_at: string }[];
+    const distribution = [5, 4, 3, 2, 1].map((stars) => ({
+      stars,
+      count: list.filter((r) => Math.round(r.rating) === stars).length,
+    }));
+    const docRow = doc as { avg_rating?: number | string | null; review_count?: number | null } | null;
+    const average =
+      docRow?.avg_rating != null
+        ? Number(docRow.avg_rating)
+        : list.length
+        ? list.reduce((sum, r) => sum + r.rating, 0) / list.length
+        : 0;
+    const total = docRow?.review_count != null ? Number(docRow.review_count) : list.length;
+    return {
+      summary: { average, total, distribution },
+      reviews: list.map((r) => ({ id: r.id, author: "", rating: r.rating, comment: r.review_text ?? "", date: r.created_at, verified: true })),
+    };
   },
   async mapClinics() {
     return [];
@@ -890,6 +921,20 @@ const prescriptionRepo: PrescriptionRepository = {
   },
 };
 
+const reviewRepo: ReviewRepository = {
+  async submit(input) {
+    // Fold selected aspects + the free-text comment into the single review_text field.
+    const text = [...(input.aspects ?? []), input.comment?.trim() || ""].filter(Boolean).join(" \u00b7 ");
+    await api.reviews.createReview(supabase, {
+      targetType: "doctor",
+      targetId: input.doctorId,
+      rating: input.rating,
+      reviewText: text,
+      appointmentId: input.appointmentId ?? null,
+    });
+  },
+};
+
 export const realRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -902,4 +947,5 @@ export const realRepositories: Repositories = {
   notification: notificationRepo,
   document: documentRepo,
   prescription: prescriptionRepo,
+  review: reviewRepo,
 };

@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
-import type { DoctorSearchParams } from "@/data/types";
+import type { DoctorSearchParams, NewReviewSubmission } from "@/data/types";
 
 /** Doctor search / profile / reviews (PDF flows 05–06). Mock-backed in dev. */
 export const doctorKeys = {
@@ -38,5 +38,15 @@ export function useMapClinics() {
   return useQuery({
     queryKey: doctorKeys.mapClinics,
     queryFn: () => repositories.doctor.mapClinics(),
+  });
+}
+
+export function useSubmitReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: NewReviewSubmission) => repositories.review.submit(input),
+    onSuccess: (_data, input) => {
+      qc.invalidateQueries({ queryKey: doctorKeys.reviews(input.doctorId) });
+    },
   });
 }

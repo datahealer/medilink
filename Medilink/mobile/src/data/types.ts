@@ -313,6 +313,16 @@ export interface DoctorReviews {
   reviews: Review[];
 }
 
+/** Input for submitting a doctor rating/review (design p33). */
+export interface NewReviewSubmission {
+  doctorId: string;
+  rating: number; // 1..5
+  comment?: string | null;
+  /** Selected "what went well" aspect labels, folded into the review text. */
+  aspects?: string[];
+  appointmentId?: string | null;
+}
+
 // ---- notifications (PDF p31-32) ---------------------------------------------
 
 export type NotificationKind =

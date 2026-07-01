@@ -18,6 +18,7 @@ import type {
   PatientRepository,
   PaymentRepository,
   PrescriptionRepository,
+  ReviewRepository,
   Repositories,
 } from "../repositories";
 import type {
@@ -628,6 +629,12 @@ const prescriptionRepo: PrescriptionRepository = (() => {
   };
 })();
 
+const reviewRepo: ReviewRepository = {
+  async submit() {
+    return delay(undefined, 300);
+  },
+};
+
 export const mockRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -640,4 +647,5 @@ export const mockRepositories: Repositories = {
   notification: notificationRepo,
   document: documentRepo,
   prescription: prescriptionRepo,
+  review: reviewRepo,
 };

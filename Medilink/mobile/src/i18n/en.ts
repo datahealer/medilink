@@ -518,6 +518,7 @@ export const en = {
     title: "Reviews",
     count: "{count} reviews",
     empty: "No reviews yet.",
+    verifiedPatient: "Verified patient",
   },
   notif: {
     title: "Notifications",
