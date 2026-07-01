@@ -21,6 +21,7 @@ import type {
   DoctorRepository,
   FamilyRepository,
   MedicalHistoryRepository,
+  LabRepository,
   NotificationRepository,
   PatientRepository,
   PaymentRepository,
@@ -924,6 +925,28 @@ const prescriptionRepo: PrescriptionRepository = {
   },
 };
 
+// ---- lab results (PDF p29-30) -----------------------------------------------
+// Shared api.labs.* already returns the exact list/detail/trend shapes the UI consumes
+// (structurally identical to the mobile Lab* types), so the repo is a thin pass-through.
+
+const labRepo: LabRepository = {
+  async list() {
+    return api.labs.listLabResults(supabase);
+  },
+  async get(id) {
+    return api.labs.getLabResult(supabase, id);
+  },
+  async trend(analyteCode, limit) {
+    return api.labs.getAnalyteTrend(supabase, analyteCode, limit);
+  },
+  async markViewed(id) {
+    await api.labs.markLabResultViewed(supabase, id);
+  },
+  async signedUrl(storagePath) {
+    return api.labs.getLabResultSignedUrl(supabase, storagePath);
+  },
+};
+
 const reviewRepo: ReviewRepository = {
   async submit(input) {
     // Fold selected aspects + the free-text comment into the single review_text field.
@@ -999,6 +1022,7 @@ export const realRepositories: Repositories = {
   notification: notificationRepo,
   document: documentRepo,
   prescription: prescriptionRepo,
+  lab: labRepo,
   review: reviewRepo,
   ai: aiRepo,
 };

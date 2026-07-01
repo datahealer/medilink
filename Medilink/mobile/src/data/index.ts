@@ -49,6 +49,8 @@ const hybridRepositories: Repositories = {
   // Document Vault: real (patient_documents + patient-docs bucket).
   document: realRepositories.document,
   prescription: realRepositories.prescription,
+  // Lab Results: real (lab_results + lab_result_analytes, trigger-derived status).
+  lab: realRepositories.lab,
   review: realRepositories.review,
   ai: realRepositories.ai,
   notification: {

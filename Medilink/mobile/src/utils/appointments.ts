@@ -20,6 +20,26 @@ export function formatApptDate(value: string | null | undefined, t: T, num: Num)
   return `${dow} ${num(String(d.getDate()))} ${month}`;
 }
 
+/**
+ * Day + month (e.g. "2 May"), optionally with year ("18 Apr 2026") — the compact date
+ * form used by lab reports (design p29–30). Accepts an ISO date or timestamp; slices to
+ * the date part. Non-ISO input passes through unchanged (mock display strings).
+ */
+export function formatDayMonth(
+  value: string | null | undefined,
+  t: T,
+  num: Num,
+  opts: { year?: boolean } = {}
+): string {
+  if (!value) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!m) return value;
+  const d = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const month = t(`common.month${d.getMonth()}` as Parameters<T>[0]);
+  const base = `${num(String(d.getDate()))} ${month}`;
+  return opts.year ? `${base} ${num(String(d.getFullYear()))}` : base;
+}
+
 /** Format a slot time. Real rows are "HH:MM[:SS]"; mock rows ("10:30 AM") pass through. */
 export function formatApptTime(value: string | null | undefined, num: Num): string {
   if (!value) return "";

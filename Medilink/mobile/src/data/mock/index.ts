@@ -14,6 +14,7 @@ import type {
   DocumentRepository,
   DoctorRepository,
   FamilyRepository,
+  LabRepository,
   MedicalHistoryRepository,
   NotificationRepository,
   PatientRepository,
@@ -37,6 +38,10 @@ import type {
   NewFamilyMember,
   NotificationItem,
   NotificationPrefs,
+  LabAnalyte,
+  LabResultDetail,
+  LabResultItem,
+  LabTrendPoint,
   PatientDoc,
   PatientProfile,
   Payment,
@@ -635,6 +640,98 @@ const prescriptionRepo: PrescriptionRepository = (() => {
   };
 })();
 
+const labRepo: LabRepository = (() => {
+  const an = (
+    order: number,
+    code: string,
+    name: string,
+    value: number | null,
+    unit: string | null,
+    refText: string,
+    flag: LabAnalyte["flag"],
+    measuredAt: string
+  ): LabAnalyte => ({
+    id: `${code}-${measuredAt}`,
+    analyte_code: code,
+    analyte_name: name,
+    value_numeric: value,
+    value_text: value == null ? null : String(value),
+    unit,
+    reference_low: null,
+    reference_high: null,
+    reference_text: refText,
+    flag,
+    measured_at: measuredAt,
+    display_order: order,
+  });
+
+  const details: Record<string, LabResultDetail> = {
+    lipid: {
+      id: "lipid", test_name: "Lipid Profile", facility_name: "Aster Lab",
+      result_date: "2026-04-18", uploaded_at: "2026-04-18T09:00:00Z", status: "flagged", flagged_count: 1,
+      ai_insight: "Slightly elevated cholesterol. Consider diet review & recheck in 3 months.",
+      ai_insight_at: "2026-04-18T10:00:00Z", storage_path: null, file_url: "mock://lipid.pdf", file_type: "application/pdf", notes: null,
+      analytes: [
+        an(0, "total_cholesterol", "Total Cholesterol", 215, "mg/dL", "<200 mg/dL", "high", "2026-04-18T09:00:00Z"),
+        an(1, "hdl", "HDL", 52, "mg/dL", ">40 mg/dL", "normal", "2026-04-18T09:00:00Z"),
+        an(2, "ldl", "LDL", 140, "mg/dL", "<130 mg/dL", "high", "2026-04-18T09:00:00Z"),
+        an(3, "triglycerides", "Triglycerides", 120, "mg/dL", "<150 mg/dL", "normal", "2026-04-18T09:00:00Z"),
+      ],
+    },
+    cbc: {
+      id: "cbc", test_name: "Complete Blood Count", facility_name: "Royal Hospital",
+      result_date: "2026-05-02", uploaded_at: "2026-05-02T09:00:00Z", status: "normal", flagged_count: 0,
+      ai_insight: null, ai_insight_at: null, storage_path: null, file_url: "mock://cbc.pdf", file_type: "application/pdf", notes: null,
+      analytes: [
+        an(0, "haemoglobin", "Haemoglobin", 14.2, "g/dL", "13–17 g/dL", "normal", "2026-05-02T09:00:00Z"),
+        an(1, "wbc", "WBC", 6.5, "×10⁹/L", "4–11 ×10⁹/L", "normal", "2026-05-02T09:00:00Z"),
+        an(2, "platelets", "Platelets", 250, "×10⁹/L", "150–400 ×10⁹/L", "normal", "2026-05-02T09:00:00Z"),
+      ],
+    },
+    vitd: {
+      id: "vitd", test_name: "Vitamin D", facility_name: "NMC Lab",
+      result_date: "2026-04-02", uploaded_at: "2026-04-02T09:00:00Z", status: "normal", flagged_count: 0,
+      ai_insight: null, ai_insight_at: null, storage_path: null, file_url: "mock://vitd.pdf", file_type: "application/pdf", notes: null,
+      analytes: [an(0, "vitamin_d", "25-OH Vitamin D", 34, "ng/mL", "30–100 ng/mL", "normal", "2026-04-02T09:00:00Z")],
+    },
+  };
+
+  // A couple of historical cholesterol points so the trend query returns a series in mock mode.
+  const trends: Record<string, LabTrendPoint[]> = {
+    total_cholesterol: [
+      { measured_at: "2026-01-10T09:00:00Z", value_numeric: 205, unit: "mg/dL", flag: "high" },
+      { measured_at: "2026-04-18T09:00:00Z", value_numeric: 215, unit: "mg/dL", flag: "high" },
+    ],
+  };
+
+  const listItems: LabResultItem[] = ["cbc", "lipid", "vitd"].map((id) => {
+    const d = details[id]!;
+    return {
+      id: d.id, test_name: d.test_name, facility_name: d.facility_name,
+      result_date: d.result_date, uploaded_at: d.uploaded_at, status: d.status, flagged_count: d.flagged_count,
+    };
+  });
+
+  return {
+    async list() {
+      return delay(listItems.map((r) => ({ ...r })), 350);
+    },
+    async get(id: string) {
+      const d = details[id] ?? details.lipid!;
+      return delay({ ...d, analytes: d.analytes.map((a) => ({ ...a })) }, 300);
+    },
+    async trend(analyteCode: string) {
+      return delay((trends[analyteCode] ?? []).map((p) => ({ ...p })), 250);
+    },
+    async markViewed() {
+      return delay(undefined, 100);
+    },
+    async signedUrl(storagePath: string) {
+      return delay(storagePath, 100);
+    },
+  };
+})();
+
 const reviewRepo: ReviewRepository = {
   async submit() {
     return delay(undefined, 300);
@@ -673,6 +770,7 @@ export const mockRepositories: Repositories = {
   notification: notificationRepo,
   document: documentRepo,
   prescription: prescriptionRepo,
+  lab: labRepo,
   review: reviewRepo,
   ai: aiRepo,
 };

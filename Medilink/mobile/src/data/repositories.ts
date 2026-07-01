@@ -16,6 +16,9 @@ import type {
   DoctorSearchParams,
   FacilityMessage,
   FamilyMember,
+  LabResultDetail,
+  LabResultItem,
+  LabTrendPoint,
   MedicalHistory,
   MedicalHistoryPatch,
   NewAppointment,
@@ -163,6 +166,20 @@ export interface PrescriptionRepository {
   shareLink(id: string): Promise<PrescriptionShareLink>;
 }
 
+/** Lab Results (PDF p29-30) — report list, detail with analytes, trends + file download. */
+export interface LabRepository {
+  /** The caller's lab reports (newest first). */
+  list(): Promise<LabResultItem[]>;
+  /** A single report with its analytes + optional AI insight (scoped to the caller), or null. */
+  get(id: string): Promise<LabResultDetail | null>;
+  /** Time series for one analyte code (oldest→newest) for trend display. */
+  trend(analyteCode: string, limit?: number): Promise<LabTrendPoint[]>;
+  /** Mark a report as viewed (idempotent). */
+  markViewed(id: string): Promise<void>;
+  /** Short-lived signed URL for the report file (Download PDF / Share). */
+  signedUrl(storagePath: string): Promise<string>;
+}
+
 /** Reviews (PDF p20, p33) - submit a rating/review for a doctor. */
 export interface ReviewRepository {
   submit(input: NewReviewSubmission): Promise<void>;
@@ -188,6 +205,7 @@ export interface Repositories {
   notification: NotificationRepository;
   document: DocumentRepository;
   prescription: PrescriptionRepository;
+  lab: LabRepository;
   review: ReviewRepository;
   ai: AiRepository;
 }

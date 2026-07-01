@@ -383,3 +383,54 @@ export interface NotificationPrefs {
   promotions: boolean;
   channels: { push: boolean; email: boolean; sms: boolean };
 }
+
+// ---- lab results (PDF p29-30) -----------------------------------------------
+
+export type LabFlag = "low" | "normal" | "high" | "abnormal";
+export type LabStatus = "normal" | "flagged";
+
+/** Lab Reports list row (design p29). */
+export interface LabResultItem {
+  id: string;
+  test_name: string;
+  facility_name: string | null;
+  result_date: string | null; // ISO date; falls back to uploaded_at when absent
+  uploaded_at: string;
+  status: LabStatus;
+  flagged_count: number;
+}
+
+/** One measured analyte within a report (design p30 analyte rows). */
+export interface LabAnalyte {
+  id: string;
+  analyte_code: string;
+  analyte_name: string;
+  value_numeric: number | null;
+  value_text: string | null;
+  unit: string | null;
+  reference_low: number | null;
+  reference_high: number | null;
+  reference_text: string | null;
+  flag: LabFlag;
+  measured_at: string;
+  display_order: number;
+}
+
+/** Full report detail: header + analytes + optional AI "Me insight". */
+export interface LabResultDetail extends LabResultItem {
+  ai_insight: string | null;
+  ai_insight_at: string | null;
+  storage_path: string | null;
+  file_url: string;
+  file_type: string;
+  notes: string | null;
+  analytes: LabAnalyte[];
+}
+
+/** A single point in an analyte's time series (oldest→newest). */
+export interface LabTrendPoint {
+  measured_at: string;
+  value_numeric: number | null;
+  unit: string | null;
+  flag: LabFlag;
+}

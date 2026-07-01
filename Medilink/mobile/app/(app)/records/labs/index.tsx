@@ -6,7 +6,9 @@ import {
   AppHeader,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
+  LoadingState,
   Screen,
   SegmentedTabs,
   Text,
@@ -14,27 +16,10 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { useLabResults } from "@/hooks/queries/useLabs";
+import { formatDayMonth } from "@/utils/appointments";
 
 type LabTab = "all" | "normal" | "flagged";
-type LabStatus = "normal" | "flagged";
-
-interface LabResult {
-  id: string;
-  name: string;
-  lab: string;
-  date: string;
-  flagged: number;
-}
-
-const RESULTS: LabResult[] = [
-  { id: "cbc", name: "Complete Blood Count", lab: "Royal Hospital", date: "2 May", flagged: 0 },
-  { id: "lipid", name: "Lipid Profile", lab: "Aster Lab", date: "18 Apr", flagged: 1 },
-  { id: "vitd", name: "Vitamin D", lab: "NMC Lab", date: "2 Apr", flagged: 0 },
-];
-
-function statusOf(r: LabResult): LabStatus {
-  return r.flagged > 0 ? "flagged" : "normal";
-}
 
 /** Lab Reports — All / Normal / Flagged (design p29). */
 export default function LabReportsScreen() {
@@ -43,9 +28,12 @@ export default function LabReportsScreen() {
   const { t, num } = useI18n();
   const [active, setActive] = useState<LabTab>("all");
 
-  const filtered = RESULTS.filter((r) => {
-    if (active === "normal") return statusOf(r) === "normal";
-    if (active === "flagged") return r.flagged > 0;
+  const query = useLabResults();
+  const results = query.data ?? [];
+
+  const filtered = results.filter((r) => {
+    if (active === "normal") return r.status === "normal";
+    if (active === "flagged") return r.status === "flagged";
     return true;
   });
 
@@ -77,16 +65,22 @@ export default function LabReportsScreen() {
         />
       </View>
 
-      {filtered.length === 0 ? (
+      {query.isLoading ? (
+        <LoadingState />
+      ) : query.isError ? (
+        <ErrorState message={t("labs.loadError")} onRetry={() => query.refetch()} />
+      ) : filtered.length === 0 ? (
         <EmptyState title={t("labs.emptyTitle")} body={t("labs.emptyBody")} />
       ) : (
         filtered.map((r) => {
-          const flagged = r.flagged > 0;
+          const flagged = r.status === "flagged";
           const badgeBg = flagged ? colors.errorSurface : colors.successSurface;
           const badgeFg = flagged ? colors.error : colors.success;
           const badgeText = flagged
-            ? t("labs.statusFlagged", { n: num(String(r.flagged)) })
+            ? t("labs.statusFlagged", { n: num(String(r.flagged_count)) })
             : t("labs.statusNormal");
+          const dateLabel = formatDayMonth(r.result_date ?? r.uploaded_at, t, num);
+          const subtitle = [r.facility_name, dateLabel].filter(Boolean).join(" · ");
           return (
             <Card
               key={r.id}
@@ -104,10 +98,10 @@ export default function LabReportsScreen() {
                 </View>
                 <View style={styles.info}>
                   <Text variant="title" numberOfLines={1}>
-                    {r.name}
+                    {r.test_name}
                   </Text>
                   <Text variant="caption" color="textMuted" numberOfLines={1}>
-                    {`${r.lab} · ${r.date}`}
+                    {subtitle}
                   </Text>
                 </View>
                 <View
