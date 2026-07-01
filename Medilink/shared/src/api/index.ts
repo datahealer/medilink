@@ -4,6 +4,7 @@ export * as auth from "./auth";
 export * as profile from "./profile";
 export * as family from "./family";
 export * as doctors from "./doctors";
+export * as specialties from "./specialties";
 export * as favourites from "./favourites";
 export * as facilities from "./facilities";
 export * as appointments from "./appointments";

@@ -478,9 +478,8 @@ const RECENT_DOCTORS_LIMIT = 5;
 
 const discoveryRepo: DiscoveryRepository = {
   async listSpecialties() {
-    // No "list specialties" endpoint exists (only a search filter). Kept mock
-    // via the hybrid composition until a real source is confirmed.
-    return [];
+    const rows = await api.specialties.listSpecialties(supabase);
+    return rows.map((s) => ({ id: s.id, name: s.name, icon: s.icon ?? undefined }));
   },
   async recentDoctors() {
     // Derived from the patient's past appointments (newest first) — there is no

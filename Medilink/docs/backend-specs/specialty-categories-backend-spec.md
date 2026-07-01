@@ -1,10 +1,19 @@
-# Specialty Categories — Backend Implementation Specification (DEFERRED / future task)
+# Specialty Categories — Backend Implementation Specification (CATALOG IMPLEMENTED)
 
-> **Status:** Module 2 of the post-integration pass. **No backend source was connected** because
-> none exists: there is no specialties catalog — only freetext `doctors.specialty TEXT`. The approved
-> Specialty Categories screen (Design Doc p18) is a **curated, iconographic grid** that needs stable
-> ids, display names, and icons. Until the catalog below exists, specialties stay **mock-served** in
-> the hybrid data layer so the grid/chips render exactly as designed. No API was invented.
+> **Status:** ✅ **CATALOG CONNECTED** (migration `20260701000002_specialties.sql`). The
+> `public.specialties` catalog table now exists (slug, name, icon, sort_order, is_active) with public
+> read RLS, seeded with the design's canonical set (Design Doc p18). Shared
+> `api.specialties.listSpecialties`; mobile `discovery.listSpecialties` is now **real** and the hybrid
+> is flipped. The grid/Dashboard chips/Filters chips render identically — the seed's slug/name/icon
+> match the previous mock catalog exactly, so no screen change was needed. Verified via anon read
+> (9 rows, ordered, icons present).
+>
+> **Remaining gap (§3 below — follow-up):** tapping a tile passes the specialty **name** to doctor
+> search (`doctors.specialty = name`), but `doctors.specialty` is **uncurated freetext** (production
+> data includes test/garbage values and typos like `cardi`/`cardiologis`). So name-based filtering is
+> imperfect — this is a pre-existing data-quality issue, neither improved nor regressed by making the
+> catalog real. The clean fix is the `doctors.specialty_id` FK + backfill in §3 (Cleaner, larger),
+> which requires curating the doctor specialty data first. Retained as a future task.
 
 ## Where specialties are used in the app
 - **Specialty Categories** grid (p18) — iconographic tiles → tap sets a filter → doctor search.

@@ -42,7 +42,7 @@ const hybridRepositories: Repositories = {
   },
   discovery: {
     ...mockRepositories.discovery,
-    // Top Specialties has no backend list source yet → stays mock.
+    listSpecialties: realRepositories.discovery.listSpecialties,
     featuredClinics: realRepositories.discovery.featuredClinics,
     recentDoctors: realRepositories.discovery.recentDoctors,
   },
