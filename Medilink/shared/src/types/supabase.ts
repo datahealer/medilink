@@ -1803,16 +1803,90 @@ export type Database = {
           },
         ]
       }
+      lab_result_analytes: {
+        Row: {
+          analyte_code: string
+          analyte_name: string
+          created_at: string
+          display_order: number
+          flag: Database["public"]["Enums"]["lab_flag"]
+          id: string
+          lab_result_id: string
+          measured_at: string
+          patient_id: string
+          reference_high: number | null
+          reference_low: number | null
+          reference_text: string | null
+          unit: string | null
+          value_numeric: number | null
+          value_text: string | null
+        }
+        Insert: {
+          analyte_code: string
+          analyte_name: string
+          created_at?: string
+          display_order?: number
+          flag?: Database["public"]["Enums"]["lab_flag"]
+          id?: string
+          lab_result_id: string
+          measured_at?: string
+          patient_id: string
+          reference_high?: number | null
+          reference_low?: number | null
+          reference_text?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          analyte_code?: string
+          analyte_name?: string
+          created_at?: string
+          display_order?: number
+          flag?: Database["public"]["Enums"]["lab_flag"]
+          id?: string
+          lab_result_id?: string
+          measured_at?: string
+          patient_id?: string
+          reference_high?: number | null
+          reference_low?: number | null
+          reference_text?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_result_analytes_lab_result_id_fkey"
+            columns: ["lab_result_id"]
+            isOneToOne: false
+            referencedRelation: "lab_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_result_analytes_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_results: {
         Row: {
+          ai_insight: string | null
+          ai_insight_at: string | null
           appointment_id: string | null
           facility_id: string
           file_type: string
           file_url: string
+          flagged_count: number
           id: string
           is_viewed: boolean
           notes: string | null
           patient_id: string
+          result_date: string | null
+          status: Database["public"]["Enums"]["lab_result_status"]
           storage_path: string | null
           test_name: string
           uploaded_at: string
@@ -1820,14 +1894,19 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          ai_insight?: string | null
+          ai_insight_at?: string | null
           appointment_id?: string | null
           facility_id: string
           file_type: string
           file_url: string
+          flagged_count?: number
           id?: string
           is_viewed?: boolean
           notes?: string | null
           patient_id: string
+          result_date?: string | null
+          status?: Database["public"]["Enums"]["lab_result_status"]
           storage_path?: string | null
           test_name: string
           uploaded_at?: string
@@ -1835,14 +1914,19 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          ai_insight?: string | null
+          ai_insight_at?: string | null
           appointment_id?: string | null
           facility_id?: string
           file_type?: string
           file_url?: string
+          flagged_count?: number
           id?: string
           is_viewed?: boolean
           notes?: string | null
           patient_id?: string
+          result_date?: string | null
+          status?: Database["public"]["Enums"]["lab_result_status"]
           storage_path?: string | null
           test_name?: string
           uploaded_at?: string
@@ -5491,6 +5575,8 @@ export type Database = {
         | "partial_refund"
       invite_status: "pending" | "accepted" | "expired" | "revoked"
       invite_type: "facility_admin" | "doctor" | "technician" | "staff"
+      lab_flag: "low" | "normal" | "high" | "abnormal"
+      lab_result_status: "normal" | "flagged"
       notification_channel: "in_app" | "email"
       notification_type: "info" | "warning" | "error"
       notification_type_enum: "info" | "warning" | "error"
@@ -5803,6 +5889,8 @@ export const Constants = {
       ],
       invite_status: ["pending", "accepted", "expired", "revoked"],
       invite_type: ["facility_admin", "doctor", "technician", "staff"],
+      lab_flag: ["low", "normal", "high", "abnormal"],
+      lab_result_status: ["normal", "flagged"],
       notification_channel: ["in_app", "email"],
       notification_type: ["info", "warning", "error"],
       notification_type_enum: ["info", "warning", "error"],

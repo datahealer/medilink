@@ -1,11 +1,30 @@
-# Lab Results — Backend Implementation Specification (DEFERRED / future task)
+# Lab Results — Backend Implementation Specification (IMPLEMENTED)
 
-> **Status:** Approved as a future backend task (Phase 3 of the mobile integration effort).
-> The mobile Lab Results screens (Design Doc p29–30) are built but **NOT wired**, because the
-> current backend stores lab results as *delivered files only* — it has no structured analytes,
-> reference ranges, flags, per-report status, or trends. This spec defines the backend work needed
-> to support the approved design **without any mobile UI change**. No mobile code and no backend
-> code has been written for this yet.
+> **Status:** ✅ **CONNECTED** (migrations `20260701000003_lab_results_analytes.sql` +
+> `20260701000004_fix_lab_status_trigger_cast.sql`). The structured analytes table, enums, roll-up
+> trigger, indexes, and RLS below are all live and applied via the linked Supabase CLI. Shared
+> `api.labs` now exposes `listLabResults` (extended), `getLabResult`, `getAnalyteTrend`,
+> `markLabResultViewed`, `getLabResultSignedUrl`. Mobile has a real `LabRepository`
+> (list/get/trend/markViewed/signedUrl), `useLabs` hooks, and the Lab Reports + Result Detail
+> screens are wired to real data (Download PDF / Share via signed URL; report marked viewed on open).
+>
+> Verified E2E against the hosted DB via patient impersonation: the status roll-up trigger sets
+> `status=flagged, flagged_count=2` from analyte flags; the patient reads their report list, detail
+> (4 ordered analytes with reference ranges + flags), and a 2-point `total_cholesterol` trend
+> (oldest→newest) under RLS; mark-viewed persists.
+>
+> **Two follow-ups remain (backend/product, not mobile):**
+> 1. **Ingestion (critical path, §5):** the tables only fill once the HAMS/provider technician UI
+>    writes structured analytes. Until that ships, real patients see reports with no analyte rows
+>    (the detail screen already handles the empty-analytes case). The mobile side is complete.
+> 2. **Trend UI:** the approved mobile detail screen (as built) has **no trend chart** — only the
+>    analyte list + Me insight. `getAnalyteTrend` + `useAnalyteTrend` are wired at the data layer so
+>    a future trend chart can be added without backend work; no chart was invented here (would depart
+>    from the approved design).
+> 3. **AI "Me insight" (§6, optional):** `lab_results.ai_insight` is read and rendered when present;
+>    the `generate-lab-insight` Edge Function that populates it is still optional/future.
+>
+> The original spec follows unchanged for reference.
 
 **Guiding constraint:** keep & extend the existing `public.lab_results` table (a delivered *file* per
 report); add analytes as a child table. All new RLS mirrors `lab_results_patient_read`
