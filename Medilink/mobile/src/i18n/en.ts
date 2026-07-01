@@ -649,6 +649,13 @@ export const en = {
     sentToPharmacy: "Sent to pharmacy.",
     notFoundTitle: "Prescription not found",
     notFoundBody: "This prescription may have been removed.",
+    loadError: "Couldn't load your prescriptions.",
+    emptyTitle: "No prescriptions yet",
+    emptyBody: "Prescriptions issued to you will appear here.",
+    medsMore: "+{n} more",
+    pdfUnavailable: "PDF not available yet.",
+    shareFailed: "Couldn't create the share link.",
+    reminderSoon: "Medication reminders are coming soon.",
   },
   aiAssistant: {
     // AI Symptom Checker (design p26)

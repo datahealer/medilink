@@ -9,6 +9,7 @@ import { api } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/services/api";
+import { env } from "@/config/env";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
 import type {
@@ -22,6 +23,7 @@ import type {
   NotificationRepository,
   PatientRepository,
   PaymentRepository,
+  PrescriptionRepository,
   Repositories,
 } from "../repositories";
 import type {
@@ -40,6 +42,7 @@ import type {
   PatientDoc,
   PatientProfile,
   Payment,
+  Prescription,
   SmokingStatus,
 } from "../types";
 
@@ -828,6 +831,65 @@ const documentRepo: DocumentRepository = {
   },
 };
 
+// ---- prescriptions (PDF p30-31) ---------------------------------------------
+
+interface RxRowLoose {
+  id: string;
+  medications: unknown;
+  instructions: string | null;
+  pdf_url: string | null;
+  issued_at: string | null;
+  doctors?: { full_name: string | null; specialty: string | null } | null;
+  appointments?: { slot_date: string | null; type?: string | null } | null;
+}
+
+function mapPrescription(r: RxRowLoose): Prescription {
+  const arr = Array.isArray(r.medications) ? r.medications : [];
+  const medications = arr.map((m) => {
+    const o = (m ?? {}) as Record<string, unknown>;
+    return {
+      name: String(o.name ?? ""),
+      dosage: (o.dosage as string | undefined) ?? null,
+      frequency: (o.frequency as string | undefined) ?? null,
+      duration: (o.duration as string | undefined) ?? null,
+      notes: (o.notes as string | undefined) ?? null,
+    };
+  });
+  return {
+    id: r.id,
+    issued_at: r.issued_at ?? null,
+    medications,
+    instructions: r.instructions ?? null,
+    pdf_url: r.pdf_url ?? null,
+    doctor: r.doctors ? { full_name: r.doctors.full_name ?? null, specialty: r.doctors.specialty ?? null } : null,
+    appointment: r.appointments ? { slot_date: r.appointments.slot_date ?? null, type: r.appointments.type ?? null } : null,
+  };
+}
+
+const prescriptionRepo: PrescriptionRepository = {
+  async list() {
+    const rows = (await api.prescriptions.listPrescriptions(supabase)) as unknown as RxRowLoose[];
+    return rows.map(mapPrescription);
+  },
+  async get(id) {
+    const r = (await api.prescriptions.getPrescription(supabase, id)) as unknown as RxRowLoose | null;
+    return r ? mapPrescription(r) : null;
+  },
+  async pdfUrl(id) {
+    // Patients cannot generate the PDF (doctor-only route); this reads the already-generated one.
+    const res = await apiFetch<{ signed_url?: string }>(`/api/prescriptions/${id}/download`);
+    if (!res?.signed_url) throw new Error("PDF not available");
+    return res.signed_url;
+  },
+  async shareLink(id) {
+    const res = await apiFetch<{ url?: string; expires_at?: string }>(`/api/prescriptions/${id}/share-link`);
+    const rel = res?.url ?? "";
+    const baseUrl = (env.API_URL || "").replace(/[/]+$/, "");
+    const url = !rel ? "" : rel.startsWith("http") ? rel : `${baseUrl}${rel.startsWith("/") ? "" : "/"}${rel}`;
+    return { url, expiresAt: res?.expires_at ?? null };
+  },
+};
+
 export const realRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -839,4 +901,5 @@ export const realRepositories: Repositories = {
   doctor: doctorRepo,
   notification: notificationRepo,
   document: documentRepo,
+  prescription: prescriptionRepo,
 };

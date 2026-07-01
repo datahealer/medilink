@@ -25,6 +25,8 @@ import type {
   PatientProfile,
   Payment,
   PhotoAsset,
+  Prescription,
+  PrescriptionShareLink,
   ProfilePatch,
   SessionUser,
   SignInInput,
@@ -144,6 +146,18 @@ export interface DocumentRepository {
   signedUrl(filePath: string): Promise<string>;
 }
 
+/** Prescriptions (PDF p30-31) - read + PDF download + share/send-to-pharmacy. */
+export interface PrescriptionRepository {
+  /** The caller's prescriptions (newest first). */
+  list(): Promise<Prescription[]>;
+  /** A single prescription by id (scoped to the caller), or null. */
+  get(id: string): Promise<Prescription | null>;
+  /** Signed URL for the doctor-generated PDF. Throws if not generated yet (patient cannot generate). */
+  pdfUrl(id: string): Promise<string>;
+  /** Mint/reuse a shareable "send to pharmacy" link (absolute URL, ~24h). */
+  shareLink(id: string): Promise<PrescriptionShareLink>;
+}
+
 export interface Repositories {
   auth: AuthRepository;
   patient: PatientRepository;
@@ -155,4 +169,5 @@ export interface Repositories {
   doctor: DoctorRepository;
   notification: NotificationRepository;
   document: DocumentRepository;
+  prescription: PrescriptionRepository;
 }

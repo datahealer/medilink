@@ -210,6 +210,33 @@ export interface NewDocumentUpload {
   asset: PhotoAsset;
 }
 
+// ---- prescriptions (PDF p30-31) ---------------------------------------------
+
+export interface PrescriptionMed {
+  name: string;
+  dosage?: string | null;
+  frequency?: string | null;
+  duration?: string | null;
+  notes?: string | null;
+}
+
+export interface Prescription {
+  id: string;
+  issued_at: string | null;
+  medications: PrescriptionMed[];
+  instructions: string | null;
+  /** Storage path of the generated PDF (present only once a doctor has generated it). */
+  pdf_url: string | null;
+  doctor: { full_name: string | null; specialty: string | null } | null;
+  appointment?: { slot_date: string | null; type?: string | null } | null;
+}
+
+/** Result of minting a "send to pharmacy" share link (absolute URL). */
+export interface PrescriptionShareLink {
+  url: string;
+  expiresAt: string | null;
+}
+
 // ---- discovery (dashboard recents/featured + Batch-2 doctor search) ----------
 
 export interface Specialty {

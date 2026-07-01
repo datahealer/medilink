@@ -17,6 +17,7 @@ import type {
   NotificationRepository,
   PatientRepository,
   PaymentRepository,
+  PrescriptionRepository,
   Repositories,
 } from "../repositories";
 import type {
@@ -35,6 +36,8 @@ import type {
   PatientDoc,
   PatientProfile,
   Payment,
+  Prescription,
+  PrescriptionShareLink,
   ProfilePatch,
   Review,
   SessionUser,
@@ -602,6 +605,29 @@ const documentRepo: DocumentRepository = (() => {
   };
 })();
 
+const prescriptionRepo: PrescriptionRepository = (() => {
+  const rx: Prescription[] = [
+    { id: "rx-salbutamol", issued_at: "2026-04-12T09:00:00Z",
+      instructions: "Use with a spacer. Rinse mouth after each dose.", pdf_url: null,
+      doctor: { full_name: "Dr. Khalid Al Balushi", specialty: "Cardiology" },
+      appointment: { slot_date: "2026-04-12", type: "in_person" },
+      medications: [{ name: "Salbutamol Inhaler 100mcg", dosage: "2 puffs", frequency: "as needed", duration: "30 days", notes: "max 8/day" }] },
+    { id: "rx-atorvastatin", issued_at: "2026-05-02T09:00:00Z",
+      instructions: null, pdf_url: null,
+      doctor: { full_name: "Dr. Fatma Said", specialty: "Cardiology" },
+      appointment: { slot_date: "2026-05-02", type: "in_person" },
+      medications: [{ name: "Atorvastatin 10mg", dosage: "1 tablet", frequency: "at night", duration: "30 days", notes: null }] },
+  ];
+  return {
+    async list() { return delay([...rx]); },
+    async get(id: string) { return delay(rx.find((r) => r.id === id) ?? null); },
+    async pdfUrl() { return delay("https://example.com/mock-prescription.pdf", 200); },
+    async shareLink(): Promise<PrescriptionShareLink> {
+      return delay({ url: "https://example.com/prescription/mock-token", expiresAt: null }, 200);
+    },
+  };
+})();
+
 export const mockRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -613,4 +639,5 @@ export const mockRepositories: Repositories = {
   doctor: doctorRepo,
   notification: notificationRepo,
   document: documentRepo,
+  prescription: prescriptionRepo,
 };

@@ -648,6 +648,13 @@ export const ar: Messages = {
     sentToPharmacy: "تم الإرسال إلى الصيدلية.",
     notFoundTitle: "الوصفة غير موجودة",
     notFoundBody: "ربما تمت إزالة هذه الوصفة.",
+    loadError: "تعذّر تحميل وصفاتك.",
+    emptyTitle: "لا توجد وصفات بعد",
+    emptyBody: "ستظهر الوصفات الصادرة لك هنا.",
+    medsMore: "+{n} أخرى",
+    pdfUnavailable: "ملف PDF غير متاح بعد.",
+    shareFailed: "تعذّر إنشاء رابط المشاركة.",
+    reminderSoon: "تذكيرات الأدوية قريبًا.",
   },
   aiAssistant: {
     // AI Symptom Checker (design p26)
