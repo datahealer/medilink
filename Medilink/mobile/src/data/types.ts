@@ -237,6 +237,29 @@ export interface PrescriptionShareLink {
   expiresAt: string | null;
 }
 
+// ---- AI features (PDF p26-27) -----------------------------------------------
+
+export interface AiSuggestedDoctor {
+  id: string;
+  full_name: string;
+  specialty: string | null;
+  rating: number | null;
+  fee_omr: number | null;
+}
+
+export interface AiDoctorSuggestion {
+  reasoning: string | null;
+  urgencyLevel: string | null;
+  doctors: AiSuggestedDoctor[];
+}
+
+/** The patient's most recent AI-generated visit summary (appointments.patient_summary). */
+export interface AiVisitSummary {
+  summary: string;
+  date: string | null;
+  doctorName: string | null;
+}
+
 // ---- discovery (dashboard recents/featured + Batch-2 doctor search) ----------
 
 export interface Specialty {

@@ -3,6 +3,8 @@
  * The UI talks to these, never to Supabase or the backend directly.
  */
 import type {
+  AiDoctorSuggestion,
+  AiVisitSummary,
   Appointment,
   AppointmentTab,
   AuthResult,
@@ -164,6 +166,14 @@ export interface ReviewRepository {
   submit(input: NewReviewSubmission): Promise<void>;
 }
 
+/** AI features (PDF p26-27) - doctor recommendations + the AI visit summary. */
+export interface AiRepository {
+  /** AI doctor suggestions for free-text symptoms (POST /api/ai/suggest-doctor). */
+  suggestDoctors(symptoms: string): Promise<AiDoctorSuggestion>;
+  /** The patient's most recent AI-generated visit summary, or null. */
+  latestVisitSummary(): Promise<AiVisitSummary | null>;
+}
+
 export interface Repositories {
   auth: AuthRepository;
   patient: PatientRepository;
@@ -177,4 +187,5 @@ export interface Repositories {
   document: DocumentRepository;
   prescription: PrescriptionRepository;
   review: ReviewRepository;
+  ai: AiRepository;
 }

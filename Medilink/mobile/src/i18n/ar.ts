@@ -679,8 +679,11 @@ export const ar: Messages = {
     match: "{pct}٪ تطابق",
     bookNow: "احجز الآن",
     why: "لماذا؟",
-    whyTitle: "لماذا هذا التطابق؟",
+    whyTitle: "لماذا هذه التطابقات؟",
     whyBody: "بناءً على ضيق الصدر وصعوبة التنفس اللذين ذكرتهما، وتخصص الطبيب في أمراض القلب، وتوفره اليوم، وتقييمات المرضى.",
+    loadError: "تعذّر تحميل التوصيات.",
+    needSymptomsTitle: "لا توجد أعراض بعد",
+    needSymptomsBody: "صف أعراضك في مساعد مي لعرض الأطباء الموصى بهم.",
   },
   aiInsights: {
     // AI Insights & Risk (design p27)
@@ -693,6 +696,9 @@ export const ar: Messages = {
     visitSummary: "ملخص الزيارة — {date}",
     byAssistant: "بواسطة مساعد مي",
     summaryBody: "مراجعة قلبية روتينية. ضغط الدم 128/82. استمر على الدواء الحالي. متابعة بعد 6 أسابيع. لا أعراض خطِرة.",
+    loadError: "تعذّر تحميل ملخص زيارتك.",
+    noSummaryTitle: "لا يوجد ملخص زيارة بعد",
+    noSummaryBody: "بعد زيارة مكتملة، سيظهر هنا الملخص المُنشأ بالذكاء الاصطناعي.",
   },
   rating: {
     // Doctor Rating + Review Submission (design p33)

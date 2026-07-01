@@ -77,7 +77,9 @@ export default function AiAssistantScreen() {
           />
           <Button
             label={t("aiAssistant.seeRecommendations")}
-            onPress={() => router.push("/ai/recommendations")}
+            onPress={() =>
+              router.push(`/ai/recommendations?symptoms=${encodeURIComponent(t("aiAssistant.sampleUser"))}`)
+            }
           />
         </View>
       }

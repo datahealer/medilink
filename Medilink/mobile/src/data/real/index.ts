@@ -13,6 +13,7 @@ import { env } from "@/config/env";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
 import type {
+  AiRepository,
   AppointmentRepository,
   AuthRepository,
   DiscoveryRepository,
@@ -935,6 +936,55 @@ const reviewRepo: ReviewRepository = {
   },
 };
 
+// ---- AI features (PDF p26-27) -----------------------------------------------
+
+interface SuggestDocLoose {
+  id: string;
+  full_name: string;
+  specialty: string | null;
+  avg_rating: number | null;
+  fees?: unknown;
+}
+
+const aiRepo: AiRepository = {
+  async suggestDoctors(symptoms) {
+    const res = await apiFetch<{
+      success?: boolean;
+      data?: { ai_reasoning?: string | null; urgency_level?: string | null; recommended_doctors?: SuggestDocLoose[] };
+    }>("/api/ai/suggest-doctor", { method: "POST", body: JSON.stringify({ symptoms }) });
+    const d = res?.data;
+    return {
+      reasoning: d?.ai_reasoning ?? null,
+      urgencyLevel: d?.urgency_level ?? null,
+      doctors: (d?.recommended_doctors ?? []).map((doc) => ({
+        id: doc.id,
+        full_name: doc.full_name,
+        specialty: doc.specialty ?? null,
+        rating: doc.avg_rating != null ? Number(doc.avg_rating) : null,
+        fee_omr: feeForType(doc.fees, "in_person") || null,
+      })),
+    };
+  },
+  async latestVisitSummary() {
+    // Read the patient's most recent AI visit summary (appointments.patient_summary,
+    // written by the generate-health-insights edge function).
+    const patientId = await api.getMyPatientProfileId(supabase);
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("patient_summary, slot_date, doctors:doctor_id ( full_name )")
+      .eq("patient_id", patientId)
+      .eq("ai_generated", true)
+      .not("patient_summary", "is", null)
+      .order("slot_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const row = data as { patient_summary?: string | null; slot_date?: string | null; doctors?: { full_name: string | null } | null } | null;
+    if (!row || !row.patient_summary) return null;
+    return { summary: row.patient_summary, date: row.slot_date ?? null, doctorName: row.doctors?.full_name ?? null };
+  },
+};
+
 export const realRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -948,4 +998,5 @@ export const realRepositories: Repositories = {
   document: documentRepo,
   prescription: prescriptionRepo,
   review: reviewRepo,
+  ai: aiRepo,
 };

@@ -50,6 +50,7 @@ const hybridRepositories: Repositories = {
   document: realRepositories.document,
   prescription: realRepositories.prescription,
   review: realRepositories.review,
+  ai: realRepositories.ai,
   notification: {
     ...mockRepositories.notification,
     // Facility messages have no inbox endpoint yet → stays mock.

@@ -7,6 +7,7 @@
  * latency makes the real loading states visible.
  */
 import type {
+  AiRepository,
   AppointmentRepository,
   AuthRepository,
   DiscoveryRepository,
@@ -22,6 +23,8 @@ import type {
   Repositories,
 } from "../repositories";
 import type {
+  AiDoctorSuggestion,
+  AiVisitSummary,
   Appointment,
   Clinic,
   Doctor,
@@ -635,6 +638,26 @@ const reviewRepo: ReviewRepository = {
   },
 };
 
+const aiRepo: AiRepository = {
+  async suggestDoctors(): Promise<AiDoctorSuggestion> {
+    return delay({
+      reasoning: "Chest tightness and breathlessness suggest seeing a Cardiologist today.",
+      urgencyLevel: "see-doctor",
+      doctors: [
+        { id: "doc-khalid", full_name: "Dr. Khalid Al Balushi", specialty: "Cardiologist", rating: 4.9, fee_omr: 25 },
+        { id: "doc-fatma", full_name: "Dr. Fatma Said", specialty: "Cardiologist", rating: 4.7, fee_omr: 22 },
+      ],
+    });
+  },
+  async latestVisitSummary(): Promise<AiVisitSummary | null> {
+    return delay({
+      summary: "Routine cardiac review. BP 128/82. Continue current medication. Follow-up in 6 weeks. No red-flag symptoms reported.",
+      date: "2026-05-02",
+      doctorName: "Dr. Khalid Al Balushi",
+    });
+  },
+};
+
 export const mockRepositories: Repositories = {
   auth: authRepo,
   patient: patientRepo,
@@ -648,4 +671,5 @@ export const mockRepositories: Repositories = {
   document: documentRepo,
   prescription: prescriptionRepo,
   review: reviewRepo,
+  ai: aiRepo,
 };

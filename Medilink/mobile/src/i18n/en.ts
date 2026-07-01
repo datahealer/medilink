@@ -680,8 +680,11 @@ export const en = {
     match: "{pct}% match",
     bookNow: "Book now",
     why: "Why?",
-    whyTitle: "Why this match?",
+    whyTitle: "Why these matches?",
     whyBody: "Matched on your reported chest tightness and breathlessness, this doctor's cardiology specialty, today's availability and patient ratings.",
+    loadError: "Couldn't load recommendations.",
+    needSymptomsTitle: "No symptoms yet",
+    needSymptomsBody: "Describe your symptoms in the Me Assistant to see recommended doctors.",
   },
   aiInsights: {
     // AI Insights & Risk (design p27)
@@ -694,6 +697,9 @@ export const en = {
     visitSummary: "Visit summary — {date}",
     byAssistant: "By Me Assistant",
     summaryBody: "Routine cardiac review. BP 128/82. Continue current medication. Follow-up in 6 weeks. No red-flag symptoms reported.",
+    loadError: "Couldn't load your visit summary.",
+    noSummaryTitle: "No visit summary yet",
+    noSummaryBody: "After a completed visit, your AI-generated summary will appear here.",
   },
   rating: {
     // Doctor Rating + Review Submission (design p33)
