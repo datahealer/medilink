@@ -1,9 +1,22 @@
-# Facility Messages — Backend Implementation Specification (DEFERRED / future task)
+# Facility Messages — Backend Implementation Specification (IMPLEMENTED)
 
-> **Status:** Module 4 of the post-integration pass. **No clean backend source exists** for the
-> designed Facility Messages inbox (read-only admin updates with a per-row **source**, **unread**
-> state, and patient relevance). The screen stays **mock-served** so it renders exactly as designed.
-> No backend/API, mock, or placeholder was invented.
+> **Status:** ✅ **CONNECTED** (commit `feat(mobile): connect Facility Messages to backend`).
+> The inbox is backed by the existing `public.announcements` feed plus a new additive per-patient
+> read-marker table `public.announcement_reads` (migration `20260701000001_announcement_reads.sql`).
+> Shared `listFacilityMessages` / `markFacilityMessagesRead`; hybrid `notification.facilityMessages`
+> is now real. Verified E2E via patient impersonation (unread=true → mark → unread=false).
+>
+> **Chosen approach vs. the alternatives below:** rather than enriching `in_app_notifications`
+> (needs a `broadcast-announcement` Edge Function redeploy and can't backfill a source), we read
+> `announcements` directly (it already has facility source + preview + timestamp) and added only a
+> per-patient `announcement_reads` table for unread state. Fully additive — no shared table changed.
+>
+> **Remaining limitation (future work):** "MediLink" **system** messages (invoice ready, ID upload
+> requests, etc.) are **not** facility announcements — they live in the Notification Center
+> (`in_app_notifications`) and do not appear in this inbox. To surface them here, follow the
+> `source_name` + `category` enrichment path in §"Recommended backend work" below. The mobile
+> screen already special-cases a "MediLink" sender, so no client change is needed once such rows
+> carry a source. The sections below are retained as the spec for that enhancement.
 
 ## What the design needs (p32)
 A read-only inbox of administrative updates, each row: **source** (e.g. "Royal Hospital", "Aster Lab",
