@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, MeMark, Screen, StaticTabBar, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useFacilityMessages } from "@/hooks/queries/useNotifications";
+import { useFacilityMessages, useMarkFacilityMessagesRead } from "@/hooks/queries/useNotifications";
+import { formatApptDate } from "@/utils/appointments";
 
 /** MediLink's own announcements carry the brand "Me" submark; facility rows use a typed icon. */
 function isBrand(source: string): boolean {
@@ -21,9 +22,21 @@ function iconFor(source: string): IconName {
 export default function FacilityMessagesScreen() {
   const { colors, spacing, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
-  const { t } = useI18n();
+  const { t, num } = useI18n();
   const messages = useFacilityMessages();
-  const items = messages.data ?? [];
+  const items = useMemo(() => messages.data ?? [], [messages.data]);
+  const markRead = useMarkFacilityMessagesRead();
+
+  // Clear unread dots once the inbox has been opened (dots persist for this visit,
+  // then read on the next open). Fire once per mount; mock repo no-ops.
+  const markedRef = useRef(false);
+  useEffect(() => {
+    if (markedRef.current) return;
+    const unreadIds = items.filter((m) => m.unread).map((m) => m.id);
+    if (unreadIds.length === 0) return;
+    markedRef.current = true;
+    markRead.mutate(unreadIds);
+  }, [items, markRead]);
 
   return (
     <Screen
@@ -58,7 +71,7 @@ export default function FacilityMessagesScreen() {
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
                 <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                   <Text variant="title" numberOfLines={1} style={{ flex: 1 }}>{m.source}</Text>
-                  <Text variant="caption" color="textMuted">{m.time}</Text>
+                  <Text variant="caption" color="textMuted">{formatApptDate(m.time.slice(0, 10), t, num)}</Text>
                 </View>
                 <Text variant="caption" color="textMuted" numberOfLines={1}>{m.preview}</Text>
               </View>

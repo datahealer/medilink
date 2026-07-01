@@ -133,6 +133,8 @@ export interface NotificationRepository {
   updatePreferences(patch: Partial<NotificationPrefs>): Promise<NotificationPrefs>;
   /** Mark every unread notification as read. */
   markAllRead(): Promise<void>;
+  /** Mark the given facility announcements as read for the caller. */
+  markFacilityMessagesRead(ids: string[]): Promise<void>;
 }
 
 /** Document Vault (PDF p28-29) — `patient_documents` + the `patient-docs` bucket. */

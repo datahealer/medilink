@@ -3,7 +3,7 @@
 // patient_profile id). Channel/category preferences use the additive
 // `notification_preferences` table (see supabase/migrations).
 import type { DB, Row, Update } from "./client";
-import { getCurrentUserId } from "./client";
+import { getCurrentUserId, getMyPatientProfileId } from "./client";
 
 const SELECT = "id, type, title, body, is_read, created_at, data";
 
@@ -64,6 +64,63 @@ export async function deleteNotification(db: DB, id: string): Promise<void> {
     .delete()
     .eq("id", id)
     .eq("user_id", userId);
+  if (error) throw error;
+}
+
+// ---- Facility Messages (Design p32) ----
+// Read-only inbox of facility administrative announcements (public.announcements),
+// with per-patient unread state from public.announcement_reads. Mute-aware
+// (excludes announcements from facilities the patient has muted).
+
+export interface FacilityMessage {
+  id: string;
+  source: string | null; // facility name
+  preview: string;
+  time: string; // created_at
+  unread: boolean;
+}
+
+export async function listFacilityMessages(db: DB, limit = 50): Promise<FacilityMessage[]> {
+  const patientId = await getMyPatientProfileId(db);
+  const [anns, reads, muted] = await Promise.all([
+    db
+      .from("announcements")
+      .select("id, facility_id, title, message, created_at, facility:facility_id ( name )")
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    db.from("announcement_reads").select("announcement_id").eq("patient_id", patientId),
+    db.from("muted_facilities").select("facility_id").eq("patient_id", patientId),
+  ]);
+  if (anns.error) throw anns.error;
+  if (reads.error) throw reads.error;
+  if (muted.error) throw muted.error;
+
+  const readIds = new Set((reads.data ?? []).map((r) => r.announcement_id));
+  const mutedIds = new Set((muted.data ?? []).map((m) => m.facility_id));
+
+  return (anns.data ?? [])
+    .filter((a) => !mutedIds.has(a.facility_id))
+    .map((a) => {
+      const facility = a.facility as { name: string | null } | { name: string | null }[] | null;
+      const name = Array.isArray(facility) ? facility[0]?.name ?? null : facility?.name ?? null;
+      return {
+        id: a.id,
+        source: name,
+        preview: a.message ?? a.title ?? "",
+        time: a.created_at,
+        unread: !readIds.has(a.id),
+      };
+    });
+}
+
+/** Mark the given facility announcements as read for the caller (idempotent). */
+export async function markFacilityMessagesRead(db: DB, announcementIds: string[]): Promise<void> {
+  if (!announcementIds.length) return;
+  const patientId = await getMyPatientProfileId(db);
+  const rows = announcementIds.map((announcement_id) => ({ patient_id: patientId, announcement_id }));
+  const { error } = await db
+    .from("announcement_reads")
+    .upsert(rows, { onConflict: "patient_id,announcement_id", ignoreDuplicates: true });
   if (error) throw error;
 }
 

@@ -319,6 +319,9 @@ const notificationRepo: NotificationRepository = {
   async facilityMessages() {
     return delay(facilityMessages.map((m) => ({ ...m })), 350);
   },
+  async markFacilityMessagesRead() {
+    return delay(undefined, 150);
+  },
   async getPreferences() {
     return delay({ ...notificationPrefs, channels: { ...notificationPrefs.channels } }, 200);
   },

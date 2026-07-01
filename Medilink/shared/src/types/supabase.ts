@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       accounts: {
@@ -181,6 +206,42 @@ export type Database = {
             columns: ["facility_id"]
             isOneToOne: false
             referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          patient_id: string
+          read_at: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          patient_id: string
+          read_at?: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          patient_id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -740,6 +801,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      device_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       doctor_availability: {
         Row: {
@@ -2085,6 +2173,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_preferences: {
+        Row: {
+          categories: Json
+          email: boolean
+          push: boolean
+          sms: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categories?: Json
+          email?: boolean
+          push?: boolean
+          sms?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categories?: Json
+          email?: boolean
+          push?: boolean
+          sms?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -3716,6 +3831,7 @@ export type Database = {
       }
     }
     Functions: {
+      _owns_appointment: { Args: { p_id: string }; Returns: boolean }
       _postgis_deprecate: {
         Args: { newname: string; oldname: string; version: string }
         Returns: undefined
@@ -3890,32 +4006,19 @@ export type Database = {
         }
         Returns: Json
       }
-      book_appointment_atomic:
-        | {
-            Args: {
-              p_doctor_id: string
-              p_facility_id: string
-              p_is_emergency?: boolean
-              p_patient_id: string
-              p_slot_date: string
-              p_slot_start: string
-              p_type?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_doctor_id: string
-              p_facility_id: string
-              p_for_family_member_id?: string
-              p_is_emergency?: boolean
-              p_patient_id: string
-              p_slot_date: string
-              p_slot_start: string
-              p_type?: string
-            }
-            Returns: Json
-          }
+      book_appointment_atomic: {
+        Args: {
+          p_doctor_id: string
+          p_facility_id: string
+          p_for_family_member_id?: string
+          p_is_emergency?: boolean
+          p_patient_id: string
+          p_slot_date: string
+          p_slot_start: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       can_action_account_member: {
         Args: { target_team_account_id: string; target_user_id: string }
         Returns: boolean
@@ -3933,12 +4036,20 @@ export type Database = {
         }
         Returns: Json
       }
+      cancel_my_appointment: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: Json
+      }
       checkin_and_enqueue: {
         Args: {
           p_appointment_id: string
           p_patient_name: string
           p_patient_phone: string
         }
+        Returns: Json
+      }
+      checkin_my_appointment: {
+        Args: { p_id: string; p_patient_name: string; p_patient_phone: string }
         Returns: Json
       }
       claim_waitlist_appointment: {
@@ -4510,6 +4621,15 @@ export type Database = {
           p_new_start: string
           p_skip_cutoff?: boolean
           p_user_id: string
+        }
+        Returns: Json
+      }
+      reschedule_my_appointment: {
+        Args: {
+          p_id: string
+          p_new_date: string
+          p_new_end: string
+          p_new_start: string
         }
         Returns: Json
       }
@@ -5525,6 +5645,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_status: ["active", "suspended", "deletion_pending", "deleted"],

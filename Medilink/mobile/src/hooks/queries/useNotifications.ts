@@ -46,3 +46,11 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.list }),
   });
 }
+
+export function useMarkFacilityMessagesRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => repositories.notification.markFacilityMessagesRead(ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.messages }),
+  });
+}

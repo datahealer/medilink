@@ -743,8 +743,11 @@ const notificationRepo: NotificationRepository = {
     return rows.map(mapNotification);
   },
   async facilityMessages() {
-    // No facility-messages inbox endpoint yet — kept mock in hybrid mode.
-    return [];
+    const rows = await api.notifications.listFacilityMessages(supabase);
+    return rows.map((r) => ({ id: r.id, source: r.source ?? "", preview: r.preview, time: r.time, unread: r.unread }));
+  },
+  async markFacilityMessagesRead(ids) {
+    await api.notifications.markFacilityMessagesRead(supabase, ids);
   },
   async getPreferences() {
     return mapPrefs((await api.notifications.getPreferences(supabase)) as unknown as PrefsRowLoose | null);
