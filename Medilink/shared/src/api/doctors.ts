@@ -2,7 +2,7 @@
 import type { DB } from "./client";
 
 const LIST_SELECT =
-  "id, full_name, specialty, years_experience, fees, avg_rating, profile_photo_url, facility_id, branch_id, status, status_updated_at, facilities(name)";
+  "id, full_name, specialty, years_experience, fees, avg_rating, review_count, profile_photo_url, facility_id, branch_id, status, status_updated_at, facilities(name)";
 
 export interface DoctorSearch {
   facilityId?: string;

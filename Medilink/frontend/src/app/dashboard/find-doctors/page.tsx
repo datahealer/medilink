@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Json } from "@medilink/shared";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /* ─── Data ──────────────────────────────────────────────────────────── */
@@ -16,128 +19,80 @@ const SPECIALTIES = [
   { en: "Orthopedics",      ar: "عظام" },
 ];
 
-type Slot = { t: string; taken: boolean };
+type Slot = { t: string; taken: boolean; start: string };
 
-const MORNING: Slot[]   = [
-  { t: "8:00 AM",  taken: true  },
-  { t: "8:30 AM",  taken: false },
-  { t: "9:00 AM",  taken: false },
-  { t: "9:30 AM",  taken: true  },
-  { t: "10:00 AM", taken: false },
-  { t: "10:30 AM", taken: false },
-  { t: "11:00 AM", taken: true  },
-  { t: "11:30 AM", taken: false },
-];
-const AFTERNOON: Slot[] = [
-  { t: "12:00 PM", taken: false },
-  { t: "12:30 PM", taken: true  },
-  { t: "1:00 PM",  taken: false },
-  { t: "1:30 PM",  taken: false },
-  { t: "2:00 PM",  taken: true  },
-  { t: "2:30 PM",  taken: false },
-  { t: "3:00 PM",  taken: false },
-  { t: "3:30 PM",  taken: true  },
-  { t: "4:00 PM",  taken: false },
-  { t: "4:30 PM",  taken: false },
-];
-const EVENING: Slot[]   = [
-  { t: "5:00 PM",  taken: false },
-  { t: "5:30 PM",  taken: true  },
-  { t: "6:00 PM",  taken: false },
-  { t: "6:30 PM",  taken: false },
-  { t: "7:00 PM",  taken: true  },
-  { t: "7:30 PM",  taken: false },
+// View-model the card/modal render. Built from real `doctors` rows — the DB has no
+// Arabic names / consult-mode, so ar mirrors en and type defaults to in-clinic.
+type Doctor = {
+  id: string;
+  facilityId: string | null;
+  initials: string;
+  grad: string;
+  specialty: string;
+  fee: number;
+  rating: number;
+  reviews: number;
+  available: boolean;
+  en: { name: string; hospital: string; type: string };
+  ar: { name: string; hospital: string; type: string };
+};
+
+// Avatar gradients cycle per card (was hardcoded per mock doctor).
+const GRADS = [
+  "from-[#e8d5f0] to-[#d5e8f5]", "from-[#d5e8f5] to-[#ede0f8]", "from-[#ede0f8] to-[#e8d5f0]",
+  "from-[#d1fae5] to-[#d5e8f5]", "from-[#fde68a] to-[#e8d5f0]", "from-[#e8d5f0] to-[#d1fae5]",
 ];
 
-const SLOTS_A: Slot[] = [
-  ...MORNING.map((s, i) => ({ ...s, taken: [0, 3, 6].includes(i) })),
-  ...AFTERNOON.map((s, i) => ({ ...s, taken: [1, 4, 7].includes(i) })),
-  ...EVENING.map((s, i) => ({ ...s, taken: [1, 4].includes(i) })),
-];
-const SLOTS_B: Slot[] = [
-  ...MORNING.map((s, i) => ({ ...s, taken: [0, 2, 5].includes(i) })),
-  ...AFTERNOON.map((s, i) => ({ ...s, taken: [0, 3, 6, 9].includes(i) })),
-  ...EVENING.map((s, i) => ({ ...s, taken: [0, 3].includes(i) })),
-];
-const SLOTS_C: Slot[] = [
-  ...MORNING.map((s, i) => ({ ...s, taken: [1, 4, 7].includes(i) })),
-  ...AFTERNOON.map((s, i) => ({ ...s, taken: [2, 5, 8].includes(i) })),
-];
+function initialsOf(name: string) {
+  const words = name.split(/\s+/).filter((w) => w && !/^dr\.?$/i.test(w));
+  return words.slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "DR";
+}
 
-const DOCTORS = [
-  {
-    initials: "AH",
-    grad: "from-[#e8d5f0] to-[#d5e8f5]",
-    specialty: "General Care",
-    fee: 30,
-    rating: 4.9,
-    reviews: 312,
-    available: true,
-    en: { name: "Dr. Aisha Al Harthy",   hospital: "Royal Care Clinic",       type: "In-clinic & Video" },
-    ar: { name: "د. عائشة الحارثي",      hospital: "عيادة رويال كير",          type: "في العيادة والفيديو" },
-    slots: SLOTS_A,
-  },
-  {
-    initials: "OB",
-    grad: "from-[#d5e8f5] to-[#ede0f8]",
-    specialty: "Cardiology",
-    fee: 60,
-    rating: 4.8,
-    reviews: 198,
-    available: true,
-    en: { name: "Dr. Omar Al Balushi",   hospital: "Heart & Vascular Centre",  type: "In-clinic" },
-    ar: { name: "د. عمر البلوشي",        hospital: "مركز القلب والأوعية",      type: "في العيادة" },
-    slots: SLOTS_B,
-  },
-  {
-    initials: "FR",
-    grad: "from-[#ede0f8] to-[#e8d5f0]",
-    specialty: "Dermatology",
-    fee: 45,
-    rating: 4.7,
-    reviews: 245,
-    available: false,
-    en: { name: "Dr. Fatma Al Riyami",   hospital: "Skin & Wellness Studio",   type: "In-clinic & Video" },
-    ar: { name: "د. فاطمة الريامي",      hospital: "عيادة الجلد والعافية",     type: "في العيادة والفيديو" },
-    slots: [] as Slot[],
-  },
-  {
-    initials: "SN",
-    grad: "from-[#d1fae5] to-[#d5e8f5]",
-    specialty: "Gynecology",
-    fee: 55,
-    rating: 4.9,
-    reviews: 420,
-    available: true,
-    en: { name: "Dr. Sara Al Nabhani",   hospital: "Women's Health Centre",    type: "In-clinic & Video" },
-    ar: { name: "د. سارة النبهانية",     hospital: "مركز صحة المرأة",          type: "في العيادة والفيديو" },
-    slots: SLOTS_C,
-  },
-  {
-    initials: "KM",
-    grad: "from-[#fde68a] to-[#e8d5f0]",
-    specialty: "Dentist",
-    fee: 40,
-    rating: 4.6,
-    reviews: 167,
-    available: true,
-    en: { name: "Dr. Khalid Al Maskari", hospital: "Bright Smile Dental",      type: "In-clinic" },
-    ar: { name: "د. خالد المسكري",       hospital: "عيادة ابتسامة مشرقة",     type: "في العيادة" },
-    slots: SLOTS_A,
-  },
-  {
-    initials: "LH",
-    grad: "from-[#e8d5f0] to-[#d1fae5]",
-    specialty: "Pediatrics",
-    fee: 35,
-    rating: 4.8,
-    reviews: 289,
-    available: true,
-    en: { name: "Dr. Layla Al Habsi",    hospital: "Children's Wellness Hub",  type: "In-clinic & Video" },
-    ar: { name: "د. ليلى الحبسية",       hospital: "مركز صحة الأطفال",         type: "في العيادة والفيديو" },
-    slots: SLOTS_B,
-  },
-];
+/** `doctors.fees` is JSON — accept a bare number or an object of numeric amounts. */
+function feeOf(fees: Json | null): number {
+  if (typeof fees === "number") return fees;
+  if (fees && typeof fees === "object" && !Array.isArray(fees)) {
+    const vals = Object.values(fees).filter((v): v is number => typeof v === "number");
+    if (vals.length) return vals[0] ?? 0;
+  }
+  return 0;
+}
+
+/** "08:30" → "8:30 AM" (matches the modal's AM/PM time-of-day grouping). */
+function to12h(hhmm: string) {
+  const parts = hhmm.split(":");
+  const m = parts[1] ?? "00";
+  let h = parseInt(parts[0] ?? "0", 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function toYMD(date: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+
+type DoctorRow = Awaited<ReturnType<typeof api.doctors.searchDoctors>>[number];
+
+function toDoctor(row: DoctorRow, i: number): Doctor {
+  const facility = (row as { facilities?: { name?: string } | null }).facilities;
+  const hospital = facility?.name ?? "";
+  const type = "In-clinic";
+  return {
+    id: row.id,
+    facilityId: row.facility_id ?? null,
+    initials: initialsOf(row.full_name),
+    grad: GRADS[i % GRADS.length]!,
+    specialty: row.specialty ?? "",
+    fee: feeOf(row.fees),
+    rating: row.avg_rating ?? 0,
+    reviews: row.review_count ?? 0,
+    available: row.status === "available",
+    en: { name: row.full_name, hospital, type },
+    ar: { name: row.full_name, hospital, type: "في العيادة" },
+  };
+}
 
 /* ─── helpers ───────────────────────────────────────────────────────── */
 const DAY_NAMES_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -147,7 +102,7 @@ const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","ما
 const MONTH_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
-const TODAY = new Date(2026, 5, 29); // pinned: 2026-06-29
+const TODAY = new Date(); // real "today" — gates past dates in the booking calendar
 
 function buildCalendar(year: number, month: number) {
   const firstDay = new Date(year, month, 1).getDay();
@@ -260,15 +215,67 @@ function BookModal({
   isAr,
   onClose,
 }: {
-  doctor: typeof DOCTORS[0];
+  doctor: Doctor;
   isAr: boolean;
   onClose: () => void;
 }) {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [step, setStep]                 = useState<"date" | "time">("date");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [slots, setSlots]               = useState<Slot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [booked, setBooked]             = useState(false);
+  const [submitting, setSubmitting]     = useState(false);
+  const [error, setError]               = useState("");
   const d = isAr ? doctor.ar : doctor.en;
+
+  // Load real availability whenever a date is picked (getAvailableSlots already
+  // excludes taken slots, so every returned slot is bookable).
+  useEffect(() => {
+    if (!selectedDate) return;
+    let active = true;
+    setSlotsLoading(true);
+    setError("");
+    api.appointments
+      .getAvailableSlots(supabase, { doctorId: doctor.id, date: toYMD(selectedDate) })
+      .then((avail) => {
+        if (!active) return;
+        setSlots(
+          avail
+            .map((s) => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
+            .filter(Boolean)
+            .map((hhmm) => ({ t: to12h(hhmm), taken: false, start: hhmm }))
+        );
+      })
+      .catch(() => { if (active) setError(isAr ? "تعذر تحميل المواعيد." : "Could not load available times."); })
+      .finally(() => { if (active) setSlotsLoading(false); });
+    return () => { active = false; };
+  }, [selectedDate, supabase, doctor.id, isAr]);
+
+  async function confirmBooking() {
+    if (!selectedDate || !selectedSlot) return;
+    if (!doctor.facilityId) {
+      setError(isAr ? "لا يمكن الحجز لهذا الطبيب حالياً." : "Booking is unavailable for this doctor.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await api.appointments.bookAppointment(supabase, {
+        doctorId: doctor.id,
+        facilityId: doctor.facilityId,
+        slotDate: toYMD(selectedDate),
+        slotStart: selectedSlot.start,
+        type: "in_person",
+      });
+      setBooked(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : (isAr ? "تعذر تأكيد الحجز." : "Could not confirm the booking."));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function fmtDate(date: Date) {
     if (isAr) return `${date.getDate()} ${MONTH_AR[date.getMonth()]}`;
@@ -285,7 +292,7 @@ function BookModal({
           </h3>
           <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 mb-1">{d.name}</p>
           <p className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7]">
-            {selectedDate ? fmtDate(selectedDate) : ""} · {selectedTime}
+            {selectedDate ? fmtDate(selectedDate) : ""} · {selectedSlot?.t}
           </p>
           <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-1 mb-6">{d.hospital}</p>
           <button
@@ -373,7 +380,7 @@ function BookModal({
 
         {/* ── Step 2: Time ── */}
         {step === "time" && (() => {
-          const allSlots = doctor.slots as Slot[];
+          const allSlots = slots;
           const groups = [
             {
               key: "morning", en: "Morning 🌅", ar: "الصباح 🌅",
@@ -405,13 +412,25 @@ function BookModal({
                   {isAr ? "اختر وقتاً" : "Choose a time"}
                 </p>
                 <button
-                  onClick={() => { setStep("date"); setSelectedTime(null); }}
+                  onClick={() => { setStep("date"); setSelectedSlot(null); }}
                   className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline"
                 >
                   ← {selectedDate ? fmtDate(selectedDate) : ""}
                 </button>
               </div>
 
+              {slotsLoading ? (
+                <div className="py-10 text-center text-sm font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 animate-pulse">
+                  {isAr ? "جارٍ تحميل المواعيد…" : "Loading times…"}
+                </div>
+              ) : groups.length === 0 ? (
+                <div className="py-10 text-center">
+                  <p className="text-3xl mb-2">🗓️</p>
+                  <p className="text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
+                    {isAr ? "لا توجد مواعيد متاحة في هذا اليوم." : "No available times on this day."}
+                  </p>
+                </div>
+              ) : (
               <div className="max-h-72 overflow-y-auto pr-1 space-y-5 mb-5"
                 style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }}>
                 {groups.map(group => (
@@ -424,11 +443,11 @@ function BookModal({
                         <button
                           key={slot.t}
                           disabled={slot.taken}
-                          onClick={() => setSelectedTime(slot.t)}
+                          onClick={() => setSelectedSlot(slot)}
                           className={`py-2 rounded-xl text-xs font-semibold border transition-all relative ${
                             slot.taken
                               ? "border-[#e7dcee] dark:border-[#2a1840] text-[#2E1A47]/20 dark:text-[#DFC8E7]/20 cursor-not-allowed bg-[#faf8fc] dark:bg-[#0d0820]"
-                              : selectedTime === slot.t
+                              : selectedSlot?.t === slot.t
                                 ? "border-[#46255f] bg-[#46255f] text-white dark:border-[#DFC8E7] dark:bg-[#DFC8E7] dark:text-[#1a1030] shadow-sm"
                                 : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#46255f]/50 dark:hover:border-[#DFC8E7]/50 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
                           }`}
@@ -445,16 +464,25 @@ function BookModal({
                   </div>
                 ))}
               </div>
+              )}
+
+              {error && (
+                <p className="mb-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
 
               <button
-                disabled={!selectedTime}
-                onClick={() => setBooked(true)}
+                disabled={!selectedSlot || submitting}
+                onClick={confirmBooking}
                 className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
                 style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
               >
-                {selectedTime
-                  ? isAr ? `تأكيد — ${selectedTime}` : `Confirm — ${selectedTime}`
-                  : isAr ? "اختر وقتاً" : "Select a time"}
+                {submitting
+                  ? isAr ? "جارٍ التأكيد…" : "Confirming…"
+                  : selectedSlot
+                    ? isAr ? `تأكيد — ${selectedSlot.t}` : `Confirm — ${selectedSlot.t}`
+                    : isAr ? "اختر وقتاً" : "Select a time"}
               </button>
             </div>
           );
@@ -470,7 +498,7 @@ function DoctorCard({
   isAr,
   onBook,
 }: {
-  doctor: typeof DOCTORS[0];
+  doctor: Doctor;
   isAr: boolean;
   onBook: () => void;
 }) {
@@ -537,12 +565,27 @@ function DoctorCard({
 export default function FindDoctorsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [search, setSearch]           = useState("");
   const [activeSpec, setActiveSpec]   = useState("All");
-  const [booking, setBooking]         = useState<typeof DOCTORS[0] | null>(null);
+  const [booking, setBooking]         = useState<Doctor | null>(null);
+  const [doctors, setDoctors]         = useState<Doctor[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
 
-  const filtered = DOCTORS.filter(doc => {
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api.doctors
+      .searchDoctors(supabase, { limit: 100 })
+      .then((rows) => { if (active) setDoctors(rows.map(toDoctor)); })
+      .catch(() => { if (active) setError(ar ? "تعذر تحميل الأطباء." : "Could not load doctors."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [supabase, ar]);
+
+  const filtered = doctors.filter(doc => {
     const matchSpec = activeSpec === "All" || doc.specialty === activeSpec;
     const q = search.toLowerCase();
     const matchSearch = !q
@@ -615,12 +658,25 @@ export default function FindDoctorsPage() {
       <section className="py-10 px-6">
         <div className="max-w-4xl mx-auto">
           <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
-            {ar
-              ? `${filtered.length} طبيب متاح`
-              : `${filtered.length} doctor${filtered.length !== 1 ? "s" : ""} found`}
+            {loading
+              ? (ar ? "جارٍ التحميل…" : "Loading…")
+              : ar
+                ? `${filtered.length} طبيب متاح`
+                : `${filtered.length} doctor${filtered.length !== 1 ? "s" : ""} found`}
           </p>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="h-40 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white/50 dark:bg-[#1a1030]/50 animate-pulse" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-20">
+              <p className="text-4xl mb-4">⚠️</p>
+              <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">{error}</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-4xl mb-4">🔍</p>
               <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">
@@ -634,7 +690,7 @@ export default function FindDoctorsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {filtered.map(doc => (
                 <DoctorCard
-                  key={doc.initials}
+                  key={doc.id}
                   doctor={doc}
                   isAr={ar}
                   onBook={() => doc.available && setBooking(doc)}
