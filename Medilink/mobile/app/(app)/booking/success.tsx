@@ -39,8 +39,7 @@ export default function BookingSuccessScreen() {
   ];
 
   const onAddToCalendar = () => Alert.alert(t("booking.addToCalendar"), t("dashboard.comingSoon"));
-  // Appointments list/details are not built yet — return to the Dashboard.
-  const onViewAppointment = () => router.replace("/dashboard");
+  const onViewAppointment = () => router.replace("/appointments");
 
   return (
     <Screen

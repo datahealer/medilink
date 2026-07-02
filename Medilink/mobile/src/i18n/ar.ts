@@ -179,6 +179,7 @@ export const ar: Messages = {
     payNow: "ادفع {amount}",
     secured: "آمن ومشفّر",
     payFailed: "تعذّر بدء الدفع",
+    checkoutUnavailable: "تعذّر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.",
     // سجل المدفوعات
     title: "المدفوعات",
     empty: "لا توجد مدفوعات بعد",

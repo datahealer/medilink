@@ -75,7 +75,7 @@ export default function SettingsScreen() {
           <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
             <Text variant="title" numberOfLines={1}>{account?.full_name ?? "—"}</Text>
             <Text variant="caption" color="textMuted" numberOfLines={1}>
-              {account?.email ?? "aisha@medilink.om"}
+              {account?.email ?? "—"}
             </Text>
           </View>
         </View>

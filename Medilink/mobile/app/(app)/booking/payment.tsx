@@ -51,11 +51,13 @@ export default function PaymentSummaryScreen() {
     setPaying(true);
     try {
       const { checkoutUrl } = await checkout.mutateAsync({ appointmentId, amount: total });
-      if (checkoutUrl) {
-        // Hand off to Thawani's hosted page; the patient returns to the app afterwards.
-        const can = await Linking.canOpenURL(checkoutUrl);
-        if (can) await Linking.openURL(checkoutUrl);
+      // Only advance to the confirmation screen if we actually hand off to Thawani's hosted
+      // page — otherwise the patient would land on "processing" without ever paying.
+      if (!checkoutUrl || !(await Linking.canOpenURL(checkoutUrl))) {
+        Alert.alert(t("payments.payFailed"), t("payments.checkoutUnavailable"));
+        return;
       }
+      await Linking.openURL(checkoutUrl);
       // Confirmation reads the payment and polls until the webhook marks it paid.
       router.replace(`/booking/payment-success?appointment_id=${appointmentId}`);
     } catch (e) {

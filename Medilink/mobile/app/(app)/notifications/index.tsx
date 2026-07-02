@@ -29,10 +29,14 @@ const TINT: Record<NotificationKind, Tint> = {
   facility: "blue",
 };
 
+// Notifications currently carry no target id (in_app_notifications.data is not surfaced by the
+// list mapping), so each kind opens its list/index screen rather than a specific record. This
+// keeps navigation correct for real data; deep-linking to a specific appointment/invoice can be
+// added once the notification payload carries the related id.
 const ROUTE: Record<NotificationKind, string> = {
   assistant: "/ai/insights",
-  appointment: "/appointments/mock-appt-1",
-  payment: "/payments/invoice/ML-INV-48213",
+  appointment: "/appointments",
+  payment: "/payments",
   lab: "/records/labs",
   prescription: "/records/prescriptions",
   facility: "/notifications/messages",

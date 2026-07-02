@@ -9,14 +9,16 @@
  * Current hybrid (real backend): Auth + session restore; Patient profile; the
  * Profile cluster (family members + medical history); Appointments end-to-end
  * (slots, booking, cancel, reschedule, check-in); Payments (Thawani checkout +
- * verify, invoice, history); Document Vault; Prescriptions; Reviews (doctor
- * reviews list + rating submission); Doctor search + details; the Dashboard
- * discovery sections with a backend source (featured clinics, recently-visited
- * doctors); Notifications list + preferences.
+ * verify, invoice, history); Document Vault; Prescriptions; Lab Results
+ * (analytes + trends); Reviews (doctor reviews list + rating submission); Doctor
+ * search + details; the Dashboard discovery sections (Specialties catalog,
+ * featured clinics, recently-visited doctors); Notifications list + preferences +
+ * Facility Messages; AI (doctor recommendations + visit summary).
  *
- * Still mock (no backend source yet): Top Specialties list, Doctor map pins,
- * and Facility Messages inbox — so those screens don't go empty. (Lab Results
- * and the AI features are not wired to a repository; see docs/backend-specs.)
+ * Still mock (no backend source yet): Doctor map pins (Map View needs a native
+ * map SDK — see docs/backend-specs/map-view-backend-spec.md). The AI Symptom
+ * Checker transcript and the AI Insights vitals-trend chart are intentionally
+ * static (product decision / documented gaps), not wired to a repository.
  *
  * The UI imports `repositories` (and the domain types) from here only.
  */

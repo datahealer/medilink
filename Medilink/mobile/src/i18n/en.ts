@@ -180,6 +180,7 @@ export const en = {
     payNow: "Pay {amount}",
     secured: "Secured & encrypted",
     payFailed: "Couldn't start payment",
+    checkoutUnavailable: "We couldn't open the payment page. Please try again.",
     // Payment History (read side)
     title: "Payments",
     empty: "No payments yet",
