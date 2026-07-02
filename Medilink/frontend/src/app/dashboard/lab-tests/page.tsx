@@ -6,7 +6,13 @@ import { useI18n } from "@/i18n/I18nProvider";
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type Slot = { t: string; taken: boolean };
 
-/* ─── Data ──────────────────────────────────────────────────────────── */
+/* ─── Data ──────────────────────────────────────────────────────────────
+ * BACKEND GAP (documented, not mocked-over): there is no lab-test *catalog* or
+ * *ordering* backend. `@medilink/shared` `api.labs` only reads a patient's lab
+ * RESULTS (listLabResults / getLabResultSignedUrl) — it cannot list bookable
+ * tests or place an order. Until a catalog/order endpoint exists, this screen's
+ * catalog + booking data stays static. See docs/WEB_DYNAMIC_INTEGRATION_AUDIT.md §3.
+ * ──────────────────────────────────────────────────────────────────────── */
 const CATEGORIES = [
   { en: "All",              ar: "الكل" },
   { en: "Blood Tests",      ar: "تحاليل الدم" },

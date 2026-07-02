@@ -6,7 +6,12 @@ import { useI18n } from "@/i18n/I18nProvider";
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type Slot = { t: string; taken: boolean };
 
-/* ─── Data ──────────────────────────────────────────────────────────── */
+/* ─── Data ──────────────────────────────────────────────────────────────
+ * BACKEND GAP (documented, not mocked-over): there is NO surgeries domain in the
+ * backend — no `api.surgeries` module, no surgeries/procedures table, no ordering
+ * endpoint. This entire screen has no data source, so its catalog + booking data
+ * stays static until a backend is built. See docs/WEB_DYNAMIC_INTEGRATION_AUDIT.md §3.
+ * ──────────────────────────────────────────────────────────────────────── */
 const CATEGORIES = [
   { en: "All",              ar: "الكل" },
   { en: "Orthopedic",       ar: "عظام" },
