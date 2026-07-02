@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { api } from "@medilink/shared";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
+import { createBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function SignInPage() {
@@ -15,14 +17,38 @@ export default function SignInPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/dashboard");
+    setError("");
+    setLoading(true);
+    try {
+      const supabase = createBrowserSupabaseClient();
+      await api.auth.signInWithPassword(supabase, { email, password });
+      router.push("/dashboard");
+      router.refresh(); // let middleware + server components pick up the new session cookie
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : ar
+            ? "تعذر تسجيل الدخول. تحقق من بياناتك."
+            : "Could not sign in. Please check your details."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogle = () => {
-    router.push("/dashboard");
+  const handleGoogle = async () => {
+    setError("");
+    try {
+      await signInWithGoogle(); // redirects to Google, then /auth/callback
+    } catch {
+      setError(ar ? "تعذر المتابعة مع Google." : "Could not continue with Google.");
+    }
   };
 
   return (
@@ -46,7 +72,13 @@ export default function SignInPage() {
           placeholder="••••••••" showPasswordToggle value={password}
           onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
 
-        <Button type="submit" variant="cta" fullWidth className="mt-2">
+        {error && (
+          <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+            {error}
+          </p>
+        )}
+
+        <Button type="submit" variant="cta" fullWidth loading={loading} className="mt-2">
           {ar ? "تسجيل الدخول" : "Sign in"}
         </Button>
       </form>

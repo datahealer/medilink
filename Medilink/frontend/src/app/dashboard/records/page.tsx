@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
-function downloadRecord(rec: Record, isAr: boolean) {
+function downloadRecord(rec: MedRecord, isAr: boolean) {
   const info = isAr ? rec.ar : rec.en;
   const lines = [
     "MEDILINK HEALTH RECORD",
@@ -39,7 +39,7 @@ const CATEGORIES = [
   { en: "Vaccinations",   ar: "اللقاحات" },
 ];
 
-type Record = {
+type MedRecord = {
   id: string;
   category: string;
   emoji: string;
@@ -49,7 +49,7 @@ type Record = {
   ar: { title: string; doctor: string; detail: string; tags?: string[] };
 };
 
-const RECORDS: Record[] = [
+const RECORDS: MedRecord[] = [
   {
     id: "r1", category: "Prescriptions", emoji: "💊", grad: "from-[#e8d5f0] to-[#d5e8f5]", date: "Jun 20, 2026",
     en: { title: "Antibiotic Course",       doctor: "Dr. Aisha Al Harthy",   detail: "Amoxicillin 500mg — 3×/day for 7 days. Avoid alcohol.",   tags: ["Amoxicillin","500mg","7 days"] },
@@ -100,7 +100,7 @@ export default function RecordsPage() {
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [downloaded, setDownloaded] = useState<string | null>(null);
 
-  function handleDownload(rec: Record) {
+  function handleDownload(rec: MedRecord) {
     downloadRecord(rec, ar);
     setDownloaded(rec.id);
     setTimeout(() => setDownloaded(null), 2000);

@@ -7,6 +7,7 @@ import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function SignUpPage() {
@@ -17,6 +18,8 @@ export default function SignUpPage() {
   const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState<Partial<typeof form & { terms: string }>>({});
+  const [submitError, setSubmitError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -30,11 +33,33 @@ export default function SignUpPage() {
     return errs;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    router.push("/dashboard");
+    setErrors({});
+    setLoading(true);
+    try {
+      // Client-side signup (RLS-neutral): triggers the "signup" confirmation OTP that
+      // the /otp screen verifies. full_name/phone ride along as user metadata for the
+      // patient_profiles provisioning trigger. (shared/api omits signUp by design.)
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: { full_name: form.fullName.trim(), phone: form.phone.trim() || null },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) { setSubmitError(error.message); return; }
+      router.push(`/otp?email=${encodeURIComponent(form.email)}`);
+    } catch {
+      setSubmitError(ar ? "تعذر إنشاء الحساب. حاول مرة أخرى." : "Could not create account. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -113,7 +138,13 @@ export default function SignUpPage() {
         </label>
         {errors.terms && <p className="text-xs text-red-500 -mt-2">{errors.terms}</p>}
 
-        <Button type="submit" variant="cta" fullWidth className="mt-1">
+        {submitError && (
+          <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+            {submitError}
+          </p>
+        )}
+
+        <Button type="submit" variant="cta" fullWidth loading={loading} className="mt-1">
           {ar ? "إنشاء الحساب" : "Create account"}
         </Button>
       </form>
