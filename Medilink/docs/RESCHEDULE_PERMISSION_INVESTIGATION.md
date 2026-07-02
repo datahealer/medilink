@@ -120,3 +120,99 @@ No application code changed, so booking/list/find-doctors/profile/records behavi
 | Fix | One additive migration granting EXECUTE on both functions to `authenticated, service_role` (mirrors `book_appointment_atomic`). |
 | Security | Preserved — SECURITY INVOKER + `appointments_patient_update` RLS still enforce per-patient ownership. |
 | Applied to live DB here? | No (shared infra / needs credentials) — documented apply + verify steps above. |
+
+---
+
+# Part 2 — Still 42501 after `migration repair` + `db push` (live investigation)
+
+**Symptom:** after `supabase migration repair` then `supabase db push`, the CLI prints **"Remote database is up to date"** but the RPC still returns `42501`.
+
+## What I verified against the LIVE database (evidence, not assumption)
+
+| # | Check | Method (live) | Result |
+|---|---|---|---|
+| 1 | Is the CLI pointed at the same project as the web app? | `supabase/.temp/project-ref` vs `NEXT_PUBLIC_SUPABASE_URL` host | **Same** — both `zojrwuvxrkmgnlwyuypg`. → **Not** a wrong-project issue. |
+| 2 | Is `20260702000000` recorded as applied on the remote DB? | `supabase migration list --linked` (live query to remote `schema_migrations`) | **Yes** — it appears in the **Remote** column. |
+| 3 | Does the function exist? | live `POST /rest/v1/rpc/reschedule_appointment_atomic` | **Yes** — `42501` (permission denied), not `42883` (undefined). |
+| 4 | Do the grants exist for `authenticated`? | needs `information_schema` / `pg_proc` | **Could not read here** — no DB password (CLI keeps it in the OS keyring), no `psql`/`pg`, and `db dump` needs Docker (unavailable). → SQL provided below for the SQL Editor. |
+
+## Determination
+
+**"Migration never executed" (its SQL did not run) → the EXECUTE grant is still missing.** Not a signature, project, function-name, or exotic-permission problem.
+
+Why this is the only explanation consistent with the evidence:
+- `20260702000000` **is** in the remote history (check 2), yet the grant is **not** in effect (`42501` persists). A migration cannot be "applied in history" **and** "its GRANT absent" **unless the row was inserted without running the file**.
+- `supabase migration repair --status applied <version>` does exactly that: it **writes a row into `supabase_migrations.schema_migrations` to mark the version applied — it does NOT execute the migration file.** After that, `supabase db push` sees the version as applied and **skips it** → "Remote database is up to date" → the `GRANT` never runs.
+- The alternatives are ruled out: if `db push` had actually executed the file, the grant would be present (no 42501). If the file had a **wrong signature**, execution would have **errored and aborted** the push (not "up to date", and the version would not be marked applied). Since it *is* marked applied and the grant is *absent*, the SQL was never executed.
+- The GRANT signature `(uuid, uuid, date, time, time, boolean)` matches the last reschedule definition that *is* in remote history (`20260501000003`, also confirmed via `migration list`), so a signature mismatch is not the cause of the current failure.
+
+> Root cause, precisely: **`supabase migration repair` marked `20260702000000` as applied without executing its SQL; `db push` then skipped it, so the grant was never created.**
+
+## Fix — run this directly in the Supabase **SQL Editor**
+
+This bypasses the migration-history problem entirely and is idempotent. Use the project **`zojrwuvxrkmgnlwyuypg`**.
+
+### Step A — Diagnose (confirm signature + current grants)
+
+```sql
+-- A1. Exact deployed signature(s) of both functions (all overloads)
+SELECT p.oid::regprocedure                         AS function_signature,
+       pg_get_function_identity_arguments(p.oid)   AS identity_args,
+       p.prosecdef                                 AS is_security_definer
+FROM   pg_proc p
+JOIN   pg_namespace n ON n.oid = p.pronamespace
+WHERE  n.nspname = 'public'
+  AND  p.proname IN ('reschedule_appointment_atomic','cancel_appointment_safe');
+
+-- A2. Current EXECUTE grants (your query) — expect `authenticated` to be ABSENT before the fix
+SELECT routine_name, grantee, privilege_type
+FROM   information_schema.role_routine_grants
+WHERE  routine_name IN ('reschedule_appointment_atomic','cancel_appointment_safe');
+
+-- A3. How the history row got there — if `statements` is NULL/empty it was repaired, not executed
+SELECT version, name, statements
+FROM   supabase_migrations.schema_migrations
+WHERE  version = '20260702000000';
+```
+
+### Step B — Fix (idempotent). Signature-agnostic form — grants whatever overloads actually exist, so it works even if A1 shows a different arg list:
+
+```sql
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM   pg_proc p
+    JOIN   pg_namespace n ON n.oid = p.pronamespace
+    WHERE  n.nspname = 'public'
+      AND  p.proname IN ('reschedule_appointment_atomic','cancel_appointment_safe')
+  LOOP
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role;', r.sig);
+  END LOOP;
+END $$;
+```
+
+Explicit form (equivalent, if A1 confirms the expected signature):
+
+```sql
+GRANT EXECUTE ON FUNCTION public.reschedule_appointment_atomic(uuid, uuid, date, time, time, boolean) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.cancel_appointment_safe(uuid, uuid, text, boolean)                    TO authenticated, service_role;
+```
+
+### Step C — Re-run A2 to confirm `authenticated` now has `EXECUTE` on both, then retry reschedule in the app.
+
+## Keeping the repo migration honest (optional, recommended)
+
+The committed migration `20260702000000_grant_reschedule_cancel_appointment_rpcs.sql` contains the correct SQL — it simply never ran on remote. Two ways to reconcile:
+
+- **Simplest:** run Step B in the SQL Editor now (done above). History already lists `20260702000000` as applied and the file matches the DB state, so nothing else is required.
+- **Or make `db push` actually execute it** (instead of the SQL Editor):
+  ```bash
+  supabase migration repair --status reverted 20260702000000   # remove the false "applied" mark
+  supabase db push                                             # now it runs the GRANT for real
+  ```
+
+## Security note (unchanged)
+The grant does not weaken security: both functions are `SECURITY INVOKER` and the `appointments_patient_update` RLS policy still restricts updates to the caller's own `patient_id`. Ownership remains enforced.
+
