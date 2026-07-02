@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /* ─── Data ──────────────────────────────────────────────────────────── */
@@ -26,17 +28,39 @@ const SERVICE_CARDS = [
     from: "#ede0f8", to: "#e8d5f0" },
 ];
 
-const UPCOMING = [
-  { initials: "AH", grad: "from-[#e8d5f0] to-[#d5e8f5]",
-    en: { name: "Dr. Aisha Al Harthy",  spec: "General Care",  date: "Today",    time: "3:30 PM",  type: "In-clinic",     status: "Confirmed" },
-    ar: { name: "د. عائشة الحارثي",     spec: "طب عام",        date: "اليوم",    time: "٣:٣٠ م",  type: "في العيادة",   status: "مؤكد" } },
-  { initials: "OB", grad: "from-[#d5e8f5] to-[#ede0f8]",
-    en: { name: "Dr. Omar Al Balushi",  spec: "Cardiology",    date: "Tomorrow", time: "10:00 AM", type: "Video call",     status: "Confirmed" },
-    ar: { name: "د. عمر البلوشي",       spec: "أمراض القلب",  date: "غداً",     time: "١٠:٠٠ ص", type: "مكالمة فيديو", status: "مؤكد" } },
-  { initials: "FR", grad: "from-[#ede0f8] to-[#e8d5f0]",
-    en: { name: "Dr. Fatma Al Riyami", spec: "Dermatology",   date: "28 Jun",   time: "2:00 PM",  type: "In-clinic",     status: "Pending" },
-    ar: { name: "د. فاطمة الريامي",     spec: "جلدية",         date: "٢٨ يونيو", time: "٢:٠٠ م",  type: "في العيادة",  status: "معلق" } },
-];
+type UpItem = {
+  initials: string; grad: string;
+  en: { name: string; spec: string; date: string; time: string; type: string; status: string };
+  ar: { name: string; spec: string; date: string; time: string; type: string; status: string };
+};
+
+const UP_GRADS = ["from-[#e8d5f0] to-[#d5e8f5]", "from-[#d5e8f5] to-[#ede0f8]", "from-[#ede0f8] to-[#e8d5f0]"];
+const STATUS_EN: Record<string, string> = {
+  pending: "Pending", confirmed: "Confirmed", checked_in: "Confirmed", approved: "Confirmed", completed: "Completed", cancelled: "Cancelled", no_show: "Cancelled",
+};
+const STATUS_AR2: Record<string, string> = {
+  pending: "معلق", confirmed: "مؤكد", checked_in: "مؤكد", approved: "مؤكد", completed: "مكتمل", cancelled: "ملغى", no_show: "ملغى",
+};
+const TYPE_EN2: Record<string, string> = { in_person: "In-clinic", online: "Video call", walk_in: "Walk-in" };
+const TYPE_AR2: Record<string, string> = { in_person: "في العيادة", online: "مكالمة فيديو", walk_in: "زيارة" };
+
+function upInitials(name: string) {
+  const w = name.split(/\s+/).filter((x) => x && !/^dr\.?$/i.test(x));
+  return w.slice(0, 2).map((x) => x[0]?.toUpperCase() ?? "").join("") || "DR";
+}
+function upTime(hhmmss: string) {
+  const p = hhmmss.split(":"); const m = p[1] ?? "00"; let h = parseInt(p[0] ?? "0", 10);
+  const ap = h >= 12 ? "PM" : "AM"; h = h % 12; if (h === 0) h = 12; return `${h}:${m} ${ap}`;
+}
+function upDate(ymd: string, isAr: boolean) {
+  const MON_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MON_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const d = new Date(`${ymd}T00:00:00`); const t = new Date(); t.setHours(0,0,0,0);
+  const diff = Math.round((d.getTime() - t.getTime()) / 86400000);
+  if (diff === 0) return isAr ? "اليوم" : "Today";
+  if (diff === 1) return isAr ? "غداً" : "Tomorrow";
+  return isAr ? `${d.getDate()} ${MON_AR[d.getMonth()]}` : `${d.getDate()} ${MON_EN[d.getMonth()]}`;
+}
 
 const SPECIALTIES = [
   { emoji: "🤰", en: "Period doubts or Pregnancy",  ar: "تأخر الدورة أو الحمل" },
@@ -116,9 +140,59 @@ function BrandCTA({ href, en, ar: arText, isAr }: { href: string; en: string; ar
 }
 
 /* ─── Page ───────────────────────────────────────────────────────── */
+type ApptLite = {
+  id: string; status: string; type: string; slot_date: string; slot_start: string | null;
+  doctor?: { full_name?: string; specialty?: string } | null;
+};
+
 export default function DashboardPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+
+  const [firstName, setFirstName] = useState("");
+  const [upcoming, setUpcoming]   = useState<UpItem[]>([]);
+  const [stats, setStats]         = useState({ upcoming: 0, records: 0, pending: 0 });
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [profile, up, rx, labs, docs] = await Promise.all([
+          api.profile.getMyProfile(supabase).catch(() => null),
+          api.appointments.listMyAppointments(supabase, "upcoming").catch(() => []),
+          api.prescriptions.listPrescriptions(supabase).catch(() => []),
+          api.labs.listLabResults(supabase).catch(() => []),
+          api.records.listDocuments(supabase).catch(() => []),
+        ]);
+        if (!active) return;
+        const full = (profile?.account?.full_name ?? "").trim();
+        setFirstName(full ? (full.split(/\s+/)[0] ?? "") : "");
+        const ups = (up as unknown as ApptLite[]);
+        setUpcoming(ups.slice(0, 3).map((a, i) => {
+          const name = a.doctor?.full_name ?? "—";
+          const spec = a.doctor?.specialty ?? "";
+          const time = a.slot_start ? upTime(a.slot_start) : "";
+          return {
+            initials: upInitials(name), grad: UP_GRADS[i % UP_GRADS.length]!,
+            en: { name, spec, date: upDate(a.slot_date, false), time, type: TYPE_EN2[a.type] ?? a.type, status: STATUS_EN[a.status] ?? "Pending" },
+            ar: { name, spec, date: upDate(a.slot_date, true),  time, type: TYPE_AR2[a.type] ?? a.type, status: STATUS_AR2[a.status] ?? "معلق" },
+          };
+        }));
+        setStats({
+          upcoming: ups.length,
+          records: rx.length + labs.length + docs.length,
+          pending: ups.filter((a) => a.status === "pending").length,
+        });
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [supabase]);
+
+  const greetName = firstName || (ar ? "بك" : "there");
 
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] overflow-x-hidden">
@@ -145,8 +219,8 @@ export default function DashboardPage() {
               <h1 className="font-black font-serif text-white leading-[1.06] tracking-tight mb-4"
                 style={{ fontSize: "clamp(2rem, 4vw, 3.2rem)" }}>
                 {ar
-                  ? <><span className="block">مرحباً فارتيكا،</span><span className="block italic text-[#DFC8E7]">كيف تشعرين اليوم؟</span></>
-                  : <><span className="block">Good morning, Vartika.</span><span className="block italic text-[#DFC8E7]">How are you feeling?</span></>}
+                  ? <><span className="block">مرحباً {greetName}،</span><span className="block italic text-[#DFC8E7]">كيف تشعرين اليوم؟</span></>
+                  : <><span className="block">Good morning, {greetName}.</span><span className="block italic text-[#DFC8E7]">How are you feeling?</span></>}
               </h1>
               <p className="text-sm max-w-sm leading-relaxed" style={{ color: "rgba(223,200,231,0.6)" }}>
                 {ar
@@ -158,9 +232,9 @@ export default function DashboardPage() {
             {/* Stats */}
             <div className={`flex gap-3 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
               {[
-                { n: "2", en: "Upcoming", ar: "قادمة",  icon: "📅" },
-                { n: "5", en: "Records",  ar: "سجلات",  icon: "📋" },
-                { n: "1", en: "Pending",  ar: "معلقة",  icon: "⏳" },
+                { n: String(stats.upcoming), en: "Upcoming", ar: "قادمة",  icon: "📅" },
+                { n: String(stats.records),  en: "Records",  ar: "سجلات",  icon: "📋" },
+                { n: String(stats.pending),  en: "Pending",  ar: "معلقة",  icon: "⏳" },
               ].map(s => (
                 <div key={s.en} className="flex flex-col items-center gap-1 px-5 py-4 rounded-2xl cursor-pointer hover:scale-105 transition-transform"
                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(223,200,231,0.15)" }}>
@@ -228,7 +302,18 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {UPCOMING.map((appt, i) => {
+            {loading ? (
+              [0, 1].map(i => (
+                <div key={i} className="h-20 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white/60 dark:bg-[#1a1030]/60 animate-pulse" />
+              ))
+            ) : upcoming.length === 0 ? (
+              <div className="text-center py-12 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white dark:bg-[#1a1030]">
+                <p className="text-3xl mb-2">📅</p>
+                <p className="text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
+                  {ar ? "لا توجد مواعيد قادمة." : "No upcoming appointments."}
+                </p>
+              </div>
+            ) : upcoming.map((appt, i) => {
               const d = ar ? appt.ar : appt.en;
               const isPending = appt.en.status === "Pending";
               const isToday   = appt.en.date === "Today";
