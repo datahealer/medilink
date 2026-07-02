@@ -4,7 +4,7 @@ import type { DB, Enums, Json } from "./client";
 import { getCurrentUserId, getMyPatientProfileId, today } from "./client";
 
 const LIST_SELECT =
-  "*, doctor:doctor_id ( id, full_name ), facility:facility_id ( id, name, address ), " +
+  "*, doctor:doctor_id ( id, full_name, specialty ), facility:facility_id ( id, name, address ), " +
   "family_member:for_family_member_id ( full_name ), " +
   "payments ( id, status, amount, currency, invoice_url )";
 

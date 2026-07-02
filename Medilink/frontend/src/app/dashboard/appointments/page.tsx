@@ -1,57 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type ApptStatus = "Confirmed" | "Pending" | "Completed" | "Cancelled";
 type Appt = {
   id: string; initials: string; grad: string; status: ApptStatus;
+  doctorId: string | null; facilityId: string | null; rawDate: string;
   en: { name: string; spec: string; hospital: string; date: string; time: string; type: string; notes?: string };
   ar: { name: string; spec: string; hospital: string; date: string; time: string; type: string; notes?: string };
 };
 
-/* ─── Data ──────────────────────────────────────────────────────────── */
-const APPOINTMENTS: Appt[] = [
-  {
-    id: "1", initials: "AH", grad: "from-[#e8d5f0] to-[#d5e8f5]", status: "Confirmed",
-    en: { name: "Dr. Aisha Al Harthy",   spec: "General Care",  hospital: "Royal Care Clinic",       date: "Today",    time: "3:30 PM",  type: "In-clinic",   notes: "Bring previous reports." },
-    ar: { name: "د. عائشة الحارثي",      spec: "طب عام",         hospital: "عيادة رويال كير",          date: "اليوم",    time: "٣:٣٠ م",  type: "في العيادة",  notes: "أحضري التقارير السابقة." },
-  },
-  {
-    id: "2", initials: "OB", grad: "from-[#d5e8f5] to-[#ede0f8]", status: "Confirmed",
-    en: { name: "Dr. Omar Al Balushi",   spec: "Cardiology",    hospital: "Heart & Vascular Centre", date: "Jul 1",    time: "10:00 AM", type: "Video call" },
-    ar: { name: "د. عمر البلوشي",        spec: "أمراض القلب",   hospital: "مركز القلب والأوعية",     date: "١ يوليو",  time: "١٠:٠٠ ص", type: "مكالمة فيديو" },
-  },
-  {
-    id: "3", initials: "FR", grad: "from-[#ede0f8] to-[#e8d5f0]", status: "Pending",
-    en: { name: "Dr. Fatma Al Riyami",   spec: "Dermatology",   hospital: "Skin & Wellness Studio",  date: "Jul 5",    time: "2:00 PM",  type: "In-clinic" },
-    ar: { name: "د. فاطمة الريامي",      spec: "جلدية",          hospital: "عيادة الجلد والعافية",     date: "٥ يوليو",  time: "٢:٠٠ م",  type: "في العيادة" },
-  },
-  {
-    id: "4", initials: "SN", grad: "from-[#d1fae5] to-[#d5e8f5]", status: "Completed",
-    en: { name: "Dr. Sara Al Nabhani",   spec: "Gynecology",    hospital: "Women's Health Centre",   date: "Jun 20",   time: "11:00 AM", type: "In-clinic",   notes: "Follow-up in 3 months." },
-    ar: { name: "د. سارة النبهانية",     spec: "نساء وتوليد",   hospital: "مركز صحة المرأة",          date: "٢٠ يونيو", time: "١١:٠٠ ص", type: "في العيادة",  notes: "متابعة بعد ٣ أشهر." },
-  },
-  {
-    id: "5", initials: "KM", grad: "from-[#fde68a] to-[#e8d5f0]", status: "Completed",
-    en: { name: "Dr. Khalid Al Maskari", spec: "Dentist",       hospital: "Bright Smile Dental",     date: "Jun 10",   time: "4:00 PM",  type: "In-clinic" },
-    ar: { name: "د. خالد المسكري",       spec: "أسنان",          hospital: "عيادة ابتسامة مشرقة",      date: "١٠ يونيو", time: "٤:٠٠ م",  type: "في العيادة" },
-  },
-  {
-    id: "6", initials: "LH", grad: "from-[#e8d5f0] to-[#d1fae5]", status: "Cancelled",
-    en: { name: "Dr. Layla Al Habsi",    spec: "Pediatrics",    hospital: "Children's Wellness Hub", date: "Jun 5",    time: "9:00 AM",  type: "Video call" },
-    ar: { name: "د. ليلى الحبسية",       spec: "أطفال",          hospital: "مركز صحة الأطفال",         date: "٥ يونيو",  time: "٩:٠٠ ص",  type: "مكالمة فيديو" },
-  },
+/* ─── Row → view-model mapping ───────────────────────────────────────── */
+// Explicit shape of the fields we read. `listMyAppointments` uses a nested select
+// whose generated type degrades to an error union, so we cast to this instead.
+type ApptRow = {
+  id: string;
+  status: string;
+  type: string;
+  slot_date: string;
+  slot_start: string | null;
+  notes: string | null;
+  doctor_id: string | null;
+  facility_id: string | null;
+  doctor?: { id?: string; full_name?: string; specialty?: string } | null;
+  facility?: { id?: string; name?: string } | null;
+};
+
+const GRADS = [
+  "from-[#e8d5f0] to-[#d5e8f5]", "from-[#d5e8f5] to-[#ede0f8]", "from-[#ede0f8] to-[#e8d5f0]",
+  "from-[#d1fae5] to-[#d5e8f5]", "from-[#fde68a] to-[#e8d5f0]", "from-[#e8d5f0] to-[#d1fae5]",
 ];
 
-const TIME_SLOTS = [
-  "8:00 AM","8:30 AM","9:00 AM","9:30 AM","10:00 AM","10:30 AM",
-  "11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM",
-  "2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM",
-  "5:00 PM","5:30 PM","6:00 PM","6:30 PM",
-];
-const TAKEN = new Set(["9:00 AM","11:00 AM","1:00 PM","3:00 PM","5:00 PM"]);
+const STATUS_MAP: Record<string, ApptStatus> = {
+  pending: "Pending", confirmed: "Confirmed", checked_in: "Confirmed", approved: "Confirmed",
+  completed: "Completed", cancelled: "Cancelled", no_show: "Cancelled",
+};
+const TYPE_EN: Record<string, string> = { in_person: "In-clinic", online: "Video call", walk_in: "Walk-in" };
+const TYPE_AR: Record<string, string> = { in_person: "في العيادة", online: "مكالمة فيديو", walk_in: "زيارة" };
+
+function apptInitials(name: string) {
+  const w = name.split(/\s+/).filter((x) => x && !/^dr\.?$/i.test(x));
+  return w.slice(0, 2).map((x) => x[0]?.toUpperCase() ?? "").join("") || "DR";
+}
+function to12hClock(hhmmss: string) {
+  const parts = hhmmss.split(":");
+  const m = parts[1] ?? "00";
+  let h = parseInt(parts[0] ?? "0", 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
+function relDate(ymd: string, isAr: boolean) {
+  const d = new Date(`${ymd}T00:00:00`);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return isAr ? "اليوم" : "Today";
+  if (diff === 1) return isAr ? "غداً" : "Tomorrow";
+  return isAr ? `${d.getDate()} ${MONTH_AR[d.getMonth()]}` : `${MONTH_EN[d.getMonth()]} ${d.getDate()}`;
+}
+function toAppt(row: ApptRow, i: number): Appt {
+  const doctor = (row as { doctor?: { id?: string; full_name?: string; specialty?: string } | null }).doctor;
+  const facility = (row as { facility?: { id?: string; name?: string } | null }).facility;
+  const name = doctor?.full_name ?? "—";
+  const hospital = facility?.name ?? "";
+  const spec = doctor?.specialty ?? "";
+  const time = row.slot_start ? to12hClock(row.slot_start) : "";
+  const notes = row.notes ?? undefined;
+  return {
+    id: row.id,
+    initials: apptInitials(name),
+    grad: GRADS[i % GRADS.length]!,
+    status: STATUS_MAP[row.status] ?? "Pending",
+    doctorId: row.doctor_id ?? null,
+    facilityId: row.facility_id ?? null,
+    rawDate: row.slot_date,
+    en: { name, spec, hospital, date: relDate(row.slot_date, false), time, type: TYPE_EN[row.type] ?? row.type, notes },
+    ar: { name, spec, hospital, date: relDate(row.slot_date, true), time, type: TYPE_AR[row.type] ?? row.type, notes },
+  };
+}
 
 const TABS = [
   { en: "All", ar: "الكل" }, { en: "Upcoming", ar: "القادمة" },
@@ -75,7 +105,19 @@ const MONTH_LONG_EN = ["January","February","March","April","May","June","July",
 const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const DAY_EN        = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 const DAY_AR        = ["أح","اث","ثل","أر","خم","جم","سب"];
-const TODAY         = new Date(2026, 5, 29);
+const TODAY         = new Date();
+
+function toYMD(date: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+/** Fallback +30min end when an availability template slot omits `end`. */
+function plus30(hhmm: string) {
+  const parts = hhmm.split(":");
+  const total = (parseInt(parts[0] ?? "0", 10)) * 60 + parseInt(parts[1] ?? "0", 10) + 30;
+  const h = Math.floor(total / 60) % 24, m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
 
 function buildCalendar(y: number, m: number) {
   const first = new Date(y, m, 1).getDay();
@@ -146,29 +188,72 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
 }
 
 /* ─── RescheduleModal ────────────────────────────────────────────────── */
+type RSlot = { t: string; start: string; end: string };
+
 function RescheduleModal({
-  appt, isAr, onClose, onConfirm,
+  appt, isAr, onClose, onDone,
 }: {
   appt: Appt; isAr: boolean;
   onClose: () => void;
-  onConfirm: (date: string, time: string) => void;
+  onDone: () => void;
 }) {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [step, setStep]     = useState<"date" | "time">("date");
   const [selDate, setSelDate] = useState<Date | null>(null);
-  const [selTime, setSelTime] = useState<string | null>(null);
+  const [selSlot, setSelSlot] = useState<RSlot | null>(null);
+  const [slots, setSlots]   = useState<RSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]   = useState("");
   const [done, setDone]     = useState(false);
   const info = isAr ? appt.ar : appt.en;
 
-  const SLOT_GROUPS = [
-    { key: "morning",   en: "Morning 🌅",   ar: "الصباح 🌅",   slots: TIME_SLOTS.filter(t => t.includes("AM")) },
-    { key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️", slots: TIME_SLOTS.filter(t => { const h = parseInt(t); return t.includes("PM") && (h === 12 || h <= 4); }) },
-    { key: "evening",   en: "Evening 🌙",   ar: "المساء 🌙",   slots: TIME_SLOTS.filter(t => { const h = parseInt(t); return t.includes("PM") && h >= 5; }) },
-  ];
+  // Real availability for the picked date (already excludes taken slots).
+  useEffect(() => {
+    if (!selDate || !appt.doctorId) return;
+    let active = true;
+    setSlotsLoading(true);
+    setError("");
+    api.appointments
+      .getAvailableSlots(supabase, { doctorId: appt.doctorId, date: toYMD(selDate) })
+      .then((avail) => {
+        if (!active) return;
+        setSlots(
+          avail
+            .filter((s): s is typeof s & { start: string } => typeof s.start === "string")
+            .map((s) => {
+              const start = s.start.slice(0, 5);
+              const end = typeof s.end === "string" ? s.end.slice(0, 5) : plus30(start);
+              return { t: to12hClock(start), start, end };
+            })
+        );
+      })
+      .catch(() => { if (active) setError(isAr ? "تعذر تحميل المواعيد." : "Could not load available times."); })
+      .finally(() => { if (active) setSlotsLoading(false); });
+    return () => { active = false; };
+  }, [selDate, supabase, appt.doctorId, isAr]);
 
-  function confirm() {
-    const dateStr = selDate ? fmtDate(selDate, isAr) : "";
-    onConfirm(dateStr, selTime!);
-    setDone(true);
+  const SLOT_GROUPS = [
+    { key: "morning",   en: "Morning 🌅",   ar: "الصباح 🌅",   slots: slots.filter(s => s.t.includes("AM")) },
+    { key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️", slots: slots.filter(s => { const h = parseInt(s.t); return s.t.includes("PM") && (h === 12 || h <= 4); }) },
+    { key: "evening",   en: "Evening 🌙",   ar: "المساء 🌙",   slots: slots.filter(s => { const h = parseInt(s.t); return s.t.includes("PM") && h >= 5; }) },
+  ].filter(g => g.slots.length > 0);
+
+  async function confirm() {
+    if (!selDate || !selSlot) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await api.appointments.rescheduleAppointment(supabase, appt.id, {
+        date: toYMD(selDate), start: selSlot.start, end: selSlot.end,
+      });
+      setDone(true);
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : (isAr ? "تعذر إعادة الجدولة." : "Could not reschedule."));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (done) return (
@@ -180,7 +265,7 @@ function RescheduleModal({
         </h3>
         <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 mb-1">{info.name}</p>
         <p className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7]">
-          {selDate ? fmtDate(selDate, isAr) : ""} · {selTime}
+          {selDate ? fmtDate(selDate, isAr) : ""} · {selSlot?.t}
         </p>
         <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-1 mb-6">{info.hospital}</p>
         <button onClick={onClose}
@@ -261,12 +346,24 @@ function RescheduleModal({
               <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
                 {isAr ? "اختر وقتاً جديداً" : "Choose a new time"}
               </p>
-              <button onClick={() => { setStep("date"); setSelTime(null); }}
+              <button onClick={() => { setStep("date"); setSelSlot(null); }}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
                 ← {selDate ? fmtDate(selDate, isAr) : ""}
               </button>
             </div>
 
+            {slotsLoading ? (
+              <div className="py-10 text-center text-sm font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 animate-pulse">
+                {isAr ? "جارٍ تحميل المواعيد…" : "Loading times…"}
+              </div>
+            ) : SLOT_GROUPS.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-3xl mb-2">🗓️</p>
+                <p className="text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
+                  {isAr ? "لا توجد مواعيد متاحة في هذا اليوم." : "No available times on this day."}
+                </p>
+              </div>
+            ) : (
             <div className="max-h-72 overflow-y-auto pr-1 space-y-5 mb-5"
               style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }}>
               {SLOT_GROUPS.map(group => (
@@ -275,37 +372,36 @@ function RescheduleModal({
                     {isAr ? group.ar : group.en}
                   </p>
                   <div className="grid grid-cols-4 gap-2">
-                    {group.slots.map(slot => {
-                      const taken = TAKEN.has(slot);
-                      return (
-                        <button key={slot} disabled={taken} onClick={() => setSelTime(slot)}
-                          className={`py-2 rounded-xl text-xs font-semibold border transition-all relative ${
-                            taken
-                              ? "border-[#e7dcee] dark:border-[#2a1840] text-[#2E1A47]/20 dark:text-[#DFC8E7]/20 cursor-not-allowed bg-[#faf8fc] dark:bg-[#0d0820]"
-                              : selTime === slot
-                                ? "border-[#46255f] bg-[#46255f] text-white dark:border-[#DFC8E7] dark:bg-[#DFC8E7] dark:text-[#1a1030] shadow-sm"
-                                : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#46255f]/50 dark:hover:border-[#DFC8E7]/50 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
-                          }`}>
-                          {slot}
-                          {taken && (
-                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <span className="w-full h-px bg-[#2E1A47]/15 dark:bg-[#DFC8E7]/15 rotate-[-8deg] block" />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                    {group.slots.map(slot => (
+                      <button key={slot.start} onClick={() => setSelSlot(slot)}
+                        className={`py-2 rounded-xl text-xs font-semibold border transition-all relative ${
+                          selSlot?.start === slot.start
+                            ? "border-[#46255f] bg-[#46255f] text-white dark:border-[#DFC8E7] dark:bg-[#DFC8E7] dark:text-[#1a1030] shadow-sm"
+                            : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#46255f]/50 dark:hover:border-[#DFC8E7]/50 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
+                        }`}>
+                        {slot.t}
+                      </button>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
+            )}
 
-            <button disabled={!selTime} onClick={confirm}
+            {error && (
+              <p className="mb-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            <button disabled={!selSlot || submitting} onClick={confirm}
               className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-              {selTime
-                ? isAr ? `تأكيد إعادة الجدولة — ${selTime}` : `Confirm Reschedule — ${selTime}`
-                : isAr ? "اختر وقتاً" : "Select a time"}
+              {submitting
+                ? isAr ? "جارٍ التأكيد…" : "Confirming…"
+                : selSlot
+                  ? isAr ? `تأكيد إعادة الجدولة — ${selSlot.t}` : `Confirm Reschedule — ${selSlot.t}`
+                  : isAr ? "اختر وقتاً" : "Select a time"}
             </button>
           </div>
         )}
@@ -318,25 +414,50 @@ function RescheduleModal({
 export default function AppointmentsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [tab, setTab]           = useState("All");
   const [expanded, setExp]      = useState<string | null>(null);
-  const [cancelled, setCancelled] = useState<Set<string>>(new Set());
   const [rescheduling, setRescheduling] = useState<Appt | null>(null);
-  const [rescheduled, setRescheduled]   = useState<Record<string, { date: string; time: string }>>({});
+  const [appointments, setAppointments] = useState<Appt[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
+  const [busyId, setBusyId]     = useState<string | null>(null);
 
-  function cancelAppt(id: string) { setCancelled(s => new Set(s).add(id)); }
+  const load = useCallback(() => {
+    setLoading(true);
+    return api.appointments
+      .listMyAppointments(supabase, "all")
+      .then((rows) => { setAppointments(rows.map((r, i) => toAppt(r as unknown as ApptRow, i))); setError(""); })
+      .catch(() => setError(ar ? "تعذر تحميل المواعيد." : "Could not load appointments."))
+      .finally(() => setLoading(false));
+  }, [supabase, ar]);
 
-  function handleReschedule(date: string, time: string) {
-    if (!rescheduling) return;
-    setRescheduled(prev => ({ ...prev, [rescheduling.id]: { date, time } }));
+  useEffect(() => { void load(); }, [load]);
+
+  async function cancelAppt(id: string) {
+    setBusyId(id);
+    setError("");
+    try {
+      await api.appointments.cancelAppointment(supabase, id);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : (ar ? "تعذر إلغاء الموعد." : "Could not cancel the appointment."));
+    } finally {
+      setBusyId(null);
+    }
   }
 
-  const filtered = APPOINTMENTS.filter(a => {
-    const status = cancelled.has(a.id) ? "Cancelled" : a.status;
-    if (tab === "Upcoming")  return status === "Confirmed" || status === "Pending";
-    if (tab === "Completed") return status === "Completed";
-    if (tab === "Cancelled") return status === "Cancelled";
+  const counts = {
+    upcoming:  appointments.filter(a => a.status === "Confirmed" || a.status === "Pending").length,
+    completed: appointments.filter(a => a.status === "Completed").length,
+    cancelled: appointments.filter(a => a.status === "Cancelled").length,
+  };
+
+  const filtered = appointments.filter(a => {
+    if (tab === "Upcoming")  return a.status === "Confirmed" || a.status === "Pending";
+    if (tab === "Completed") return a.status === "Completed";
+    if (tab === "Cancelled") return a.status === "Cancelled";
     return true;
   });
 
@@ -356,9 +477,9 @@ export default function AppointmentsPage() {
           </h1>
           <div className={`flex gap-3 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
             {[
-              { n: APPOINTMENTS.filter(a => !cancelled.has(a.id) && (a.status === "Confirmed" || a.status === "Pending")).length, en: "Upcoming",  ar: "قادمة",  color: "text-emerald-400" },
-              { n: APPOINTMENTS.filter(a => a.status === "Completed").length,                                                      en: "Completed", ar: "مكتملة", color: "text-[#DFC8E7]"  },
-              { n: cancelled.size + APPOINTMENTS.filter(a => a.status === "Cancelled").length,                                     en: "Cancelled", ar: "ملغاة",  color: "text-red-400"    },
+              { n: counts.upcoming,  en: "Upcoming",  ar: "قادمة",  color: "text-emerald-400" },
+              { n: counts.completed, en: "Completed", ar: "مكتملة", color: "text-[#DFC8E7]"  },
+              { n: counts.cancelled, en: "Cancelled", ar: "ملغاة",  color: "text-red-400"    },
             ].map(s => (
               <div key={s.en} className="flex items-center gap-2 px-4 py-2 rounded-xl"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(223,200,231,0.15)" }}>
@@ -385,19 +506,27 @@ export default function AppointmentsPage() {
       {/* List */}
       <section className="py-8 px-6">
         <div className="max-w-3xl mx-auto space-y-3">
-          {filtered.length === 0 ? (
+          {error && (
+            <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+          {loading ? (
+            [0, 1, 2].map(i => (
+              <div key={i} className="h-20 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white/50 dark:bg-[#1a1030]/50 animate-pulse" />
+            ))
+          ) : filtered.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-4xl mb-4">📅</p>
               <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">{ar ? "لا توجد مواعيد" : "No appointments here"}</p>
             </div>
           ) : filtered.map(appt => {
             const d        = ar ? appt.ar : appt.en;
-            const status   = cancelled.has(appt.id) ? "Cancelled" : appt.status;
+            const status   = appt.status;
             const isUpcoming = status === "Confirmed" || status === "Pending";
             const isOpen   = expanded === appt.id;
-            const resched  = rescheduled[appt.id];
-            const dispDate = resched ? resched.date : d.date;
-            const dispTime = resched ? resched.time : d.time;
+            const dispDate = d.date;
+            const dispTime = d.time;
 
             return (
               <div key={appt.id}
@@ -413,9 +542,8 @@ export default function AppointmentsPage() {
                     <p className="text-xs text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 mt-0.5">{d.spec} · {d.hospital}</p>
                   </div>
                   <div className={`hidden sm:flex flex-col flex-shrink-0 ${ar ? "items-start" : "items-end"}`}>
-                    <p className={`text-xs font-bold ${resched ? "text-[#46255f] dark:text-[#DFC8E7]" : "text-[#2E1A47]/70 dark:text-[#DFC8E7]/70"}`}>{dispDate}</p>
+                    <p className="text-xs font-bold text-[#2E1A47]/70 dark:text-[#DFC8E7]/70">{dispDate}</p>
                     <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-0.5">{dispTime}</p>
-                    {resched && <p className="text-[9px] font-bold text-[#46255f] dark:text-[#DFC8E7]/60 mt-0.5">{ar ? "معاد جدولته" : "Rescheduled"}</p>}
                   </div>
                   <span className={`text-[11px] font-bold px-2.5 py-1.5 rounded-full border flex-shrink-0 ${STATUS_STYLE[status]}`}>
                     {ar ? STATUS_AR[status] : status}
@@ -446,7 +574,7 @@ export default function AppointmentsPage() {
                         <p className="text-sm text-[#2E1A47]/70 dark:text-[#DFC8E7]/70">{d.notes}</p>
                       </div>
                     )}
-                    {isUpcoming && !cancelled.has(appt.id) && (
+                    {isUpcoming && (
                       <div className={`flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
                         <button
                           onClick={() => setRescheduling(appt)}
@@ -455,8 +583,9 @@ export default function AppointmentsPage() {
                         </button>
                         <button
                           onClick={() => cancelAppt(appt.id)}
-                          className="flex-1 py-2 rounded-xl text-sm font-bold border border-red-200 dark:border-red-800/40 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
-                          {ar ? "إلغاء الموعد" : "Cancel Appointment"}
+                          disabled={busyId === appt.id}
+                          className="flex-1 py-2 rounded-xl text-sm font-bold border border-red-200 dark:border-red-800/40 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-all">
+                          {busyId === appt.id ? (ar ? "جارٍ الإلغاء…" : "Cancelling…") : (ar ? "إلغاء الموعد" : "Cancel Appointment")}
                         </button>
                       </div>
                     )}
@@ -474,10 +603,7 @@ export default function AppointmentsPage() {
           appt={rescheduling}
           isAr={ar}
           onClose={() => setRescheduling(null)}
-          onConfirm={(date, time) => {
-            handleReschedule(date, time);
-            setRescheduling(null);
-          }}
+          onDone={() => { void load(); }}
         />
       )}
     </div>
