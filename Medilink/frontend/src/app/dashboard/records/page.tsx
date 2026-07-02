@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Json } from "@medilink/shared";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 function downloadRecord(rec: MedRecord, isAr: boolean) {
@@ -49,56 +52,114 @@ type MedRecord = {
   ar: { title: string; doctor: string; detail: string; tags?: string[] };
 };
 
-const RECORDS: MedRecord[] = [
-  {
-    id: "r1", category: "Prescriptions", emoji: "💊", grad: "from-[#e8d5f0] to-[#d5e8f5]", date: "Jun 20, 2026",
-    en: { title: "Antibiotic Course",       doctor: "Dr. Aisha Al Harthy",   detail: "Amoxicillin 500mg — 3×/day for 7 days. Avoid alcohol.",   tags: ["Amoxicillin","500mg","7 days"] },
-    ar: { title: "دورة مضادات حيوية",       doctor: "د. عائشة الحارثي",      detail: "أموكسيسيلين ٥٠٠ ملغ — ٣ مرات يومياً لمدة ٧ أيام. تجنب الكحول.", tags: ["أموكسيسيلين","٥٠٠ ملغ","٧ أيام"] },
-  },
-  {
-    id: "r2", category: "Lab Results", emoji: "🧪", grad: "from-[#d5e8f5] to-[#ede0f8]", date: "Jun 15, 2026",
-    en: { title: "Complete Blood Count",    doctor: "Al Shifa Diagnostics",   detail: "HGB 13.2 g/dL · WBC 6.8 K/μL · PLT 245 K/μL. All values within normal range.", tags: ["Normal","CBC","Blood"] },
-    ar: { title: "صورة الدم الكاملة",       doctor: "مختبرات الشفاء",         detail: "هيموغلوبين ١٣.٢ · كريات بيضاء ٦.٨ · صفائح ٢٤٥. جميع القيم ضمن النطاق الطبيعي.", tags: ["طبيعي","CBC","دم"] },
-  },
-  {
-    id: "r3", category: "Imaging", emoji: "🩻", grad: "from-[#ede0f8] to-[#d1fae5]", date: "Jun 10, 2026",
-    en: { title: "Chest X-Ray",             doctor: "Sunrise Diagnostics",    detail: "No active cardiopulmonary disease. Lung fields clear. Normal cardiac silhouette.", tags: ["Normal","Chest","Clear"] },
-    ar: { title: "أشعة الصدر",              doctor: "مختبرات الشروق",          detail: "لا يوجد مرض قلبي رئوي نشط. حقول الرئة واضحة. صورة القلب طبيعية.", tags: ["طبيعي","صدر","واضح"] },
-  },
-  {
-    id: "r4", category: "Summaries", emoji: "📋", grad: "from-[#d1fae5] to-[#e8d5f0]", date: "Jun 20, 2026",
-    en: { title: "General Consultation Summary", doctor: "Dr. Aisha Al Harthy", detail: "Patient presented with mild throat infection. Prescribed antibiotic course. Follow-up in 2 weeks if symptoms persist.", tags: ["Infection","Follow-up"] },
-    ar: { title: "ملخص استشارة عامة",       doctor: "د. عائشة الحارثي",      detail: "المريض قدم مع التهاب خفيف في الحلق. صُرِف له مضاد حيوي. متابعة بعد أسبوعين إن استمرت الأعراض.", tags: ["التهاب","متابعة"] },
-  },
-  {
-    id: "r5", category: "Lab Results", emoji: "🧪", grad: "from-[#fde68a] to-[#d5e8f5]", date: "May 28, 2026",
-    en: { title: "HbA1c Test",              doctor: "MedLab Centre",           detail: "HbA1c: 5.4% — Normal range (below 5.7%). No indication of pre-diabetes.", tags: ["Normal","Diabetes","5.4%"] },
-    ar: { title: "اختبار HbA1c",            doctor: "مركز ميدلاب",             detail: "HbA1c: ٥.٤٪ — ضمن النطاق الطبيعي (أقل من ٥.٧٪). لا يوجد ما يشير إلى مقدمات السكري.", tags: ["طبيعي","سكري","٥.٤٪"] },
-  },
-  {
-    id: "r6", category: "Prescriptions", emoji: "💊", grad: "from-[#e8d5f0] to-[#fde68a]", date: "May 15, 2026",
-    en: { title: "Vitamin D Supplement",    doctor: "Dr. Sara Al Nabhani",    detail: "Vitamin D3 5000 IU — 1 capsule/day with meal for 3 months. Retest after course.", tags: ["Vitamin D3","5000 IU","3 months"] },
-    ar: { title: "مكمل فيتامين د",          doctor: "د. سارة النبهانية",      detail: "فيتامين د٣ ٥٠٠٠ وحدة — كبسولة يومياً مع الوجبة لمدة ٣ أشهر. إعادة الفحص بعد الدورة.", tags: ["فيتامين د٣","٣ أشهر"] },
-  },
-  {
-    id: "r7", category: "Vaccinations", emoji: "💉", grad: "from-[#d5e8f5] to-[#d1fae5]", date: "Apr 10, 2026",
-    en: { title: "Influenza Vaccine",       doctor: "Royal Care Clinic",       detail: "Annual flu vaccine administered. Batch: IFV-2026-A. Next dose: Apr 2027.", tags: ["Flu","Annual","Done"] },
-    ar: { title: "لقاح الإنفلونزا",         doctor: "عيادة رويال كير",          detail: "تم إعطاء لقاح الإنفلونزا السنوي. الدفعة: IFV-2026-A. الجرعة التالية: أبريل ٢٠٢٧.", tags: ["إنفلونزا","سنوي","مكتمل"] },
-  },
-  {
-    id: "r8", category: "Summaries", emoji: "📋", grad: "from-[#d1fae5] to-[#ede0f8]", date: "Mar 5, 2026",
-    en: { title: "Gynaecology Follow-Up",   doctor: "Dr. Sara Al Nabhani",    detail: "Routine check — all results normal. Advised to continue Vitamin D course. Annual check-up recommended.", tags: ["Routine","Normal"] },
-    ar: { title: "متابعة نسائية وتوليد",    doctor: "د. سارة النبهانية",      detail: "فحص روتيني — جميع النتائج طبيعية. يُنصح بمواصلة دورة فيتامين د. يُوصى بفحص سنوي.", tags: ["روتيني","طبيعي"] },
-  },
+/* ─── Aggregation: build the unified record feed from real sources ────── */
+const GRADS = [
+  "from-[#e8d5f0] to-[#d5e8f5]", "from-[#d5e8f5] to-[#ede0f8]", "from-[#ede0f8] to-[#d1fae5]",
+  "from-[#d1fae5] to-[#e8d5f0]", "from-[#fde68a] to-[#d5e8f5]", "from-[#e8d5f0] to-[#fde68a]",
 ];
+const CAT_EMOJI: Record<string, string> = {
+  Prescriptions: "💊", "Lab Results": "🧪", Imaging: "🩻", Summaries: "📋", Vaccinations: "💉",
+};
+// document_type → page category
+const DOC_CATEGORY: Record<string, string> = {
+  prescription: "Prescriptions", imaging: "Imaging", report: "Summaries", insurance: "Summaries", other: "Summaries",
+};
+
+function fmtRecDate(iso: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+function medNames(meds: Json[] | null): string[] {
+  if (!Array.isArray(meds)) return [];
+  return meds
+    .map((m) => {
+      if (typeof m === "string") return m;
+      if (m && typeof m === "object" && !Array.isArray(m)) {
+        const o = m as Record<string, Json>;
+        const n = o.name ?? o.drug ?? o.medication;
+        return typeof n === "string" ? n : "";
+      }
+      return "";
+    })
+    .filter(Boolean) as string[];
+}
+
+// Explicit row shapes — the nested selects degrade the generated types to an error union.
+type RxRow = { id: string; medications: Json[] | null; instructions: string | null; issued_at: string; doctors?: { full_name?: string } | null };
+type LabRowLite = { id: string; test_name: string | null; notes: string | null; uploaded_at: string };
+type DocRow = { id: string; name: string; type: string; uploaded_at: string; appointment?: { doctor?: { full_name?: string } | null } | null };
+
+function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecord[] {
+  const rxRecs: (MedRecord & { _ts: number })[] = rx.map((p) => {
+    const names = medNames(p.medications);
+    const title = names.length ? names.join(", ") : "Prescription";
+    const doctor = p.doctors?.full_name ?? "";
+    const detail = p.instructions ?? "";
+    const tags = names.slice(0, 3);
+    const date = fmtRecDate(p.issued_at);
+    return {
+      id: `rx-${p.id}`, category: "Prescriptions", emoji: "💊", grad: "", date, _ts: Date.parse(p.issued_at) || 0,
+      en: { title, doctor, detail, tags }, ar: { title, doctor, detail, tags },
+    };
+  });
+  const labRecs: (MedRecord & { _ts: number })[] = labs.map((l) => {
+    const title = l.test_name ?? "Lab Result";
+    const detail = l.notes ?? "";
+    const date = fmtRecDate(l.uploaded_at);
+    return {
+      id: `lab-${l.id}`, category: "Lab Results", emoji: "🧪", grad: "", date, _ts: Date.parse(l.uploaded_at) || 0,
+      en: { title, doctor: "", detail }, ar: { title, doctor: "", detail },
+    };
+  });
+  const docRecs: (MedRecord & { _ts: number })[] = docs.map((d) => {
+    const category = DOC_CATEGORY[d.type] ?? "Summaries";
+    const doctor = d.appointment?.doctor?.full_name ?? "";
+    const date = fmtRecDate(d.uploaded_at);
+    return {
+      id: `doc-${d.id}`, category, emoji: CAT_EMOJI[category] ?? "📋", grad: "", date, _ts: Date.parse(d.uploaded_at) || 0,
+      en: { title: d.name, doctor, detail: "" }, ar: { title: d.name, doctor, detail: "" },
+    };
+  });
+  return [...rxRecs, ...labRecs, ...docRecs]
+    .sort((a, b) => b._ts - a._ts)
+    .map(({ _ts, ...rec }, i) => ({ ...rec, grad: GRADS[i % GRADS.length]! }));
+}
 
 export default function RecordsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [activeTab, setActiveTab]   = useState("All");
   const [search, setSearch]         = useState("");
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [downloaded, setDownloaded] = useState<string | null>(null);
+  const [records, setRecords]       = useState<MedRecord[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    Promise.all([
+      api.prescriptions.listPrescriptions(supabase).catch(() => []),
+      api.labs.listLabResults(supabase).catch(() => []),
+      api.records.listDocuments(supabase).catch(() => []),
+    ])
+      .then(([rx, labs, docs]) => {
+        if (!active) return;
+        setRecords(buildRecords(
+          rx as unknown as RxRow[],
+          labs as unknown as LabRowLite[],
+          docs as unknown as DocRow[],
+        ));
+        setError("");
+      })
+      .catch(() => { if (active) setError(ar ? "تعذر تحميل السجلات." : "Could not load your records."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [supabase, ar]);
 
   function handleDownload(rec: MedRecord) {
     downloadRecord(rec, ar);
@@ -106,7 +167,7 @@ export default function RecordsPage() {
     setTimeout(() => setDownloaded(null), 2000);
   }
 
-  const filtered = RECORDS.filter(r => {
+  const filtered = records.filter(r => {
     const matchCat = activeTab === "All" || r.category === activeTab;
     const q = search.toLowerCase();
     return matchCat && (!q || r.en.title.toLowerCase().includes(q) || r.ar.title.includes(q) || r.en.doctor.toLowerCase().includes(q));
@@ -161,9 +222,22 @@ export default function RecordsPage() {
       <section className="py-8 px-6">
         <div className="max-w-3xl mx-auto">
           <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
-            {ar ? `${filtered.length} سجل` : `${filtered.length} record${filtered.length !== 1 ? "s" : ""}`}
+            {loading
+              ? (ar ? "جارٍ التحميل…" : "Loading…")
+              : ar ? `${filtered.length} سجل` : `${filtered.length} record${filtered.length !== 1 ? "s" : ""}`}
           </p>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="h-20 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white/50 dark:bg-[#1a1030]/50 animate-pulse" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-20">
+              <p className="text-4xl mb-4">⚠️</p>
+              <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">{error}</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-4xl mb-4">📂</p>
               <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">{ar ? "لا توجد سجلات" : "No records found"}</p>
