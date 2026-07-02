@@ -1,37 +1,127 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Database } from "@medilink/shared";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"];
 
+type Gender = Database["public"]["Enums"]["gender_type"];
+type BloodGroup = Database["public"]["Enums"]["blood_group_type"];
+
+// Form uses display labels; DB uses enums. Blood-group display uses a MINUS SIGN (−),
+// the DB uses an ASCII hyphen (-) — normalize both directions.
+const GENDER_TO_ENUM: Record<string, Gender> = {
+  Female: "female", Male: "male", "Prefer not to say": "prefer_not_to_say",
+};
+const GENDER_TO_LABEL: Record<string, string> = {
+  female: "Female", male: "Male", other: "Prefer not to say", prefer_not_to_say: "Prefer not to say",
+};
+const bloodToDb = (s: string) => s.replace("−", "-") as BloodGroup;
+const bloodToLabel = (s: string) => s.replace("-", "−");
+const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+const EMPTY_FORM = {
+  firstName: "", lastName: "", email: "", phone: "", dob: "", gender: "", blood: "",
+  height: "", weight: "", allergies: "", conditions: "",
+  emergency_name: "", emergency_phone: "", emergency_rel: "",
+};
+
 export default function ProfilePage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [editing, setEditing] = useState(false);
   const [saved, setSaved]     = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+  const [stats, setStats]     = useState({ visits: 0, labs: 0, rx: 0 });
 
-  const [form, setForm] = useState({
-    firstName: "Vartika",
-    lastName:  "Pandey",
-    email:     "vartika.pandey@inzint.com",
-    phone:     "+968 9123 4567",
-    dob:       "1995-08-14",
-    gender:    "Female",
-    blood:     "O+",
-    height:    "162",
-    weight:    "58",
-    allergies: "Penicillin",
-    conditions:"None",
-    emergency_name:  "Rahul Pandey",
-    emergency_phone: "+968 9876 5432",
-    emergency_rel:   "Brother",
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [profile, mh, past, labResults, prescriptions] = await Promise.all([
+          api.profile.getMyProfile(supabase),
+          api.records.getMedicalHistory(supabase).catch(() => null),
+          api.appointments.listMyAppointments(supabase, "past").catch(() => []),
+          api.labs.listLabResults(supabase).catch(() => []),
+          api.prescriptions.listPrescriptions(supabase).catch(() => []),
+        ]);
+        if (!active) return;
+        const acc = profile.account;
+        const pat = profile.patient;
+        const full = (acc?.full_name ?? "").trim();
+        const [fn, ...rest] = full ? full.split(/\s+/) : [""];
+        const ec = (pat?.emergency_contact ?? {}) as { name?: string; phone?: string; relationship?: string };
+        setForm({
+          firstName: fn ?? "",
+          lastName: rest.join(" "),
+          email: acc?.email ?? "",
+          phone: acc?.phone ?? "",
+          dob: pat?.date_of_birth ?? "",
+          gender: pat?.gender ? (GENDER_TO_LABEL[pat.gender] ?? "") : "",
+          blood: pat?.blood_group && pat.blood_group !== "unknown" ? bloodToLabel(pat.blood_group) : "",
+          height: "", // no backend column — kept for UI parity, not persisted
+          weight: "", // no backend column — kept for UI parity, not persisted
+          allergies: (mh?.allergies ?? []).join(", "),
+          conditions: (mh?.conditions ?? []).join(", "),
+          emergency_name: ec.name ?? "",
+          emergency_phone: ec.phone ?? "",
+          emergency_rel: ec.relationship ?? "",
+        });
+        setStats({ visits: past.length, labs: labResults.length, rx: prescriptions.length });
+      } catch {
+        if (active) setError(ar ? "تعذر تحميل الملف الشخصي." : "Could not load your profile.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [supabase, ar]);
 
   function set(k: keyof typeof form, v: string) { setForm(f => ({ ...f, [k]: v })); }
 
-  function save() { setSaved(true); setEditing(false); setTimeout(() => setSaved(false), 3000); }
+  async function save() {
+    setSaving(true);
+    setError("");
+    try {
+      const hasEmergency = form.emergency_name || form.emergency_phone || form.emergency_rel;
+      await api.profile.updateMyProfile(supabase, {
+        full_name: `${form.firstName} ${form.lastName}`.trim(),
+        phone: form.phone || undefined,
+        date_of_birth: form.dob || null,
+        gender: form.gender ? GENDER_TO_ENUM[form.gender] : undefined,
+        blood_group: form.blood ? bloodToDb(form.blood) : undefined,
+        emergency_contact: hasEmergency
+          ? { name: form.emergency_name, phone: form.emergency_phone, relationship: form.emergency_rel }
+          : null,
+        // NOTE: email (auth-managed) and height/weight (no column) are intentionally not persisted.
+      });
+      await api.records.upsertMedicalHistory(supabase, {
+        allergies: splitList(form.allergies),
+        conditions: splitList(form.conditions),
+      });
+      setSaved(true);
+      setEditing(false);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError(ar ? "تعذر حفظ التغييرات." : "Could not save your changes.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const initials =
+    ((form.firstName[0] ?? "") + (form.lastName[0] ?? "")).toUpperCase() ||
+    (form.email[0] ?? "").toUpperCase() ||
+    "…";
 
   const Field = ({ label, arLabel, value, fieldKey, type = "text", options }: {
     label: string; arLabel: string; value: string; fieldKey: keyof typeof form;
@@ -66,6 +156,14 @@ export default function ProfilePage() {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div dir={ar ? "rtl" : "ltr"} className="min-h-screen flex items-center justify-center bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47]/50 dark:text-[#DFC8E7]/50">
+        <p className="text-sm font-semibold animate-pulse">{ar ? "جارٍ التحميل…" : "Loading…"}</p>
+      </div>
+    );
+  }
+
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
@@ -75,7 +173,7 @@ export default function ProfilePage() {
           <div className={`flex items-center gap-5 ${ar ? "flex-row-reverse" : ""}`}>
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black text-[#2E1A47] flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-              VP
+              {initials}
             </div>
             <div className={ar ? "text-right" : ""}>
               <h1 className="font-black font-serif text-white text-2xl leading-tight">{form.firstName} {form.lastName}</h1>
@@ -98,10 +196,10 @@ export default function ProfilePage() {
                     className="px-4 py-2 rounded-xl font-bold text-sm border border-white/20 text-white/60 hover:text-white transition-colors">
                     {ar ? "إلغاء" : "Cancel"}
                   </button>
-                  <button onClick={save}
-                    className="px-5 py-2 rounded-xl font-bold text-sm text-[#2E1A47] transition-opacity hover:opacity-85"
+                  <button onClick={save} disabled={saving}
+                    className="px-5 py-2 rounded-xl font-bold text-sm text-[#2E1A47] transition-opacity hover:opacity-85 disabled:opacity-60"
                     style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-                    {ar ? "حفظ" : "Save"}
+                    {saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ" : "Save")}
                   </button>
                 </div>
               )}
@@ -113,6 +211,12 @@ export default function ProfilePage() {
       {saved && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800/40 px-6 py-3 text-center text-sm font-semibold text-emerald-700 dark:text-emerald-400">
           {ar ? "✅ تم حفظ التغييرات بنجاح" : "✅ Profile saved successfully"}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800/40 px-6 py-3 text-center text-sm font-semibold text-red-600 dark:text-red-400">
+          {error}
         </div>
       )}
 
@@ -160,9 +264,9 @@ export default function ProfilePage() {
         {/* Stats summary */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { n: "12", en: "Visits",       ar: "زيارة" },
-            { n: "5",  en: "Lab Tests",    ar: "تحليل" },
-            { n: "3",  en: "Prescriptions",ar: "وصفة" },
+            { n: String(stats.visits), en: "Visits",       ar: "زيارة" },
+            { n: String(stats.labs),   en: "Lab Tests",    ar: "تحليل" },
+            { n: String(stats.rx),     en: "Prescriptions",ar: "وصفة" },
           ].map(s => (
             <div key={s.en} className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-5 text-center">
               <p className="font-black font-serif text-3xl text-[#2E1A47] dark:text-[#DFC8E7]">{s.n}</p>
