@@ -11,12 +11,28 @@ const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"];
 // main profile blood-group field never sends a non-enum value to the backend.
 const FAMILY_BLOOD_GROUPS = [...BLOOD_GROUPS, "Unknown"];
 
-// Family Members section — UI-only (local state). PENDING backend: `api.family`
-// exists in @medilink/shared but is not wired here yet. See merge report.
-type FamilyMember = { name: string; relation: string; dob: string; blood: string };
+// Family Members — wired to `api.family` (family_members table, RLS-scoped).
+// NOTE: the backend table has no blood-group column, so `blood` is a UI-only field
+// (defaults to "Unknown" on load and is not persisted). name/relation/dob persist.
+type FamilyMember = { id?: string; name: string; relation: string; dob: string; blood: string };
 
 const RELS_EN = ["Spouse", "Child", "Parent", "Sibling", "Other"];
 const RELS_AR = ["زوج/زوجة", "ابن/ابنة", "أب/أم", "أخ/أخت", "أخرى"];
+// Display labels ↔ DB `family_relation` enum (index-aligned with RELS_EN/RELS_AR).
+const RELS_ENUM = ["spouse", "child", "parent", "sibling", "other"] as const;
+type FamilyRelation = Database["public"]["Enums"]["family_relation"];
+function relToEnum(label: string): FamilyRelation {
+  const i = RELS_EN.indexOf(label);
+  if (i >= 0) return RELS_ENUM[i]!;
+  const j = RELS_AR.indexOf(label);
+  if (j >= 0) return RELS_ENUM[j]!;
+  return "other";
+}
+function relToLabel(value: string, isAr: boolean): string {
+  const i = RELS_ENUM.indexOf(value as FamilyRelation);
+  if (i < 0) return isAr ? "أخرى" : "Other";
+  return (isAr ? RELS_AR[i] : RELS_EN[i])!;
+}
 
 const MEMBER_GRADS = [
   "from-[#e8d5f0] to-[#d5e8f5]",
@@ -58,10 +74,11 @@ export default function ProfilePage() {
   const [error, setError]     = useState("");
   const [stats, setStats]     = useState({ visits: 0, labs: 0, rx: 0 });
 
-  /* Family members — local state only (PENDING api.family wiring) */
+  /* Family members — wired to api.family (RLS-scoped family_members table) */
   const [members, setMembers]             = useState<FamilyMember[]>([]);
   const [addingMember, setAddingMember]   = useState(false);
   const [editingMember, setEditingMember] = useState<number | null>(null);
+  const [memberBusy, setMemberBusy]       = useState(false);
   const [draft, setDraft]                 = useState<FamilyMember>({ name: "", relation: "Spouse", dob: "", blood: "Unknown" });
 
   const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -70,14 +87,22 @@ export default function ProfilePage() {
     let active = true;
     (async () => {
       try {
-        const [profile, mh, past, labResults, prescriptions] = await Promise.all([
+        const [profile, mh, past, labResults, prescriptions, family] = await Promise.all([
           api.profile.getMyProfile(supabase),
           api.records.getMedicalHistory(supabase).catch(() => null),
           api.appointments.listMyAppointments(supabase, "past").catch(() => []),
           api.labs.listLabResults(supabase).catch(() => []),
           api.prescriptions.listPrescriptions(supabase).catch(() => []),
+          api.family.listFamily(supabase).catch(() => []),
         ]);
         if (!active) return;
+        setMembers(family.map((m) => ({
+          id: m.id,
+          name: m.full_name,
+          relation: relToLabel(m.relation, ar),
+          dob: m.date_of_birth ?? "",
+          blood: "Unknown", // no blood column on family_members — UI-only field
+        })));
         const acc = profile.account;
         const pat = profile.patient;
         const full = (acc?.full_name ?? "").trim();
@@ -138,6 +163,65 @@ export default function ProfilePage() {
       setError(ar ? "تعذر حفظ التغييرات." : "Could not save your changes.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  /* ── Family member CRUD (api.family) — blood is UI-only (no DB column) ── */
+  async function addMember() {
+    if (!draft.name.trim() || memberBusy) return;
+    setMemberBusy(true);
+    setError("");
+    try {
+      const row = await api.family.addFamilyMember(supabase, {
+        full_name: draft.name.trim(),
+        relation: relToEnum(draft.relation),
+        date_of_birth: draft.dob || null,
+      });
+      setMembers((m) => [...m, { id: row.id, name: row.full_name, relation: relToLabel(row.relation, ar), dob: row.date_of_birth ?? "", blood: draft.blood }]);
+      setDraft({ name: "", relation: "Spouse", dob: "", blood: "Unknown" });
+      setAddingMember(false);
+    } catch {
+      setError(ar ? "تعذر إضافة فرد العائلة." : "Could not add family member.");
+    } finally {
+      setMemberBusy(false);
+    }
+  }
+
+  async function saveMemberEdit(i: number) {
+    const target = members[i];
+    if (!target?.id || memberBusy) return;
+    setMemberBusy(true);
+    setError("");
+    try {
+      const row = await api.family.updateFamilyMember(supabase, target.id, {
+        full_name: draft.name.trim(),
+        relation: relToEnum(draft.relation),
+        date_of_birth: draft.dob || null,
+      });
+      setMembers((prev) => prev.map((x, j) => j === i ? { ...x, name: row.full_name, relation: relToLabel(row.relation, ar), dob: row.date_of_birth ?? "", blood: draft.blood } : x));
+      setEditingMember(null);
+    } catch {
+      setError(ar ? "تعذر تحديث فرد العائلة." : "Could not update family member.");
+    } finally {
+      setMemberBusy(false);
+    }
+  }
+
+  async function deleteMember(i: number) {
+    const target = members[i];
+    if (!target?.id || memberBusy) return;
+    setMemberBusy(true);
+    setError("");
+    // optimistic removal, restore on failure
+    const snapshot = members;
+    setMembers((prev) => prev.filter((_, j) => j !== i));
+    try {
+      await api.family.deleteFamilyMember(supabase, target.id);
+    } catch {
+      setMembers(snapshot);
+      setError(ar ? "تعذر حذف فرد العائلة." : "Could not remove family member.");
+    } finally {
+      setMemberBusy(false);
     }
   }
 
@@ -361,12 +445,10 @@ export default function ProfilePage() {
                         ))}
                       </div>
                       <div className={`flex gap-2 pt-1 ${ar ? "flex-row-reverse" : ""}`}>
-                        <button onClick={() => {
-                          setMembers(prev => prev.map((x, j) => j === i ? draft : x));
-                          setEditingMember(null);
-                        }} className="px-4 py-2 rounded-xl font-bold text-xs text-[#2E1A47]"
+                        <button onClick={() => saveMemberEdit(i)} disabled={memberBusy}
+                          className="px-4 py-2 rounded-xl font-bold text-xs text-[#2E1A47] disabled:opacity-50"
                           style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-                          {ar ? "حفظ" : "Save"}
+                          {memberBusy ? (ar ? "…" : "…") : (ar ? "حفظ" : "Save")}
                         </button>
                         <button onClick={() => setEditingMember(null)}
                           className="px-4 py-2 rounded-xl font-bold text-xs border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
@@ -393,8 +475,8 @@ export default function ProfilePage() {
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                           </svg>
                         </button>
-                        <button onClick={() => setMembers(prev => prev.filter((_, j) => j !== i))}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                        <button onClick={() => deleteMember(i)} disabled={memberBusy}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors disabled:opacity-50">
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
@@ -435,15 +517,10 @@ export default function ProfilePage() {
                   ))}
                 </div>
                 <div className={`flex gap-2 pt-1 ${ar ? "flex-row-reverse" : ""}`}>
-                  <button onClick={() => {
-                    if (!draft.name.trim()) return;
-                    setMembers(m => [...m, draft]);
-                    setDraft({ name: "", relation: "Spouse", dob: "", blood: "Unknown" });
-                    setAddingMember(false);
-                  }} disabled={!draft.name.trim()}
+                  <button onClick={addMember} disabled={!draft.name.trim() || memberBusy}
                     className="px-4 py-2 rounded-xl font-bold text-xs text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-                    {ar ? "إضافة" : "Add member"}
+                    {memberBusy ? (ar ? "جارٍ الإضافة…" : "Adding…") : (ar ? "إضافة" : "Add member")}
                   </button>
                   <button onClick={() => { setAddingMember(false); setDraft({ name: "", relation: "Spouse", dob: "", blood: "Unknown" }); }}
                     className="px-4 py-2 rounded-xl font-bold text-xs border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">

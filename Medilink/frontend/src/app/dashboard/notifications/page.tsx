@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
+type UIType = "reminder" | "confirmed" | "lab" | "rx" | "payment" | "message";
+
 type Notif = {
-  id: number;
+  id: string;
   icon: string;
-  type: "reminder" | "confirmed" | "lab" | "rx" | "payment" | "message";
+  type: UIType;
   unread: boolean;
   dotColor: string;
   bg: string;
@@ -17,72 +21,62 @@ type Notif = {
   ar: { tag: string; title: string; body: string; time: string };
 };
 
-const ALL_NOTIFICATIONS: Notif[] = [
-  {
-    id: 1, icon: "⏰", type: "reminder", unread: true,
-    dotColor: "#f59e0b",
-    bg: "linear-gradient(135deg,#fffbeb,#fefce8)", border: "#fde68a",
-    tagBg: "#fef3c7", tagColor: "#b45309", tagBorder: "#fde68a",
-    en: { tag: "Reminder",    title: "Appointment in 2 hours",            body: "Dr. Aisha Al Harthy · Today at 3:30 PM · Royal Care Clinic",          time: "2 hours ago" },
-    ar: { tag: "تذكير",       title: "موعد خلال ساعتين",                  body: "د. عائشة الحارثي · اليوم الساعة ٣:٣٠ م · عيادة رويال كير",           time: "منذ ساعتين" },
-  },
-  {
-    id: 2, icon: "✅", type: "confirmed", unread: true,
-    dotColor: "#10b981",
-    bg: "linear-gradient(135deg,#f0fdf4,#ecfdf5)", border: "#a7f3d0",
-    tagBg: "#d1fae5", tagColor: "#065f46", tagBorder: "#6ee7b7",
-    en: { tag: "Confirmed",   title: "Appointment confirmed",              body: "Dr. Omar Al Balushi · Tomorrow at 10:00 AM · Heart & Vascular Centre", time: "1 hour ago" },
-    ar: { tag: "مؤكد",        title: "تم تأكيد الموعد",                   body: "د. عمر البلوشي · غداً الساعة ١٠:٠٠ ص · مركز القلب والأوعية",          time: "منذ ساعة" },
-  },
-  {
-    id: 3, icon: "🧪", type: "lab", unread: true,
-    dotColor: "#38bdf8",
-    bg: "linear-gradient(135deg,#f0f9ff,#eff6ff)", border: "#bae6fd",
-    tagBg: "#e0f2fe", tagColor: "#0369a1", tagBorder: "#7dd3fc",
-    en: { tag: "Lab Results", title: "Lab results are ready",              body: "Blood panel · Results uploaded to your health records",               time: "3 hours ago" },
-    ar: { tag: "نتائج",       title: "نتائج التحاليل جاهزة",              body: "فحص الدم الشامل · تم رفع النتائج إلى سجلاتك الصحية",                time: "منذ ٣ ساعات" },
-  },
-  {
-    id: 4, icon: "💊", type: "rx", unread: false,
-    dotColor: "#a855f7",
-    bg: "linear-gradient(135deg,#faf5ff,#f5f3ff)", border: "#d8b4fe",
-    tagBg: "#ede9fe", tagColor: "#6d28d9", tagBorder: "#c4b5fd",
-    en: { tag: "Rx Renewal",  title: "Prescription renewal due",           body: "Metformin 500mg · Refill needed in 3 days",                          time: "6 hours ago" },
-    ar: { tag: "تجديد وصفة", title: "تجديد الوصفة مطلوب",               body: "ميتفورمين ٥٠٠ ملغ · التجديد خلال ٣ أيام",                           time: "منذ ٦ ساعات" },
-  },
-  {
-    id: 5, icon: "💳", type: "payment", unread: false,
-    dotColor: "#8b5cf6",
-    bg: "linear-gradient(135deg,#faf5ff,#ede9fe)", border: "#c4b5fd",
-    tagBg: "#ede9fe", tagColor: "#5b21b6", tagBorder: "#a78bfa",
-    en: { tag: "Payment",     title: "Payment confirmed",                  body: "OMR 30 · Thawani Pay · Dr. Aisha Al Harthy",                         time: "1 day ago" },
-    ar: { tag: "دفع",         title: "تم تأكيد الدفع",                    body: "٣٠ ر.ع. · ثواني Pay · د. عائشة الحارثي",                            time: "منذ يوم" },
-  },
-  {
-    id: 6, icon: "💬", type: "message", unread: false,
-    dotColor: "#3b82f6",
-    bg: "linear-gradient(135deg,#eff6ff,#eef2ff)", border: "#bfdbfe",
-    tagBg: "#dbeafe", tagColor: "#1d4ed8", tagBorder: "#93c5fd",
-    en: { tag: "Message",     title: "New message from Dr. Aisha",         body: "Please take your medication 30 minutes before the meal.",            time: "2 days ago" },
-    ar: { tag: "رسالة",       title: "رسالة جديدة من د. عائشة",           body: "يرجى تناول الدواء قبل ٣٠ دقيقة من الوجبة.",                        time: "منذ يومين" },
-  },
-  {
-    id: 7, icon: "📋", type: "reminder", unread: false,
-    dotColor: "#14b8a6",
-    bg: "linear-gradient(135deg,#f0fdfa,#ccfbf1)", border: "#99f6e4",
-    tagBg: "#ccfbf1", tagColor: "#0f766e", tagBorder: "#5eead4",
-    en: { tag: "Records",     title: "Health records updated",             body: "Your blood panel results have been added to your records.",           time: "3 days ago" },
-    ar: { tag: "سجلات",       title: "تم تحديث السجلات الصحية",          body: "تمت إضافة نتائج فحص الدم إلى سجلاتك.",                              time: "منذ ٣ أيام" },
-  },
-  {
-    id: 8, icon: "📅", type: "reminder", unread: false,
-    dotColor: "#f43f5e",
-    bg: "linear-gradient(135deg,#fff1f2,#ffe4e6)", border: "#fecdd3",
-    tagBg: "#ffe4e6", tagColor: "#be123c", tagBorder: "#fda4af",
-    en: { tag: "Reminder",    title: "Annual checkup due",                 body: "Schedule your yearly health screening with your GP.",                time: "1 week ago" },
-    ar: { tag: "تذكير",       title: "موعد الفحص السنوي",                 body: "احجز فحصك الصحي السنوي مع طبيبك العام.",                            time: "منذ أسبوع" },
-  },
-];
+// Visual presets keyed by UI type (preserves the original palette exactly).
+// Backend `in_app_notifications.type` is mapped onto these buckets; the backend
+// stores a single title/body (no Arabic column) so `ar` mirrors `en`.
+const STYLE: Record<UIType, {
+  icon: string; dotColor: string; bg: string; border: string;
+  tagBg: string; tagColor: string; tagBorder: string; tagEn: string; tagAr: string;
+}> = {
+  reminder:  { icon: "⏰", dotColor: "#f59e0b", bg: "linear-gradient(135deg,#fffbeb,#fefce8)", border: "#fde68a", tagBg: "#fef3c7", tagColor: "#b45309", tagBorder: "#fde68a", tagEn: "Reminder",    tagAr: "تذكير" },
+  confirmed: { icon: "✅", dotColor: "#10b981", bg: "linear-gradient(135deg,#f0fdf4,#ecfdf5)", border: "#a7f3d0", tagBg: "#d1fae5", tagColor: "#065f46", tagBorder: "#6ee7b7", tagEn: "Confirmed",   tagAr: "مؤكد" },
+  lab:       { icon: "🧪", dotColor: "#38bdf8", bg: "linear-gradient(135deg,#f0f9ff,#eff6ff)", border: "#bae6fd", tagBg: "#e0f2fe", tagColor: "#0369a1", tagBorder: "#7dd3fc", tagEn: "Lab Results", tagAr: "نتائج" },
+  rx:        { icon: "💊", dotColor: "#a855f7", bg: "linear-gradient(135deg,#faf5ff,#f5f3ff)", border: "#d8b4fe", tagBg: "#ede9fe", tagColor: "#6d28d9", tagBorder: "#c4b5fd", tagEn: "Rx Renewal",  tagAr: "تجديد وصفة" },
+  payment:   { icon: "💳", dotColor: "#8b5cf6", bg: "linear-gradient(135deg,#faf5ff,#ede9fe)", border: "#c4b5fd", tagBg: "#ede9fe", tagColor: "#5b21b6", tagBorder: "#a78bfa", tagEn: "Payment",     tagAr: "دفع" },
+  message:   { icon: "💬", dotColor: "#3b82f6", bg: "linear-gradient(135deg,#eff6ff,#eef2ff)", border: "#bfdbfe", tagBg: "#dbeafe", tagColor: "#1d4ed8", tagBorder: "#93c5fd", tagEn: "Message",     tagAr: "رسالة" },
+};
+
+function uiTypeOf(backendType: string): UIType {
+  const t = (backendType ?? "").toLowerCase();
+  if (t.includes("lab")) return "lab";
+  if (t.includes("pay") || t.includes("invoice") || t.includes("refund")) return "payment";
+  if (t.includes("prescription") || t.includes("rx") || t.includes("medication")) return "rx";
+  if (t.includes("message") || t.includes("chat")) return "message";
+  if (t.includes("confirm") || t.includes("approv") || t.includes("book")) return "confirmed";
+  return "reminder";
+}
+
+function relTime(iso: string | null, isAr: boolean): string {
+  if (!iso) return "";
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const min = Math.floor(diff / 60000), hr = Math.floor(min / 60), day = Math.floor(hr / 24);
+  if (isAr) {
+    if (day > 0) return `منذ ${day} ${day === 1 ? "يوم" : "أيام"}`;
+    if (hr > 0)  return `منذ ${hr} ${hr === 1 ? "ساعة" : "ساعات"}`;
+    if (min > 0) return `منذ ${min} دقيقة`;
+    return "الآن";
+  }
+  if (day > 0) return `${day} day${day === 1 ? "" : "s"} ago`;
+  if (hr > 0)  return `${hr} hour${hr === 1 ? "" : "s"} ago`;
+  if (min > 0) return `${min} min ago`;
+  return "just now";
+}
+
+type NotifRow = Awaited<ReturnType<typeof api.notifications.listNotifications>>[number];
+
+function toNotif(r: NotifRow): Notif {
+  const ui = uiTypeOf(r.type ?? "");
+  const s = STYLE[ui];
+  const title = r.title ?? "";
+  const body = r.body ?? "";
+  return {
+    id: r.id, icon: s.icon, type: ui, unread: !r.is_read,
+    dotColor: s.dotColor, bg: s.bg, border: s.border,
+    tagBg: s.tagBg, tagColor: s.tagColor, tagBorder: s.tagBorder,
+    en: { tag: s.tagEn, title, body, time: relTime(r.created_at, false) },
+    ar: { tag: s.tagAr, title, body, time: relTime(r.created_at, true) },
+  };
+}
 
 const FILTER_TABS = [
   { key: "all",      en: "All",       ar: "الكل" },
@@ -95,20 +89,43 @@ const FILTER_TABS = [
 export default function NotificationsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [filter, setFilter]       = useState("all");
-  const [items, setItems]         = useState<Notif[]>(ALL_NOTIFICATIONS);
+  const [items, setItems]         = useState<Notif[]>([]);
   const [markedAll, setMarkedAll] = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
 
-  function markAllRead() {
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api.notifications
+      .listNotifications(supabase, { limit: 50 })
+      .then((rows) => { if (active) { setItems(rows.map(toNotif)); setError(""); } })
+      .catch(() => { if (active) setError(ar ? "تعذر تحميل الإشعارات." : "Could not load notifications."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [supabase, ar]);
+
+  async function markAllRead() {
+    const snapshot = items;
     setItems(prev => prev.map(n => ({ ...n, unread: false })));
     setMarkedAll(true);
+    try { await api.notifications.markAllRead(supabase); }
+    catch { setItems(snapshot); setMarkedAll(false); }
   }
-  function dismissItem(id: number) {
+  async function dismissItem(id: string) {
+    const snapshot = items;
     setItems(prev => prev.filter(n => n.id !== id));
+    try { await api.notifications.deleteNotification(supabase, id); }
+    catch { setItems(snapshot); }
   }
-  function markOneRead(id: number) {
+  async function markOneRead(id: string) {
+    const snapshot = items;
     setItems(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+    try { await api.notifications.markRead(supabase, id); }
+    catch { setItems(snapshot); }
   }
 
   const unreadCount = items.filter(n => n.unread).length;
@@ -284,7 +301,18 @@ export default function NotificationsPage() {
 
       {/* List */}
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="h-20 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-white/60 dark:bg-[#1a1030]/60 animate-pulse" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-24">
+            <p className="text-5xl mb-4">⚠️</p>
+            <p className="text-sm font-semibold text-[#2E1A47]/45 dark:text-[#DFC8E7]/45">{error}</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-24">
             <p className="text-5xl mb-4">🔔</p>
             <p className="text-sm font-semibold text-[#2E1A47]/45 dark:text-[#DFC8E7]/45">
@@ -319,7 +347,7 @@ export default function NotificationsPage() {
         {/* Footer count */}
         {filtered.length > 0 && (
           <p className={`text-center text-xs text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 pt-2 ${ar ? "text-right" : ""}`}>
-            {ar ? `عرض ${filtered.length} من ${ALL_NOTIFICATIONS.length} إشعار` : `Showing ${filtered.length} of ${ALL_NOTIFICATIONS.length} notifications`}
+            {ar ? `عرض ${filtered.length} من ${items.length} إشعار` : `Showing ${filtered.length} of ${items.length} notifications`}
           </p>
         )}
       </div>

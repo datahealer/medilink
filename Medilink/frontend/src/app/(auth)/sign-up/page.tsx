@@ -45,7 +45,7 @@ export default function SignUpPage() {
       // the /otp screen verifies. full_name/phone ride along as user metadata for the
       // patient_profiles provisioning trigger. (shared/api omits signUp by design.)
       const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
@@ -54,6 +54,25 @@ export default function SignUpPage() {
         },
       });
       if (error) { setSubmitError(error.message); return; }
+
+      // Supabase returns a user with an empty `identities` array when the email is
+      // already registered (enumeration protection) — surface that instead of a dead end.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setSubmitError(ar ? "هذا البريد الإلكتروني مسجل بالفعل." : "This email is already registered.");
+        return;
+      }
+
+      // When email confirmations are DISABLED (this project's configuration —
+      // see supabase config `enable_confirmations = false`; backend also creates
+      // users with email_confirm:true), signUp returns an active session and NO
+      // email is sent. Go straight to the dashboard — the /otp step does not apply.
+      // Only route to /otp when confirmations are enabled (session is null and a
+      // verification email was actually dispatched).
+      if (data.session) {
+        router.refresh(); // let middleware / SSR pick up the new session cookie
+        router.push("/dashboard");
+        return;
+      }
       router.push(`/otp?email=${encodeURIComponent(form.email)}`);
     } catch {
       setSubmitError(ar ? "تعذر إنشاء الحساب. حاول مرة أخرى." : "Could not create account. Please try again.");
