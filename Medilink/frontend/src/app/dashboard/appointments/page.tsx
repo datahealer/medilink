@@ -11,7 +11,7 @@ type Appt = {
   ar: { name: string; spec: string; hospital: string; date: string; time: string; type: string; notes?: string };
 };
 
-/* ─── Data ──────────────────────────────────────────────────────────── */
+/* ─── Data ───────────────────────────────────────────────────────────── */
 const APPOINTMENTS: Appt[] = [
   {
     id: "1", initials: "AH", grad: "from-[#e8d5f0] to-[#d5e8f5]", status: "Confirmed",
@@ -20,8 +20,8 @@ const APPOINTMENTS: Appt[] = [
   },
   {
     id: "2", initials: "OB", grad: "from-[#d5e8f5] to-[#ede0f8]", status: "Confirmed",
-    en: { name: "Dr. Omar Al Balushi",   spec: "Cardiology",    hospital: "Heart & Vascular Centre", date: "Jul 1",    time: "10:00 AM", type: "Video call" },
-    ar: { name: "د. عمر البلوشي",        spec: "أمراض القلب",   hospital: "مركز القلب والأوعية",     date: "١ يوليو",  time: "١٠:٠٠ ص", type: "مكالمة فيديو" },
+    en: { name: "Dr. Omar Al Balushi",   spec: "Cardiology",    hospital: "Heart & Vascular Centre", date: "Jul 1",    time: "10:00 AM", type: "In-clinic" },
+    ar: { name: "د. عمر البلوشي",        spec: "أمراض القلب",   hospital: "مركز القلب والأوعية",     date: "١ يوليو",  time: "١٠:٠٠ ص", type: "في العيادة" },
   },
   {
     id: "3", initials: "FR", grad: "from-[#ede0f8] to-[#e8d5f0]", status: "Pending",
@@ -40,8 +40,8 @@ const APPOINTMENTS: Appt[] = [
   },
   {
     id: "6", initials: "LH", grad: "from-[#e8d5f0] to-[#d1fae5]", status: "Cancelled",
-    en: { name: "Dr. Layla Al Habsi",    spec: "Pediatrics",    hospital: "Children's Wellness Hub", date: "Jun 5",    time: "9:00 AM",  type: "Video call" },
-    ar: { name: "د. ليلى الحبسية",       spec: "أطفال",          hospital: "مركز صحة الأطفال",         date: "٥ يونيو",  time: "٩:٠٠ ص",  type: "مكالمة فيديو" },
+    en: { name: "Dr. Layla Al Habsi",    spec: "Pediatrics",    hospital: "Children's Wellness Hub", date: "Jun 5",    time: "9:00 AM",  type: "In-clinic" },
+    ar: { name: "د. ليلى الحبسية",       spec: "أطفال",          hospital: "مركز صحة الأطفال",         date: "٥ يونيو",  time: "٩:٠٠ ص",  type: "في العيادة" },
   },
 ];
 
@@ -153,16 +153,16 @@ function RescheduleModal({
   onClose: () => void;
   onConfirm: (date: string, time: string) => void;
 }) {
-  const [step, setStep]     = useState<"date" | "time">("date");
+  const [step, setStep]       = useState<"date" | "time">("date");
   const [selDate, setSelDate] = useState<Date | null>(null);
   const [selTime, setSelTime] = useState<string | null>(null);
-  const [done, setDone]     = useState(false);
+  const [done, setDone]       = useState(false);
   const info = isAr ? appt.ar : appt.en;
 
   const SLOT_GROUPS = [
-    { key: "morning",   en: "Morning 🌅",   ar: "الصباح 🌅",   slots: TIME_SLOTS.filter(t => t.includes("AM")) },
-    { key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️", slots: TIME_SLOTS.filter(t => { const h = parseInt(t); return t.includes("PM") && (h === 12 || h <= 4); }) },
-    { key: "evening",   en: "Evening 🌙",   ar: "المساء 🌙",   slots: TIME_SLOTS.filter(t => { const h = parseInt(t); return t.includes("PM") && h >= 5; }) },
+    { key: "morning",   en: "Morning",   ar: "الصباح",   slots: TIME_SLOTS.filter(t => t.includes("AM")) },
+    { key: "afternoon", en: "Afternoon", ar: "الظهيرة",  slots: TIME_SLOTS.filter(t => { const h = parseInt(t); return t.includes("PM") && (h === 12 || h <= 4); }) },
+    { key: "evening",   en: "Evening",   ar: "المساء",   slots: TIME_SLOTS.filter(t => { const h = parseInt(t); return t.includes("PM") && h >= 5; }) },
   ];
 
   function confirm() {
@@ -240,7 +240,7 @@ function RescheduleModal({
           </div>
         </div>
 
-        {/* Step 1 — Date */}
+        {/* Step 1: Date */}
         {step === "date" && (
           <div className="px-6 py-5">
             <MiniCalendar isAr={isAr} selected={selDate} onSelect={setSelDate} />
@@ -254,7 +254,7 @@ function RescheduleModal({
           </div>
         )}
 
-        {/* Step 2 — Time */}
+        {/* Step 2: Time */}
         {step === "time" && (
           <div className="px-6 py-5">
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
@@ -263,7 +263,7 @@ function RescheduleModal({
               </p>
               <button onClick={() => { setStep("date"); setSelTime(null); }}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selDate ? fmtDate(selDate, isAr) : ""}
+                {isAr ? "→" : "←"} {selDate ? fmtDate(selDate, isAr) : ""}
               </button>
             </div>
 
@@ -319,11 +319,11 @@ export default function AppointmentsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
 
-  const [tab, setTab]           = useState("All");
-  const [expanded, setExp]      = useState<string | null>(null);
-  const [cancelled, setCancelled] = useState<Set<string>>(new Set());
-  const [rescheduling, setRescheduling] = useState<Appt | null>(null);
-  const [rescheduled, setRescheduled]   = useState<Record<string, { date: string; time: string }>>({});
+  const [tab, setTab]                       = useState("All");
+  const [expanded, setExp]                  = useState<string | null>(null);
+  const [cancelled, setCancelled]           = useState<Set<string>>(new Set());
+  const [rescheduling, setRescheduling]     = useState<Appt | null>(null);
+  const [rescheduled, setRescheduled]       = useState<Record<string, { date: string; time: string }>>({});
 
   function cancelAppt(id: string) { setCancelled(s => new Set(s).add(id)); }
 
@@ -391,13 +391,13 @@ export default function AppointmentsPage() {
               <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2">{ar ? "لا توجد مواعيد" : "No appointments here"}</p>
             </div>
           ) : filtered.map(appt => {
-            const d        = ar ? appt.ar : appt.en;
-            const status   = cancelled.has(appt.id) ? "Cancelled" : appt.status;
+            const d          = ar ? appt.ar : appt.en;
+            const status     = cancelled.has(appt.id) ? "Cancelled" : appt.status;
             const isUpcoming = status === "Confirmed" || status === "Pending";
-            const isOpen   = expanded === appt.id;
-            const resched  = rescheduled[appt.id];
-            const dispDate = resched ? resched.date : d.date;
-            const dispTime = resched ? resched.time : d.time;
+            const isOpen     = expanded === appt.id;
+            const resched    = rescheduled[appt.id];
+            const dispDate   = resched ? resched.date : d.date;
+            const dispTime   = resched ? resched.time : d.time;
 
             return (
               <div key={appt.id}
@@ -448,13 +448,11 @@ export default function AppointmentsPage() {
                     )}
                     {isUpcoming && !cancelled.has(appt.id) && (
                       <div className={`flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
-                        <button
-                          onClick={() => setRescheduling(appt)}
+                        <button onClick={() => setRescheduling(appt)}
                           className="flex-1 py-2 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#46255f]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-all">
                           {ar ? "إعادة جدولة" : "Reschedule"}
                         </button>
-                        <button
-                          onClick={() => cancelAppt(appt.id)}
+                        <button onClick={() => cancelAppt(appt.id)}
                           className="flex-1 py-2 rounded-xl text-sm font-bold border border-red-200 dark:border-red-800/40 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
                           {ar ? "إلغاء الموعد" : "Cancel Appointment"}
                         </button>

@@ -92,6 +92,24 @@ const RECORDS: Record[] = [
   },
 ];
 
+async function shareRecord(rec: Record, isAr: boolean) {
+  const info = isAr ? rec.ar : rec.en;
+  const text = [
+    info.title,
+    `${isAr ? "الطبيب" : "Doctor"}: ${info.doctor}`,
+    `${isAr ? "التاريخ" : "Date"}: ${rec.date}`,
+    info.detail,
+    ...(info.tags && info.tags.length > 0 ? [`${isAr ? "التصنيفات" : "Tags"}: ${info.tags.join(" · ")}`] : []),
+    "\n— MediLink",
+  ].join("\n");
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    await navigator.share({ title: info.title, text });
+  } else {
+    await navigator.clipboard.writeText(text);
+  }
+}
+
 export default function RecordsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
@@ -99,11 +117,19 @@ export default function RecordsPage() {
   const [search, setSearch]         = useState("");
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [downloaded, setDownloaded] = useState<string | null>(null);
+  const [shared, setShared]         = useState<string | null>(null);
 
   function handleDownload(rec: Record) {
     downloadRecord(rec, ar);
     setDownloaded(rec.id);
     setTimeout(() => setDownloaded(null), 2000);
+  }
+
+  function handleShare(rec: Record) {
+    shareRecord(rec, ar).then(() => {
+      setShared(rec.id);
+      setTimeout(() => setShared(null), 2000);
+    });
   }
 
   const filtered = RECORDS.filter(r => {
@@ -232,12 +258,27 @@ export default function RecordsPage() {
                               </>
                             )}
                           </button>
-                          <button className="px-4 py-2 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 transition-all flex items-center gap-1.5">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                            </svg>
-                            {ar ? "مشاركة" : "Share"}
+                          <button
+                            onClick={() => handleShare(rec)}
+                            className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all flex items-center gap-1.5 ${
+                              shared === rec.id
+                                ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+                                : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
+                            }`}>
+                            {shared === rec.id ? (
+                              <>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                {ar ? (navigator.share ? "تمت المشاركة!" : "تم النسخ!") : (navigator.share ? "Shared!" : "Copied!")}
+                              </>
+                            ) : (
+                              <>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                                {ar ? "مشاركة" : "Share"}
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>

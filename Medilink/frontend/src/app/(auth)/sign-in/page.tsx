@@ -18,11 +18,11 @@ export default function SignInPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/dashboard");
+    router.push("/dashboard/setup");
   };
 
   const handleGoogle = () => {
-    router.push("/dashboard");
+    router.push("/dashboard/setup");
   };
 
   return (

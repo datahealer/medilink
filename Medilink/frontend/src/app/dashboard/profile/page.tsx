@@ -3,7 +3,19 @@
 import { useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
-const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"];
+const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−", "Unknown"];
+
+type FamilyMember = { name: string; relation: string; dob: string; blood: string };
+
+const RELS_EN = ["Spouse", "Child", "Parent", "Sibling", "Other"];
+const RELS_AR = ["زوج/زوجة", "ابن/ابنة", "أب/أم", "أخ/أخت", "أخرى"];
+
+const MEMBER_GRADS = [
+  "from-[#e8d5f0] to-[#d5e8f5]",
+  "from-[#d5e8f5] to-[#ede0f8]",
+  "from-[#d1fae5] to-[#d5e8f5]",
+  "from-[#fde68a] to-[#e8d5f0]",
+];
 
 export default function ProfilePage() {
   const { locale } = useI18n();
@@ -11,6 +23,12 @@ export default function ProfilePage() {
 
   const [editing, setEditing] = useState(false);
   const [saved, setSaved]     = useState(false);
+
+  /* Family members state */
+  const [members, setMembers]         = useState<FamilyMember[]>([]);
+  const [addingMember, setAddingMember] = useState(false);
+  const [editingMember, setEditingMember] = useState<number | null>(null);
+  const [draft, setDraft]             = useState<FamilyMember>({ name: "", relation: "Spouse", dob: "", blood: "Unknown" });
 
   const [form, setForm] = useState({
     firstName: "Vartika",
@@ -116,9 +134,33 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Section shortcuts */}
+      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840]">
+        <div className={`max-w-3xl mx-auto px-6 py-2 flex items-center gap-1 overflow-x-auto ${ar ? "flex-row-reverse" : ""}`}
+          style={{ scrollbarWidth: "none" }}>
+          {[
+            { label: ar ? "المعلومات الشخصية" : "Personal Info",   id: "personal" },
+            { label: ar ? "الصحة" : "Health",                      id: "health" },
+            { label: ar ? "الطوارئ" : "Emergency",                  id: "emergency" },
+            { label: ar ? "👨‍👩‍👧 أفراد العائلة" : "👨‍👩‍👧 Family Members", id: "family" },
+          ].map(s => (
+            <a key={s.id} href={`#${s.id}`}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold no-underline transition-colors ${
+                s.id === "family"
+                  ? "text-[#2E1A47] dark:text-[#1a1030]"
+                  : "text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
+              }`}
+              style={s.id === "family" ? { background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" } : {}}>
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </div>
+
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
 
         {/* Personal Info */}
+        <div id="personal" />
         <Section en="Personal Information" ar="المعلومات الشخصية">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="First Name"   arLabel="الاسم الأول"  value={form.firstName} fieldKey="firstName" />
@@ -132,6 +174,7 @@ export default function ProfilePage() {
         </Section>
 
         {/* Health Info */}
+        <div id="health" />
         <Section en="Health Information" ar="المعلومات الصحية">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="Blood Group" arLabel="فصيلة الدم" value={form.blood}  fieldKey="blood" options={BLOOD_GROUPS} />
@@ -148,6 +191,7 @@ export default function ProfilePage() {
         </Section>
 
         {/* Emergency Contact */}
+        <div id="emergency" />
         <Section en="Emergency Contact" ar="جهة الاتصال في حالات الطوارئ">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Field label="Full Name"     arLabel="الاسم الكامل" value={form.emergency_name}  fieldKey="emergency_name" />
@@ -156,6 +200,162 @@ export default function ProfilePage() {
               options={["Brother", "Sister", "Mother", "Father", "Spouse", "Friend", "Other"]} />
           </div>
         </Section>
+
+        {/* Family Members */}
+        <div id="family" />
+        <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden">
+          <div className={`px-6 py-4 border-b border-[#e7dcee] dark:border-[#2a1840] flex items-center justify-between ${ar ? "flex-row-reverse" : ""}`}>
+            <h2 className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7]">
+              {ar ? "أفراد العائلة" : "Family Members"}
+            </h2>
+            {members.length > 0 && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#f0e8f8] dark:bg-[#2E1A47]/40 text-[#46255f] dark:text-[#DFC8E7]/70">
+                {members.length} {ar ? "فرد" : members.length === 1 ? "member" : "members"}
+              </span>
+            )}
+          </div>
+          <div className="p-6 space-y-3">
+
+            {/* Member cards */}
+            {members.length === 0 && !addingMember && (
+              <p className={`text-sm text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 ${ar ? "text-right" : ""}`}>
+                {ar ? "لم تُضف أفراداً بعد." : "No family members added yet."}
+              </p>
+            )}
+
+            {members.map((m, i) => {
+              const initials = m.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "FM";
+              const isEditing = editingMember === i;
+              return (
+                <div key={i} className="rounded-xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden">
+                  {isEditing ? (
+                    <div className="p-4 space-y-3 bg-[#faf5ff] dark:bg-[#1a1030]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {[
+                          { l: "Full Name",     al: "الاسم الكامل",  k: "name" as const,     type: "text",   opts: undefined },
+                          { l: "Relationship",  al: "صلة القرابة",   k: "relation" as const,  type: "text",   opts: ar ? RELS_AR : RELS_EN },
+                          { l: "Date of Birth", al: "تاريخ الميلاد", k: "dob" as const,       type: "date",   opts: undefined },
+                          { l: "Blood Group",   al: "فصيلة الدم",    k: "blood" as const,     type: "text",   opts: BLOOD_GROUPS },
+                        ].map(f => (
+                          <div key={f.k} className={ar ? "text-right" : ""}>
+                            <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-1">{ar ? f.al : f.l}</p>
+                            {f.opts ? (
+                              <select value={draft[f.k] || m[f.k]} onChange={e => setDraft(d => ({...d, [f.k]: e.target.value}))}
+                                className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-white dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`}>
+                                {f.opts.map(o => <option key={o}>{o}</option>)}
+                              </select>
+                            ) : (
+                              <input type={f.type} value={draft[f.k]} onChange={e => setDraft(d => ({...d, [f.k]: e.target.value}))}
+                                className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-white dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className={`flex gap-2 pt-1 ${ar ? "flex-row-reverse" : ""}`}>
+                        <button onClick={() => {
+                          setMembers(prev => prev.map((x, j) => j === i ? draft : x));
+                          setEditingMember(null);
+                        }} className="px-4 py-2 rounded-xl font-bold text-xs text-[#2E1A47]"
+                          style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
+                          {ar ? "حفظ" : "Save"}
+                        </button>
+                        <button onClick={() => setEditingMember(null)}
+                          className="px-4 py-2 rounded-xl font-bold text-xs border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
+                          {ar ? "إلغاء" : "Cancel"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`flex items-center gap-3 p-4 bg-[#faf8fc] dark:bg-[#0d0820] ${ar ? "flex-row-reverse" : ""}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-[#2E1A47] flex-shrink-0 bg-gradient-to-br ${MEMBER_GRADS[i % MEMBER_GRADS.length]}`}>
+                        {initials}
+                      </div>
+                      <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
+                        <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{m.name}</p>
+                        <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45">
+                          {m.relation}{m.dob ? ` · ${m.dob}` : ""}{m.blood !== "Unknown" ? ` · ${m.blood}` : ""}
+                        </p>
+                      </div>
+                      <div className={`flex items-center gap-1 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
+                        <button onClick={() => { setDraft({...m}); setEditingMember(i); }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-[#46255f] hover:bg-[#f0e8f8] dark:hover:text-[#DFC8E7] dark:hover:bg-[#2E1A47]/30 transition-colors">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button onClick={() => setMembers(prev => prev.filter((_, j) => j !== i))}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Add member form */}
+            {addingMember && (
+              <div className="rounded-xl border border-[#DFC8E7]/60 dark:border-[#3a2560] bg-[#faf5ff] dark:bg-[#1a1030] p-4 space-y-3">
+                <p className={`text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 ${ar ? "text-right" : ""}`}>
+                  {ar ? "فرد جديد" : "New member"}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { l: "Full Name",     al: "الاسم الكامل",  k: "name" as const,    type: "text", opts: undefined },
+                    { l: "Relationship",  al: "صلة القرابة",   k: "relation" as const, type: "text", opts: ar ? RELS_AR : RELS_EN },
+                    { l: "Date of Birth", al: "تاريخ الميلاد", k: "dob" as const,      type: "date", opts: undefined },
+                    { l: "Blood Group",   al: "فصيلة الدم",    k: "blood" as const,    type: "text", opts: BLOOD_GROUPS },
+                  ].map(f => (
+                    <div key={f.k} className={ar ? "text-right" : ""}>
+                      <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-1">{ar ? f.al : f.l}</p>
+                      {f.opts ? (
+                        <select value={draft[f.k]} onChange={e => setDraft(d => ({...d, [f.k]: e.target.value}))}
+                          className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-white dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`}>
+                          {f.opts.map(o => <option key={o}>{o}</option>)}
+                        </select>
+                      ) : (
+                        <input type={f.type} value={draft[f.k]} onChange={e => setDraft(d => ({...d, [f.k]: e.target.value}))}
+                          className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-white dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className={`flex gap-2 pt-1 ${ar ? "flex-row-reverse" : ""}`}>
+                  <button onClick={() => {
+                    if (!draft.name.trim()) return;
+                    setMembers(m => [...m, draft]);
+                    setDraft({ name: "", relation: "Spouse", dob: "", blood: "Unknown" });
+                    setAddingMember(false);
+                  }} disabled={!draft.name.trim()}
+                    className="px-4 py-2 rounded-xl font-bold text-xs text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
+                    {ar ? "إضافة" : "Add member"}
+                  </button>
+                  <button onClick={() => { setAddingMember(false); setDraft({ name: "", relation: "Spouse", dob: "", blood: "Unknown" }); }}
+                    className="px-4 py-2 rounded-xl font-bold text-xs border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
+                    {ar ? "إلغاء" : "Cancel"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Add button */}
+            {!addingMember && editingMember === null && (
+              <button onClick={() => { setDraft({ name: "", relation: "Spouse", dob: "", blood: "Unknown" }); setAddingMember(true); }}
+                className={`w-full py-3 rounded-xl border-2 border-dashed border-[#e7dcee] dark:border-[#3a2560] text-sm font-semibold text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 hover:border-[#46255f]/40 hover:text-[#46255f] dark:hover:text-[#DFC8E7] hover:bg-[#faf5ff] dark:hover:bg-[#2E1A47]/10 transition-all flex items-center justify-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                {ar ? "إضافة فرد عائلة" : "Add a family member"}
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Stats summary */}
         <div className="grid grid-cols-3 gap-4">
