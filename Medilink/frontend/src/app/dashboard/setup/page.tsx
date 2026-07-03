@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Database } from "@medilink/shared";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -12,6 +15,22 @@ const GENDERS_EN   = ["Female", "Male", "Non-binary", "Prefer not to say"];
 const GENDERS_AR   = ["أنثى",   "ذكر",  "غير ثنائي", "أفضل عدم الإفصاح"];
 const RELS_EN      = ["Spouse", "Child", "Parent", "Sibling", "Other"];
 const RELS_AR      = ["زوج/زوجة", "ابن/ابنة", "أب/أم", "أخ/أخت", "أخرى"];
+
+// Display labels → DB enums (index-aligned). height/weight have no DB column (not persisted).
+const GENDER_ENUM = ["female", "male", "other", "prefer_not_to_say"] as const;
+const RELS_ENUM   = ["spouse", "child", "parent", "sibling", "other"] as const;
+function genderToEnum(label: string): Database["public"]["Enums"]["gender_type"] {
+  const i = GENDERS_EN.indexOf(label); if (i >= 0) return GENDER_ENUM[i]!;
+  const j = GENDERS_AR.indexOf(label); if (j >= 0) return GENDER_ENUM[j]!;
+  return "prefer_not_to_say";
+}
+function relToEnum(label: string): Database["public"]["Enums"]["family_relation"] {
+  const i = RELS_EN.indexOf(label); if (i >= 0) return RELS_ENUM[i]!;
+  const j = RELS_AR.indexOf(label); if (j >= 0) return RELS_ENUM[j]!;
+  return "other";
+}
+const setupBloodToDb = (s: string) => s.replace("−", "-") as Database["public"]["Enums"]["blood_group_type"];
+const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 const STEPS = [
   { en: "Profile",   ar: "الملف الشخصي" },
@@ -25,8 +44,11 @@ export default function SetupPage() {
   const router = useRouter();
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
 
   /* Step 1 – personal */
   const [form1, setForm1] = useState({
@@ -57,8 +79,40 @@ export default function SetupPage() {
     setAddingMember(false);
   }
 
-  function finish() {
-    router.push("/dashboard");
+  async function finish() {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const hasEmergency = form3.name || form3.phone || form3.relation;
+      await api.profile.updateMyProfile(supabase, {
+        full_name: `${form1.firstName} ${form1.lastName}`.trim(),
+        phone: form1.phone || undefined,
+        date_of_birth: form1.dob || null,
+        gender: form1.gender ? genderToEnum(form1.gender) : undefined,
+        blood_group: form2.blood && form2.blood !== "Unknown" ? setupBloodToDb(form2.blood) : undefined,
+        emergency_contact: hasEmergency
+          ? { name: form3.name, phone: form3.phone, relationship: form3.relation }
+          : null,
+        // height/weight have no DB column and are intentionally not persisted.
+      });
+      await api.records.upsertMedicalHistory(supabase, {
+        allergies: splitList(form2.allergies),
+        conditions: splitList(form2.conditions),
+      });
+      // Persist any family members added during onboarding (blood has no DB column).
+      for (const m of members) {
+        await api.family.addFamilyMember(supabase, {
+          full_name: m.name.trim(),
+          relation: relToEnum(m.relation),
+          date_of_birth: m.dob || null,
+        });
+      }
+      router.push("/dashboard");
+    } catch {
+      setError(ar ? "تعذر حفظ بياناتك. حاول مرة أخرى." : "Could not save your details. Please try again.");
+      setSaving(false);
+    }
   }
 
   /* ─── Step indicator ── */
@@ -295,14 +349,20 @@ export default function SetupPage() {
                   {ar ? "تخطي" : "Skip"}
                 </button>
               )}
-              <button onClick={() => step < 3 ? setStep(s => s + 1) : finish()}
-                className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2E1A47] hover:opacity-90 active:scale-[0.98] transition-all"
+              <button onClick={() => step < 3 ? setStep(s => s + 1) : finish()} disabled={saving}
+                className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2E1A47] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-                {step < 3 ? (ar ? "التالي" : "Continue") : (ar ? "الدخول إلى لوحة التحكم" : "Go to Dashboard")}
+                {saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : step < 3 ? (ar ? "التالي" : "Continue") : (ar ? "الدخول إلى لوحة التحكم" : "Go to Dashboard")}
               </button>
             </div>
           </div>
         </div>
+
+        {error && (
+          <p className="text-center text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2 mt-4">
+            {error}
+          </p>
+        )}
 
         {/* ── Step counter ── */}
         <p className="text-center text-xs text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 mt-4">
