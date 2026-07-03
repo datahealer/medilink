@@ -17,6 +17,29 @@ const COMPANY_LINKS = [
   { en: "Careers",  ar: "الوظائف",  href: "/contact" },
 ];
 
+const SOCIAL_LINKS = [
+  { name: "Instagram", href: "#", path: (
+      <>
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+      </>
+    ) },
+  { name: "X",         href: "#", path: (
+      <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z" />
+    ) },
+  { name: "Facebook",  href: "#", path: (
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    ) },
+  { name: "LinkedIn",  href: "#", path: (
+      <>
+        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+        <rect x="2" y="9" width="4" height="12" />
+        <circle cx="4" cy="4" r="2" />
+      </>
+    ) },
+];
+
 export function HomeFooter() {
   const { locale } = useI18n();
   const ar = locale === "ar";
@@ -24,10 +47,10 @@ export function HomeFooter() {
   return (
     <footer className="border-t border-[#e7dcee] dark:border-[#2a1c44] bg-white dark:bg-[#0d0820] py-14">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 pb-12 border-b border-[#e7dcee] dark:border-[#2a1c44]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-[#e7dcee] dark:border-[#2a1c44]">
 
           {/* Brand */}
-          <div>
+          <div className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0">
                 <img src="/logo/submark-light.svg"    alt="Medilink" className="w-full h-full object-cover dark:hidden" />
@@ -90,6 +113,36 @@ export function HomeFooter() {
                 </a>
               </li>
             </ul>
+          </div>
+
+          {/* Follow */}
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
+              {ar ? "تابعنا" : "Follow"}
+            </p>
+            <div className="flex flex-wrap gap-2.5">
+              {SOCIAL_LINKS.map(s => (
+                <a key={s.name} href={s.href} aria-label={s.name}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center border border-[#e7dcee] dark:border-[#2a1c44] text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 hover:border-transparent transition-all hover:-translate-y-0.5"
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)";
+                    e.currentTarget.style.color = "#2E1A47";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "";
+                  }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {s.path}
+                  </svg>
+                </a>
+              ))}
+            </div>
+            <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 leading-relaxed mt-5 max-w-[160px]">
+              {ar
+                ? "تابع آخر التحديثات ونصائح الصحة."
+                : "Follow along for updates and health tips."}
+            </p>
           </div>
         </div>
 

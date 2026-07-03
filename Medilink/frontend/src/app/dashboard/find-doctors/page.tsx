@@ -1,10 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+
+// Vartika's nearby-clinics map (leaflet). Self-contained — fetches its own
+// nearby facilities via Supabase. Loaded client-only (leaflet needs `window`).
+const NearbyDoctorsMap = dynamic(() => import("@/components/dashboard/NearbyDoctorsMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-72 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] flex items-center justify-center bg-white dark:bg-[#1a1030]">
+      <div className="w-6 h-6 rounded-full border-2 border-[#46255f]/20 border-t-[#46255f] dark:border-[#DFC8E7]/20 dark:border-t-[#DFC8E7] animate-spin" />
+    </div>
+  ),
+});
 
 /* ─── Data ──────────────────────────────────────────────────────────── */
 
@@ -698,6 +710,16 @@ export default function FindDoctorsPage() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ── Nearby clinics map ── */}
+      <section className="pb-14 px-6">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+            {ar ? "📍 عيادات قريبة منك" : "📍 Clinics near you"}
+          </p>
+          <NearbyDoctorsMap isAr={ar} />
         </div>
       </section>
 

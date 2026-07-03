@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+import { ARTICLES } from "@/lib/data/articles";
 
-/* ─── Data ──────────────────────────────────────────────────────────── */
+/* ─── Data ───────────────────────────────────────────────────────────── */
 
 const MARQUEE_ITEMS = [
   "Find Doctors", "Book in seconds", "Lab Tests", "Verified clinicians",
@@ -14,13 +15,17 @@ const MARQUEE_ITEMS = [
 ];
 
 const SERVICE_CARDS = [
-  { href: "/dashboard/find-doctors", emoji: "👨‍⚕️",
+  { href: "/dashboard/symptom-checker", emoji: "🤖", badge: { en: "AI", ar: "ذكاء اصطناعي" },
+    en: { title: "AI Symptom Checker",   desc: "Describe your symptoms and get instant, plain-language guidance." },
+    ar: { title: "فاحص الأعراض بالذكاء الاصطناعي", desc: "صف أعراضك واحصل على إرشادات فورية بلغة بسيطة." },
+    from: "#c8dff0", to: "#d1fae5" },
+  { href: "/dashboard/find-doctors", emoji: "🩺",
     en: { title: "Find Doctors Near You", desc: "Search by specialty or symptom. Confirmed same-day appointments." },
     ar: { title: "ابحث عن أطباء قريبين",  desc: "ابحث حسب التخصص أو الأعراض. مواعيد مؤكدة في نفس اليوم." },
     from: "#e8d5f0", to: "#c8dff0" },
-  { href: "/dashboard/lab-tests", emoji: "🧪",
+  { href: "/dashboard/lab-tests", emoji: "🔬",
     en: { title: "Lab Tests",              desc: "Safe and trusted lab tests delivered to your app." },
-    ar: { title: "تحاليل مختبرية",         desc: "تحاليل آمنة وموثوقة تُرسَل مباشرة إلى تطبيقك." },
+    ar: { title: "تحاليل مختبرية",         desc: "تحاليل آمنة وموثوقة تُرسل مباشرة إلى تطبيقك." },
     from: "#d5e8f5", to: "#ede0f8" },
   { href: "/dashboard/surgeries", emoji: "🏥",
     en: { title: "Surgeries",              desc: "Safe and trusted surgery centers across the region." },
@@ -63,60 +68,114 @@ function upDate(ymd: string, isAr: boolean) {
 }
 
 const SPECIALTIES = [
-  { emoji: "🤰", en: "Period doubts or Pregnancy",  ar: "تأخر الدورة أو الحمل" },
-  { emoji: "😣", en: "Acne, pimple or skin issues", ar: "حب الشباب أو مشاكل الجلد" },
-  { emoji: "💊", en: "Performance issues in bed",   ar: "مشاكل الأداء" },
-  { emoji: "🤒", en: "Cold, cough or fever",        ar: "برد أو كحة أو حمى" },
-  { emoji: "👶", en: "Child not feeling well",      ar: "الطفل لا يشعر بتحسن" },
-  { emoji: "😔", en: "Depression or anxiety",       ar: "اكتئاب أو قلق" },
+  { emoji: "🤰", en: "Period doubts or Pregnancy",  ar: "تأخر الدورة أو الحمل"        },
+  { emoji: "🧴", en: "Acne, pimple or skin issues", ar: "حب الشباب أو مشاكل الجلد"    },
+  { emoji: "💪", en: "Performance issues in bed",   ar: "مشاكل الأداء"                 },
+  { emoji: "🤧", en: "Cold, cough or fever",        ar: "برد أو كحة أو حمى"           },
+  { emoji: "👶", en: "Child not feeling well",      ar: "الطفل لا يشعر بتحسن"        },
+  { emoji: "🧠", en: "Depression or anxiety",       ar: "اكتئاب أو قلق"               },
 ];
 
 const CLINIC_STEPS = [
-  { num: "01", en: { t: "Search",   d: "Find by specialty, symptom, or doctor name." },           ar: { t: "ابحث",   d: "ابحث حسب التخصص أو الأعراض أو اسم الطبيب." } },
-  { num: "02", en: { t: "Book",     d: "Pick a slot in real time and confirm instantly." },         ar: { t: "احجز",   d: "اختر موعداً في الوقت الفعلي وتأكده فوراً." } },
-  { num: "03", en: { t: "Visit",    d: "Check in from your phone or arrive at the clinic." },       ar: { t: "زر",     d: "سجّل حضورك من هاتفك أو اذهب إلى العيادة." } },
-  { num: "04", en: { t: "Follow up",d: "Receive your summary, prescription and lab results." },     ar: { t: "تابع",   d: "استلم ملخصك ووصفتك ونتائج تحاليلك." } },
+  { num: "01", en: { t: "Search",   d: "Find by specialty, symptom, or doctor name." },          ar: { t: "ابحث",   d: "ابحث حسب التخصص أو الأعراض أو اسم الطبيب." } },
+  { num: "02", en: { t: "Book",     d: "Pick a slot in real time and confirm instantly." },        ar: { t: "احجز",   d: "اختر موعداً في الوقت الفعلي وتأكد فوراً." } },
+  { num: "03", en: { t: "Visit",    d: "Check in from your phone or arrive at the clinic." },      ar: { t: "زر",     d: "سجل حضورك من هاتفك أو اذهب إلى العيادة." } },
+  { num: "04", en: { t: "Follow up",d: "Receive your summary, prescription and lab results." },    ar: { t: "تابع",   d: "استلم ملخصك وصفتك ونتائج تحاليلك." } },
 ];
 
 const CLINIC_TYPES = [
   { emoji: "🦷", from: "#e8d5f0", to: "#d5e8f5",
-    en: { label: "Dentist",              desc: "Teething troubles? Schedule a dental checkup" },
+    en: { label: "Dentist",             desc: "Teething troubles? Schedule a dental checkup" },
     ar: { label: "طبيب الأسنان",         desc: "مشاكل الأسنان؟ احجز فحصاً" } },
-  { emoji: "🤱", from: "#d5e8f5", to: "#ede0f8",
-    en: { label: "Gynecologist",         desc: "Women's health, pregnancy and infertility" },
+  { emoji: "🌺", from: "#d5e8f5", to: "#ede0f8",
+    en: { label: "Gynecologist",        desc: "Women's health, pregnancy and infertility" },
     ar: { label: "طبيب نساء وتوليد",     desc: "صحة المرأة والحمل وعلاج العقم" } },
   { emoji: "🥗", from: "#ede0f8", to: "#d1fae5",
-    en: { label: "Dietitian/Nutrition",  desc: "Eating right, weight management & sports nutrition" },
+    en: { label: "Dietitian/Nutrition", desc: "Eating right, weight management & sports nutrition" },
     ar: { label: "أخصائي تغذية",         desc: "الغذاء الصحي وإدارة الوزن" } },
-  { emoji: "🏃", from: "#d1fae5", to: "#e8d5f0",
-    en: { label: "Physiotherapist",      desc: "Pulled a muscle? Get treated by a specialist" },
+  { emoji: "💪", from: "#d1fae5", to: "#e8d5f0",
+    en: { label: "Physiotherapist",     desc: "Pulled a muscle? Get treated by a specialist" },
     ar: { label: "معالج فيزيائي",        desc: "إصابة عضلية؟ احصل على علاج متخصص" } },
 ];
 
 const QUICK_ACTIONS = [
-  { href: "/dashboard/appointments", emoji: "📅", en: "Book Appointment",   ar: "احجز موعداً",        from: "#e8d5f0", to: "#DFC8E7" },
-  { href: "/dashboard/records",      emoji: "📋", en: "My Records",         ar: "سجلاتي",             from: "#d5e8f5", to: "#c8dff0" },
-  { href: "/dashboard/lab-tests",    emoji: "🧪", en: "Lab Tests",          ar: "تحاليل مختبرية",     from: "#ede0f8", to: "#d5e8f5" },
-  { href: "/dashboard/find-doctors", emoji: "👨‍⚕️", en: "Find a Doctor",    ar: "ابحث عن طبيب",       from: "#d1fae5", to: "#c8dff0" },
+  { href: "/dashboard/appointments",     emoji: "📅", en: "Book Appointment",   ar: "احجز موعداً",       from: "#e8d5f0", to: "#DFC8E7" },
+  { href: "/dashboard/symptom-checker",  emoji: "🤖", en: "AI Symptom Checker", ar: "فاحص الأعراض",       from: "#c8dff0", to: "#d1fae5" },
+  { href: "/dashboard/records",          emoji: "📋", en: "My Records",         ar: "سجلاتي",             from: "#d5e8f5", to: "#c8dff0" },
+  { href: "/dashboard/lab-tests",        emoji: "🔬", en: "Lab Tests",          ar: "تحاليل مختبرية",     from: "#ede0f8", to: "#d5e8f5" },
+  { href: "/dashboard/find-doctors",     emoji: "🩺", en: "Find a Doctor",      ar: "ابحث عن طبيب",       from: "#d1fae5", to: "#c8dff0" },
+  { href: "/dashboard/profile",          emoji: "👨‍👩‍👧", en: "Family & Profile", ar: "العائلة والملف",     from: "#fde68a", to: "#e8d5f0" },
+];
+
+const NOTIFICATIONS = [
+  {
+    icon: "⏰", unread: true,
+    dotColor: "#f59e0b",
+    bg: "linear-gradient(135deg, #fffbeb, #fefce8)", border: "#fde68a",
+    tagBg: "#fef3c7", tagColor: "#b45309", tagBorder: "#fde68a",
+    en: { tag: "Reminder",    title: "Appointment in 2 hours",       body: "Dr. Aisha Al Harthy · Today 3:30 PM · Royal Care Clinic",              time: "2h ago" },
+    ar: { tag: "تذكير",       title: "موعد خلال ساعتين",              body: "د. عائشة الحارثي · اليوم ٣:٣٠ م · عيادة رويال كير",                   time: "منذ ٢س" },
+  },
+  {
+    icon: "✅", unread: true,
+    dotColor: "#10b981",
+    bg: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "#a7f3d0",
+    tagBg: "#d1fae5", tagColor: "#065f46", tagBorder: "#6ee7b7",
+    en: { tag: "Confirmed",   title: "Appointment confirmed",          body: "Dr. Omar Al Balushi · Tomorrow at 10:00 AM · Heart & Vascular Centre", time: "1h ago" },
+    ar: { tag: "مؤكد",        title: "تم تأكيد الموعد",               body: "د. عمر البلوشي · غداً ١٠:٠٠ ص · مركز القلب والأوعية",                 time: "منذ ١س" },
+  },
+  {
+    icon: "🔬", unread: true,
+    dotColor: "#38bdf8",
+    bg: "linear-gradient(135deg, #f0f9ff, #eff6ff)", border: "#bae6fd",
+    tagBg: "#e0f2fe", tagColor: "#0369a1", tagBorder: "#7dd3fc",
+    en: { tag: "Lab Results", title: "Lab results are ready",          body: "Blood panel · Uploaded to your health records",                        time: "3h ago" },
+    ar: { tag: "نتائج",       title: "نتائج التحاليل جاهزة",           body: "فحص الدم الشامل · تم رفعه إلى سجلاتك الصحية",                         time: "منذ ٣س" },
+  },
+  {
+    icon: "💊", unread: false,
+    dotColor: "#a855f7",
+    bg: "linear-gradient(135deg, #faf5ff, #f5f3ff)", border: "#d8b4fe",
+    tagBg: "#ede9fe", tagColor: "#6d28d9", tagBorder: "#c4b5fd",
+    en: { tag: "Rx Renewal",    title: "Prescription renewal due",     body: "Metformin 500mg · Refill needed in 3 days",                            time: "6h ago" },
+    ar: { tag: "تجديد وصفة",   title: "تجديد الوصفة الطبية مطلوب",    body: "ميتفورمين ٥٠٠ مجم · التجديد خلال ٣ أيام",                             time: "منذ ٦س" },
+  },
+  {
+    icon: "💳", unread: false,
+    dotColor: "",
+    bg: "linear-gradient(135deg, #f5f0fc, #eef4fc)", border: "#e7dcee",
+    tagBg: "#e7dcee", tagColor: "#46255f", tagBorder: "#DFC8E7",
+    en: { tag: "Payment",     title: "Payment confirmed",              body: "OMR 30.000 · Dr. Aisha Al Harthy · via Thawani Pay",                   time: "1d ago" },
+    ar: { tag: "دفع",         title: "تم تأكيد الدفع",                body: "٣٠.٠٠٠ ر.ع. · د. عائشة الحارثي · عبر ثواني Pay",                     time: "منذ ١ي" },
+  },
 ];
 
 const HEALTH_METRICS = [
-  { icon: "❤️", en: { label: "Heart Rate",     value: "72 bpm",   sub: "Normal" },  ar: { label: "معدل ضربات القلب", value: "٧٢ نبضة/د", sub: "طبيعي" },   color: "from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20",   badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
-  { icon: "⚖️", en: { label: "BMI",            value: "22.4",     sub: "Healthy" }, ar: { label: "مؤشر كتلة الجسم",  value: "٢٢.٤",      sub: "صحي" },      color: "from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20",     badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
-  { icon: "🩸", en: { label: "Blood Pressure", value: "118/78",   sub: "Normal" },  ar: { label: "ضغط الدم",         value: "١١٨/٧٨",    sub: "طبيعي" },    color: "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20", badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
-  { icon: "💊", en: { label: "Active Rx",      value: "2",        sub: "Ongoing" }, ar: { label: "الأدوية النشطة",    value: "٢",         sub: "جارية" },    color: "from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20", badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
+  { icon: "❤️",
+    en: { label: "Heart Rate",     value: "72 bpm",  sub: "Normal"  },
+    ar: { label: "معدل ضربات القلب", value: "٧٢ نبضة/د", sub: "طبيعي" },
+    color: "from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20",
+    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
+  { icon: "⚖️",
+    en: { label: "BMI",            value: "22.4",    sub: "Healthy" },
+    ar: { label: "مؤشر كتلة الجسم",  value: "٢٢.٤",    sub: "صحي"   },
+    color: "from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20",
+    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
+  { icon: "💉",
+    en: { label: "Blood Pressure", value: "118/78",  sub: "Normal"  },
+    ar: { label: "ضغط الدم",       value: "١١٨/٧٨",  sub: "طبيعي" },
+    color: "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
+    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
+  { icon: "💊",
+    en: { label: "Active Rx",      value: "2",       sub: "Ongoing" },
+    ar: { label: "الأدوية النشطة",  value: "٢",       sub: "جارية" },
+    color: "from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20",
+    badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
 ];
 
-const ARTICLES = [
-  { from: "#e8d5f0", to: "#d5e8f5",
-    en: { tag: "Coronavirus",             title: "12 Coronavirus Myths and Facts You Should Know" },
-    ar: { tag: "كورونا",                  title: "١٢ خرافة وحقيقة عن كورونا يجب أن تعرفها" } },
-  { from: "#d5e8f5", to: "#ede0f8",
-    en: { tag: "Vitamins & Supplements",  title: "Eating Right to Build Immunity Against Viral Infections" },
-    ar: { tag: "فيتامينات ومكملات",       title: "تناول الغذاء الصحيح لبناء المناعة ضد الفيروسات" } },
-];
+const DASHBOARD_ARTICLES = ARTICLES.slice(0, 2);
 
-/* ─── SectionPill (matches homepage exactly) ─────────────────────── */
+/* ─── SectionPill ────────────────────────────────────────────────────── */
 function SectionPill({ en, ar: arText, isAr }: { en: string; ar: string; isAr: boolean }) {
   return (
     <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
@@ -126,7 +185,7 @@ function SectionPill({ en, ar: arText, isAr }: { en: string; ar: string; isAr: b
   );
 }
 
-/* ─── BrandCTA (matches homepage exactly) ───────────────────────── */
+/* ─── BrandCTA ───────────────────────────────────────────────────────── */
 function BrandCTA({ href, en, ar: arText, isAr }: { href: string; en: string; ar: string; isAr: boolean }) {
   return (
     <Link href={href}
@@ -139,7 +198,7 @@ function BrandCTA({ href, en, ar: arText, isAr }: { href: string; en: string; ar
   );
 }
 
-/* ─── Page ───────────────────────────────────────────────────────── */
+/* ─── Page ───────────────────────────────────────────────────────────── */
 type ApptLite = {
   id: string; status: string; type: string; slot_date: string; slot_start: string | null;
   doctor?: { full_name?: string; specialty?: string } | null;
@@ -149,6 +208,8 @@ export default function DashboardPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+
+  const unreadCount = NOTIFICATIONS.filter(n => n.unread).length;
 
   const [firstName, setFirstName] = useState("");
   const [upcoming, setUpcoming]   = useState<UpItem[]>([]);
@@ -197,7 +258,7 @@ export default function DashboardPage() {
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] overflow-x-hidden">
 
-      {/* ══════════ HERO / WELCOME ══════════ */}
+      {/* HERO */}
       <section className="relative overflow-hidden py-16 px-6"
         style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -208,7 +269,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="relative max-w-6xl mx-auto">
-          {/* Top row: greeting + stats */}
           <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 mb-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4"
@@ -248,8 +308,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Quick Actions row */}
-          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 ${ar ? "direction-rtl" : ""}`}>
+          {/* Quick Actions */}
+          <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 ${ar ? "direction-rtl" : ""}`}>
             {QUICK_ACTIONS.map(action => (
               <Link key={action.href} href={action.href}
                 className="no-underline group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all hover:scale-[1.03] hover:shadow-lg"
@@ -270,7 +330,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ MARQUEE ══════════ */}
+      {/* MARQUEE */}
       <section className="py-3.5 overflow-hidden border-y border-[#e7dcee] dark:border-[#2a1c44] bg-white dark:bg-[#0d0820]">
         <div className="flex animate-marquee gap-10 items-center whitespace-nowrap">
           {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
@@ -281,7 +341,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ UPCOMING APPOINTMENTS ══════════ */}
+      {/* UPCOMING APPOINTMENTS */}
       <section className="py-16 px-6 bg-white dark:bg-[#0d0820]">
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
@@ -297,7 +357,7 @@ export default function DashboardPage() {
             </div>
             <Link href="/dashboard/appointments"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm no-underline transition-all flex-shrink-0 self-start sm:self-auto border-2 border-[#2E1A47]/14 dark:border-[#DFC8E7]/14 text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#2E1A47]/35 hover:bg-[#2E1A47]/5">
-              {ar ? "عرض الكل ←" : "View all →"}
+              {ar ? "عرض الكل →" : "View all →"}
             </Link>
           </div>
 
@@ -314,7 +374,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : upcoming.map((appt, i) => {
-              const d = ar ? appt.ar : appt.en;
+              const d         = ar ? appt.ar : appt.en;
               const isPending = appt.en.status === "Pending";
               const isToday   = appt.en.date === "Today";
               return (
@@ -324,7 +384,6 @@ export default function DashboardPage() {
                       ? "border-[#DFC8E7] dark:border-[#46255f] shadow-sm shadow-[#e8d5f0]/60"
                       : "border-[#e7dcee] dark:border-[#3a2560]"
                   }`}>
-                  {/* Today accent stripe */}
                   {isToday && (
                     <div className={`absolute top-0 bottom-0 w-1 bg-gradient-to-b from-[#e8d5f0] to-[#DFC8E7] flex-shrink-0 ${ar ? "right-0" : "left-0"}`} />
                   )}
@@ -361,7 +420,71 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ HEALTH SNAPSHOT ══════════ */}
+      {/* NOTIFICATIONS */}
+      <section id="notifications" className="py-16 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
+        <div className="max-w-6xl mx-auto">
+          <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 ${ar ? "sm:flex-row-reverse" : ""}`}>
+            <div className={ar ? "text-right" : ""}>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+                {ar ? "الإشعارات" : "Notifications"}
+              </p>
+              <div className={`flex items-center gap-3 ${ar ? "flex-row-reverse" : ""}`}>
+                <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
+                  style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
+                  {ar
+                    ? <><em className="italic text-[#46255f] dark:text-[#DFC8E7]">تحديثاتك</em> الأخيرة.</>
+                    : <>Your latest <em className="italic text-[#46255f] dark:text-[#DFC8E7]">updates.</em></>}
+                </h2>
+                {unreadCount > 0 && (
+                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-black bg-rose-500 text-white">
+                    {unreadCount} {ar ? "جديد" : "new"}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition-all flex-shrink-0 self-start sm:self-auto border-2 border-[#2E1A47]/14 dark:border-[#DFC8E7]/14 text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/35 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#2E1A47]/5">
+              {ar ? "تحديد الكل كمقروء" : "Mark all read"}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {NOTIFICATIONS.map((n, i) => {
+              const nd = ar ? n.ar : n.en;
+              return (
+                <div key={i}
+                  className={`group flex items-start gap-4 p-5 rounded-2xl border transition-all hover:shadow-md hover:-translate-y-0.5 duration-200 cursor-pointer relative overflow-hidden ${!n.unread ? "opacity-70 hover:opacity-100" : ""} ${ar ? "flex-row-reverse" : ""}`}
+                  style={{ background: n.bg, borderColor: n.border }}>
+                  {n.unread && n.dotColor && (
+                    <div className={`absolute top-4 ${ar ? "left-4" : "right-4"} w-2 h-2 rounded-full flex-shrink-0`}
+                      style={{ background: n.dotColor }} />
+                  )}
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 shadow-sm"
+                    style={{ background: "rgba(255,255,255,0.7)", border: `1px solid ${n.border}` }}>
+                    {n.icon}
+                  </div>
+                  <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
+                    <div className={`flex items-center gap-2 mb-1.5 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
+                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border"
+                        style={{ background: n.tagBg, color: n.tagColor, borderColor: n.tagBorder }}>
+                        {nd.tag}
+                      </span>
+                      <span className="text-[11px] text-[#2E1A47]/40 font-medium">{nd.time}</span>
+                    </div>
+                    <p className="text-sm font-bold text-[#2E1A47] mb-0.5">{nd.title}</p>
+                    <p className="text-xs text-[#2E1A47]/55 leading-snug">{nd.body}</p>
+                  </div>
+                  <svg className={`w-4 h-4 text-[#2E1A47]/20 group-hover:text-[#46255f] transition-colors flex-shrink-0 mt-1 ${ar ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* HEALTH SNAPSHOT */}
       <section className="py-10 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
         <div className="max-w-6xl mx-auto">
           <div className={`flex items-center justify-between mb-6 ${ar ? "flex-row-reverse" : ""}`}>
@@ -370,7 +493,7 @@ export default function DashboardPage() {
             </p>
             <Link href="/dashboard/records"
               className="text-xs font-bold text-[#46255f]/60 dark:text-[#DFC8E7]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-colors no-underline">
-              {ar ? "عرض السجلات ←" : "View records →"}
+              {ar ? "عرض السجلات →" : "View records →"}
             </Link>
           </div>
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${ar ? "direction-rtl" : ""}`}>
@@ -392,7 +515,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ SERVICES ══════════ */}
+      {/* SERVICES */}
       <section className="py-16 px-6 bg-white dark:bg-[#0d0820]">
         <div className="max-w-6xl mx-auto">
           <div className={`mb-10 ${ar ? "text-right" : ""}`}>
@@ -406,7 +529,7 @@ export default function DashboardPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {SERVICE_CARDS.map(card => (
               <Link key={card.href} href={card.href}
                 className="no-underline group rounded-2xl overflow-hidden border border-[#e7dcee] dark:border-[#3a2560] bg-white dark:bg-[#1a1030] hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
@@ -414,6 +537,11 @@ export default function DashboardPage() {
                   style={{ background: `linear-gradient(135deg, ${card.from}, ${card.to})` }}>
                   <div className="absolute top-[-20px] right-[-20px] w-36 h-36 rounded-full opacity-25 bg-white" />
                   <div className="absolute bottom-[-30px] left-[-10px] w-28 h-28 rounded-full opacity-20 bg-white" />
+                  {"badge" in card && card.badge && (
+                    <span className={`absolute top-3 z-10 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#2E1A47] text-white ${ar ? "left-3" : "right-3"}`}>
+                      {ar ? card.badge.ar : card.badge.en}
+                    </span>
+                  )}
                   <span className="relative z-10 drop-shadow-sm transition-transform duration-300 group-hover:scale-110">
                     {card.emoji}
                   </span>
@@ -432,7 +560,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ HOW IT WORKS — dark band ══════════ */}
+      {/* HOW IT WORKS */}
       <section className="py-20 px-6"
         style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 50%, #1e1038 100%)" }}>
         <div className="max-w-6xl mx-auto">
@@ -452,7 +580,7 @@ export default function DashboardPage() {
               style={{ border: "1.5px solid rgba(223,200,231,0.28)", color: "#DFC8E7" }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(223,200,231,0.07)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              {ar ? "ابحث عن طبيب ←" : "Find a doctor →"}
+              {ar ? "ابحث عن طبيب →" : "Find a doctor →"}
             </Link>
           </div>
 
@@ -462,9 +590,7 @@ export default function DashboardPage() {
                 <p className="text-4xl font-black font-serif mb-4 leading-none" style={{ color: "rgba(223,200,231,0.2)" }}>
                   {step.num}
                 </p>
-                <h3 className="text-lg font-bold text-white mb-2 font-serif">
-                  {ar ? step.ar.t : step.en.t}
-                </h3>
+                <h3 className="text-lg font-bold text-white mb-2 font-serif">{ar ? step.ar.t : step.en.t}</h3>
                 <p className="text-sm leading-relaxed" style={{ color: "rgba(223,200,231,0.58)" }}>
                   {ar ? step.ar.d : step.en.d}
                 </p>
@@ -474,7 +600,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ CONSULT ONLINE ══════════ */}
+      {/* CONSULT ONLINE */}
       <section className="py-20 px-6 bg-white dark:bg-[#0d0820]">
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 ${ar ? "sm:flex-row-reverse" : ""}`}>
@@ -487,7 +613,7 @@ export default function DashboardPage() {
             </div>
             <Link href="/dashboard/specialties"
               className="inline-flex items-center gap-1.5 text-sm font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline flex-shrink-0">
-              {ar ? "تصفح الكل ←" : "Browse all →"}
+              {ar ? "تصفح الكل →" : "Browse all →"}
             </Link>
           </div>
 
@@ -509,7 +635,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ CLINIC TYPES ══════════ */}
+      {/* CLINIC TYPES */}
       <section className="py-20 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
         <div className="max-w-6xl mx-auto">
           <div className={`mb-12 ${ar ? "text-right" : ""}`}>
@@ -549,7 +675,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ══════════ HEALTH TIP BANNER ══════════ */}
+      {/* HEALTH TIP BANNER */}
       <section className="py-5 px-6 bg-[#faf8fc] dark:bg-[#0a0518] border-y border-[#e7dcee] dark:border-[#2a1840]">
         <div className={`max-w-6xl mx-auto flex items-center gap-4 ${ar ? "flex-row-reverse" : ""}`}>
           <span className="text-2xl flex-shrink-0">💡</span>
@@ -559,14 +685,14 @@ export default function DashboardPage() {
             </span>
             <span className="text-sm text-[#2E1A47]/65 dark:text-[#DFC8E7]/60">
               {ar
-                ? "اشرب ٨ أكواب من الماء يومياً. الترطيب الجيد يحسّن طاقتك وتركيزك."
+                ? "اشرب ٨ أكواب من الماء يومياً. الترطيب الجيد يحسن طاقتك وتركيزك."
                 : "Stay hydrated — drink 8 glasses of water daily. Good hydration improves energy and focus."}
             </span>
           </div>
         </div>
       </section>
 
-      {/* ══════════ ARTICLES ══════════ */}
+      {/* ARTICLES */}
       <section className="py-20 px-6 bg-white dark:bg-[#0d0820]">
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row gap-14 items-center ${ar ? "sm:flex-row-reverse" : ""}`}>
@@ -586,9 +712,9 @@ export default function DashboardPage() {
             </div>
 
             <div className={`flex gap-5 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
-              {ARTICLES.map(article => (
-                <div key={article.en.tag}
-                  className="w-[185px] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden bg-[#faf8fc] dark:bg-[#1a1030] hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer">
+              {DASHBOARD_ARTICLES.map(article => (
+                <Link key={article.id} href={`/dashboard/articles/${article.id}`}
+                  className="w-[185px] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden bg-[#faf8fc] dark:bg-[#1a1030] hover:shadow-xl hover:-translate-y-1 transition-all duration-200 no-underline block">
                   <div className="h-32" style={{ background: `linear-gradient(135deg, ${article.from}, ${article.to})` }} />
                   <div className={`p-4 ${ar ? "text-right" : ""}`}>
                     <p className="text-[9px] font-bold uppercase tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-2">
@@ -601,7 +727,7 @@ export default function DashboardPage() {
                       {ar ? "د. ديانا بورجيو" : "Dr. Diana Borgio"}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -225,9 +226,10 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
 
 /* ─── ConsultModal (request consultation before booking surgery) ─────── */
 function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]; isAr: boolean; onClose: () => void }) {
-  const [step, setStep]   = useState<"date" | "time" | "confirm">("date");
+  const [step, setStep]     = useState<"date" | "time" | "confirm" | "payment">("date");
   const [selDate, setSelDate] = useState<Date | null>(null);
   const [selTime, setSelTime] = useState<string | null>(null);
+  const [payMethod, setPayMethod] = useState<string | null>(null);
   const [booked, setBooked]   = useState(false);
   const info = isAr ? surgery.ar : surgery.en;
 
@@ -250,15 +252,15 @@ function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]
       </div>
       {/* Steps */}
       <div className={`flex items-center gap-2 mt-4 ${isAr ? "flex-row-reverse" : ""}`}>
-        {[{ k: "date", en: "Date", ar: "التاريخ" }, { k: "time", en: "Time", ar: "الوقت" }, { k: "confirm", en: "Review", ar: "مراجعة" }].map((s, i) => (
+        {[{ k: "date", en: "Date", ar: "التاريخ" }, { k: "time", en: "Time", ar: "الوقت" }, { k: "confirm", en: "Review", ar: "مراجعة" }, { k: "payment", en: "Pay", ar: "الدفع" }].map((s, i) => (
           <div key={s.k} className={`flex items-center gap-2 ${isAr ? "flex-row-reverse" : ""}`}>
-            {i > 0 && <div className="w-4 h-px bg-[#e7dcee] dark:bg-[#3a2560]" />}
-            <div className={`flex items-center gap-1.5 ${isAr ? "flex-row-reverse" : ""}`}>
+            {i > 0 && <div className="w-3 h-px bg-[#e7dcee] dark:bg-[#3a2560]" />}
+            <div className={`flex items-center gap-1 ${isAr ? "flex-row-reverse" : ""}`}>
               <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 transition-all ${
                 step === s.k ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030]"
-                : (step === "time" && s.k === "date") || (step === "confirm" && (s.k === "date" || s.k === "time")) ? "bg-emerald-500 text-white"
+                : (step === "time" && s.k === "date") || (step === "confirm" && (s.k === "date" || s.k === "time")) || (step === "payment" && (s.k === "date" || s.k === "time" || s.k === "confirm")) ? "bg-emerald-500 text-white"
                 : "bg-[#e7dcee] dark:bg-[#3a2560] text-[#2E1A47]/40 dark:text-[#DFC8E7]/40"}`}>
-                {((step === "time" && s.k === "date") || (step === "confirm" && (s.k === "date" || s.k === "time"))) ? "✓" : i + 1}
+                {((step === "time" && s.k === "date") || (step === "confirm" && (s.k === "date" || s.k === "time")) || (step === "payment" && (s.k === "date" || s.k === "time" || s.k === "confirm"))) ? "✓" : i + 1}
               </div>
               <span className={`text-xs font-semibold ${step === s.k ? "text-[#2E1A47] dark:text-[#DFC8E7]" : "text-[#2E1A47]/35 dark:text-[#DFC8E7]/35"}`}>{isAr ? s.ar : s.en}</span>
             </div>
@@ -269,13 +271,56 @@ function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]
   );
 
   if (booked) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1a1030] rounded-2xl p-8 max-w-sm w-full text-center border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white dark:bg-[#1a1030] rounded-t-3xl sm:rounded-2xl px-8 pt-6 pb-8 max-w-sm w-full text-center border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl max-h-[92vh] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }}>
         <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-3xl mx-auto mb-4">✅</div>
-        <h3 className="font-black font-serif text-xl text-[#2E1A47] dark:text-[#DFC8E7] mb-1">{isAr ? "تم جدولة الاستشارة!" : "Consultation Scheduled!"}</h3>
-        <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 mb-3">{isAr ? "سيتواصل معك الفريق الطبي لتأكيد موعد الجراحة." : "The medical team will contact you to confirm the surgery date."}</p>
-        <p className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7]">{selDate ? fmtDate(selDate, isAr) : ""} · {selTime}</p>
-        <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-1 mb-6">{info.hospital}</p>
+        <h3 className="font-black font-serif text-xl text-[#2E1A47] dark:text-[#DFC8E7] mb-1">{isAr ? "تم تأكيد الحجز!" : "Booking Confirmed!"}</h3>
+        <p className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7] mt-2">{selDate ? fmtDate(selDate, isAr) : ""} · {selTime}</p>
+        <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-1 mb-4">{info.hospital}</p>
+
+        {/* Notifications sent */}
+        <div className="bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl p-4 mb-4 text-left border border-[#e7dcee] dark:border-[#2a1840]">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-3">
+            {isAr ? "الإشعارات المُرسَلة" : "Notifications Sent"}
+          </p>
+          {[
+            { icon: "📱", label: isAr ? "رسالة SMS" : "SMS", detail: "+968 9123 4567" },
+            { icon: "📧", label: isAr ? "البريد الإلكتروني" : "Email", detail: "vartika.pandey@inzint.com" },
+          ].map(n => (
+            <div key={n.label} className="flex items-center gap-2.5 mb-2 last:mb-0">
+              <span className="text-base">{n.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{n.label}</p>
+                <p className="text-[11px] text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 truncate">{n.detail}</p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0">✓ {isAr ? "أُرسل" : "Sent"}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Payment method used */}
+        <div className="bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl px-4 py-3 mb-5 text-left border border-[#e7dcee] dark:border-[#2a1840]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+              {isAr ? "طريقة الدفع" : "Payment"}
+            </span>
+            <span className="text-xs font-bold text-[#46255f] dark:text-[#DFC8E7]">
+              {payMethod === "thawani" ? "💳 Thawani Pay" : payMethod === "card" ? "🏦 Card" : "🏥 " + (isAr ? "الدفع عند الوصول" : "Pay at Hospital")}
+            </span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+              {isAr ? "المبلغ" : "Amount"}
+            </span>
+            <span className="text-xs font-bold text-[#2E1A47] dark:text-[#DFC8E7]">
+              {isAr ? `${surgery.price.toLocaleString()} ر.ع.` : `OMR ${surgery.price.toLocaleString()}`}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 mb-5">
+          {isAr ? "سيتواصل معك الفريق الطبي لتأكيد موعد الجراحة." : "The medical team will contact you to confirm the surgery date."}
+        </p>
         <button onClick={onClose} className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47]"
           style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
           {isAr ? "إغلاق" : "Done"}
@@ -285,8 +330,8 @@ function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-[#1a1030] rounded-2xl max-w-md w-full border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white dark:bg-[#1a1030] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl" style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }} onClick={e => e.stopPropagation()}>
         <Header />
 
         {step === "date" && (
@@ -363,12 +408,80 @@ function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]
                 className="flex-1 py-3 rounded-xl font-bold text-sm border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 transition-all">
                 {isAr ? "تعديل" : "Edit"}
               </button>
-              <button onClick={() => setBooked(true)}
+              <button onClick={() => setStep("payment")}
                 className="flex-[2] py-3 rounded-xl font-bold text-sm text-[#2E1A47] transition-opacity hover:opacity-85"
                 style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-                {isAr ? "تأكيد الاستشارة" : "Confirm Consultation"}
+                {isAr ? "المتابعة للدفع" : "Continue to Payment"}
               </button>
             </div>
+          </div>
+        )}
+
+        {step === "payment" && (
+          <div className="px-6 py-5">
+            <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+                {isAr ? "طريقة الدفع" : "Payment Method"}
+              </p>
+              <button onClick={() => setStep("confirm")}
+                className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
+                ← {isAr ? "مراجعة" : "Review"}
+              </button>
+            </div>
+
+            {/* Payment summary */}
+            <div className={`bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl p-4 mb-4 border border-[#e7dcee] dark:border-[#2a1840] space-y-2 ${isAr ? "text-right" : ""}`}>
+              {[
+                { l: isAr ? "الإجراء" : "Procedure", v: info.name },
+                { l: isAr ? "التاريخ والوقت" : "Date & Time", v: `${selDate ? fmtDate(selDate, isAr) : ""} · ${selTime}` },
+              ].map(row => (
+                <div key={row.l} className={`flex justify-between items-start gap-4 ${isAr ? "flex-row-reverse" : ""}`}>
+                  <span className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 flex-shrink-0">{row.l}</span>
+                  <span className="text-xs font-semibold text-[#2E1A47] dark:text-[#DFC8E7] text-right">{row.v}</span>
+                </div>
+              ))}
+              <div className={`flex justify-between items-center pt-2 mt-1 border-t border-[#e7dcee] dark:border-[#2a1840] ${isAr ? "flex-row-reverse" : ""}`}>
+                <span className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{isAr ? "الإجمالي" : "Total"}</span>
+                <span className="text-sm font-black text-[#46255f] dark:text-[#DFC8E7]">
+                  {isAr ? `${surgery.price.toLocaleString()} ر.ع.` : `OMR ${surgery.price.toLocaleString()}`}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment methods */}
+            <div className="space-y-2 mb-5">
+              {[
+                { key: "thawani", icon: "💳", en: "Thawani Pay",           enSub: "Recommended",        ar: "ثواني Pay",           arSub: "الطريقة الموصى بها" },
+                { key: "card",    icon: "🏦", en: "Credit / Debit Card",   enSub: "Visa · Mastercard",  ar: "بطاقة ائتمانية / خصم", arSub: "Visa · Mastercard" },
+                { key: "cash",    icon: "🏥", en: "Pay at Hospital",        enSub: "Pay on arrival",     ar: "الدفع في المستشفى",    arSub: "ادفع عند الوصول" },
+              ].map(m => (
+                <button key={m.key} onClick={() => setPayMethod(m.key)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${isAr ? "flex-row-reverse text-right" : ""} ${
+                    payMethod === m.key
+                      ? "border-[#46255f] dark:border-[#DFC8E7] bg-[#f0e8f8] dark:bg-[#2E1A47]/30"
+                      : "border-[#e7dcee] dark:border-[#3a2560] hover:border-[#46255f]/40 dark:hover:border-[#DFC8E7]/40 hover:bg-[#faf8fc] dark:hover:bg-[#1a1030]"
+                  }`}>
+                  <span className="text-xl flex-shrink-0">{m.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{isAr ? m.ar : m.en}</p>
+                    <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45">{isAr ? m.arSub : m.enSub}</p>
+                  </div>
+                  <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                    payMethod === m.key ? "border-[#46255f] dark:border-[#DFC8E7] bg-[#46255f] dark:bg-[#DFC8E7]" : "border-[#e7dcee] dark:border-[#3a2560]"
+                  }`}>
+                    {payMethod === m.key && <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-[#1a1030]" />}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button disabled={!payMethod} onClick={() => setBooked(true)}
+              className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
+              {payMethod === "cash"
+                ? isAr ? "تأكيد الحجز" : "Confirm Booking"
+                : isAr ? `ادفع ${surgery.price.toLocaleString()} ر.ع.` : `Pay OMR ${surgery.price.toLocaleString()}`}
+            </button>
           </div>
         )}
       </div>
@@ -423,11 +536,26 @@ function SurgeryCard({ surgery, isAr, onBook }: { surgery: typeof SURGERIES[0]; 
 
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function SurgeriesPage() {
+  return (
+    <Suspense fallback={null}>
+      <SurgeriesInner />
+    </Suspense>
+  );
+}
+
+function SurgeriesInner() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const searchParams = useSearchParams();
   const [search, setSearch]     = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const [booking, setBooking]   = useState<typeof SURGERIES[0] | null>(null);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = SURGERIES.filter(s => {
     const matchCat = activeTab === "All" || s.category === activeTab;

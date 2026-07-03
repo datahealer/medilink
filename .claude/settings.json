@@ -105,7 +105,17 @@
       "Bash(node _runtime_verify.mjs)",
       "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\('main:',p.main\\);console.log\\('deps:',Object.keys\\(p.dependencies\\).filter\\(d=>/expo-router|zustand|tanstack|supabase|reanimated|gesture|safe-area|bottom-sheet|async-storage|secure-store|i18n|hook-form|zod/.test\\(d\\)\\).join\\(', '\\)\\)\")",
       "Bash(grep -rhoE \"apiFetch\\(<[^>]*>\\)?\\\\\\(\\\\\"[^\\\\\"]+\\\\\"|apiFetch\\\\\\(\\\\`[^\\\\`]+\\\\`\" src)",
-      "Bash(node -e \"const p=require\\('./backend/package.json'\\);console.log\\('name:',p.name\\);console.log\\('next:',p.dependencies?.next||'no'\\);console.log\\('scripts:',JSON.stringify\\(p.scripts\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./backend/package.json'\\);console.log\\('name:',p.name\\);console.log\\('next:',p.dependencies?.next||'no'\\);console.log\\('scripts:',JSON.stringify\\(p.scripts\\)\\)\")",
+      "Bash(git merge *)",
+      "Bash(git --no-pager diff 4105f6e origin/vartikaweb -- 'Medilink/frontend/src/app/dashboard/records/page.tsx')",
+      "Bash(git --no-pager diff 4105f6e origin/vartikaweb -- 'Medilink/frontend/src/app/dashboard/appointments/page.tsx')",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")",
+      "Bash(git --no-pager diff 4105f6e origin/vartikaweb -- 'Medilink/frontend/src/app/dashboard/page.tsx')",
+      "Bash(grep -n \"Personal Info\\\\|Health Info\\\\|Emergency Contact\\\\|Stats summary\\\\|<Section\\\\|max-w-3xl mx-auto px-6 py-8\\\\|{/\\\\* \" page.tsx)",
+      "Bash(cd /d/Medilink/Medilink/frontend *)",
+      "Bash(grep -rnE '^\\(<{7}|={7}|>{7}\\)\\( |$\\)' src)",
+      "Bash(echo \"EXIT=$?\")"
     ],
     "additionalDirectories": [
       "d:\\New folder (3)\\hams-frontend\\supabase\\migrations",

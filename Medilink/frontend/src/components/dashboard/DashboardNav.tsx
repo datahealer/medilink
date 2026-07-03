@@ -5,12 +5,117 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LangToggle } from "@/components/auth/LangToggle";
 import { ThemeToggle } from "@/components/auth/ThemeToggle";
+import { SiteSearch } from "@/components/dashboard/SiteSearch";
 import { useI18n } from "@/i18n/I18nProvider";
 
+const NOTIF_ITEMS = [
+  {
+    icon: "⏰", unread: true, dotColor: "#f59e0b",
+    en: { tag: "Reminder",    title: "Appointment in 2 hours",      body: "Dr. Aisha · Today 3:30 PM", time: "2h ago" },
+    ar: { tag: "تذكير",       title: "موعد خلال ساعتين",            body: "د. عائشة · اليوم ٣:٣٠ م", time: "منذ ٢س" },
+  },
+  {
+    icon: "✅", unread: true, dotColor: "#10b981",
+    en: { tag: "Confirmed",   title: "Appointment confirmed",        body: "Dr. Omar · Tomorrow 10:00 AM", time: "1h ago" },
+    ar: { tag: "مؤكد",        title: "تم تأكيد الموعد",             body: "د. عمر · غداً ١٠:٠٠ ص", time: "منذ ١س" },
+  },
+  {
+    icon: "🧪", unread: true, dotColor: "#38bdf8",
+    en: { tag: "Lab Results", title: "Lab results are ready",        body: "Blood panel uploaded", time: "3h ago" },
+    ar: { tag: "نتائج",       title: "نتائج التحاليل جاهزة",        body: "تم رفع فحص الدم", time: "منذ ٣س" },
+  },
+  {
+    icon: "💊", unread: false, dotColor: "",
+    en: { tag: "Rx Renewal",  title: "Prescription renewal due",    body: "Metformin 500mg · 3 days", time: "6h ago" },
+    ar: { tag: "تجديد وصفة", title: "تجديد الوصفة مطلوب",         body: "ميتفورمين · ٣ أيام", time: "منذ ٦س" },
+  },
+  {
+    icon: "💳", unread: false, dotColor: "",
+    en: { tag: "Payment",     title: "Payment confirmed",            body: "OMR 30 · Thawani Pay", time: "1d ago" },
+    ar: { tag: "دفع",         title: "تم تأكيد الدفع",             body: "٣٠ ر.ع. · ثواني Pay", time: "منذ ١ي" },
+  },
+];
+
+function NotificationBell({ ar }: { ar: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const unread = NOTIF_ITEMS.filter(n => n.unread).length;
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)}
+        className="relative p-2 rounded-xl text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#2E1A47]/5 dark:hover:bg-[#DFC8E7]/8 transition-colors"
+        aria-label="Notifications">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        {unread > 0 && (
+          <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center leading-none">
+            {unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className={`absolute top-full mt-1.5 w-80 bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#2a1840] shadow-xl shadow-[#2E1A47]/10 z-50 overflow-hidden ${ar ? "left-0" : "right-0"}`}>
+          {/* Header */}
+          <div className={`flex items-center justify-between px-4 py-3 border-b border-[#e7dcee] dark:border-[#2a1840] ${ar ? "flex-row-reverse" : ""}`}>
+            <div className={`flex items-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+              <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{ar ? "الإشعارات" : "Notifications"}</p>
+              {unread > 0 && (
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-500 text-white">{unread} {ar ? "جديد" : "new"}</span>
+              )}
+            </div>
+            <Link href="/dashboard/notifications" onClick={() => setOpen(false)}
+              className="text-[11px] font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline no-underline">
+              {ar ? "عرض الكل" : "View all"}
+            </Link>
+          </div>
+
+          {/* Items */}
+          <div className="divide-y divide-[#e7dcee] dark:divide-[#2a1840] max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+            {NOTIF_ITEMS.map((n, i) => {
+              const nd = ar ? n.ar : n.en;
+              return (
+                <div key={i}
+                  className={`flex items-start gap-3 px-4 py-3 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20 transition-colors cursor-pointer ${!n.unread ? "opacity-60 hover:opacity-100" : ""} ${ar ? "flex-row-reverse" : ""}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${n.unread ? "bg-[#faf5ff] dark:bg-[#2E1A47]/40" : "bg-[#f5f5f5] dark:bg-[#1a1030]"} relative`}>
+                    {n.icon}
+                    {n.unread && n.dotColor && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-white dark:border-[#1a1030]"
+                        style={{ background: n.dotColor }} />
+                    )}
+                  </div>
+                  <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
+                    <p className="text-xs font-bold text-[#2E1A47] dark:text-[#DFC8E7] leading-tight">{nd.title}</p>
+                    <p className="text-[11px] text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 leading-snug mt-0.5 truncate">{nd.body}</p>
+                    <p className="text-[10px] text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mt-1">{nd.time}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_LINKS = [
-  { href: "/dashboard/find-doctors", en: "Find Doctors", ar: "ابحث عن طبيب" },
-  { href: "/dashboard/lab-tests",    en: "Lab Tests",    ar: "تحاليل مختبرية" },
-  { href: "/dashboard/surgeries",    en: "Surgeries",    ar: "العمليات الجراحية" },
+  { href: "/dashboard/find-doctors",     en: "Find Doctors",       ar: "ابحث عن طبيب" },
+  { href: "/dashboard/symptom-checker",  en: "Symptom Checker",    ar: "فاحص الأعراض" },
+  { href: "/dashboard/lab-tests",        en: "Lab Tests",          ar: "تحاليل مختبرية" },
+  { href: "/dashboard/surgeries",        en: "Surgeries",          ar: "العمليات الجراحية" },
+  { href: "/dashboard/profile",          en: "My Profile",         ar: "ملفي الشخصي" },
 ];
 
 function UserMenu() {
@@ -55,7 +160,7 @@ function UserMenu() {
       </button>
 
       {open && (
-        <div className={`absolute top-full mt-1.5 w-48 bg-white dark:bg-[#1a1030] rounded-xl border border-[#e7dcee] dark:border-[#2a1840] shadow-lg shadow-[#2E1A47]/8 py-1.5 z-50 ${ar ? "left-0" : "right-0"}`}>
+        <div className={`absolute top-full mt-1.5 w-48 bg-white dark:bg-[#1a1030] rounded-xl border border-[#e7dcee] dark:border-[#2a1840] shadow-lg shadow-[#2E1A47]/8 z-50 overflow-hidden ${ar ? "left-0" : "right-0"}`}>
           <div className={`px-4 py-2.5 border-b border-[#e7dcee] dark:border-[#2a1840] ${ar ? "text-right" : ""}`}>
             <p className="text-xs font-semibold text-[#2E1A47] dark:text-[#DFC8E7] truncate">
               {ar ? "فارتيكا بانديا" : "Vartika Pandey"}
@@ -86,7 +191,6 @@ export function DashboardNav() {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const [activeLink, setActiveLink] = useState("");
-  const [search, setSearch]         = useState("");
   const [menuOpen, setMenuOpen]     = useState(false);
 
   return (
@@ -95,7 +199,7 @@ export function DashboardNav() {
       className="bg-white dark:bg-[#0a0518] border-b border-[#e7dcee] dark:border-[#2a1840] sticky top-0 z-50 shadow-sm shadow-[#2E1A47]/5"
     >
       {/* ── Row 1 ─────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-4 h-[56px]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-4 h-[56px]">
 
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2.5 no-underline flex-shrink-0 group">
@@ -128,6 +232,7 @@ export function DashboardNav() {
         <div className="flex items-center gap-1">
           <LangToggle />
           <ThemeToggle />
+          <NotificationBell ar={ar} />
           <div className="w-px h-5 bg-[#e7dcee] dark:bg-[#2a1840] mx-1" />
           <UserMenu />
         </div>
@@ -148,31 +253,9 @@ export function DashboardNav() {
 
       {/* ── Row 2: Location + Search ──────────────────────────── */}
       <div className="border-t border-[#e7dcee]/60 dark:border-[#2a1840] bg-[#faf8fc] dark:bg-[#0d0820] hidden sm:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-3">
-          <button className="flex items-center gap-1.5 text-sm text-[#2E1A47]/65 dark:text-[#DFC8E7]/65 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors flex-shrink-0">
-            <svg className="w-4 h-4 text-[#46255f] dark:text-[#DFC8E7]/70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="font-medium text-[13px]">{ar ? "أحمد آباد" : "Ahmedabad"}</span>
-            <svg className="w-3 h-3 text-[#2E1A47]/35 dark:text-[#DFC8E7]/35" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          <div className="w-px h-5 bg-[#e7dcee] dark:bg-[#2a1840]" />
-
-          <div className="flex-1 max-w-xl flex items-center bg-white dark:bg-[#1a1030] border border-[#e7dcee] dark:border-[#2a1840] rounded-xl px-3 py-[7px] gap-2 focus-within:border-[#2E1A47]/40 dark:focus-within:border-[#DFC8E7]/30 transition-all">
-            <svg className="w-4 h-4 text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={ar ? "ابحث عن أطباء، عيادات، مستشفيات..." : "Search doctors, clinics, hospitals, etc."}
-              className="flex-1 text-sm outline-none text-[#2E1A47] dark:text-[#DFC8E7] placeholder-[#2E1A47]/30 dark:placeholder-[#DFC8E7]/30 bg-transparent"
-            />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-center gap-3">
+          <div className="flex-1 max-w-xl">
+            <SiteSearch isAr={ar} placeholder={ar ? "ابحث عن أطباء، عيادات، مستشفيات..." : "Search doctors, clinics, hospitals, etc."} />
           </div>
         </div>
       </div>
@@ -188,14 +271,8 @@ export function DashboardNav() {
             </Link>
           ))}
           <div className="h-px bg-[#e7dcee] dark:bg-[#2a1840] my-1" />
-          <div className="flex items-center bg-[#faf8fc] dark:bg-[#1a1030] border border-[#e7dcee] dark:border-[#2a1840] rounded-xl px-3 py-2 gap-2">
-            <svg className="w-4 h-4 text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input type="text"
-              placeholder={ar ? "ابحث عن أطباء، عيادات..." : "Search doctors, clinics..."}
-              className="flex-1 text-sm outline-none bg-transparent text-[#2E1A47] dark:text-[#DFC8E7] placeholder-[#2E1A47]/30 dark:placeholder-[#DFC8E7]/30" />
-          </div>
+          <SiteSearch isAr={ar} placeholder={ar ? "ابحث عن أطباء، عيادات..." : "Search doctors, clinics..."}
+            onNavigate={() => setMenuOpen(false)} />
         </div>
       )}
     </header>

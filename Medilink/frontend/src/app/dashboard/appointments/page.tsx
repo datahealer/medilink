@@ -234,9 +234,9 @@ function RescheduleModal({
   }, [selDate, supabase, appt.doctorId, isAr]);
 
   const SLOT_GROUPS = [
-    { key: "morning",   en: "Morning 🌅",   ar: "الصباح 🌅",   slots: slots.filter(s => s.t.includes("AM")) },
-    { key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️", slots: slots.filter(s => { const h = parseInt(s.t); return s.t.includes("PM") && (h === 12 || h <= 4); }) },
-    { key: "evening",   en: "Evening 🌙",   ar: "المساء 🌙",   slots: slots.filter(s => { const h = parseInt(s.t); return s.t.includes("PM") && h >= 5; }) },
+    { key: "morning",   en: "Morning",   ar: "الصباح",   slots: slots.filter(s => s.t.includes("AM")) },
+    { key: "afternoon", en: "Afternoon", ar: "الظهيرة",  slots: slots.filter(s => { const h = parseInt(s.t); return s.t.includes("PM") && (h === 12 || h <= 4); }) },
+    { key: "evening",   en: "Evening",   ar: "المساء",   slots: slots.filter(s => { const h = parseInt(s.t); return s.t.includes("PM") && h >= 5; }) },
   ].filter(g => g.slots.length > 0);
 
   async function confirm() {
@@ -348,7 +348,7 @@ function RescheduleModal({
               </p>
               <button onClick={() => { setStep("date"); setSelSlot(null); }}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selDate ? fmtDate(selDate, isAr) : ""}
+                {isAr ? "→" : "←"} {selDate ? fmtDate(selDate, isAr) : ""}
               </button>
             </div>
 
