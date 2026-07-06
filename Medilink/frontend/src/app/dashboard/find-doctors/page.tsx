@@ -7,8 +7,8 @@ import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
-// Vartika's nearby-clinics map (leaflet). Self-contained — fetches its own
-// nearby facilities via Supabase. Loaded client-only (leaflet needs `window`).
+// Nearby-clinics map (leaflet). Self-contained — fetches its own nearby
+// facilities via Supabase. Loaded client-only (leaflet needs `window`).
 const NearbyDoctorsMap = dynamic(() => import("@/components/dashboard/NearbyDoctorsMap"), {
   ssr: false,
   loading: () => (

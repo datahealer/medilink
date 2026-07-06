@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Database } from "@medilink/shared";
 import { api } from "@medilink/shared";
@@ -23,6 +23,11 @@ function genderToEnum(label: string): Database["public"]["Enums"]["gender_type"]
   const i = GENDERS_EN.indexOf(label); if (i >= 0) return GENDER_ENUM[i]!;
   const j = GENDERS_AR.indexOf(label); if (j >= 0) return GENDER_ENUM[j]!;
   return "prefer_not_to_say";
+}
+// Reverse of genderToEnum — DB enum → English display label for prefill.
+function enumToGenderLabel(value: string | null | undefined): string {
+  const i = value ? GENDER_ENUM.indexOf(value as (typeof GENDER_ENUM)[number]) : -1;
+  return i >= 0 ? GENDERS_EN[i]! : "";
 }
 function relToEnum(label: string): Database["public"]["Enums"]["family_relation"] {
   const i = RELS_EN.indexOf(label); if (i >= 0) return RELS_ENUM[i]!;
@@ -50,15 +55,15 @@ export default function SetupPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState("");
 
-  /* Step 1 – personal */
+  /* Step 1 – personal (hydrated from the authenticated profile below) */
   const [form1, setForm1] = useState({
-    firstName: "Vartika", lastName: "Pandey",
-    phone: "+968 9123 4567", dob: "1995-08-14", gender: "Female",
+    firstName: "", lastName: "",
+    phone: "", dob: "", gender: "",
   });
 
   /* Step 2 – health */
   const [form2, setForm2] = useState({
-    blood: "O+", height: "162", weight: "58",
+    blood: "", height: "", weight: "",
     allergies: "", conditions: "",
   });
 
@@ -66,6 +71,45 @@ export default function SetupPage() {
   const [form3, setForm3] = useState({
     name: "", phone: "", relation: "Spouse",
   });
+
+  // Prefill from the logged-in user's existing profile — never demo data.
+  // height/weight have no DB column, so they always start blank.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [profile, mh] = await Promise.all([
+          api.profile.getMyProfile(supabase),
+          api.records.getMedicalHistory(supabase).catch(() => null),
+        ]);
+        if (!active) return;
+        const acc = profile.account;
+        const pat = profile.patient;
+        const full = (acc?.full_name ?? "").trim();
+        const [fn, ...rest] = full ? full.split(/\s+/) : [""];
+        const ec = (pat?.emergency_contact ?? {}) as { name?: string; phone?: string; relationship?: string };
+        setForm1({
+          firstName: fn ?? "",
+          lastName: rest.join(" "),
+          phone: acc?.phone ?? "",
+          dob: pat?.date_of_birth ?? "",
+          gender: enumToGenderLabel(pat?.gender),
+        });
+        setForm2((f) => ({
+          ...f,
+          blood: pat?.blood_group && pat.blood_group !== "unknown" ? pat.blood_group.replace("-", "−") : "",
+          allergies: (mh?.allergies ?? []).join(", "),
+          conditions: (mh?.conditions ?? []).join(", "),
+        }));
+        if (ec.name || ec.phone || ec.relationship) {
+          setForm3({ name: ec.name ?? "", phone: ec.phone ?? "", relation: ec.relationship || "Spouse" });
+        }
+      } catch {
+        /* new user with no profile yet → keep blank defaults */
+      }
+    })();
+    return () => { active = false; };
+  }, [supabase]);
 
   /* Step 4 – family */
   const [members, setMembers] = useState<FamilyMember[]>([]);

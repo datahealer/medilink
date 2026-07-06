@@ -7,6 +7,8 @@ import { LangToggle } from "@/components/auth/LangToggle";
 import { ThemeToggle } from "@/components/auth/ThemeToggle";
 import { SiteSearch } from "@/components/dashboard/SiteSearch";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/context/AuthContext";
+import { useMyProfile } from "@/hooks/useMyProfile";
 
 const NOTIF_ITEMS = [
   {
@@ -120,10 +122,13 @@ const NAV_LINKS = [
 
 function UserMenu() {
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const { signOut } = useAuth();
+  const { fullName, shortName, initials, email, loading } = useMyProfile();
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
@@ -133,11 +138,29 @@ function UserMenu() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    setOpen(false);
+    try {
+      await signOut(); // clears the Supabase session + cached browser client
+    } finally {
+      router.push("/sign-in");
+      router.refresh(); // drop server-component + middleware state for the old session
+    }
+  }
+
   const menuItems = [
     { en: "My Profile",      ar: "ملفي الشخصي", href: "/dashboard/profile" },
     { en: "My Appointments", ar: "مواعيدي",      href: "/dashboard/appointments" },
     { en: "My Records",      ar: "سجلاتي",       href: "/dashboard/records" },
   ];
+
+  // Fallbacks keep the header stable during the first profile fetch — never a
+  // hardcoded identity, always tied to the authenticated account.
+  const displayInitials = initials || (loading ? "" : "?");
+  const displayShort = shortName || (loading ? "" : (ar ? "حسابي" : "Account"));
+  const displayFull = fullName || (loading ? "…" : (ar ? "حسابي" : "My Account"));
 
   return (
     <div ref={ref} className="relative">
@@ -149,10 +172,10 @@ function UserMenu() {
           className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#2E1A47] flex-shrink-0"
           style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
         >
-          V
+          {displayInitials}
         </div>
-        <span className="text-sm font-medium text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hidden sm:block">
-          {ar ? "فارتيكا" : "Vartika P."}
+        <span className="text-sm font-medium text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hidden sm:block max-w-[120px] truncate">
+          {displayShort}
         </span>
         <svg className="w-3 h-3 text-[#2E1A47]/40 dark:text-[#DFC8E7]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -163,9 +186,11 @@ function UserMenu() {
         <div className={`absolute top-full mt-1.5 w-48 bg-white dark:bg-[#1a1030] rounded-xl border border-[#e7dcee] dark:border-[#2a1840] shadow-lg shadow-[#2E1A47]/8 z-50 overflow-hidden ${ar ? "left-0" : "right-0"}`}>
           <div className={`px-4 py-2.5 border-b border-[#e7dcee] dark:border-[#2a1840] ${ar ? "text-right" : ""}`}>
             <p className="text-xs font-semibold text-[#2E1A47] dark:text-[#DFC8E7] truncate">
-              {ar ? "فارتيكا بانديا" : "Vartika Pandey"}
+              {displayFull}
             </p>
-            <p className="text-[11px] text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 truncate">vartika.pandey@inzint.com</p>
+            {email && (
+              <p className="text-[11px] text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 truncate">{email}</p>
+            )}
           </div>
           {menuItems.map(item => (
             <button key={item.href} onClick={() => { setOpen(false); router.push(item.href); }}
@@ -175,10 +200,11 @@ function UserMenu() {
           ))}
           <div className="border-t border-[#e7dcee] dark:border-[#2a1840] mt-1">
             <button
-              onClick={() => { setOpen(false); router.push("/sign-in"); }}
-              className={`block w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${ar ? "text-right" : "text-left"}`}
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className={`block w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-60 ${ar ? "text-right" : "text-left"}`}
             >
-              {ar ? "تسجيل الخروج" : "Sign out"}
+              {signingOut ? (ar ? "جارٍ تسجيل الخروج…" : "Signing out…") : (ar ? "تسجيل الخروج" : "Sign out")}
             </button>
           </div>
         </div>

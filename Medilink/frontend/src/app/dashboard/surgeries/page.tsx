@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useMyProfile } from "@/hooks/useMyProfile";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type Slot = { t: string; taken: boolean };
@@ -225,7 +226,7 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
 }
 
 /* ─── ConsultModal (request consultation before booking surgery) ─────── */
-function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]; isAr: boolean; onClose: () => void }) {
+function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SURGERIES[0]; isAr: boolean; contact: { phone: string; email: string }; onClose: () => void }) {
   const [step, setStep]     = useState<"date" | "time" | "confirm" | "payment">("date");
   const [selDate, setSelDate] = useState<Date | null>(null);
   const [selTime, setSelTime] = useState<string | null>(null);
@@ -284,8 +285,8 @@ function ConsultModal({ surgery, isAr, onClose }: { surgery: typeof SURGERIES[0]
             {isAr ? "الإشعارات المُرسَلة" : "Notifications Sent"}
           </p>
           {[
-            { icon: "📱", label: isAr ? "رسالة SMS" : "SMS", detail: "+968 9123 4567" },
-            { icon: "📧", label: isAr ? "البريد الإلكتروني" : "Email", detail: "vartika.pandey@inzint.com" },
+            { icon: "📱", label: isAr ? "رسالة SMS" : "SMS", detail: contact.phone || (isAr ? "رقمك المسجل" : "your registered number") },
+            { icon: "📧", label: isAr ? "البريد الإلكتروني" : "Email", detail: contact.email || (isAr ? "بريدك المسجل" : "your registered email") },
           ].map(n => (
             <div key={n.label} className="flex items-center gap-2.5 mb-2 last:mb-0">
               <span className="text-base">{n.icon}</span>
@@ -547,6 +548,7 @@ function SurgeriesInner() {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const searchParams = useSearchParams();
+  const { email, phone } = useMyProfile();
   const [search, setSearch]     = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const [booking, setBooking]   = useState<typeof SURGERIES[0] | null>(null);
@@ -623,7 +625,7 @@ function SurgeriesInner() {
         </div>
       </section>
 
-      {booking && <ConsultModal surgery={booking} isAr={ar} onClose={() => setBooking(null)} />}
+      {booking && <ConsultModal surgery={booking} isAr={ar} contact={{ phone, email }} onClose={() => setBooking(null)} />}
     </div>
   );
 }
