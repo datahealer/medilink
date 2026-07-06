@@ -4,6 +4,7 @@
     "slug": "medilink",
     "scheme": "medilink",
     "version": "0.1.0",
+    "icon": "./assets/images/icon.png",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,26 +14,44 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.medilink.app",
+      "bundleIdentifier": "com.inzint.medilink",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Used to securely unlock your saved session."
+        "NSFaceIDUsageDescription": "Used to securely unlock your saved session.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.medilink.app",
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-localization",
       "expo-font",
-      ["expo-notifications", { "color": "#2E1A47" }],
-      ["expo-image-picker", { "photosPermission": "MediLink uses your photos to set a profile picture." }]
+      [
+        "expo-notifications",
+        {
+          "color": "#2E1A47"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MediLink uses your photos to set a profile picture."
+        }
+      ]
     ],
     "extra": {
-      "eas": { "projectId": "" }
-    }
+      "eas": {
+        "projectId": "0aed5a20-7493-41b9-8f0f-8fcdbcc3b458"
+      },
+      "router": {}
+    },
+    "owner": "ayush-inzint"
   }
 }
