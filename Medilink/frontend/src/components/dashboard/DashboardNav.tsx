@@ -137,6 +137,7 @@ function UserMenu() {
     { en: "My Profile",      ar: "ملفي الشخصي", href: "/dashboard/profile" },
     { en: "My Appointments", ar: "مواعيدي",      href: "/dashboard/appointments" },
     { en: "My Records",      ar: "سجلاتي",       href: "/dashboard/records" },
+    { en: "Payments",        ar: "المدفوعات",    href: "/dashboard/payments" },
   ];
 
   return (
