@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { env } from "@/lib/env";
-import { BookingModal, SLOTS_A, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
+import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
 type Urgency = "self-care" | "see-doctor" | "emergency";
 
@@ -37,7 +37,6 @@ function toViewDoctor(doc: Doctor, index: number, ar: boolean): ViewDoctor {
     name: doc.full_name,
     hospital: ar ? "شبكة ميدلينك" : "MediLink Network",
     type: ar ? "في العيادة" : "In-clinic",
-    slots: SLOTS_A,
     education: ar ? "غير محدد" : "Not specified",
     experience: ar ? "غير محدد" : "Not specified",
     languages: ar ? "غير محدد" : "Not specified",

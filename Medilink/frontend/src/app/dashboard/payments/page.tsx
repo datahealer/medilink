@@ -309,10 +309,21 @@ export default function PaymentsPage() {
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
       <style jsx global>{`
+        @page { margin: 0; }
         @media print {
           body * { visibility: hidden; }
           #invoice-print-root, #invoice-print-root * { visibility: visible !important; }
-          #invoice-print-root { position: fixed; inset: 0; margin: auto; }
+          /* Override the inline top/left:-10000px (inline beats a plain ID rule) so the
+             invoice is pulled back on-page during printing instead of staying off-screen. */
+          #invoice-print-root {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: auto !important;
+            bottom: auto !important;
+            z-index: 9999 !important;
+            margin: 0 auto;
+          }
         }
       `}</style>
 

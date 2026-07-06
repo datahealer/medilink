@@ -1,67 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { env } from "@/lib/env";
 
-/* ─── Shared doctor booking flow — used by Find Doctors, doctor profile, and Symptom Checker ── */
+/* ─── Shared doctor booking flow — used by Find Doctors, doctor profile, and Symptom Checker ──
+ * Single implementation. Wired to the real backend:
+ *   1. api.appointments.getAvailableSlots  → real time slots
+ *   2. api.appointments.bookAppointment    → creates the appointment (pending)
+ *   3. POST {BACKEND_URL}/api/payments/checkout → Thawani hosted checkout URL
+ *   → redirect to Thawani → webhook marks payment paid + appointment confirmed → /payment-success
+ * ──────────────────────────────────────────────────────────────────────────────────────────── */
 
-export type Slot = { t: string; taken: boolean };
+export type Slot = { t: string; taken: boolean; start: string };
 
-const MORNING: Slot[] = [
-  { t: "8:00 AM",  taken: true  }, { t: "8:30 AM",  taken: false },
-  { t: "9:00 AM",  taken: false }, { t: "9:30 AM",  taken: true  },
-  { t: "10:00 AM", taken: false }, { t: "10:30 AM", taken: false },
-  { t: "11:00 AM", taken: true  }, { t: "11:30 AM", taken: false },
-];
-const AFTERNOON: Slot[] = [
-  { t: "12:00 PM", taken: false }, { t: "12:30 PM", taken: true  },
-  { t: "1:00 PM",  taken: false }, { t: "1:30 PM",  taken: false },
-  { t: "2:00 PM",  taken: true  }, { t: "2:30 PM",  taken: false },
-  { t: "3:00 PM",  taken: false }, { t: "3:30 PM",  taken: true  },
-  { t: "4:00 PM",  taken: false }, { t: "4:30 PM",  taken: false },
-];
-const EVENING: Slot[] = [
-  { t: "5:00 PM",  taken: false }, { t: "5:30 PM",  taken: true  },
-  { t: "6:00 PM",  taken: false }, { t: "6:30 PM",  taken: false },
-  { t: "7:00 PM",  taken: true  }, { t: "7:30 PM",  taken: false },
-];
-
-export const SLOTS_A: Slot[] = [
-  ...MORNING.map((s, i) => ({ ...s, taken: [0, 3, 6].includes(i) })),
-  ...AFTERNOON.map((s, i) => ({ ...s, taken: [1, 4, 7].includes(i) })),
-  ...EVENING.map((s, i) => ({ ...s, taken: [1, 4].includes(i) })),
-];
-export const SLOTS_B: Slot[] = [
-  ...MORNING.map((s, i) => ({ ...s, taken: [0, 2, 5].includes(i) })),
-  ...AFTERNOON.map((s, i) => ({ ...s, taken: [0, 3, 6, 9].includes(i) })),
-  ...EVENING.map((s, i) => ({ ...s, taken: [0, 3].includes(i) })),
-];
-export const SLOTS_C: Slot[] = [
-  ...MORNING.map((s, i) => ({ ...s, taken: [1, 4, 7].includes(i) })),
-  ...AFTERNOON.map((s, i) => ({ ...s, taken: [2, 5, 8].includes(i) })),
-];
-
-/* ─── Unified doctor view model (mock demo doctors + real Supabase doctors) ── */
+/* ─── Unified doctor view model (real Supabase doctors) ── */
 export type ViewDoctor = {
   id: string;
+  facilityId?: string | null; // optional — the modal resolves it from the doctor if absent
   initials: string;
   grad: string;
   specialty: string;
   bio: string;
-  fee: number;
+  fee: number; // resolved from doctors.fees.in_person (object schema)
   rating: number;
   reviews: number;
   available: boolean;
   name: string;
   hospital: string;
   type: string;
-  slots: Slot[];
   education: string;
   experience: string;
   languages: string;
   location: string;
 };
 
-/* ─── Calendar helpers ───────────────────────────────────────────────── */
+/* ─── helpers ────────────────────────────────────────────────────────── */
 const DAY_NAMES_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const DAY_NAMES_AR = ["أح", "اث", "ثل", "أر", "خم", "جم", "سب"];
 const MONTH_LONG_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -69,7 +44,21 @@ const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","ما
 const MONTH_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
-const TODAY = new Date(2026, 5, 29);
+const TODAY = new Date(); // real "today" — gates past dates in the booking calendar
+
+function toYMD(date: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+/** "08:30" → "8:30 AM" (matches the modal's AM/PM grouping). */
+function to12h(hhmm: string) {
+  const parts = hhmm.split(":");
+  const m = parts[1] ?? "00";
+  let h = parseInt(parts[0] ?? "0", 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
 
 function buildCalendar(year: number, month: number) {
   const firstDay = new Date(year, month, 1).getDay();
@@ -137,11 +126,7 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
   );
 }
 
-/* ─── Demo family members (mirrors profile family members) ───────────── */
-const DEMO_FAMILY = [
-  { name: "Sarah Al Zadjali",  initials: "SZ", relation: "Daughter" },
-  { name: "Khalid Al Zadjali", initials: "KZ", relation: "Son"      },
-];
+type FamilyChip = { id: string; name: string; initials: string; relation: string };
 
 /* ─── BookingModal ────────────────────────────────────────────────────── */
 export function BookingModal({
@@ -153,20 +138,134 @@ export function BookingModal({
   isAr: boolean;
   onClose: () => void;
 }) {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [step, setStep]                 = useState<"date" | "time" | "payment">("date");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [payMethod, setPayMethod]       = useState<string | null>(null);
   const [booked, setBooked]             = useState(false);
   const [patient, setPatient]           = useState<string>("self");
+
+  const [family, setFamily]             = useState<FamilyChip[]>([]);
+  const [slots, setSlots]               = useState<Slot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [submitting, setSubmitting]     = useState(false);
+  const [error, setError]               = useState("");
+
   const d = { name: doctor.name, hospital: doctor.hospital };
+  const selectedTime = selectedSlot?.t ?? null;
+
+  // Real family members (replaces the old demo list) for the "Booking for" chips.
+  useEffect(() => {
+    let active = true;
+    api.family.listFamily(supabase)
+      .then((rows) => {
+        if (!active) return;
+        setFamily(rows.map((m) => ({
+          id: m.id,
+          name: m.full_name,
+          relation: m.relation,
+          initials: m.full_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "FM",
+        })));
+      })
+      .catch(() => { if (active) setFamily([]); });
+    return () => { active = false; };
+  }, [supabase]);
 
   const patientLabel = patient === "self"
     ? (isAr ? "أنا" : "Myself")
-    : DEMO_FAMILY.find(m => m.initials === patient)?.name ?? patient;
+    : family.find((m) => m.id === patient)?.name ?? patient;
+
+  // Real availability for the picked date (already excludes taken slots).
+  useEffect(() => {
+    if (!selectedDate) return;
+    let active = true;
+    setSlotsLoading(true);
+    setSelectedSlot(null);
+    setError("");
+    api.appointments
+      .getAvailableSlots(supabase, { doctorId: doctor.id, date: toYMD(selectedDate) })
+      .then((avail) => {
+        if (!active) return;
+        setSlots(
+          avail
+            .map((s) => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
+            .filter(Boolean)
+            .map((hhmm) => ({ t: to12h(hhmm), taken: false, start: hhmm }))
+        );
+      })
+      .catch(() => { if (active) setError(isAr ? "تعذر تحميل المواعيد." : "Could not load available times."); })
+      .finally(() => { if (active) setSlotsLoading(false); });
+    return () => { active = false; };
+  }, [selectedDate, supabase, doctor.id, isAr]);
 
   function fmtDate(date: Date) {
     return isAr ? `${date.getDate()} ${MONTH_AR[date.getMonth()]}` : `${MONTH_EN[date.getMonth()]} ${date.getDate()}`;
+  }
+
+  /* Create appointment → (Thawani) redirect to hosted checkout; (card/cash) book as pending. */
+  async function handlePay() {
+    if (!selectedDate || !selectedSlot || !payMethod || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      // The appointment needs a facility; resolve it from the doctor if not supplied.
+      let facilityId = doctor.facilityId ?? null;
+      if (!facilityId) {
+        const { data } = await supabase.from("doctors").select("facility_id").eq("id", doctor.id).maybeSingle();
+        facilityId = (data?.facility_id as string | null) ?? null;
+      }
+      if (!facilityId) {
+        setError(isAr ? "لا يمكن الحجز لهذا الطبيب حالياً." : "Booking is unavailable for this doctor.");
+        setSubmitting(false);
+        return;
+      }
+
+      const res = (await api.appointments.bookAppointment(supabase, {
+        doctorId: doctor.id,
+        facilityId,
+        slotDate: toYMD(selectedDate),
+        slotStart: selectedSlot.start,
+        type: "in_person",
+        forFamilyMemberId: patient === "self" ? undefined : patient,
+      })) as { success?: boolean; appointment_id?: string; error?: string };
+
+      if (!res?.success || !res.appointment_id) {
+        const code = res?.error;
+        setError(
+          code === "SLOT_ALREADY_BOOKED"
+            ? (isAr ? "هذا الموعد محجوز بالفعل." : "That time slot was just taken. Pick another.")
+            : (isAr ? "تعذر تأكيد الحجز." : "Could not confirm the booking.")
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      // Only Thawani initiates the hosted checkout; card/cash book as pending (no online gateway).
+      if (payMethod === "thawani") {
+        const r = await fetch(`${env.BACKEND_URL}/api/payments/checkout`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appointment_id: res.appointment_id, amount: doctor.fee }),
+        });
+        const j = await r.json().catch(() => null);
+        if (r.ok && j?.checkoutUrl) {
+          window.location.href = j.checkoutUrl; // → Thawani → webhook confirms → /payment-success
+          return;
+        }
+        setError(isAr ? "تعذر بدء الدفع. حاول مرة أخرى." : "Could not start payment. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      // card / cash: appointment created (pending); no online payment.
+      setBooked(true);
+      setSubmitting(false);
+    } catch {
+      setError(isAr ? "تعذر تأكيد الحجز." : "Could not confirm the booking.");
+      setSubmitting(false);
+    }
   }
 
   if (booked) {
@@ -187,24 +286,6 @@ export function BookingModal({
             </p>
           )}
           <div className="mb-4" />
-          <div className="bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl p-4 mb-3 text-left border border-[#e7dcee] dark:border-[#2a1840]">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-3">
-              {isAr ? "الإشعارات المُرسَلة" : "Notifications Sent"}
-            </p>
-            {[
-              { icon: "📱", label: isAr ? "رسالة SMS" : "SMS", detail: "+968 9123 4567" },
-              { icon: "📧", label: isAr ? "البريد الإلكتروني" : "Email", detail: "v*****@inzint.com" },
-            ].map(n => (
-              <div key={n.label} className="flex items-center gap-2.5 mb-2 last:mb-0">
-                <span className="text-base">{n.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{n.label}</p>
-                  <p className="text-[11px] text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 truncate">{n.detail}</p>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0">✓ {isAr ? "أُرسل" : "Sent"}</span>
-              </div>
-            ))}
-          </div>
           <div className="bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl px-4 py-3 mb-5 text-left border border-[#e7dcee] dark:border-[#2a1840]">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "طريقة الدفع" : "Payment"}</span>
@@ -226,11 +307,10 @@ export function BookingModal({
     );
   }
 
-  const allSlots = doctor.slots;
   const slotGroups = [
-    { key: "morning",   en: "Morning 🌅",   ar: "الصباح 🌅",   slots: allSlots.filter(s => s.t.includes("AM")) },
-    { key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️",  slots: allSlots.filter(s => s.t.includes("PM") && parseInt(s.t) <= 4) },
-    { key: "evening",   en: "Evening 🌙",   ar: "المساء 🌙",    slots: allSlots.filter(s => s.t.includes("PM") && parseInt(s.t) >= 5) },
+    { key: "morning",   en: "Morning 🌅",   ar: "الصباح 🌅",   slots: slots.filter(s => s.t.includes("AM")) },
+    { key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️",  slots: slots.filter(s => s.t.includes("PM") && parseInt(s.t) <= 4) },
+    { key: "evening",   en: "Evening 🌙",   ar: "المساء 🌙",    slots: slots.filter(s => s.t.includes("PM") && parseInt(s.t) >= 5) },
   ].filter(g => g.slots.length > 0);
 
   return (
@@ -306,20 +386,20 @@ export function BookingModal({
                   {isAr ? "أنا" : "Myself"}
                 </button>
 
-                {/* Family member chips */}
-                {DEMO_FAMILY.map(m => (
-                  <button key={m.initials} onClick={() => setPatient(m.initials)}
+                {/* Family member chips (real family_members) */}
+                {family.map(m => (
+                  <button key={m.id} onClick={() => setPatient(m.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${isAr ? "flex-row-reverse" : ""} ${
-                      patient === m.initials
+                      patient === m.id
                         ? "border-[#46255f] dark:border-[#DFC8E7] text-[#2E1A47] dark:text-[#1a1030]"
                         : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:border-[#46255f]/40 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20"
                     }`}
-                    style={patient === m.initials ? { background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" } : {}}>
+                    style={patient === m.id ? { background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" } : {}}>
                     <div className="w-5 h-5 rounded-full bg-[#e8d5f0] dark:bg-[#2E1A47]/40 flex items-center justify-center text-[9px] font-black text-[#2E1A47] dark:text-[#DFC8E7] flex-shrink-0">
                       {m.initials}
                     </div>
                     <span>{m.name.split(" ")[0]}</span>
-                    <span className="opacity-50 font-normal">· {isAr ? m.relation : m.relation}</span>
+                    <span className="opacity-50 font-normal">· {m.relation}</span>
                   </button>
                 ))}
               </div>
@@ -343,22 +423,34 @@ export function BookingModal({
               <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
                 {isAr ? "اختر وقتاً" : "Choose a time"}
               </p>
-              <button onClick={() => { setStep("date"); setSelectedTime(null); }}
+              <button onClick={() => { setStep("date"); setSelectedSlot(null); }}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
                 ← {selectedDate ? fmtDate(selectedDate) : ""}
               </button>
             </div>
+            {slotsLoading ? (
+              <div className="py-10 text-center text-sm font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 animate-pulse">
+                {isAr ? "جارٍ تحميل المواعيد…" : "Loading times…"}
+              </div>
+            ) : slotGroups.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-3xl mb-2">🗓️</p>
+                <p className="text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
+                  {isAr ? "لا توجد مواعيد متاحة في هذا اليوم." : "No available times on this day."}
+                </p>
+              </div>
+            ) : (
             <div className="max-h-72 overflow-y-auto pr-1 space-y-5 mb-5" style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }}>
               {slotGroups.map(group => (
                 <div key={group.key}>
                   <p className="text-[11px] font-bold text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-2">{isAr ? group.ar : group.en}</p>
                   <div className="grid grid-cols-4 gap-2">
                     {group.slots.map(slot => (
-                      <button key={slot.t} disabled={slot.taken} onClick={() => setSelectedTime(slot.t)}
+                      <button key={slot.start} disabled={slot.taken} onClick={() => setSelectedSlot(slot)}
                         className={`py-2 rounded-xl text-xs font-semibold border transition-all relative ${
                           slot.taken
                             ? "border-[#e7dcee] dark:border-[#2a1840] text-[#2E1A47]/20 dark:text-[#DFC8E7]/20 cursor-not-allowed bg-[#faf8fc] dark:bg-[#0d0820]"
-                            : selectedTime === slot.t
+                            : selectedSlot?.start === slot.start
                               ? "border-[#46255f] bg-[#46255f] text-white dark:border-[#DFC8E7] dark:bg-[#DFC8E7] dark:text-[#1a1030] shadow-sm"
                               : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#46255f]/50 dark:hover:border-[#DFC8E7]/50 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
                         }`}>
@@ -369,7 +461,11 @@ export function BookingModal({
                 </div>
               ))}
             </div>
-            <button disabled={!selectedTime} onClick={() => setStep("payment")}
+            )}
+            {error && (
+              <p className="mb-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <button disabled={!selectedSlot} onClick={() => setStep("payment")}
               className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
               {selectedTime ? (isAr ? `التالي — ${selectedTime}` : `Next — ${selectedTime}`) : (isAr ? "اختر وقتاً" : "Select a time")}
@@ -429,12 +525,17 @@ export function BookingModal({
                 </button>
               ))}
             </div>
-            <button disabled={!payMethod} onClick={() => setBooked(true)}
+            {error && (
+              <p className="mb-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <button disabled={!payMethod || submitting} onClick={handlePay}
               className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
-              {payMethod === "cash"
-                ? isAr ? "تأكيد الحجز" : "Confirm Booking"
-                : isAr ? `ادفع ${doctor.fee} ر.ع.` : `Pay OMR ${doctor.fee}`}
+              {submitting
+                ? isAr ? "جارٍ المعالجة…" : "Processing…"
+                : payMethod === "cash"
+                  ? isAr ? "تأكيد الحجز" : "Confirm Booking"
+                  : isAr ? `ادفع ${doctor.fee} ر.ع.` : `Pay OMR ${doctor.fee}`}
             </button>
           </div>
         )}

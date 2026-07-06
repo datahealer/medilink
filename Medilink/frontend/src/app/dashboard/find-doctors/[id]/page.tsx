@@ -5,141 +5,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { BookingModal, SLOTS_A, SLOTS_B, SLOTS_C, type Slot, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
+import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
 /* ─── Shared data ────────────────────────────────────────────────────── */
-const SPECIALTIES = [
-  { en: "All",          ar: "الكل" },
-  { en: "General Care", ar: "طب عام" },
-  { en: "Cardiology",   ar: "أمراض القلب" },
-  { en: "Dermatology",  ar: "جلدية" },
-  { en: "Gynecology",   ar: "نساء وتوليد" },
-  { en: "Dentist",      ar: "أسنان" },
-  { en: "Pediatrics",   ar: "أطفال" },
-  { en: "Orthopedics",  ar: "عظام" },
-];
-
-const DOCTORS = [
-  {
-    initials: "AH",
-    grad: "from-[#e8d5f0] to-[#d5e8f5]",
-    specialty: "General Care",
-    fee: 30,
-    rating: 4.9,
-    reviews: 312,
-    available: true,
-    en: { name: "Dr. Aisha Al Harthy",   hospital: "Royal Care Clinic",      type: "In-clinic" },
-    ar: { name: "د. عائشة الحارثي",      hospital: "عيادة رويال كير",         type: "في العيادة" },
-    slots: SLOTS_A,
-  },
-  {
-    initials: "OB",
-    grad: "from-[#d5e8f5] to-[#ede0f8]",
-    specialty: "Cardiology",
-    fee: 60,
-    rating: 4.8,
-    reviews: 198,
-    available: true,
-    en: { name: "Dr. Omar Al Balushi",   hospital: "Heart & Vascular Centre", type: "In-clinic" },
-    ar: { name: "د. عمر البلوشي",        hospital: "مركز القلب والأوعية",     type: "في العيادة" },
-    slots: SLOTS_B,
-  },
-  {
-    initials: "FR",
-    grad: "from-[#ede0f8] to-[#e8d5f0]",
-    specialty: "Dermatology",
-    fee: 45,
-    rating: 4.7,
-    reviews: 245,
-    available: false,
-    en: { name: "Dr. Fatma Al Riyami",   hospital: "Skin & Wellness Studio",  type: "In-clinic" },
-    ar: { name: "د. فاطمة الريامي",      hospital: "عيادة الجلد والعافية",    type: "في العيادة" },
-    slots: [] as Slot[],
-  },
-  {
-    initials: "SN",
-    grad: "from-[#d1fae5] to-[#d5e8f5]",
-    specialty: "Gynecology",
-    fee: 55,
-    rating: 4.9,
-    reviews: 420,
-    available: true,
-    en: { name: "Dr. Sara Al Nabhani",   hospital: "Women's Health Centre",   type: "In-clinic" },
-    ar: { name: "د. سارة النبهانية",     hospital: "مركز صحة المرأة",         type: "في العيادة" },
-    slots: SLOTS_C,
-  },
-  {
-    initials: "KM",
-    grad: "from-[#fde68a] to-[#e8d5f0]",
-    specialty: "Dentist",
-    fee: 40,
-    rating: 4.6,
-    reviews: 167,
-    available: true,
-    en: { name: "Dr. Khalid Al Maskari", hospital: "Bright Smile Dental",     type: "In-clinic" },
-    ar: { name: "د. خالد المسكري",       hospital: "عيادة ابتسامة مشرقة",    type: "في العيادة" },
-    slots: SLOTS_A,
-  },
-  {
-    initials: "LH",
-    grad: "from-[#e8d5f0] to-[#d1fae5]",
-    specialty: "Pediatrics",
-    fee: 35,
-    rating: 4.8,
-    reviews: 289,
-    available: true,
-    en: { name: "Dr. Layla Al Habsi",    hospital: "Children's Wellness Hub", type: "In-clinic" },
-    ar: { name: "د. ليلى الحبسية",       hospital: "مركز صحة الأطفال",        type: "في العيادة" },
-    slots: SLOTS_B,
-  },
-];
-
-const BIOS_EN: Record<string, string> = {
-  "General Care":  "An experienced general practitioner offering comprehensive consultations for everyday health concerns, chronic disease management, and preventive care.",
-  "Cardiology":    "A board-certified cardiologist with expertise in diagnosing and treating heart disease, arrhythmia, and vascular conditions using the latest non-invasive techniques.",
-  "Dermatology":   "A specialist in skin, hair, and nail conditions with a focus on acne, eczema, psoriasis, and cosmetic dermatology procedures.",
-  "Gynecology":    "An obstetrician-gynaecologist providing women's health services including prenatal care, fertility consultations, and minimally invasive procedures.",
-  "Dentist":       "A comprehensive dental care provider offering preventive, restorative, and cosmetic dentistry with a gentle and patient-friendly approach.",
-  "Pediatrics":    "A dedicated paediatrician specialising in the health and development of infants, children, and adolescents with a warm, child-friendly approach.",
-  "Orthopedics":   "An orthopaedic specialist in bone, joint, and muscle disorders with expertise in both surgical and non-surgical musculoskeletal treatment.",
-};
-const BIOS_AR: Record<string, string> = {
-  "General Care":  "طبيب عام ذو خبرة واسعة يقدم استشارات شاملة للمخاوف الصحية اليومية وإدارة الأمراض المزمنة والرعاية الوقائية.",
-  "Cardiology":    "طبيب قلب معتمد متخصص في تشخيص وعلاج أمراض القلب وعدم انتظام ضرباته وحالات الأوعية الدموية.",
-  "Dermatology":   "متخصص في أمراض الجلد والشعر والأظافر مع تركيز على حب الشباب والإكزيما والصدفية وإجراءات الجلدية التجميلية.",
-  "Gynecology":    "طبيبة نساء وتوليد تقدم خدمات صحة المرأة بما فيها الرعاية السابقة للولادة واستشارات الخصوبة والإجراءات البسيطة.",
-  "Dentist":       "مزود رعاية أسنان شاملة يقدم طب الأسنان الوقائي والترميمي والتجميلي بأسلوب لطيف وودي.",
-  "Pediatrics":    "طبيب أطفال متخصص في صحة ونمو الرضع والأطفال والمراهقين بأسلوب دافئ ومناسب للأطفال.",
-  "Orthopedics":   "متخصص في اضطرابات العظام والمفاصل والعضلات مع خبرة في العلاجين الجراحي وغير الجراحي.",
-};
-
 const PROFILE_GRADS = [
   "from-[#e8d5f0] to-[#d5e8f5]", "from-[#d5e8f5] to-[#ede0f8]", "from-[#ede0f8] to-[#e8d5f0]",
   "from-[#d1fae5] to-[#d5e8f5]", "from-[#fde68a] to-[#e8d5f0]", "from-[#e8d5f0] to-[#d1fae5]",
 ];
-
-function mockToView(doc: typeof DOCTORS[0], isAr: boolean): ViewDoctor {
-  const d = isAr ? doc.ar : doc.en;
-  return {
-    id: doc.initials,
-    initials: doc.initials,
-    grad: doc.grad,
-    specialty: isAr ? (SPECIALTIES.find(s => s.en === doc.specialty)?.ar ?? doc.specialty) : doc.specialty,
-    bio: isAr ? (BIOS_AR[doc.specialty] ?? "") : (BIOS_EN[doc.specialty] ?? ""),
-    fee: doc.fee,
-    rating: doc.rating,
-    reviews: doc.reviews,
-    available: doc.available,
-    name: d.name,
-    hospital: d.hospital,
-    type: d.type,
-    slots: doc.slots,
-    education: isAr ? "بكالوريوس الطب والجراحة" : "MBBS, Royal College",
-    experience: isAr ? "أكثر من ١٠ سنوات" : "10+ years",
-    languages: isAr ? "عربي · إنجليزي" : "Arabic · English",
-    location: isAr ? "مسقط، عُمان" : "Muscat, Oman",
-  };
-}
 
 type RealDoctorRow = {
   id: string;
@@ -173,7 +45,6 @@ function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDocto
     name: row.full_name,
     hospital: isAr ? "شبكة ميدلينك" : "MediLink Network",
     type: isAr ? "في العيادة" : "In-clinic",
-    slots: SLOTS_A, // no live scheduling data yet for real doctors — reuse demo slot grid
     education: qualifications.length ? qualifications.join(", ") : (isAr ? "غير محدد" : "Not specified"),
     experience: row.years_experience
       ? (isAr ? `أكثر من ${row.years_experience} سنوات` : `${row.years_experience}+ years`)
@@ -199,13 +70,11 @@ export default function DoctorProfilePage() {
   const params = useParams();
   const rawId = (params.id as string) ?? "";
 
-  const mockMatch = DOCTORS.find(doc => doc.initials === rawId.toUpperCase());
   const [realDoctor, setRealDoctor] = useState<RealDoctorRow | null>(null);
-  const [loadingReal, setLoadingReal] = useState(!mockMatch);
+  const [loadingReal, setLoadingReal] = useState(true);
   const [realNotFound, setRealNotFound] = useState(false);
 
   useEffect(() => {
-    if (mockMatch) return;
     let cancelled = false;
     (async () => {
       const supabase = createBrowserSupabaseClient();
@@ -221,13 +90,9 @@ export default function DoctorProfilePage() {
       setLoadingReal(false);
     })();
     return () => { cancelled = true; };
-  }, [rawId, mockMatch]);
+  }, [rawId]);
 
-  const doctor: ViewDoctor | null = mockMatch
-    ? mockToView(mockMatch, ar)
-    : realDoctor
-      ? realToView(realDoctor, ar, 0)
-      : null;
+  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0) : null;
 
   const [reviews, setReviews]     = useState<Review[]>(SEED_REVIEWS);
   const [hoverStar, setHoverStar] = useState(0);

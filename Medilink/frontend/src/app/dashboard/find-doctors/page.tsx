@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
@@ -31,13 +32,10 @@ const SPECIALTIES = [
   { en: "Orthopedics",      ar: "عظام" },
 ];
 
-type Slot = { t: string; taken: boolean; start: string };
-
-// View-model the card/modal render. Built from real `doctors` rows — the DB has no
+// View-model the card renders. Built from real `doctors` rows — the DB has no
 // Arabic names / consult-mode, so ar mirrors en and type defaults to in-clinic.
 type Doctor = {
   id: string;
-  facilityId: string | null;
   initials: string;
   grad: string;
   specialty: string;
@@ -49,7 +47,7 @@ type Doctor = {
   ar: { name: string; hospital: string; type: string };
 };
 
-// Avatar gradients cycle per card (was hardcoded per mock doctor).
+// Avatar gradients cycle per card.
 const GRADS = [
   "from-[#e8d5f0] to-[#d5e8f5]", "from-[#d5e8f5] to-[#ede0f8]", "from-[#ede0f8] to-[#e8d5f0]",
   "from-[#d1fae5] to-[#d5e8f5]", "from-[#fde68a] to-[#e8d5f0]", "from-[#e8d5f0] to-[#d1fae5]",
@@ -60,29 +58,14 @@ function initialsOf(name: string) {
   return words.slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "DR";
 }
 
-/** `doctors.fees` is JSON — accept a bare number or an object of numeric amounts. */
+/** `doctors.fees` is the standard object `{ in_person, online }`. Show in-clinic fee. */
 function feeOf(fees: Json | null): number {
-  if (typeof fees === "number") return fees;
   if (fees && typeof fees === "object" && !Array.isArray(fees)) {
-    const vals = Object.values(fees).filter((v): v is number => typeof v === "number");
-    if (vals.length) return vals[0] ?? 0;
+    const o = fees as { in_person?: number; online?: number };
+    if (typeof o.in_person === "number") return o.in_person;
+    if (typeof o.online === "number") return o.online;
   }
   return 0;
-}
-
-/** "08:30" → "8:30 AM" (matches the modal's AM/PM time-of-day grouping). */
-function to12h(hhmm: string) {
-  const parts = hhmm.split(":");
-  const m = parts[1] ?? "00";
-  let h = parseInt(parts[0] ?? "0", 10);
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12; if (h === 0) h = 12;
-  return `${h}:${m} ${ampm}`;
-}
-
-function toYMD(date: Date) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
 type DoctorRow = Awaited<ReturnType<typeof api.doctors.searchDoctors>>[number];
@@ -93,7 +76,6 @@ function toDoctor(row: DoctorRow, i: number): Doctor {
   const type = "In-clinic";
   return {
     id: row.id,
-    facilityId: row.facility_id ?? null,
     initials: initialsOf(row.full_name),
     grad: GRADS[i % GRADS.length]!,
     specialty: row.specialty ?? "",
@@ -104,404 +86,6 @@ function toDoctor(row: DoctorRow, i: number): Doctor {
     en: { name: row.full_name, hospital, type },
     ar: { name: row.full_name, hospital, type: "في العيادة" },
   };
-}
-
-/* ─── helpers ───────────────────────────────────────────────────────── */
-const DAY_NAMES_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const DAY_NAMES_AR = ["أح", "اث", "ثل", "أر", "خم", "جم", "سب"];
-const MONTH_LONG_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const MONTH_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-
-const TODAY = new Date(); // real "today" — gates past dates in the booking calendar
-
-function buildCalendar(year: number, month: number) {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (number | null)[] = Array(firstDay).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
-}
-
-function sameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-/* ─── MiniCalendar ───────────────────────────────────────────────────── */
-function MiniCalendar({
-  isAr,
-  selected,
-  onSelect,
-}: {
-  isAr: boolean;
-  selected: Date | null;
-  onSelect: (d: Date) => void;
-}) {
-  const [viewYear, setViewYear]   = useState(TODAY.getFullYear());
-  const [viewMonth, setViewMonth] = useState(TODAY.getMonth());
-
-  const cells   = buildCalendar(viewYear, viewMonth);
-  const dayLabels = isAr ? DAY_NAMES_AR : DAY_NAMES_EN;
-
-  function prevMonth() {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
-    else setViewMonth(m => m - 1);
-  }
-  function nextMonth() {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
-    else setViewMonth(m => m + 1);
-  }
-
-  // disable going back before current month
-  const atMin = viewYear === TODAY.getFullYear() && viewMonth === TODAY.getMonth();
-
-  return (
-    <div>
-      {/* Month nav */}
-      <div className={`flex items-center justify-between mb-3 ${isAr ? "flex-row-reverse" : ""}`}>
-        <button
-          onClick={prevMonth}
-          disabled={atMin}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/30 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <span className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">
-          {isAr ? MONTH_LONG_AR[viewMonth] : MONTH_LONG_EN[viewMonth]} {viewYear}
-        </span>
-        <button
-          onClick={nextMonth}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/30 transition-all"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </div>
-
-      {/* Day headers */}
-      <div className="grid grid-cols-7 mb-1">
-        {dayLabels.map(l => (
-          <div key={l} className="text-center text-[10px] font-bold uppercase tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">
-            {l}
-          </div>
-        ))}
-      </div>
-
-      {/* Day cells */}
-      <div className="grid grid-cols-7 gap-y-1">
-        {cells.map((day, i) => {
-          if (!day) return <div key={`e-${i}`} />;
-          const date    = new Date(viewYear, viewMonth, day);
-          const isToday = sameDay(date, TODAY);
-          const isPast  = date < new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
-          const isSel   = selected ? sameDay(date, selected) : false;
-
-          return (
-            <button
-              key={`d-${day}`}
-              disabled={isPast}
-              onClick={() => onSelect(date)}
-              className={`mx-auto w-8 h-8 rounded-full text-sm font-semibold flex items-center justify-center transition-all
-                ${isSel
-                  ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] shadow-md"
-                  : isToday
-                    ? "border-2 border-[#46255f] dark:border-[#DFC8E7] text-[#46255f] dark:text-[#DFC8E7] font-bold"
-                    : isPast
-                      ? "text-[#2E1A47]/18 dark:text-[#DFC8E7]/18 cursor-not-allowed"
-                      : "text-[#2E1A47] dark:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/30"
-                }`}
-            >
-              {day}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ─── BookModal ─────────────────────────────────────────────────────── */
-function BookModal({
-  doctor,
-  isAr,
-  onClose,
-}: {
-  doctor: Doctor;
-  isAr: boolean;
-  onClose: () => void;
-}) {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const [step, setStep]                 = useState<"date" | "time">("date");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [slots, setSlots]               = useState<Slot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [booked, setBooked]             = useState(false);
-  const [submitting, setSubmitting]     = useState(false);
-  const [error, setError]               = useState("");
-  const d = isAr ? doctor.ar : doctor.en;
-
-  // Load real availability whenever a date is picked (getAvailableSlots already
-  // excludes taken slots, so every returned slot is bookable).
-  useEffect(() => {
-    if (!selectedDate) return;
-    let active = true;
-    setSlotsLoading(true);
-    setError("");
-    api.appointments
-      .getAvailableSlots(supabase, { doctorId: doctor.id, date: toYMD(selectedDate) })
-      .then((avail) => {
-        if (!active) return;
-        setSlots(
-          avail
-            .map((s) => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
-            .filter(Boolean)
-            .map((hhmm) => ({ t: to12h(hhmm), taken: false, start: hhmm }))
-        );
-      })
-      .catch(() => { if (active) setError(isAr ? "تعذر تحميل المواعيد." : "Could not load available times."); })
-      .finally(() => { if (active) setSlotsLoading(false); });
-    return () => { active = false; };
-  }, [selectedDate, supabase, doctor.id, isAr]);
-
-  async function confirmBooking() {
-    if (!selectedDate || !selectedSlot) return;
-    if (!doctor.facilityId) {
-      setError(isAr ? "لا يمكن الحجز لهذا الطبيب حالياً." : "Booking is unavailable for this doctor.");
-      return;
-    }
-    setSubmitting(true);
-    setError("");
-    try {
-      await api.appointments.bookAppointment(supabase, {
-        doctorId: doctor.id,
-        facilityId: doctor.facilityId,
-        slotDate: toYMD(selectedDate),
-        slotStart: selectedSlot.start,
-        type: "in_person",
-      });
-      setBooked(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : (isAr ? "تعذر تأكيد الحجز." : "Could not confirm the booking."));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function fmtDate(date: Date) {
-    if (isAr) return `${date.getDate()} ${MONTH_AR[date.getMonth()]}`;
-    return `${MONTH_EN[date.getMonth()]} ${date.getDate()}`;
-  }
-
-  if (booked) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-        <div className="bg-white dark:bg-[#1a1030] rounded-2xl p-8 max-w-sm w-full text-center border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-3xl mx-auto mb-4">✅</div>
-          <h3 className="font-black font-serif text-xl text-[#2E1A47] dark:text-[#DFC8E7] mb-2">
-            {isAr ? "تم الحجز!" : "Appointment Booked!"}
-          </h3>
-          <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 mb-1">{d.name}</p>
-          <p className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7]">
-            {selectedDate ? fmtDate(selectedDate) : ""} · {selectedSlot?.t}
-          </p>
-          <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-1 mb-6">{d.hospital}</p>
-          <button
-            onClick={onClose}
-            className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47]"
-            style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
-          >
-            {isAr ? "إغلاق" : "Done"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="bg-white dark:bg-[#1a1030] rounded-2xl max-w-md w-full border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-[#e7dcee] dark:border-[#2a1840]">
-          <div className={`flex items-center gap-3 ${isAr ? "flex-row-reverse" : ""}`}>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-base font-black flex-shrink-0 bg-gradient-to-br ${doctor.grad} text-[#2E1A47]`}>
-              {doctor.initials}
-            </div>
-            <div className={`flex-1 min-w-0 ${isAr ? "text-right" : ""}`}>
-              <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{d.name}</p>
-              <p className="text-xs text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 truncate">{d.hospital}</p>
-            </div>
-            <button onClick={onClose} className="text-[#2E1A47]/30 hover:text-[#2E1A47] dark:text-[#DFC8E7]/30 dark:hover:text-[#DFC8E7] transition-colors flex-shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-
-          {/* Step indicator */}
-          <div className={`flex items-center gap-2 mt-4 ${isAr ? "flex-row-reverse" : ""}`}>
-            {[
-              { key: "date", en: "Select Date", ar: "اختر التاريخ" },
-              { key: "time", en: "Select Time", ar: "اختر الوقت" },
-            ].map((s, i) => (
-              <div key={s.key} className={`flex items-center gap-2 ${isAr ? "flex-row-reverse" : ""}`}>
-                {i > 0 && <div className="w-6 h-px bg-[#e7dcee] dark:bg-[#3a2560]" />}
-                <div className={`flex items-center gap-1.5 ${isAr ? "flex-row-reverse" : ""}`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 transition-all ${
-                    step === s.key
-                      ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030]"
-                      : step === "time" && s.key === "date"
-                        ? "bg-emerald-500 text-white"
-                        : "bg-[#e7dcee] dark:bg-[#3a2560] text-[#2E1A47]/40 dark:text-[#DFC8E7]/40"
-                  }`}>
-                    {step === "time" && s.key === "date" ? "✓" : i + 1}
-                  </div>
-                  <span className={`text-xs font-semibold ${
-                    step === s.key ? "text-[#2E1A47] dark:text-[#DFC8E7]" : "text-[#2E1A47]/35 dark:text-[#DFC8E7]/35"
-                  }`}>{isAr ? s.ar : s.en}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Step 1: Date ── */}
-        {step === "date" && (
-          <div className="px-6 py-5">
-            <MiniCalendar
-              isAr={isAr}
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-            />
-            <button
-              disabled={!selectedDate}
-              onClick={() => setStep("time")}
-              className="w-full mt-5 py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-              style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
-            >
-              {selectedDate
-                ? isAr ? `التالي — ${fmtDate(selectedDate)}` : `Next — ${fmtDate(selectedDate)}`
-                : isAr ? "اختر تاريخاً" : "Select a date"}
-            </button>
-          </div>
-        )}
-
-        {/* ── Step 2: Time ── */}
-        {step === "time" && (() => {
-          const allSlots = slots;
-          const groups = [
-            {
-              key: "morning", en: "Morning 🌅", ar: "الصباح 🌅",
-              slots: allSlots.filter(s => {
-                const h = parseInt(s.t);
-                return s.t.includes("AM") && h >= 8;
-              }),
-            },
-            {
-              key: "afternoon", en: "Afternoon ☀️", ar: "الظهيرة ☀️",
-              slots: allSlots.filter(s => {
-                const h = parseInt(s.t);
-                return s.t.includes("PM") && (h === 12 || h <= 4);
-              }),
-            },
-            {
-              key: "evening", en: "Evening 🌙", ar: "المساء 🌙",
-              slots: allSlots.filter(s => {
-                const h = parseInt(s.t);
-                return s.t.includes("PM") && h >= 5;
-              }),
-            },
-          ].filter(g => g.slots.length > 0);
-
-          return (
-            <div className="px-6 py-5">
-              <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
-                <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
-                  {isAr ? "اختر وقتاً" : "Choose a time"}
-                </p>
-                <button
-                  onClick={() => { setStep("date"); setSelectedSlot(null); }}
-                  className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline"
-                >
-                  ← {selectedDate ? fmtDate(selectedDate) : ""}
-                </button>
-              </div>
-
-              {slotsLoading ? (
-                <div className="py-10 text-center text-sm font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 animate-pulse">
-                  {isAr ? "جارٍ تحميل المواعيد…" : "Loading times…"}
-                </div>
-              ) : groups.length === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-3xl mb-2">🗓️</p>
-                  <p className="text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
-                    {isAr ? "لا توجد مواعيد متاحة في هذا اليوم." : "No available times on this day."}
-                  </p>
-                </div>
-              ) : (
-              <div className="max-h-72 overflow-y-auto pr-1 space-y-5 mb-5"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }}>
-                {groups.map(group => (
-                  <div key={group.key}>
-                    <p className="text-[11px] font-bold text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-2">
-                      {isAr ? group.ar : group.en}
-                    </p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {group.slots.map(slot => (
-                        <button
-                          key={slot.t}
-                          disabled={slot.taken}
-                          onClick={() => setSelectedSlot(slot)}
-                          className={`py-2 rounded-xl text-xs font-semibold border transition-all relative ${
-                            slot.taken
-                              ? "border-[#e7dcee] dark:border-[#2a1840] text-[#2E1A47]/20 dark:text-[#DFC8E7]/20 cursor-not-allowed bg-[#faf8fc] dark:bg-[#0d0820]"
-                              : selectedSlot?.t === slot.t
-                                ? "border-[#46255f] bg-[#46255f] text-white dark:border-[#DFC8E7] dark:bg-[#DFC8E7] dark:text-[#1a1030] shadow-sm"
-                                : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#46255f]/50 dark:hover:border-[#DFC8E7]/50 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20"
-                          }`}
-                        >
-                          {slot.t}
-                          {slot.taken && (
-                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <span className="w-full h-px bg-[#2E1A47]/15 dark:bg-[#DFC8E7]/15 rotate-[-8deg] block" />
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              )}
-
-              {error && (
-                <p className="mb-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
-                  {error}
-                </p>
-              )}
-
-              <button
-                disabled={!selectedSlot || submitting}
-                onClick={confirmBooking}
-                className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-                style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
-              >
-                {submitting
-                  ? isAr ? "جارٍ التأكيد…" : "Confirming…"
-                  : selectedSlot
-                    ? isAr ? `تأكيد — ${selectedSlot.t}` : `Confirm — ${selectedSlot.t}`
-                    : isAr ? "اختر وقتاً" : "Select a time"}
-              </button>
-            </div>
-          );
-        })()}
-      </div>
-    </div>
-  );
 }
 
 /* ─── DoctorCard ─────────────────────────────────────────────────────── */
@@ -556,7 +140,7 @@ function DoctorCard({
         </div>
       </div>
 
-      {/* Book button */}
+      {/* Book button — navigates to the doctor details page (single booking flow lives there) */}
       <div className="mt-4">
         <button
           onClick={onBook}
@@ -577,11 +161,11 @@ function DoctorCard({
 export default function FindDoctorsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [search, setSearch]           = useState("");
   const [activeSpec, setActiveSpec]   = useState("All");
-  const [booking, setBooking]         = useState<Doctor | null>(null);
   const [doctors, setDoctors]         = useState<Doctor[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
@@ -607,6 +191,11 @@ export default function FindDoctorsPage() {
       || doc.en.hospital.toLowerCase().includes(q);
     return matchSpec && matchSearch;
   });
+
+  // Booking happens on the doctor details page (single shared flow).
+  function goToDoctor(doc: Doctor) {
+    if (doc.available) router.push(`/dashboard/find-doctors/${doc.id}`);
+  }
 
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
@@ -705,7 +294,7 @@ export default function FindDoctorsPage() {
                   key={doc.id}
                   doctor={doc}
                   isAr={ar}
-                  onBook={() => doc.available && setBooking(doc)}
+                  onBook={() => goToDoctor(doc)}
                 />
               ))}
             </div>
@@ -722,15 +311,6 @@ export default function FindDoctorsPage() {
           <NearbyDoctorsMap isAr={ar} />
         </div>
       </section>
-
-      {/* ── Booking modal ── */}
-      {booking && (
-        <BookModal
-          doctor={booking}
-          isAr={ar}
-          onClose={() => setBooking(null)}
-        />
-      )}
     </div>
   );
 }

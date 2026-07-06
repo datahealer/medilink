@@ -340,12 +340,15 @@ export default function ProfilePage() {
   }
 
   async function addFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    // Capture the files synchronously — the <input> onChange resets `value` right
+    // after calling this, which would empty the live FileList before the first await.
+    const items = files ? Array.from(files) : [];
+    if (items.length === 0) return;
     setError("");
     try {
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData.user?.id ?? "anon";
-      await Promise.all(Array.from(files).map(async (file) => {
+      await Promise.all(items.map(async (file) => {
         const safeName = file.name.replace(/[^\w.\-]+/g, "_");
         const path = `${uid}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage.from("patient-docs").upload(path, file);
