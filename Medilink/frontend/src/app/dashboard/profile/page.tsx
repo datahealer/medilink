@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Database } from "@medilink/shared";
+import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -40,6 +41,82 @@ const MEMBER_GRADS = [
   "from-[#d1fae5] to-[#d5e8f5]",
   "from-[#fde68a] to-[#e8d5f0]",
 ];
+
+// ── Documents (Document Vault) — Vartika's UI types/helpers (verbatim) ──
+type Doc = { id: string; name: string; size: number; ext: string; date: string; url: string };
+
+function fileIcon(ext: string) {
+  if (["pdf"].includes(ext)) return "📄";
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "🖼️";
+  if (["doc", "docx"].includes(ext)) return "📝";
+  return "📁";
+}
+
+function fileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ── Medications — Vartika's UI type (verbatim); data comes from prescriptions ──
+type Medication = {
+  id: string; status: "active" | "completed"; startDate: string;
+  en: { name: string; dosage: string; frequency: string; doctor: string; instructions: string };
+  ar: { name: string; dosage: string; frequency: string; doctor: string; instructions: string };
+};
+
+// ── Backend mappers (no UI changes; feed Vartika's components real data) ──
+// Missing backend fields (fall back to blank so the UI is unchanged):
+//   medication status (all shown "active"), dosage/frequency (if not in the Rx JSON),
+//   document file size (not stored → shows "0 B").
+type RxRow = {
+  id: string;
+  medications: Json[] | null;
+  instructions: string | null;
+  issued_at: string;
+  doctors?: { full_name?: string } | null;
+};
+function medField(m: Json, ...keys: string[]): string {
+  if (m && typeof m === "object" && !Array.isArray(m)) {
+    const o = m as Record<string, Json>;
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === "string" && v.trim()) return v;
+    }
+  }
+  return "";
+}
+function fmtMedDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+function buildMedications(rx: RxRow[]): Medication[] {
+  const out: Medication[] = [];
+  for (const p of rx) {
+    const doctor = p.doctors?.full_name ?? "";
+    const startDate = fmtMedDate(p.issued_at);
+    const meds = Array.isArray(p.medications) ? p.medications : [];
+    meds.forEach((m, idx) => {
+      const name = typeof m === "string" ? m : medField(m, "name", "drug", "medication");
+      if (!name) return;
+      const cell = {
+        name,
+        dosage: typeof m === "string" ? "" : medField(m, "dosage", "dose", "strength"),
+        frequency: typeof m === "string" ? "" : medField(m, "frequency", "freq", "schedule"),
+        doctor,
+        instructions: p.instructions ?? (typeof m === "string" ? "" : medField(m, "instructions", "notes")),
+      };
+      out.push({ id: `${p.id}-${idx}`, status: "active", startDate, en: cell, ar: cell });
+    });
+  }
+  return out;
+}
+// patient_documents row shape (from api.records.listDocuments).
+type DocRow = { id: string; name: string; file_url: string | null; file_type: string | null; uploaded_at: string };
+function docExt(name: string, fileType: string): string {
+  const fromName = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+  return fromName || (fileType.split("/").pop() ?? "").toLowerCase();
+}
 
 type Gender = Database["public"]["Enums"]["gender_type"];
 type BloodGroup = Database["public"]["Enums"]["blood_group_type"];
@@ -81,19 +158,28 @@ export default function ProfilePage() {
   const [memberBusy, setMemberBusy]       = useState(false);
   const [draft, setDraft]                 = useState<FamilyMember>({ name: "", relation: "Spouse", dob: "", blood: "Unknown" });
 
+  /* Documents (Document Vault) — Supabase Storage `patient-docs` + api.records */
+  const [documents, setDocuments] = useState<Doc[]>([]);
+  const [dragOver, setDragOver]   = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Medications — derived from api.prescriptions.listPrescriptions */
+  const [medications, setMedications] = useState<Medication[]>([]);
+
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const [profile, mh, past, labResults, prescriptions, family] = await Promise.all([
+        const [profile, mh, past, labResults, prescriptions, family, docs] = await Promise.all([
           api.profile.getMyProfile(supabase),
           api.records.getMedicalHistory(supabase).catch(() => null),
           api.appointments.listMyAppointments(supabase, "past").catch(() => []),
           api.labs.listLabResults(supabase).catch(() => []),
           api.prescriptions.listPrescriptions(supabase).catch(() => []),
           api.family.listFamily(supabase).catch(() => []),
+          api.records.listDocuments(supabase).catch(() => []),
         ]);
         if (!active) return;
         setMembers(family.map((m) => ({
@@ -125,6 +211,23 @@ export default function ProfilePage() {
           emergency_rel: ec.relationship ?? "",
         });
         setStats({ visits: past.length, labs: labResults.length, rx: prescriptions.length });
+        setMedications(buildMedications(prescriptions as unknown as RxRow[]));
+        // Documents: mint short-lived signed URLs so Vartika's <a href={doc.url}> works with Storage.
+        const docRows = docs as unknown as DocRow[];
+        const signed = await Promise.all(
+          docRows.map((r) =>
+            r.file_url ? api.records.getDocumentSignedUrl(supabase, r.file_url).catch(() => "") : Promise.resolve("")
+          )
+        );
+        if (!active) return;
+        setDocuments(docRows.map((r, i) => ({
+          id: r.id,
+          name: r.name,
+          size: 0, // patient_documents has no size column (see mapper note)
+          ext: docExt(r.name, r.file_type ?? ""),
+          date: fmtMedDate(r.uploaded_at),
+          url: signed[i] ?? "",
+        })));
       } catch {
         if (active) setError(ar ? "تعذر تحميل الملف الشخصي." : "Could not load your profile.");
       } finally {
@@ -222,6 +325,49 @@ export default function ProfilePage() {
       setError(ar ? "تعذر حذف فرد العائلة." : "Could not remove family member.");
     } finally {
       setMemberBusy(false);
+    }
+  }
+
+  /* ── Document Vault handlers (Supabase Storage `patient-docs` + api.records) ── */
+  async function reloadDocuments() {
+    const rows = (await api.records.listDocuments(supabase).catch(() => [])) as unknown as DocRow[];
+    const signed = await Promise.all(
+      rows.map((r) => (r.file_url ? api.records.getDocumentSignedUrl(supabase, r.file_url).catch(() => "") : Promise.resolve("")))
+    );
+    setDocuments(rows.map((r, i) => ({
+      id: r.id, name: r.name, size: 0, ext: docExt(r.name, r.file_type ?? ""), date: fmtMedDate(r.uploaded_at), url: signed[i] ?? "",
+    })));
+  }
+
+  async function addFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError("");
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id ?? "anon";
+      await Promise.all(Array.from(files).map(async (file) => {
+        const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+        const path = `${uid}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage.from("patient-docs").upload(path, file);
+        if (upErr) throw upErr;
+        await api.records.addDocument(supabase, {
+          name: file.name, type: "other", file_url: path, file_type: file.type || docExt(file.name, ""),
+        });
+      }));
+      await reloadDocuments();
+    } catch {
+      setError(ar ? "تعذر رفع المستند." : "Could not upload the document.");
+    }
+  }
+
+  async function removeDocument(id: string) {
+    const snapshot = documents;
+    setDocuments((prev) => prev.filter((d) => d.id !== id)); // optimistic
+    try {
+      await api.records.deleteDocument(supabase, id);
+    } catch {
+      setDocuments(snapshot);
+      setError(ar ? "تعذر حذف المستند." : "Could not remove the document.");
     }
   }
 
@@ -336,6 +482,8 @@ export default function ProfilePage() {
             { label: ar ? "الصحة" : "Health",                      id: "health" },
             { label: ar ? "الطوارئ" : "Emergency",                  id: "emergency" },
             { label: ar ? "👨‍👩‍👧 أفراد العائلة" : "👨‍👩‍👧 Family Members", id: "family" },
+            { label: ar ? "💊 الأدوية الحالية" : "💊 Medications",  id: "medications" },
+            { label: ar ? "📎 المستندات" : "📎 Documents",          id: "documents" },
           ].map(s => (
             <a key={s.id} href={`#${s.id}`}
               className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold no-underline transition-colors ${
@@ -539,6 +687,124 @@ export default function ProfilePage() {
                 </svg>
                 {ar ? "إضافة فرد عائلة" : "Add a family member"}
               </button>
+            )}
+          </div>
+        </div>
+
+        {/* Current Medications */}
+        <div id="medications" />
+        <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden">
+          <div className={`px-6 py-4 border-b border-[#e7dcee] dark:border-[#2a1840] flex items-center justify-between ${ar ? "flex-row-reverse" : ""}`}>
+            <h2 className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7]">
+              {ar ? "الأدوية الحالية" : "Current Medications"}
+            </h2>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#f0e8f8] dark:bg-[#2E1A47]/40 text-[#46255f] dark:text-[#DFC8E7]/70">
+              {medications.filter(m => m.status === "active").length} {ar ? "نشط" : "active"}
+            </span>
+          </div>
+          <div className="p-6 space-y-3">
+            {medications.map(med => {
+              const info = ar ? med.ar : med.en;
+              return (
+                <div key={med.id} className={`flex items-start gap-3 p-4 rounded-xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#0d0820] ${ar ? "flex-row-reverse" : ""}`}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 bg-gradient-to-br from-[#e8d5f0] to-[#d5e8f5]">
+                    💊
+                  </div>
+                  <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
+                    <div className={`flex items-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                      <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{info.name}</p>
+                      <span className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45">{info.dosage}</span>
+                    </div>
+                    <p className="text-xs text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 mt-0.5">{info.frequency} · {info.doctor}</p>
+                    <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mt-1">{info.instructions}</p>
+                  </div>
+                  <div className={`flex flex-col flex-shrink-0 gap-1.5 ${ar ? "items-start" : "items-end"}`}>
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+                      med.status === "active"
+                        ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+                        : "text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 bg-[#f0e8f8] dark:bg-[#2E1A47]/20 border-transparent"
+                    }`}>
+                      {med.status === "active" ? (ar ? "نشط" : "Active") : (ar ? "مكتمل" : "Completed")}
+                    </span>
+                    <p className="text-[11px] text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{med.startDate}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Documents */}
+        <div id="documents" />
+        <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden">
+          <div className={`px-6 py-4 border-b border-[#e7dcee] dark:border-[#2a1840] flex items-center justify-between ${ar ? "flex-row-reverse" : ""}`}>
+            <h2 className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7]">
+              {ar ? "المستندات" : "Documents"}
+            </h2>
+            {documents.length > 0 && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#f0e8f8] dark:bg-[#2E1A47]/40 text-[#46255f] dark:text-[#DFC8E7]/70">
+                {documents.length} {ar ? "ملف" : documents.length === 1 ? "file" : "files"}
+              </span>
+            )}
+          </div>
+          <div className="p-6 space-y-3">
+            <input ref={fileInputRef} type="file" multiple className="hidden"
+              onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
+
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+              className={`w-full py-8 rounded-xl border-2 border-dashed cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-center ${
+                dragOver
+                  ? "border-[#46255f]/60 bg-[#faf5ff] dark:bg-[#2E1A47]/20"
+                  : "border-[#e7dcee] dark:border-[#3a2560] hover:border-[#46255f]/40 hover:bg-[#faf5ff] dark:hover:bg-[#2E1A47]/10"
+              }`}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <p className="text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
+                {ar ? "اسحب وأفلت الملفات هنا، أو انقر للاختيار" : "Drag & drop files here, or click to browse"}
+              </p>
+              <p className="text-xs text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+                {ar ? "تقارير سابقة، وصفات، نتائج تحاليل، إلخ." : "Previous reports, prescriptions, lab results, etc."}
+              </p>
+            </div>
+
+            {documents.length === 0 ? (
+              <p className={`text-sm text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 ${ar ? "text-right" : ""}`}>
+                {ar ? "لم يتم رفع أي مستندات بعد." : "No documents uploaded yet."}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {documents.map(doc => (
+                  <div key={doc.id} className={`flex items-center gap-3 p-3 rounded-xl border border-[#e7dcee] dark:border-[#3a2560] ${ar ? "flex-row-reverse" : ""}`}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0 bg-[#f0e8f8] dark:bg-[#2E1A47]/30">
+                      {fileIcon(doc.ext)}
+                    </div>
+                    <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
+                      <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{doc.name}</p>
+                      <p className="text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">{fileSize(doc.size)} · {doc.date}</p>
+                    </div>
+                    <div className={`flex items-center gap-1 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-[#46255f] hover:bg-[#f0e8f8] dark:hover:text-[#DFC8E7] dark:hover:bg-[#2E1A47]/30 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </a>
+                      <button onClick={() => removeDocument(doc.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
