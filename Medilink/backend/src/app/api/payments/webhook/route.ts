@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
 import { logAudit } from "@/lib/audit/logAudit";
+import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,6 +45,14 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("💳 Payment found:", payment.id);
+
+    // NOTE (root-caused via live DB inspection, not the reference schema doc):
+    // payments.checkout/route.ts writes `patient_id: user.id` (the auth user id),
+    // NOT a patient_profiles.id, despite what docs/reference/full_schema.sql's FK
+    // declaration implies. Verified against a real payments row: payment.patient_id
+    // matches a profiles.id and has zero matching patient_profiles.id. Do not
+    // reintroduce a patient_profiles lookup here without re-verifying live data first.
+    const patientUserId = payment.patient_id;
 
     const alreadyPaid = payment.status === "paid";
     const hasInvoice = !!payment.invoice_url;
@@ -245,7 +254,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch patient email from auth.users (profiles table may not store email)
-    const { data: { user: authUser } } = await supabase.auth.admin.getUserById(payment.patient_id);
+    const { data: { user: authUser } } = await supabase.auth.admin.getUserById(patientUserId);
     const email = authUser?.email || null;
 
     if (email && invoiceUrl) {
@@ -271,9 +280,9 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
           .then(r => r.data?.is_emergency));
 
-        const { error: ptErr } = await supabase.from("in_app_notifications").insert({
-          user_id: payment.patient_id,
-          type: "info" as const,
+        const notifResult = await notifyPaymentSuccess(supabase, {
+          userId: patientUserId,
+          appointmentId: payment.appointment_id,
           title: isEmergencyPayment ? "Payment Received — You Are In Queue" : "Payment Successful",
           body: isEmergencyPayment
             ? (attendeeName
@@ -282,10 +291,9 @@ export async function POST(req: NextRequest) {
             : (attendeeName
                 ? `Payment for ${attendeeName}'s appointment is confirmed. Invoice #${invoiceNumber} is ready.`
                 : `Your payment has been received and your appointment is confirmed. Invoice #${invoiceNumber} is ready.`),
-          data: { appointment_id: payment.appointment_id },
         });
-        if (ptErr) console.error("❌ Patient payment notif failed:", ptErr.message);
-        else console.log("✅ Patient notified: Payment Successful");
+        if (notifResult.success) console.log("✅ Patient notified: Payment Successful");
+        else console.error("❌ Patient payment notif failed:", notifResult.error);
 
         // Notify facility admins: payment received
         if (facilityAdmins.length > 0) {

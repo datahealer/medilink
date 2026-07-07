@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type ApptStatus = "Confirmed" | "Pending" | "Completed" | "Cancelled";
@@ -81,6 +82,42 @@ function toAppt(row: ApptRow, i: number): Appt {
     en: { name, spec, hospital, date: relDate(row.slot_date, false), time, type: TYPE_EN[row.type] ?? row.type, notes },
     ar: { name, spec, hospital, date: relDate(row.slot_date, true), time, type: TYPE_AR[row.type] ?? row.type, notes },
   };
+}
+
+// "Book Again" reuses the shared BookingModal, opened INSTANTLY from data the
+// appointments list already has in memory (doctor id/name, facility, specialty) —
+// no fetch needed before the modal can appear. `fee` is the one field the modal
+// needs that we don't already have; it's backfilled in the background right after
+// opening (see openRebook below) without blocking the calendar step.
+function apptToViewDoctor(appt: Appt): ViewDoctor {
+  return {
+    id: appt.doctorId ?? "",
+    facilityId: appt.facilityId,
+    initials: appt.initials,
+    grad: appt.grad,
+    specialty: appt.en.spec,
+    bio: "",
+    fee: 0, // refined async — not shown until the Payment step, well after this resolves
+    rating: 0,
+    reviews: 0,
+    available: true,
+    name: appt.en.name,
+    hospital: appt.en.hospital,
+    type: "In-clinic",
+    education: "",
+    experience: "",
+    languages: "",
+    location: "",
+  };
+}
+
+function feeFromFees(fees: unknown): number {
+  if (fees && typeof fees === "object" && !Array.isArray(fees)) {
+    const o = fees as { in_person?: number; online?: number };
+    if (typeof o.in_person === "number") return o.in_person;
+    if (typeof o.online === "number") return o.online;
+  }
+  return 0;
 }
 
 const TABS = [
@@ -419,6 +456,7 @@ export default function AppointmentsPage() {
   const [tab, setTab]           = useState("All");
   const [expanded, setExp]      = useState<string | null>(null);
   const [rescheduling, setRescheduling] = useState<Appt | null>(null);
+  const [rebookDoctor, setRebookDoctor] = useState<ViewDoctor | null>(null);
   const [appointments, setAppointments] = useState<Appt[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
@@ -446,6 +484,36 @@ export default function AppointmentsPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  // "Book Again" opens the same booking flow as Find Doctors / Doctor Profile,
+  // prefilled with this appointment's doctor — it does NOT create anything itself.
+  // (api.appointments.rebookAppointment is intentionally not used here: the RPC it
+  // calls inserts a slot-less placeholder row and isn't meant to stand in for a real
+  // booking — see investigation notes.)
+  //
+  // The modal opens SYNCHRONOUSLY from data the appointments list already holds —
+  // no fetch blocks it. Only `fee` (needed at the Payment step, several clicks away)
+  // is backfilled afterwards, in the background.
+  function openRebook(appt: Appt) {
+    if (!appt.doctorId) {
+      setError(ar ? "تعذر تحديد الطبيب لإعادة الحجز." : "Could not identify the doctor to rebook.");
+      return;
+    }
+    setError("");
+    setRebookDoctor(apptToViewDoctor(appt));
+
+    const doctorId = appt.doctorId;
+    void (async () => {
+      try {
+        const { data } = await supabase.from("doctors").select("fees").eq("id", doctorId).maybeSingle();
+        if (!data) return;
+        const fee = feeFromFees(data.fees);
+        setRebookDoctor((prev) => (prev && prev.id === doctorId ? { ...prev, fee } : prev));
+      } catch {
+        // non-critical here — fee isn't rendered until the Payment step
+      }
+    })();
   }
 
   const counts = {
@@ -589,6 +657,15 @@ export default function AppointmentsPage() {
                         </button>
                       </div>
                     )}
+                    {!isUpcoming && (
+                      <div className={`flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                        <button
+                          onClick={() => openRebook(appt)}
+                          className="flex-1 py-2 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#46255f]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-all">
+                          {ar ? "احجز مرة أخرى" : "Book Again"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -604,6 +681,15 @@ export default function AppointmentsPage() {
           isAr={ar}
           onClose={() => setRescheduling(null)}
           onDone={() => { void load(); }}
+        />
+      )}
+
+      {/* "Book Again" — same booking flow as Find Doctors / Doctor Profile, prefilled doctor */}
+      {rebookDoctor && (
+        <BookingModal
+          doctor={rebookDoctor}
+          isAr={ar}
+          onClose={() => { setRebookDoctor(null); void load(); }}
         />
       )}
     </div>

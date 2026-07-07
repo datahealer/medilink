@@ -5,6 +5,7 @@ import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+import { env } from "@/lib/env";
 
 function downloadRecord(rec: MedRecord, isAr: boolean) {
   const info = isAr ? rec.ar : rec.en;
@@ -53,6 +54,31 @@ async function shareRecord(rec: MedRecord, isAr: boolean) {
   }
 }
 
+/** Real backend PDF for a prescription — replaces the generic local text export. */
+async function downloadPrescriptionPdf(prescriptionId: string): Promise<string> {
+  const res = await fetch(`${env.BACKEND_URL}/api/prescriptions/${prescriptionId}/download`, {
+    credentials: "include",
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.signed_url) throw new Error(data?.error ?? "download_failed");
+  return data.signed_url as string;
+}
+
+/** Real backend share link for a prescription — replaces the generic text share. */
+async function sharePrescriptionLink(prescriptionId: string, isAr: boolean): Promise<void> {
+  const res = await fetch(`${env.BACKEND_URL}/api/prescriptions/${prescriptionId}/share-link`, {
+    credentials: "include",
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.url) throw new Error(data?.error ?? "share_failed");
+  const shareUrl = `${env.BACKEND_URL}${data.url}`;
+  if (canWebShare()) {
+    await navigator.share({ title: isAr ? "وصفة طبية" : "Prescription", text: shareUrl, url: shareUrl });
+  } else {
+    await navigator.clipboard.writeText(shareUrl);
+  }
+}
+
 const CATEGORIES = [
   { en: "All",            ar: "الكل" },
   { en: "Prescriptions",  ar: "الوصفات" },
@@ -64,6 +90,12 @@ const CATEGORIES = [
 
 type MedRecord = {
   id: string;
+  /** Which domain this record came from — drives which real backend action applies. */
+  kind: "prescription" | "lab" | "document";
+  /** Raw underlying row id (without the synthetic `rx-`/`lab-`/`doc-` prefix on `id`). */
+  sourceId: string;
+  /** Storage object path for lab reports (`lab_results.file_url`); null when no file was uploaded. */
+  filePath?: string | null;
   category: string;
   emoji: string;
   grad: string;
@@ -108,7 +140,7 @@ function medNames(meds: Json[] | null): string[] {
 
 // Explicit row shapes — the nested selects degrade the generated types to an error union.
 type RxRow = { id: string; medications: Json[] | null; instructions: string | null; issued_at: string; doctors?: { full_name?: string } | null };
-type LabRowLite = { id: string; test_name: string | null; notes: string | null; uploaded_at: string };
+type LabRowLite = { id: string; test_name: string | null; notes: string | null; uploaded_at: string; file_url: string | null };
 type DocRow = { id: string; name: string; type: string; uploaded_at: string; appointment?: { doctor?: { full_name?: string } | null } | null };
 
 function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecord[] {
@@ -120,7 +152,8 @@ function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecor
     const tags = names.slice(0, 3);
     const date = fmtRecDate(p.issued_at);
     return {
-      id: `rx-${p.id}`, category: "Prescriptions", emoji: "💊", grad: "", date, _ts: Date.parse(p.issued_at) || 0,
+      id: `rx-${p.id}`, kind: "prescription", sourceId: p.id,
+      category: "Prescriptions", emoji: "💊", grad: "", date, _ts: Date.parse(p.issued_at) || 0,
       en: { title, doctor, detail, tags }, ar: { title, doctor, detail, tags },
     };
   });
@@ -129,7 +162,8 @@ function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecor
     const detail = l.notes ?? "";
     const date = fmtRecDate(l.uploaded_at);
     return {
-      id: `lab-${l.id}`, category: "Lab Results", emoji: "🧪", grad: "", date, _ts: Date.parse(l.uploaded_at) || 0,
+      id: `lab-${l.id}`, kind: "lab", sourceId: l.id, filePath: l.file_url,
+      category: "Lab Results", emoji: "🧪", grad: "", date, _ts: Date.parse(l.uploaded_at) || 0,
       en: { title, doctor: "", detail }, ar: { title, doctor: "", detail },
     };
   });
@@ -138,7 +172,8 @@ function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecor
     const doctor = d.appointment?.doctor?.full_name ?? "";
     const date = fmtRecDate(d.uploaded_at);
     return {
-      id: `doc-${d.id}`, category, emoji: CAT_EMOJI[category] ?? "📋", grad: "", date, _ts: Date.parse(d.uploaded_at) || 0,
+      id: `doc-${d.id}`, kind: "document", sourceId: d.id,
+      category, emoji: CAT_EMOJI[category] ?? "📋", grad: "", date, _ts: Date.parse(d.uploaded_at) || 0,
       en: { title: d.name, doctor, detail: "" }, ar: { title: d.name, doctor, detail: "" },
     };
   });
@@ -156,6 +191,7 @@ export default function RecordsPage() {
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [downloaded, setDownloaded] = useState<string | null>(null);
   const [shared, setShared]         = useState<string | null>(null);
+  const [actionError, setActionError] = useState<{ id: string; msg: string } | null>(null);
   const [records, setRecords]       = useState<MedRecord[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
@@ -182,17 +218,61 @@ export default function RecordsPage() {
     return () => { active = false; };
   }, [supabase, ar]);
 
-  function handleDownload(rec: MedRecord) {
+  function flashActionError(id: string, msg: string) {
+    setActionError({ id, msg });
+    setTimeout(() => setActionError(null), 3000);
+  }
+
+  async function handleDownload(rec: MedRecord) {
+    if (rec.kind === "prescription") {
+      try {
+        const url = await downloadPrescriptionPdf(rec.sourceId);
+        window.open(url, "_blank", "noopener,noreferrer");
+        setDownloaded(rec.id);
+        setTimeout(() => setDownloaded(null), 2000);
+      } catch {
+        flashActionError(rec.id, ar ? "تعذر تحميل الوصفة." : "Could not download the prescription.");
+      }
+      return;
+    }
     downloadRecord(rec, ar);
     setDownloaded(rec.id);
     setTimeout(() => setDownloaded(null), 2000);
   }
 
   function handleShare(rec: MedRecord) {
+    if (rec.kind === "prescription") {
+      sharePrescriptionLink(rec.sourceId, ar).then(() => {
+        setShared(rec.id);
+        setTimeout(() => setShared(null), 2000);
+      }).catch(() => {
+        flashActionError(rec.id, ar ? "تعذر إنشاء رابط المشاركة." : "Could not create a share link.");
+      });
+      return;
+    }
     shareRecord(rec, ar).then(() => {
       setShared(rec.id);
       setTimeout(() => setShared(null), 2000);
     }).catch(() => {});
+  }
+
+  async function handleViewReport(rec: MedRecord) {
+    if (!rec.filePath) return;
+    try {
+      const url = await api.labs.getLabResultSignedUrl(supabase, rec.filePath);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      flashActionError(rec.id, ar ? "تعذر فتح التقرير." : "Could not open the report.");
+    }
+  }
+
+  function handleExpand(rec: MedRecord) {
+    const opening = expanded !== rec.id;
+    setExpanded(opening ? rec.id : null);
+    if (opening && rec.kind === "lab") {
+      // Fire-and-forget — never blocks the UI if this fails.
+      api.labs.markLabResultViewed(supabase, rec.sourceId).catch(() => {});
+    }
   }
 
   const filtered = records.filter(r => {
@@ -280,7 +360,7 @@ export default function RecordsPage() {
                     className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden hover:shadow-md transition-all">
                     <button
                       className={`w-full flex items-center gap-4 p-5 ${ar ? "flex-row-reverse" : ""}`}
-                      onClick={() => setExpanded(isOpen ? null : rec.id)}>
+                      onClick={() => handleExpand(rec)}>
                       <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 bg-gradient-to-br ${rec.grad}`}>
                         {rec.emoji}
                       </div>
@@ -312,7 +392,19 @@ export default function RecordsPage() {
                             ))}
                           </div>
                         )}
-                        <div className={`flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                        <div className={`flex gap-2 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
+                          {rec.kind === "lab" ? (
+                            rec.filePath && (
+                              <button
+                                onClick={() => handleViewReport(rec)}
+                                className="px-4 py-2 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20 transition-all flex items-center gap-1.5">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                                </svg>
+                                {ar ? "عرض التقرير" : "View Report"}
+                              </button>
+                            )
+                          ) : (
                           <button
                             onClick={() => handleDownload(rec)}
                             className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all flex items-center gap-1.5 ${
@@ -334,6 +426,7 @@ export default function RecordsPage() {
                               </>
                             )}
                           </button>
+                          )}
                           <button
                             onClick={() => handleShare(rec)}
                             className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all flex items-center gap-1.5 ${
@@ -357,6 +450,11 @@ export default function RecordsPage() {
                             )}
                           </button>
                         </div>
+                        {actionError && actionError.id === rec.id && (
+                          <p className="mt-3 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+                            {actionError.msg}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
