@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       accounts: {
@@ -181,6 +206,42 @@ export type Database = {
             columns: ["facility_id"]
             isOneToOne: false
             referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          patient_id: string
+          read_at: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          patient_id: string
+          read_at?: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          patient_id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -740,6 +801,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      device_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       doctor_availability: {
         Row: {
@@ -1715,16 +1803,90 @@ export type Database = {
           },
         ]
       }
+      lab_result_analytes: {
+        Row: {
+          analyte_code: string
+          analyte_name: string
+          created_at: string
+          display_order: number
+          flag: Database["public"]["Enums"]["lab_flag"]
+          id: string
+          lab_result_id: string
+          measured_at: string
+          patient_id: string
+          reference_high: number | null
+          reference_low: number | null
+          reference_text: string | null
+          unit: string | null
+          value_numeric: number | null
+          value_text: string | null
+        }
+        Insert: {
+          analyte_code: string
+          analyte_name: string
+          created_at?: string
+          display_order?: number
+          flag?: Database["public"]["Enums"]["lab_flag"]
+          id?: string
+          lab_result_id: string
+          measured_at?: string
+          patient_id: string
+          reference_high?: number | null
+          reference_low?: number | null
+          reference_text?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          analyte_code?: string
+          analyte_name?: string
+          created_at?: string
+          display_order?: number
+          flag?: Database["public"]["Enums"]["lab_flag"]
+          id?: string
+          lab_result_id?: string
+          measured_at?: string
+          patient_id?: string
+          reference_high?: number | null
+          reference_low?: number | null
+          reference_text?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_result_analytes_lab_result_id_fkey"
+            columns: ["lab_result_id"]
+            isOneToOne: false
+            referencedRelation: "lab_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_result_analytes_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_results: {
         Row: {
+          ai_insight: string | null
+          ai_insight_at: string | null
           appointment_id: string | null
           facility_id: string
           file_type: string
           file_url: string
+          flagged_count: number
           id: string
           is_viewed: boolean
           notes: string | null
           patient_id: string
+          result_date: string | null
+          status: Database["public"]["Enums"]["lab_result_status"]
           storage_path: string | null
           test_name: string
           uploaded_at: string
@@ -1732,14 +1894,19 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          ai_insight?: string | null
+          ai_insight_at?: string | null
           appointment_id?: string | null
           facility_id: string
           file_type: string
           file_url: string
+          flagged_count?: number
           id?: string
           is_viewed?: boolean
           notes?: string | null
           patient_id: string
+          result_date?: string | null
+          status?: Database["public"]["Enums"]["lab_result_status"]
           storage_path?: string | null
           test_name: string
           uploaded_at?: string
@@ -1747,14 +1914,19 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          ai_insight?: string | null
+          ai_insight_at?: string | null
           appointment_id?: string | null
           facility_id?: string
           file_type?: string
           file_url?: string
+          flagged_count?: number
           id?: string
           is_viewed?: boolean
           notes?: string | null
           patient_id?: string
+          result_date?: string | null
+          status?: Database["public"]["Enums"]["lab_result_status"]
           storage_path?: string | null
           test_name?: string
           uploaded_at?: string
@@ -2085,6 +2257,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_preferences: {
+        Row: {
+          categories: Json
+          email: boolean
+          push: boolean
+          sms: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categories?: Json
+          email?: boolean
+          push?: boolean
+          sms?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categories?: Json
+          email?: boolean
+          push?: boolean
+          sms?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -3087,6 +3286,33 @@ export type Database = {
         }
         Relationships: []
       }
+      specialties: {
+        Row: {
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       subscription_items: {
         Row: {
           created_at: string
@@ -3716,6 +3942,7 @@ export type Database = {
       }
     }
     Functions: {
+      _owns_appointment: { Args: { p_id: string }; Returns: boolean }
       _postgis_deprecate: {
         Args: { newname: string; oldname: string; version: string }
         Returns: undefined
@@ -3890,32 +4117,19 @@ export type Database = {
         }
         Returns: Json
       }
-      book_appointment_atomic:
-        | {
-            Args: {
-              p_doctor_id: string
-              p_facility_id: string
-              p_is_emergency?: boolean
-              p_patient_id: string
-              p_slot_date: string
-              p_slot_start: string
-              p_type?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_doctor_id: string
-              p_facility_id: string
-              p_for_family_member_id?: string
-              p_is_emergency?: boolean
-              p_patient_id: string
-              p_slot_date: string
-              p_slot_start: string
-              p_type?: string
-            }
-            Returns: Json
-          }
+      book_appointment_atomic: {
+        Args: {
+          p_doctor_id: string
+          p_facility_id: string
+          p_for_family_member_id?: string
+          p_is_emergency?: boolean
+          p_patient_id: string
+          p_slot_date: string
+          p_slot_start: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       can_action_account_member: {
         Args: { target_team_account_id: string; target_user_id: string }
         Returns: boolean
@@ -3933,12 +4147,20 @@ export type Database = {
         }
         Returns: Json
       }
+      cancel_my_appointment: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: Json
+      }
       checkin_and_enqueue: {
         Args: {
           p_appointment_id: string
           p_patient_name: string
           p_patient_phone: string
         }
+        Returns: Json
+      }
+      checkin_my_appointment: {
+        Args: { p_id: string; p_patient_name: string; p_patient_phone: string }
         Returns: Json
       }
       claim_waitlist_appointment: {
@@ -4510,6 +4732,15 @@ export type Database = {
           p_new_start: string
           p_skip_cutoff?: boolean
           p_user_id: string
+        }
+        Returns: Json
+      }
+      reschedule_my_appointment: {
+        Args: {
+          p_id: string
+          p_new_date: string
+          p_new_end: string
+          p_new_start: string
         }
         Returns: Json
       }
@@ -5344,6 +5575,8 @@ export type Database = {
         | "partial_refund"
       invite_status: "pending" | "accepted" | "expired" | "revoked"
       invite_type: "facility_admin" | "doctor" | "technician" | "staff"
+      lab_flag: "low" | "normal" | "high" | "abnormal"
+      lab_result_status: "normal" | "flagged"
       notification_channel: "in_app" | "email"
       notification_type: "info" | "warning" | "error"
       notification_type_enum: "info" | "warning" | "error"
@@ -5525,6 +5758,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_status: ["active", "suspended", "deletion_pending", "deleted"],
@@ -5653,6 +5889,8 @@ export const Constants = {
       ],
       invite_status: ["pending", "accepted", "expired", "revoked"],
       invite_type: ["facility_admin", "doctor", "technician", "staff"],
+      lab_flag: ["low", "normal", "high", "abnormal"],
+      lab_result_status: ["normal", "flagged"],
       notification_channel: ["in_app", "email"],
       notification_type: ["info", "warning", "error"],
       notification_type_enum: ["info", "warning", "error"],

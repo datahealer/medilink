@@ -16,6 +16,9 @@ module.exports = (api) => {
           },
         },
       ],
+      // Reanimated 4 (SDK 54) moved its Babel plugin to react-native-worklets.
+      // It MUST be listed last (Expo Router depends on reanimated/worklets).
+      "react-native-worklets/plugin",
     ],
   };
 };
