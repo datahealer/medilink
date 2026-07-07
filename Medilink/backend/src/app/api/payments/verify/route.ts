@@ -3,6 +3,7 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
+import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 
 type Service = ReturnType<typeof createServiceSupabase>;
 
@@ -96,12 +97,15 @@ export async function POST(req: NextRequest) {
     const service = createServiceSupabase();
     const { data: payment } = await service
       .from("payments")
-      .select("id, status, gateway_session_id")
+      .select("id, status, gateway_session_id, patient_id")
       .eq("appointment_id", appointment_id)
       .maybeSingle();
 
     if (!payment) return NextResponse.json({ status: "none", payment: null });
 
+    // Gated on payment.status !== "paid" — if the webhook already finalized this
+    // payment, this whole block (including the notification below) is skipped, so
+    // a patient never gets notified twice regardless of which path runs first.
     if (payment.status !== "paid" && payment.gateway_session_id) {
       // Authoritative check against Thawani.
       const tRes = await fetch(
@@ -120,6 +124,24 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", payment.id);
         await service.from("appointments").update({ status: "confirmed" }).eq("id", appointment_id);
+
+        // Same patient notification as the webhook (via the shared helper) — this
+        // is the path that actually runs when the webhook can't reach the backend
+        // (e.g. local/LAN development), so it must notify the patient too.
+        //
+        // NOTE (root-caused via live DB inspection, not the reference schema doc):
+        // payment.patient_id is already the auth user id here — checkout/route.ts
+        // writes `patient_id: user.id`, NOT a patient_profiles.id. Do not add a
+        // patient_profiles lookup here without re-verifying against live data first.
+        const notifResult = await notifyPaymentSuccess(service, {
+          userId: payment.patient_id,
+          appointmentId: appointment_id,
+          title: "Payment Successful",
+          body: "Your payment has been received and your appointment is confirmed.",
+        });
+        if (!notifResult.success) {
+          console.error("❌ Patient payment notification failed:", notifResult.error);
+        }
       }
     }
 

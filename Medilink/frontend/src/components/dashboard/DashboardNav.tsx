@@ -1,47 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { LangToggle } from "@/components/auth/LangToggle";
 import { ThemeToggle } from "@/components/auth/ThemeToggle";
 import { SiteSearch } from "@/components/dashboard/SiteSearch";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useAuth } from "@/context/AuthContext";
 import { useMyProfile } from "@/hooks/useMyProfile";
-
-const NOTIF_ITEMS = [
-  {
-    icon: "⏰", unread: true, dotColor: "#f59e0b",
-    en: { tag: "Reminder",    title: "Appointment in 2 hours",      body: "Dr. Aisha · Today 3:30 PM", time: "2h ago" },
-    ar: { tag: "تذكير",       title: "موعد خلال ساعتين",            body: "د. عائشة · اليوم ٣:٣٠ م", time: "منذ ٢س" },
-  },
-  {
-    icon: "✅", unread: true, dotColor: "#10b981",
-    en: { tag: "Confirmed",   title: "Appointment confirmed",        body: "Dr. Omar · Tomorrow 10:00 AM", time: "1h ago" },
-    ar: { tag: "مؤكد",        title: "تم تأكيد الموعد",             body: "د. عمر · غداً ١٠:٠٠ ص", time: "منذ ١س" },
-  },
-  {
-    icon: "🧪", unread: true, dotColor: "#38bdf8",
-    en: { tag: "Lab Results", title: "Lab results are ready",        body: "Blood panel uploaded", time: "3h ago" },
-    ar: { tag: "نتائج",       title: "نتائج التحاليل جاهزة",        body: "تم رفع فحص الدم", time: "منذ ٣س" },
-  },
-  {
-    icon: "💊", unread: false, dotColor: "",
-    en: { tag: "Rx Renewal",  title: "Prescription renewal due",    body: "Metformin 500mg · 3 days", time: "6h ago" },
-    ar: { tag: "تجديد وصفة", title: "تجديد الوصفة مطلوب",         body: "ميتفورمين · ٣ أيام", time: "منذ ٦س" },
-  },
-  {
-    icon: "💳", unread: false, dotColor: "",
-    en: { tag: "Payment",     title: "Payment confirmed",            body: "OMR 30 · Thawani Pay", time: "1d ago" },
-    ar: { tag: "دفع",         title: "تم تأكيد الدفع",             body: "٣٠ ر.ع. · ثواني Pay", time: "منذ ١ي" },
-  },
-];
+import { toNotifPreview, type NotifPreview } from "@/lib/notifications";
 
 function NotificationBell({ ar }: { ar: boolean }) {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotifPreview[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
-  const unread = NOTIF_ITEMS.filter(n => n.unread).length;
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api.notifications.listNotifications(supabase, { limit: 5 }).catch(() => []),
+      api.notifications.unreadCount(supabase).catch(() => 0),
+    ]).then(([rows, count]) => {
+      if (!active) return;
+      setItems(rows.map(toNotifPreview));
+      setUnread(count);
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [supabase]);
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
@@ -85,10 +76,18 @@ function NotificationBell({ ar }: { ar: boolean }) {
 
           {/* Items */}
           <div className="divide-y divide-[#e7dcee] dark:divide-[#2a1840] max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-            {NOTIF_ITEMS.map((n, i) => {
+            {loading ? (
+              <div className="px-4 py-6 text-center text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+                {ar ? "جارٍ التحميل…" : "Loading…"}
+              </div>
+            ) : items.length === 0 ? (
+              <div className="px-4 py-6 text-center text-xs text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+                {ar ? "لا توجد إشعارات." : "No notifications yet."}
+              </div>
+            ) : items.map((n) => {
               const nd = ar ? n.ar : n.en;
               return (
-                <div key={i}
+                <div key={n.id}
                   className={`flex items-start gap-3 px-4 py-3 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20 transition-colors cursor-pointer ${!n.unread ? "opacity-60 hover:opacity-100" : ""} ${ar ? "flex-row-reverse" : ""}`}>
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${n.unread ? "bg-[#faf5ff] dark:bg-[#2E1A47]/40" : "bg-[#f5f5f5] dark:bg-[#1a1030]"} relative`}>
                     {n.icon}
