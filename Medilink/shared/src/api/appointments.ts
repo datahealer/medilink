@@ -1,7 +1,7 @@
 // APPOINTMENTS — RE-HOMED from HAMS `patients/me/appointments`, `appointments/book`,
 // `appointments/[id]`, `slots` → direct Supabase + RPCs (RLS / SECURITY DEFINER).
 import type { DB, Enums, Json } from "./client";
-import { getMyPatientProfileId, today } from "./client";
+import { getCurrentUserId, getMyPatientProfileId, today } from "./client";
 
 /**
  * Call an RPC not present in the generated types (e.g. the patient-action wrappers).
@@ -85,30 +85,54 @@ export async function bookAppointment(db: DB, input: BookAppointmentInput): Prom
 }
 
 /**
- * Cancel via the patient wrapper (cancel_my_appointment): SECURITY DEFINER, checks
- * ownership against auth.uid(), then runs cancel_appointment_safe with the rights
- * its waitlist trigger needs. `skipCutoff` is admin-only and not honoured here.
+ * Cancel (RPC enforces cutoff + refund side-effects).
+ *
+ * NOTE (Phase 3 hybrid merge, see MERGE_INTEGRATION_STRATEGY_AUDIT.md §2.3): an
+ * `ios`-branch rewrite of this function called a new `cancel_my_appointment`
+ * patient-wrapper RPC. That RPC does not exist in the deployed backend (verified
+ * live during the audit — PGRST202, function not found). Do NOT switch to it
+ * until it's actually written and migrated; doing so would break cancellation
+ * for every user the moment this code path runs.
  */
 export async function cancelAppointment(
   db: DB,
   id: string,
   opts: { reason?: string; skipCutoff?: boolean } = {}
 ): Promise<Json> {
-  return rpcLoose(db, "cancel_my_appointment", { p_id: id, p_reason: opts.reason ?? null });
+  const userId = await getCurrentUserId(db);
+  const { data, error } = await db.rpc("cancel_appointment_safe", {
+    p_id: id,
+    p_user_id: userId,
+    p_reason: opts.reason,
+    p_skip_cutoff: opts.skipCutoff ?? false,
+  });
+  if (error) throw error;
+  return data;
 }
 
-/** Reschedule via the patient wrapper (reschedule_my_appointment). */
+/**
+ * Reschedule atomically to a new slot.
+ *
+ * NOTE (Phase 3 hybrid merge): same reasoning as cancelAppointment above — do
+ * NOT switch to the `ios`-branch `reschedule_my_appointment` wrapper RPC until
+ * it actually exists in the deployed backend.
+ */
 export async function rescheduleAppointment(
   db: DB,
   id: string,
   slot: { date: string; start: string; end: string; skipCutoff?: boolean }
 ): Promise<Json> {
-  return rpcLoose(db, "reschedule_my_appointment", {
+  const userId = await getCurrentUserId(db);
+  const { data, error } = await db.rpc("reschedule_appointment_atomic", {
     p_id: id,
+    p_user_id: userId,
     p_new_date: slot.date,
     p_new_start: slot.start,
     p_new_end: slot.end,
+    p_skip_cutoff: slot.skipCutoff ?? false,
   });
+  if (error) throw error;
+  return data;
 }
 
 /** Check in via the patient wrapper (checkin_my_appointment); enqueues into the facility queue. */

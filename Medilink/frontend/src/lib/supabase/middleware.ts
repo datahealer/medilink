@@ -13,10 +13,13 @@ import { env } from "@/lib/env";
  */
 
 // Routes that require a signed-in patient. Anything else is public.
-const PROTECTED_PREFIXES = ["/account", "/appointments", "/records", "/wallet"];
+const PROTECTED_PREFIXES = ["/dashboard"];
 
 // Never gate these (avoids redirect loops / breaks static + auth flows).
-const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/api", "/_next", "/favicon"];
+const PUBLIC_PREFIXES = [
+  "/sign-in", "/sign-up", "/forgot-password", "/reset-password", "/otp",
+  "/welcome", "/language", "/onboarding", "/auth", "/api", "/_next", "/favicon",
+];
 
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next({ request });
@@ -47,7 +50,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && isProtected && !isPublic) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/sign-in";
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
   }
