@@ -14,9 +14,12 @@ import { supabase } from "@/lib/supabase";
  */
 
 // Show alerts while the app is foregrounded.
+// SDK 54: NotificationBehavior replaced `shouldShowAlert` with the more granular
+// `shouldShowBanner` + `shouldShowList` (iOS 14+). Both are set for parity.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
