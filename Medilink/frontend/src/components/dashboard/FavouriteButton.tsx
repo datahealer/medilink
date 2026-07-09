@@ -18,18 +18,24 @@ export function FavouriteButton({
   targetType,
   size = "md",
   className = "",
+  initialFavourite,
 }: {
   targetId: string;
   targetType: FavouriteTarget;
   size?: Size;
   className?: string;
+  /**
+   * When provided, seeds the initial state and skips the per-item lookup — use
+   * from list views that already loaded the caller's favourites in one query.
+   */
+  initialFavourite?: boolean;
 }) {
-  const [fav, setFav] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [fav, setFav] = useState(initialFavourite ?? false);
+  const [loading, setLoading] = useState(initialFavourite === undefined);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!targetId) return;
+    if (!targetId || initialFavourite !== undefined) return;
     let cancelled = false;
     (async () => {
       try {
@@ -45,7 +51,7 @@ export function FavouriteButton({
     return () => {
       cancelled = true;
     };
-  }, [targetId, targetType]);
+  }, [targetId, targetType, initialFavourite]);
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();

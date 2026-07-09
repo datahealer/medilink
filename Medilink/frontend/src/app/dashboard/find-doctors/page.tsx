@@ -7,6 +7,7 @@ import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+import { FavouriteButton } from "@/components/dashboard/FavouriteButton";
 
 // Nearby-clinics map (leaflet). Self-contained — fetches its own nearby
 // facilities via Supabase. Loaded client-only (leaflet needs `window`).
@@ -21,16 +22,10 @@ const NearbyDoctorsMap = dynamic(() => import("@/components/dashboard/NearbyDoct
 
 /* ─── Data ──────────────────────────────────────────────────────────── */
 
-const SPECIALTIES = [
-  { en: "All",              ar: "الكل" },
-  { en: "General Care",     ar: "طب عام" },
-  { en: "Cardiology",       ar: "أمراض القلب" },
-  { en: "Dermatology",      ar: "جلدية" },
-  { en: "Gynecology",       ar: "نساء وتوليد" },
-  { en: "Dentist",          ar: "أسنان" },
-  { en: "Pediatrics",       ar: "أطفال" },
-  { en: "Orthopedics",      ar: "عظام" },
-];
+// Specialty chips are loaded from the real catalog (api.specialties.listSpecialties
+// — `specialties` table, public read). The catalog has no Arabic names yet, so the
+// English `name` shows in both locales; add Arabic to the catalog to localise.
+const ALL_SPECIALTY = "All";
 
 // View-model the card renders. Built from real `doctors` rows — the DB has no
 // Arabic names / consult-mode, so ar mirrors en and type defaults to in-clinic.
@@ -93,10 +88,12 @@ function DoctorCard({
   doctor,
   isAr,
   onBook,
+  isFavourite,
 }: {
   doctor: Doctor;
   isAr: boolean;
   onBook: () => void;
+  isFavourite: boolean;
 }) {
   const d = isAr ? doctor.ar : doctor.en;
   return (
@@ -120,7 +117,7 @@ function DoctorCard({
                 </span>}
           </div>
           <p className="text-xs text-[#46255f] dark:text-[#DFC8E7]/70 font-semibold mb-0.5">
-            {isAr ? SPECIALTIES.find(s => s.en === doctor.specialty)?.ar : doctor.specialty}
+            {doctor.specialty}
           </p>
           <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 truncate">{d.hospital}</p>
 
@@ -138,6 +135,9 @@ function DoctorCard({
             </span>
           </div>
         </div>
+
+        {/* Favourite */}
+        <FavouriteButton targetId={doctor.id} targetType="doctor" size="sm" initialFavourite={isFavourite} />
       </div>
 
       {/* Book button — navigates to the doctor details page (single booking flow lives there) */}
@@ -165,8 +165,10 @@ export default function FindDoctorsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [search, setSearch]           = useState("");
-  const [activeSpec, setActiveSpec]   = useState("All");
+  const [activeSpec, setActiveSpec]   = useState(ALL_SPECIALTY);
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [doctors, setDoctors]         = useState<Doctor[]>([]);
+  const [favDoctorIds, setFavDoctorIds] = useState<Set<string>>(new Set());
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
 
@@ -181,8 +183,32 @@ export default function FindDoctorsPage() {
     return () => { active = false; };
   }, [supabase, ar]);
 
+  // Real specialty catalog for the filter chips.
+  useEffect(() => {
+    let active = true;
+    api.specialties
+      .listSpecialties(supabase)
+      .then((rows) => { if (active) setSpecialties(rows.map((s) => s.name)); })
+      .catch(() => { /* keep just "All" if the catalog fails to load */ });
+    return () => { active = false; };
+  }, [supabase]);
+
+  // The caller's favourited doctors, loaded once, to seed each card's heart.
+  useEffect(() => {
+    let active = true;
+    api.favourites
+      .listFavourites(supabase, "doctor")
+      .then((rows) => { if (active) setFavDoctorIds(new Set(rows.map((r) => r.target_id))); })
+      .catch(() => { /* not signed in / RLS — no favourites */ });
+    return () => { active = false; };
+  }, [supabase]);
+
   const filtered = doctors.filter(doc => {
-    const matchSpec = activeSpec === "All" || doc.specialty === activeSpec;
+    const spec = doc.specialty.toLowerCase();
+    const sel = activeSpec.toLowerCase();
+    // Freetext `doctors.specialty` vs the curated catalog name — match loosely so
+    // "Dermatology" also matches "Dermatologist" (see catalog normalization TODO).
+    const matchSpec = activeSpec === ALL_SPECIALTY || spec === sel || spec.includes(sel) || sel.includes(spec);
     const q = search.toLowerCase();
     const matchSearch = !q
       || doc.en.name.toLowerCase().includes(q)
@@ -239,17 +265,17 @@ export default function FindDoctorsPage() {
       {/* ── Specialty filters ── */}
       <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 overflow-x-auto">
         <div className="max-w-4xl mx-auto flex gap-2 flex-nowrap">
-          {SPECIALTIES.map(s => (
+          {[ALL_SPECIALTY, ...specialties].map(s => (
             <button
-              key={s.en}
-              onClick={() => setActiveSpec(s.en)}
+              key={s}
+              onClick={() => setActiveSpec(s)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${
-                activeSpec === s.en
+                activeSpec === s
                   ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent"
                   : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"
               }`}
             >
-              {ar ? s.ar : s.en}
+              {s === ALL_SPECIALTY ? (ar ? "الكل" : "All") : s}
             </button>
           ))}
         </div>
@@ -295,6 +321,7 @@ export default function FindDoctorsPage() {
                   doctor={doc}
                   isAr={ar}
                   onBook={() => goToDoctor(doc)}
+                  isFavourite={favDoctorIds.has(doc.id)}
                 />
               ))}
             </div>

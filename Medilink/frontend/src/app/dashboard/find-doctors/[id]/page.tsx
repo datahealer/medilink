@@ -102,6 +102,32 @@ export default function DoctorProfilePage() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [showBooking, setShowBooking] = useState(false);
 
+  // Days of the week the doctor has bookable slots (doctor_availability).
+  const [availDays, setAvailDays] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!rawId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { data } = await supabase
+          .from("doctor_availability")
+          .select("day_of_week, slots")
+          .eq("doctor_id", rawId);
+        if (cancelled) return;
+        const days = new Set<number>();
+        for (const row of (data ?? []) as { day_of_week: number; slots: unknown[] | null }[]) {
+          if (Array.isArray(row.slots) && row.slots.length > 0) days.add(row.day_of_week);
+        }
+        setAvailDays(days);
+      } catch {
+        if (!cancelled) setAvailDays(new Set());
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rawId]);
+
   // Load the doctor's public reviews via the shared API (RLS public-read).
   useEffect(() => {
     if (!rawId) return;
@@ -247,6 +273,38 @@ export default function DoctorProfilePage() {
             </div>
           ))}
         </section>
+
+        {/* Weekly availability (doctor_availability) */}
+        {availDays.size > 0 && (
+          <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
+            <p className={`text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4 ${ar ? "text-right" : ""}`}>
+              {ar ? "التوفر الأسبوعي" : "Weekly Availability"}
+            </p>
+            <div className={`flex gap-2 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
+              {(ar
+                ? ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
+                : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+              ).map((label, day) => {
+                const on = availDays.has(day);
+                return (
+                  <span
+                    key={day}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
+                      on
+                        ? "border-transparent bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+                        : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/25 dark:text-[#DFC8E7]/25 line-through"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+            <p className={`text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 mt-3 ${ar ? "text-right" : ""}`}>
+              {ar ? "اختر «احجز موعداً» لعرض الأوقات المتاحة." : "Tap “Book Appointment” to see available times."}
+            </p>
+          </section>
+        )}
 
         {/* Patient Reviews */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
