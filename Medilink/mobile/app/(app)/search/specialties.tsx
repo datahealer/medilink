@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
+import { specialtyLabel } from "@/utils/specialties";
 
 /**
  * Specialty Categories (PDF p18/p37): a browse grid reached from Search — it shows the
@@ -59,7 +60,7 @@ export default function SpecialtiesScreen() {
         <View style={[styles.grid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {items.map((s) => (
             <View key={s.id} style={[styles.cell, { width: colWidth }]}>
-              <SpecialtyTile name={s.name} icon={s.icon} onPress={() => open(s.name)} />
+              <SpecialtyTile name={specialtyLabel(s.id, s.name, t)} icon={s.icon} onPress={() => open(s.name)} />
             </View>
           ))}
         </View>

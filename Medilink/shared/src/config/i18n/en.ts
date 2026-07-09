@@ -1057,4 +1057,30 @@ export const messages = {
     skincare: "Skincare",
     dentist: "Dentist",
   },
+  // Fixed backend-enum labels rendered to patients. Keyed by the DB enum value.
+  facilityTypes: {
+    clinic: "Clinic",
+    hospital: "Hospital",
+    lab: "Laboratory",
+    radiology: "Radiology Centre",
+    pharmacy: "Pharmacy",
+    dental: "Dental Clinic",
+    optical: "Optical Centre",
+    physiotherapy: "Physiotherapy",
+    mental_health: "Mental Health",
+    other: "Facility",
+  },
+  gender: {
+    male: "Male",
+    female: "Female",
+    other: "Other",
+    prefer_not_to_say: "Prefer not to say",
+  },
+  familyRelation: {
+    spouse: "Spouse",
+    child: "Child",
+    parent: "Parent",
+    sibling: "Sibling",
+    other: "Other",
+  },
 } as const;

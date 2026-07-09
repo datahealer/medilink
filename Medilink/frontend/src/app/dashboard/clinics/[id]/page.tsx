@@ -62,7 +62,7 @@ function feeOf(fees: unknown): number {
 
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function ClinicDetailPage() {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const ar = locale === "ar";
   const params = useParams();
   const rawId = (params.id as string) ?? "";
@@ -118,7 +118,11 @@ export default function ClinicDetailPage() {
   }
 
   const address = formatAddress(clinic.address);
-  const kind = clinic.custom_type || clinic.type || (ar ? "عيادة" : "Clinic");
+  // custom_type is freetext (shown as-is); the `type` enum is localized via the
+  // shared catalog (facilityTypes.<enum>), with a graceful fallback.
+  const typeKey = clinic.type ? (`facilityTypes.${clinic.type}` as Parameters<typeof t>[0]) : null;
+  const typeLabel = typeKey ? (t(typeKey) === typeKey ? null : t(typeKey)) : null;
+  const kind = clinic.custom_type || typeLabel || (ar ? "عيادة" : "Clinic");
   const contacts = [
     address && { icon: "📍", label: address, href: undefined },
     clinic.phone && { icon: "📞", label: clinic.phone, href: `tel:${clinic.phone}` },

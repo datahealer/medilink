@@ -756,6 +756,34 @@ export const en = {
     exportComingSoon: "Data export opens in a later update.",
     privacyComingSoon: "Privacy & security controls open in a later update.",
   },
+  // Curated specialty catalog labels, keyed by `specialties.slug` (Specialty.id).
+  // English mirrors the DB `name`; ar.ts supplies Arabic. Freetext doctor
+  // specialties (doctors.specialty) are NOT covered — they need backend
+  // normalization to a slug before they can be localized.
+  specialtyNames: {
+    general: "General",
+    pathology: "Pathology",
+    radiology: "Radiology",
+    cardiology: "Cardiology",
+    dermatology: "Dermatology",
+    pediatrics: "Pediatrics",
+    physio: "Physio",
+    skincare: "Skincare",
+    dentist: "Dentist",
+  },
+  // Facility `type` enum labels (public.facility_type).
+  facilityTypes: {
+    clinic: "Clinic",
+    hospital: "Hospital",
+    lab: "Laboratory",
+    radiology: "Radiology Centre",
+    pharmacy: "Pharmacy",
+    dental: "Dental Clinic",
+    optical: "Optical Centre",
+    physiotherapy: "Physiotherapy",
+    mental_health: "Mental Health",
+    other: "Facility",
+  },
 } as const;
 
 /** Widen literal leaf values to `string` so `ar.ts` can supply translations while
