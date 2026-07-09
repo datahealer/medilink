@@ -155,6 +155,8 @@ function UserMenu() {
     { en: "Favourites",      ar: "المفضلة",      href: "/dashboard/favourites" },
     { en: "My Records",      ar: "سجلاتي",       href: "/dashboard/records" },
     { en: "Payments",        ar: "المدفوعات",    href: "/dashboard/payments" },
+    { en: "Messages",        ar: "الرسائل",      href: "/dashboard/messages" },
+    { en: "Settings",        ar: "الإعدادات",    href: "/dashboard/settings" },
   ];
 
   // Fallbacks keep the header stable during the first profile fetch — never a

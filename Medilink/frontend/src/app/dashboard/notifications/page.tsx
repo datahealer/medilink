@@ -258,13 +258,20 @@ export default function NotificationsPage() {
                 )}
               </div>
             </div>
-            {unreadCount > 0 && (
-              <button onClick={markAllRead}
-                className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.03]"
+            <div className={`flex items-center gap-2 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
+              <Link href="/dashboard/messages"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.03] no-underline"
                 style={{ background: "rgba(223,200,231,0.12)", color: "rgba(223,200,231,0.75)", border: "1px solid rgba(223,200,231,0.2)" }}>
-                {ar ? "تعليم الكل كمقروء" : "Mark all read"}
-              </button>
-            )}
+                {ar ? "رسائل العيادات" : "Facility messages"}
+              </Link>
+              {unreadCount > 0 && (
+                <button onClick={markAllRead}
+                  className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.03]"
+                  style={{ background: "rgba(223,200,231,0.12)", color: "rgba(223,200,231,0.75)", border: "1px solid rgba(223,200,231,0.2)" }}>
+                  {ar ? "تعليم الكل كمقروء" : "Mark all read"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </section>
