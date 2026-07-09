@@ -133,12 +133,12 @@ export default function FavouritesPage() {
                     {facilities.map(f => (
                       <div key={f.id} className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-5">
                         <div className={`flex items-start gap-4 ${ar ? "flex-row-reverse" : ""}`}>
-                          <div className={`flex items-start gap-4 flex-1 min-w-0 ${ar ? "flex-row-reverse" : ""}`}>
+                          <Link href={`/dashboard/clinics/${f.id}`} className={`flex items-start gap-4 flex-1 min-w-0 no-underline ${ar ? "flex-row-reverse" : ""}`}>
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 bg-gradient-to-br from-[#d5e8f5] to-[#ede0f8]">🏥</div>
                             <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
                               <p className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7] leading-snug">{f.name}</p>
                             </div>
-                          </div>
+                          </Link>
                           <FavouriteButton targetId={f.id} targetType="facility" size="sm" />
                         </div>
                       </div>

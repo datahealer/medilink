@@ -27,6 +27,8 @@ type RealDoctorRow = {
   status: string | null;
   avg_rating: number | null;
   review_count: number | null;
+  facility_id: string | null;
+  facilities: { name?: string } | null;
 };
 
 function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDoctor {
@@ -45,7 +47,7 @@ function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDocto
     reviews: row.review_count ?? 0,
     available: row.status === "available",
     name: row.full_name,
-    hospital: isAr ? "شبكة ميدلينك" : "MediLink Network",
+    hospital: row.facilities?.name?.trim() || (isAr ? "شبكة ميدلينك" : "MediLink Network"),
     type: isAr ? "في العيادة" : "In-clinic",
     education: qualifications.length ? qualifications.join(", ") : (isAr ? "غير محدد" : "Not specified"),
     experience: row.years_experience
@@ -79,12 +81,12 @@ export default function DoctorProfilePage() {
       const supabase = createBrowserSupabaseClient();
       const { data } = await supabase
         .from("doctors")
-        .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count")
+        .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count, facility_id, facilities(name)")
         .eq("id", rawId)
         .eq("is_active", true)
         .maybeSingle();
       if (cancelled) return;
-      if (data) setRealDoctor(data as RealDoctorRow);
+      if (data) setRealDoctor(data as unknown as RealDoctorRow);
       else setRealNotFound(true);
       setLoadingReal(false);
     })();
@@ -249,6 +251,21 @@ export default function DoctorProfilePage() {
 
       {/* ── Body ── */}
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+
+        {/* Clinic — links to the facility page listing all its doctors */}
+        {realDoctor?.facility_id && (
+          <Link href={`/dashboard/clinics/${realDoctor.facility_id}`}
+            className={`flex items-center justify-between gap-3 bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-5 hover:shadow-md hover:border-[#46255f]/40 dark:hover:border-[#DFC8E7]/40 transition-all no-underline ${ar ? "flex-row-reverse" : ""}`}>
+            <div className={`flex items-center gap-3 min-w-0 ${ar ? "flex-row-reverse text-right" : ""}`}>
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 bg-gradient-to-br from-[#d5e8f5] to-[#ede0f8]">🏥</div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-0.5">{ar ? "العيادة" : "Clinic"}</p>
+                <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{doctor.hospital}</p>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7]/70 flex-shrink-0">{ar ? "عرض ←" : "View →"}</span>
+          </Link>
+        )}
 
         {/* About */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
