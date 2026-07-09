@@ -14,6 +14,7 @@ import type {
   DocumentRepository,
   DoctorRepository,
   FamilyRepository,
+  FavouriteRepository,
   LabRepository,
   MedicalHistoryRepository,
   NotificationRepository,
@@ -33,6 +34,8 @@ import type {
   DoctorSearchParams,
   FacilityMessage,
   FamilyMember,
+  FavouriteItem,
+  FavouriteTargetKind,
   MedicalHistory,
   NewDocumentUpload,
   NewFamilyMember,
@@ -738,6 +741,33 @@ const reviewRepo: ReviewRepository = {
   },
 };
 
+const favouriteState = new Map<string, FavouriteItem>();
+const favKey = (targetId: string, targetType: FavouriteTargetKind) => `${targetType}:${targetId}`;
+
+const favouriteRepo: FavouriteRepository = {
+  async list(kind?: FavouriteTargetKind) {
+    const all = [...favouriteState.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return delay(kind ? all.filter((f) => f.targetType === kind) : all);
+  },
+  async isFavourite(target) {
+    return delay(favouriteState.has(favKey(target.targetId, target.targetType)), 150);
+  },
+  async toggle(target) {
+    const key = favKey(target.targetId, target.targetType);
+    if (favouriteState.has(key)) {
+      favouriteState.delete(key);
+      return delay(false, 200);
+    }
+    favouriteState.set(key, {
+      id: nextId(),
+      targetId: target.targetId,
+      targetType: target.targetType,
+      createdAt: new Date().toISOString(),
+    });
+    return delay(true, 200);
+  },
+};
+
 const aiRepo: AiRepository = {
   async suggestDoctors(): Promise<AiDoctorSuggestion> {
     return delay({
@@ -772,5 +802,6 @@ export const mockRepositories: Repositories = {
   prescription: prescriptionRepo,
   lab: labRepo,
   review: reviewRepo,
+  favourite: favouriteRepo,
   ai: aiRepo,
 };

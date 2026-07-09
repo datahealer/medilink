@@ -152,6 +152,7 @@ function UserMenu() {
   const menuItems = [
     { en: "My Profile",      ar: "ملفي الشخصي", href: "/dashboard/profile" },
     { en: "My Appointments", ar: "مواعيدي",      href: "/dashboard/appointments" },
+    { en: "Favourites",      ar: "المفضلة",      href: "/dashboard/favourites" },
     { en: "My Records",      ar: "سجلاتي",       href: "/dashboard/records" },
     { en: "Payments",        ar: "المدفوعات",    href: "/dashboard/payments" },
   ];

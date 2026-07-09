@@ -20,6 +20,7 @@ import type {
   DocumentRepository,
   DoctorRepository,
   FamilyRepository,
+  FavouriteRepository,
   MedicalHistoryRepository,
   LabRepository,
   NotificationRepository,
@@ -37,6 +38,7 @@ import type {
   DocumentType,
   FamilyMember,
   FamilyRelation,
+  FavouriteItem,
   Gender,
   MedicalHistory,
   NotificationItem,
@@ -604,37 +606,20 @@ const doctorRepo: DoctorRepository = {
     return mapDoctorDetail(doctor as unknown as DoctorRowLoose);
   },
   async reviews(id) {
-    // Public read of the doctor's visible reviews (RLS: reviews_public_read) + the
-    // authoritative aggregate on the doctor row. Reviewer names are not exposed to
-    // patients (no field + profiles RLS) -> shown as "verified patient".
-    const [{ data: doc }, { data: rows, error }] = await Promise.all([
-      supabase.from("doctors").select("avg_rating, review_count").eq("id", id).maybeSingle(),
-      supabase
-        .from("reviews")
-        .select("id, rating, review_text, created_at")
-        .eq("target_type", "doctor")
-        .eq("target_id", id)
-        .eq("is_visible", true)
-        .order("created_at", { ascending: false })
-        .limit(100),
-    ]);
-    if (error) throw error;
-    const list = (rows ?? []) as { id: string; rating: number; review_text: string | null; created_at: string }[];
-    const distribution = [5, 4, 3, 2, 1].map((stars) => ({
-      stars,
-      count: list.filter((r) => Math.round(r.rating) === stars).length,
-    }));
-    const docRow = doc as { avg_rating?: number | string | null; review_count?: number | null } | null;
-    const average =
-      docRow?.avg_rating != null
-        ? Number(docRow.avg_rating)
-        : list.length
-        ? list.reduce((sum, r) => sum + r.rating, 0) / list.length
-        : 0;
-    const total = docRow?.review_count != null ? Number(docRow.review_count) : list.length;
+    // Reuses the shared public-review read (query + distribution live in
+    // @medilink/shared api.reviews.listDoctorReviews). Reviewer names are not
+    // exposed to patients -> shown as "verified patient".
+    const { summary, reviews } = await api.reviews.listDoctorReviews(supabase, id);
     return {
-      summary: { average, total, distribution },
-      reviews: list.map((r) => ({ id: r.id, author: "", rating: r.rating, comment: r.review_text ?? "", date: r.created_at, verified: true })),
+      summary,
+      reviews: reviews.map((r) => ({
+        id: r.id,
+        author: "",
+        rating: r.rating,
+        comment: r.review_text ?? "",
+        date: r.created_at,
+        verified: true,
+      })),
     };
   },
   async mapClinics() {
@@ -961,6 +946,28 @@ const reviewRepo: ReviewRepository = {
   },
 };
 
+// ---- favourites (PDF p20) ---------------------------------------------------
+
+const favouriteRepo: FavouriteRepository = {
+  async list(kind) {
+    const rows = await api.favourites.listFavourites(supabase, kind);
+    return rows.map(
+      (r): FavouriteItem => ({
+        id: r.id,
+        targetId: r.target_id,
+        targetType: r.target_type as FavouriteItem["targetType"],
+        createdAt: r.created_at,
+      })
+    );
+  },
+  async isFavourite(target) {
+    return api.favourites.isFavourite(supabase, target);
+  },
+  async toggle(target) {
+    return api.favourites.toggleFavourite(supabase, target);
+  },
+};
+
 // ---- AI features (PDF p26-27) -----------------------------------------------
 
 interface SuggestDocLoose {
@@ -1024,5 +1031,6 @@ export const realRepositories: Repositories = {
   prescription: prescriptionRepo,
   lab: labRepo,
   review: reviewRepo,
+  favourite: favouriteRepo,
   ai: aiRepo,
 };
