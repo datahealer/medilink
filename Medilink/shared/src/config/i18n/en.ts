@@ -1043,4 +1043,18 @@ export const messages = {
       familyMembers: "3",
     },
   },
+  // Curated specialty catalog labels, keyed by `specialties.slug` (see
+  // migration 20260701000002_specialties.sql). English mirrors the DB `name`;
+  // Arabic is provided in ar.ts. Consumed by the Find-Doctors specialty chips.
+  specialtyNames: {
+    general: "General",
+    pathology: "Pathology",
+    radiology: "Radiology",
+    cardiology: "Cardiology",
+    dermatology: "Dermatology",
+    pediatrics: "Pediatrics",
+    physio: "Physio",
+    skincare: "Skincare",
+    dentist: "Dentist",
+  },
 } as const;

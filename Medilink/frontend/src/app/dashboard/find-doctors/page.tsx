@@ -23,9 +23,12 @@ const NearbyDoctorsMap = dynamic(() => import("@/components/dashboard/NearbyDoct
 /* ─── Data ──────────────────────────────────────────────────────────── */
 
 // Specialty chips are loaded from the real catalog (api.specialties.listSpecialties
-// — `specialties` table, public read). The catalog has no Arabic names yet, so the
-// English `name` shows in both locales; add Arabic to the catalog to localise.
+// — `specialties` table, public read). The table has no localized names, so the
+// chip *label* is localized by slug through the shared i18n catalog
+// (`specialtyNames.<slug>`), falling back to the DB `name`. Filtering still uses
+// the English `name` against the freetext `doctors.specialty`.
 const ALL_SPECIALTY = "All";
+type SpecialtyChip = { slug: string; name: string };
 
 // View-model the card renders. Built from real `doctors` rows — the DB has no
 // Arabic names / consult-mode, so ar mirrors en and type defaults to in-clinic.
@@ -159,14 +162,22 @@ function DoctorCard({
 
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function FindDoctorsPage() {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const ar = locale === "ar";
+
+  // Localize a specialty by its slug via the shared catalog; fall back to the
+  // DB display name when a slug has no catalog entry (e.g. future additions).
+  const specialtyLabel = (chip: SpecialtyChip) => {
+    const key = `specialtyNames.${chip.slug}` as Parameters<typeof t>[0];
+    const label = t(key);
+    return label === key ? chip.name : label;
+  };
   const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [search, setSearch]           = useState("");
   const [activeSpec, setActiveSpec]   = useState(ALL_SPECIALTY);
-  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [specialties, setSpecialties] = useState<SpecialtyChip[]>([]);
   const [doctors, setDoctors]         = useState<Doctor[]>([]);
   const [favDoctorIds, setFavDoctorIds] = useState<Set<string>>(new Set());
   const [loading, setLoading]         = useState(true);
@@ -188,7 +199,7 @@ export default function FindDoctorsPage() {
     let active = true;
     api.specialties
       .listSpecialties(supabase)
-      .then((rows) => { if (active) setSpecialties(rows.map((s) => s.name)); })
+      .then((rows) => { if (active) setSpecialties(rows.map((s) => ({ slug: s.id, name: s.name }))); })
       .catch(() => { /* keep just "All" if the catalog fails to load */ });
     return () => { active = false; };
   }, [supabase]);
@@ -265,19 +276,24 @@ export default function FindDoctorsPage() {
       {/* ── Specialty filters ── */}
       <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 overflow-x-auto">
         <div className="max-w-4xl mx-auto flex gap-2 flex-nowrap">
-          {[ALL_SPECIALTY, ...specialties].map(s => (
-            <button
-              key={s}
-              onClick={() => setActiveSpec(s)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${
-                activeSpec === s
-                  ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent"
-                  : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"
-              }`}
-            >
-              {s === ALL_SPECIALTY ? (ar ? "الكل" : "All") : s}
-            </button>
-          ))}
+          {[{ slug: "__all__", name: ALL_SPECIALTY } as SpecialtyChip, ...specialties].map(s => {
+            const isAll = s.name === ALL_SPECIALTY;
+            const value = isAll ? ALL_SPECIALTY : s.name;      // filtering key (English)
+            const label = isAll ? (ar ? "الكل" : "All") : specialtyLabel(s); // localized display
+            return (
+              <button
+                key={isAll ? "__all__" : s.slug}
+                onClick={() => setActiveSpec(value)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${
+                  activeSpec === value
+                    ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent"
+                    : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </section>
 

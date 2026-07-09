@@ -1025,4 +1025,17 @@ export const messages = {
       familyMembers: "3",
     },
   },
+  // Arabic specialty catalog labels, keyed by `specialties.slug`. Mirrors
+  // en.ts `specialtyNames`; missing keys fall back to English then the DB name.
+  specialtyNames: {
+    general: "عام",
+    pathology: "علم الأمراض",
+    radiology: "الأشعة",
+    cardiology: "أمراض القلب",
+    dermatology: "الأمراض الجلدية",
+    pediatrics: "طب الأطفال",
+    physio: "العلاج الطبيعي",
+    skincare: "العناية بالبشرة",
+    dentist: "طب الأسنان",
+  },
 } as const;
