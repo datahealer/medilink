@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n";
 import { useDoctors } from "@/hooks/queries/useDoctors";
 import { useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
+import { specialtyLabel } from "@/utils/specialties";
 import type { Gender } from "@/data/types";
 
 const FEE_CAPS = [10, 20, 30];
@@ -62,7 +63,7 @@ export default function FiltersSheet() {
         {(specialties.data ?? []).map((s) => (
           <Chip
             key={s.id}
-            label={s.name}
+            label={specialtyLabel(s.id, s.name, t)}
             selected={filters.specialty === s.name}
             onPress={() => setFilters({ specialty: filters.specialty === s.name ? undefined : s.name })}
           />

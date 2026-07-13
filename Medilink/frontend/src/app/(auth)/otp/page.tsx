@@ -7,6 +7,7 @@ import { AuthCard } from "@/components/auth/AuthCard";
 import { OTPInput } from "@/components/auth/OTPInput";
 import { Button } from "@/components/auth/Button";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { postSignupDestination } from "@/lib/onboarding";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const RESEND_SECONDS = 60;
@@ -43,7 +44,10 @@ function OTPForm() {
       const supabase = createBrowserSupabaseClient();
       const { error: err } = await supabase.auth.verifyOtp({ email, token: otp, type: "signup" });
       if (err) setError(err.message);
-      else router.push("/dashboard");
+      // First-time patients complete the setup wizard once; returning users go to the
+      // dashboard. The session is live on `supabase` after verifyOtp, so this reads the
+      // just-provisioned profile. (Only reached during signup confirmation.)
+      else router.push(await postSignupDestination(supabase));
     } catch {
       setError(ar ? "فشل التحقق. حاول مرة أخرى." : "Verification failed. Please try again.");
     } finally {

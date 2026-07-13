@@ -10,10 +10,11 @@
  * Profile cluster (family members + medical history); Appointments end-to-end
  * (slots, booking, cancel, reschedule, check-in); Payments (Thawani checkout +
  * verify, invoice, history); Document Vault; Prescriptions; Lab Results
- * (analytes + trends); Reviews (doctor reviews list + rating submission); Doctor
- * search + details; the Dashboard discovery sections (Specialties catalog,
- * featured clinics, recently-visited doctors); Notifications list + preferences +
- * Facility Messages; AI (doctor recommendations + visit summary).
+ * (analytes + trends); Reviews (doctor reviews list + rating submission);
+ * Favourites (doctors + clinics); Doctor search + details; the Dashboard
+ * discovery sections (Specialties catalog, featured clinics, recently-visited
+ * doctors); Notifications list + preferences + Facility Messages; AI (doctor
+ * recommendations + visit summary).
  *
  * Still mock (no backend source yet): Doctor map pins (Map View needs a native
  * map SDK — see docs/backend-specs/map-view-backend-spec.md). The AI Symptom
@@ -54,6 +55,8 @@ const hybridRepositories: Repositories = {
   // Lab Results: real (lab_results + lab_result_analytes, trigger-derived status).
   lab: realRepositories.lab,
   review: realRepositories.review,
+  // Favourites: real (favourites table + RLS).
+  favourite: realRepositories.favourite,
   ai: realRepositories.ai,
   notification: {
     ...mockRepositories.notification,

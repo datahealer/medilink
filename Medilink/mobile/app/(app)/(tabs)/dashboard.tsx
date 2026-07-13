@@ -10,6 +10,7 @@ import { isDev } from "@/config/env";
 import { useProfile, useUpcomingAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
 import { useRecentDoctors, useFeaturedClinics, useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
+import { specialtyLabel, facilityTypeLabel } from "@/utils/specialties";
 
 function greetingKey(): "dashboard.greetingMorning" | "dashboard.greetingAfternoon" | "dashboard.greetingEvening" {
   const h = new Date().getHours();
@@ -177,7 +178,7 @@ export default function DashboardScreen() {
           .map((s) => (
             <Chip
               key={s.id}
-              label={s.name}
+              label={specialtyLabel(s.id, s.name, t)}
               onPress={() => {
                 setFilters({ specialty: s.name });
                 router.push("/search");
@@ -219,7 +220,7 @@ export default function DashboardScreen() {
           key={c.id}
           name={c.name}
           tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
-          meta={num([c.category ?? c.area, c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
+          meta={num([(c.category ? facilityTypeLabel(c.category, t) : c.area), c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
           onPress={() => router.push("/search")}
           isRTL={isRTL}
         />

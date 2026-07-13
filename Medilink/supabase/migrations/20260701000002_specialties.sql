@@ -29,7 +29,11 @@ ALTER TABLE public.specialties ENABLE ROW LEVEL SECURITY;
 
 -- Public catalog: readable by everyone. Writes are seeded via migration and (later) an admin surface;
 -- no public write policy is granted, so only the service role can mutate rows for now.
+-- Idempotent (drop-then-create): applied out-of-band on the live project first, so the migration
+-- must replay cleanly whether or not the policies already exist. Definitions unchanged -> no drift.
+DROP POLICY IF EXISTS "specialties_public_read" ON public.specialties;
 CREATE POLICY "specialties_public_read" ON public.specialties FOR SELECT USING (true);
+DROP POLICY IF EXISTS "specialties_service" ON public.specialties;
 CREATE POLICY "specialties_service" ON public.specialties FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 GRANT SELECT ON public.specialties TO anon, authenticated;

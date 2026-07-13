@@ -140,8 +140,15 @@ const EMPTY_FORM = {
 };
 
 export default function ProfilePage() {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const ar = locale === "ar";
+  // Localized display labels for the gender select; keys are the stored English
+  // values so the GENDER_TO_ENUM save mapping is unchanged.
+  const genderLabels: Record<string, string> = {
+    Female: t("gender.female"),
+    Male: t("gender.male"),
+    "Prefer not to say": t("gender.prefer_not_to_say"),
+  };
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [editing, setEditing] = useState(false);
@@ -379,9 +386,13 @@ export default function ProfilePage() {
     (form.email[0] ?? "").toUpperCase() ||
     "…";
 
-  const Field = ({ label, arLabel, value, fieldKey, type = "text", options }: {
+  const Field = ({ label, arLabel, value, fieldKey, type = "text", options, optionLabels }: {
     label: string; arLabel: string; value: string; fieldKey: keyof typeof form;
     type?: string; options?: string[];
+    // Maps an option's stored (canonical) value → localized display label. When
+    // omitted, the value is shown verbatim. Keeps stored values stable (e.g. the
+    // gender select persists English labels that map to the DB enum on save).
+    optionLabels?: Record<string, string>;
   }) => (
     <div className={ar ? "text-right" : ""}>
       <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-1.5">
@@ -391,14 +402,14 @@ export default function ProfilePage() {
         options ? (
           <select value={value} onChange={e => set(fieldKey, e.target.value)}
             className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 dark:focus:border-[#DFC8E7]/40 transition-all ${ar ? "text-right" : ""}`}>
-            {options.map(o => <option key={o} value={o}>{o}</option>)}
+            {options.map(o => <option key={o} value={o}>{optionLabels?.[o] ?? o}</option>)}
           </select>
         ) : (
           <input type={type} value={value} onChange={e => set(fieldKey, e.target.value)}
             className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 dark:focus:border-[#DFC8E7]/40 transition-all ${ar ? "text-right" : ""}`} />
         )
       ) : (
-        <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{value || "—"}</p>
+        <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{(value && optionLabels?.[value]) || value || "—"}</p>
       )}
     </div>
   );
@@ -513,7 +524,7 @@ export default function ProfilePage() {
             <Field label="Phone"        arLabel="رقم الهاتف"  value={form.phone}  fieldKey="phone" />
             <Field label="Date of Birth" arLabel="تاريخ الميلاد" value={form.dob}  fieldKey="dob" type="date" />
             <Field label="Gender" arLabel="الجنس" value={form.gender} fieldKey="gender"
-              options={["Female", "Male", "Prefer not to say"]} />
+              options={["Female", "Male", "Prefer not to say"]} optionLabels={genderLabels} />
           </div>
         </Section>
 

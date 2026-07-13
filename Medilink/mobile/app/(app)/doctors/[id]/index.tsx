@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctor } from "@/hooks/queries/useDoctors";
+import { useIsFavourite, useToggleFavourite } from "@/hooks/queries/useFavourites";
 
 /** Doctor Details (PDF p19): credentials, stats, slots, book bar. */
 export default function DoctorDetailsScreen() {
@@ -17,7 +18,10 @@ export default function DoctorDetailsScreen() {
 
   const doctorId = String(id ?? "");
   const doctor = useDoctor(doctorId);
-  const [fav, setFav] = useState(false);
+  const favTarget = { targetId: doctorId, targetType: "doctor" as const };
+  const isFav = useIsFavourite(favTarget);
+  const toggleFav = useToggleFavourite();
+  const fav = isFav.data ?? false;
   const [slot, setSlot] = useState<string | undefined>(undefined);
 
   if (doctor.isLoading) {
@@ -61,7 +65,14 @@ export default function DoctorDetailsScreen() {
       <AppHeader
         title=""
         right={
-          <Pressable onPress={() => setFav((v) => !v)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Favourite">
+          <Pressable
+            onPress={() => toggleFav.mutate(favTarget)}
+            disabled={isFav.isLoading || toggleFav.isPending}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityState={{ selected: fav }}
+            accessibilityLabel="Favourite"
+          >
             <Icon name="favourite" size={24} filled={fav} tint={fav ? colors.error : colors.text} />
           </Pressable>
         }

@@ -25,6 +25,8 @@ import type {
   NewDocumentUpload,
   NewFamilyMember,
   NewReviewSubmission,
+  FavouriteItem,
+  FavouriteTargetKind,
   NotificationItem,
   NotificationPrefs,
   PatientDoc,
@@ -185,6 +187,16 @@ export interface ReviewRepository {
   submit(input: NewReviewSubmission): Promise<void>;
 }
 
+/** Favourites (PDF p20) — save/unsave doctors and clinics. `favourites` table + RLS. */
+export interface FavouriteRepository {
+  /** The caller's favourites, optionally filtered by kind (newest first). */
+  list(kind?: FavouriteTargetKind): Promise<FavouriteItem[]>;
+  /** Whether a specific target is currently favourited. */
+  isFavourite(target: { targetId: string; targetType: FavouriteTargetKind }): Promise<boolean>;
+  /** Toggle a favourite. Returns the new state (`true` = now favourited). */
+  toggle(target: { targetId: string; targetType: FavouriteTargetKind }): Promise<boolean>;
+}
+
 /** AI features (PDF p26-27) - doctor recommendations + the AI visit summary. */
 export interface AiRepository {
   /** AI doctor suggestions for free-text symptoms (POST /api/ai/suggest-doctor). */
@@ -207,5 +219,6 @@ export interface Repositories {
   prescription: PrescriptionRepository;
   lab: LabRepository;
   review: ReviewRepository;
+  favourite: FavouriteRepository;
   ai: AiRepository;
 }

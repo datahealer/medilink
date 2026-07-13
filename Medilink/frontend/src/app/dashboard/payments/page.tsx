@@ -18,6 +18,8 @@ type Payment = {
   method: { en: string; ar: string };
   amount: number;
   currency: string;
+  /** Backend-generated invoice URL, when available (else client PDF fallback). */
+  invoiceUrl: string | null;
   en: { title: string; provider: string; description: string };
   ar: { title: string; provider: string; description: string };
 };
@@ -74,6 +76,7 @@ function toPayment(row: BackendPayment, i: number): Payment {
     method: { en: "—", ar: "—" },
     amount: Number.isFinite(amt) ? amt : 0,
     currency,
+    invoiceUrl: row.invoice_url ?? null,
     en: { title: fam ? `Medical Payment · ${fam}` : "Medical Payment", provider: "MediLink", description: `Invoice ${invoiceNumber}` },
     ar: { title: fam ? `دفعة طبية · ${fam}` : "دفعة طبية", provider: "ميدلينك", description: `فاتورة ${invoiceNumber}` },
   };
@@ -269,6 +272,14 @@ export default function PaymentsPage() {
 
   async function handleDownload() {
     if (!modalPayment) return;
+    // Prefer the backend-generated invoice (redirects to the stored PDF) when one
+    // exists; fall back to client-side generation only when it doesn't.
+    if (modalPayment.invoiceUrl) {
+      window.open(`${env.BACKEND_URL}/api/payments/${modalPayment.id}/invoice`, "_blank", "noopener,noreferrer");
+      setDownloadedId(modalPayment.id);
+      setTimeout(() => setDownloadedId(null), 2000);
+      return;
+    }
     const node = document.getElementById("invoice-print-root");
     if (!node) return;
     const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);

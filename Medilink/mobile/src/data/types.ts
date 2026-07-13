@@ -346,6 +346,19 @@ export interface NewReviewSubmission {
   appointmentId?: string | null;
 }
 
+// ---- favourites -------------------------------------------------------------
+
+/** What a favourite points at (`favourites.target_type`). */
+export type FavouriteTargetKind = "doctor" | "facility";
+
+/** A saved favourite (doctor or clinic). */
+export interface FavouriteItem {
+  id: string;
+  targetId: string;
+  targetType: FavouriteTargetKind;
+  createdAt: string;
+}
+
 // ---- notifications (PDF p31-32) ---------------------------------------------
 
 export type NotificationKind =
