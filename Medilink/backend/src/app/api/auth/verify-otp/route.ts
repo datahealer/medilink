@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 
 export async function POST(req: NextRequest) {
@@ -57,8 +58,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many attempts. Request a new OTP." }, { status: 429 });
   }
 
-  // TODO: compare against hashed value once hashing is implemented
-  if (record.hash !== code) {
+  // OTP is stored as a bcrypt hash (see send-otp / resend-otp) — compare, never equality.
+  const otpMatches = await bcrypt.compare(code, record.hash);
+  if (!otpMatches) {
     await supabase
       .from("otp_records")
       .update({ attempts: record.attempts + 1 })

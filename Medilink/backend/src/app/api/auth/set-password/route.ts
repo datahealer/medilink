@@ -273,28 +273,11 @@ export async function POST(req: NextRequest) {
       user_metadata: { invite_pending: false, is_temp_password: false },
     });
 
-    /* ── 3. Notify super admin (fire-and-forget via internal API) ──
-       We call our own notification endpoint rather than doing it inline
-       so that a notification failure never breaks the password-set flow. */
-    if (token) {
-      const internalUrl = `${req.nextUrl.origin}/api/notifications/admin-password-set`;
-      fetch(
-        internalUrl,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // Forward the user's auth cookie so the internal route can
-            // verify the caller.  In a server-to-server call you would
-            // use a shared secret instead; this keeps it simple.
-            Cookie: req.headers.get("cookie") ?? "",
-          },
-          body: JSON.stringify({ token, userId: user.id }),
-        }
-      ).catch((err) =>
-        console.error("[set-password] notification fetch failed:", err)
-      );
-    }
+    /* ── 3. (Removed) super-admin notification ──
+       This previously fire-and-forgot a POST to /api/notifications/admin-password-set,
+       which does not exist in this codebase, so the call only ever produced a caught
+       fetch error. Removed as dead/broken code; if a super-admin notification is
+       required, add the endpoint first and re-wire this. */
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err: unknown) {

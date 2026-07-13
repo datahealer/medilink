@@ -24,8 +24,6 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenRes.json();
 
-    console.log("TOKEN DATA:", tokenData);
-
     if (!tokenData.access_token || !tokenData.expires_in) {
       return NextResponse.json(
         { error: "Token exchange failed", details: tokenData },
@@ -60,8 +58,12 @@ export async function GET(req: NextRequest) {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+  // Land on an existing patient route. The previous target
+  // (/dashboard/dashboardpages/scheduling/calendar-sync) was a HAMS staff path that
+  // does not exist in the patient app and would 404. Settings is the closest real
+  // home for account integrations; confirm the intended screen with product.
   return NextResponse.redirect(
-    `${baseUrl}/dashboard/dashboardpages/scheduling/calendar-sync?connected=google`
+    `${baseUrl}/dashboard/settings?connected=google`
   );
 
   } catch (err: any) {
