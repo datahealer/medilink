@@ -3,7 +3,14 @@ import Groq from "groq-sdk";
 import sharp from "sharp";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Lazy init: `next build` imports route modules for page-data collection, and the Groq
+// SDK throws on an empty key at construction. Creating the client on first request keeps
+// the build working without GROQ_API_KEY present, while runtime behavior is unchanged.
+let _groq: Groq | null = null;
+function groqClient(): Groq {
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return _groq;
+}
 
 const EXTRACTION_PROMPT = `You are an AI agent responsible for extracting structured medical prescription data from a prescription image.
 
@@ -90,7 +97,7 @@ export async function POST(req: NextRequest) {
     const base64 = compressed.toString("base64");
 
     // Call Groq vision model
-    const completion = await groq.chat.completions.create({
+    const completion = await groqClient().chat.completions.create({
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
       // model: "meta-llama/llama-4-scout-17b-16e-instruct",
       // model: "llama-3.2-11b-vision-preview",

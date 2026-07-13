@@ -4,7 +4,14 @@ import * as chrono from "chrono-node";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Lazy init: `next build` imports route modules for page-data collection, and the Groq
+// SDK throws on an empty key at construction. Creating the client on first request keeps
+// the build working without GROQ_API_KEY present, while runtime behavior is unchanged.
+let _groq: Groq | null = null;
+function groqClient(): Groq {
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return _groq;
+}
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -162,7 +169,7 @@ Rules (apply in order):
 7. CRITICAL for date_phrase: copy the EXACT words the user said — do NOT convert to a day name, do NOT convert to YYYY-MM-DD, do NOT do any date arithmetic. "day after tomorrow" → date_phrase: "day after tomorrow" (never "Monday" or a date). "next week" → "next week". "after 2 weeks" → "after 2 weeks".
 IMPORTANT: If the current user message contains absolutely NO date, time, day name, or relative time expression → always set date_phrase: null and needs_clarification: true regardless of any other context or conversation history.`;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await groqClient().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: systemPrompt },
@@ -204,7 +211,7 @@ IMPORTANT: If the current user message contains absolutely NO date, time, day na
       // Mini LLM call for health-adjacent queries (warm, natural response)
       let reply = "I'm here to help you book doctor appointments. What type of doctor do you need, and when would you like to visit?";
       try {
-        const followUp = await groq.chat.completions.create({
+        const followUp = await groqClient().chat.completions.create({
           model: "llama-3.3-70b-versatile",
           messages: [
             {

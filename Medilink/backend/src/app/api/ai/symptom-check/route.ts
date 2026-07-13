@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Lazy init: `next build` imports route modules for page-data collection, and the Groq
+// SDK throws on an empty key at construction. Creating the client on first request keeps
+// the build working without GROQ_API_KEY present, while runtime behavior is unchanged.
+let _groq: Groq | null = null;
+function groqClient(): Groq {
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return _groq;
+}
 
 const STRUCTURED_SYSTEM = `You are a clinical triage assistant. Given the patient's described symptoms, respond ONLY with valid JSON:
 {
@@ -79,7 +86,7 @@ export async function POST(req: NextRequest) {
       : symptoms;
 
     // Step 1: Quick structured call for urgency + conditions
-    const structured = await groq.chat.completions.create({
+    const structured = await groqClient().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: STRUCTURED_SYSTEM },
@@ -121,7 +128,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Step 3: Streaming call for detailed explanation
-    const stream = await groq.chat.completions.create({
+    const stream = await groqClient().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: EXPLANATION_SYSTEM },
