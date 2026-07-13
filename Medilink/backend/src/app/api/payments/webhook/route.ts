@@ -56,17 +56,54 @@ export async function POST(req: NextRequest) {
 
     const alreadyPaid = payment.status === "paid";
     const hasInvoice = !!payment.invoice_url;
+    let gatewayInvoiceRef: string | null = null;
 
-    // ✅ UPDATE PAYMENT
+    // 🔒 SECURITY: never finalize on the webhook body alone. Confirm the authoritative
+    // payment status with Thawani first (same check as payments/verify). This closes a
+    // payment-bypass where any POST carrying a known appointment id would mark the
+    // payment paid and confirm the appointment without any real payment.
     if (!alreadyPaid) {
-      await supabase
+      if (!payment.gateway_session_id) {
+        console.warn("⚠️ Webhook: payment has no gateway_session_id — cannot verify, not finalizing");
+        return NextResponse.json({ received: true, finalized: false, reason: "no gateway session" });
+      }
+
+      const verifyRes = await fetch(
+        `${process.env.THAWANI_BASE_URL}/checkout/session/${payment.gateway_session_id}`,
+        { headers: { "thawani-api-key": process.env.THAWANI_SECRET_KEY! } }
+      );
+      const verifyJson = await verifyRes.json().catch(() => null);
+
+      if (verifyJson?.data?.payment_status !== "paid") {
+        console.warn("⚠️ Webhook: Thawani does not report this session as paid — not finalizing");
+        return NextResponse.json({ received: true, finalized: false, reason: "not paid per gateway" });
+      }
+
+      console.log("✅ Webhook: Thawani confirms session paid");
+      // Store the gateway's invoice reference alongside the payment (mirrors payments/verify).
+      gatewayInvoiceRef = verifyJson?.data?.invoice ?? null;
+    }
+
+    // ✅ UPDATE PAYMENT (atomic claim → idempotent under duplicate/concurrent delivery)
+    if (!alreadyPaid) {
+      const { data: claimed } = await supabase
         .from("payments")
         .update({
           status: "paid",
           updated_at: new Date().toISOString(),
           gateway_response: body,
+          gateway_ref: gatewayInvoiceRef,
         })
-        .eq("id", payment.id);
+        .eq("id", payment.id)
+        .neq("status", "paid")
+        .select("id");
+
+      // If another delivery already flipped this to paid, ack and skip the one-time
+      // side-effects (notifications / invoice / enqueue) so they never run twice.
+      if (!claimed || claimed.length === 0) {
+        console.log("ℹ️ Webhook: payment already finalized by another delivery — skipping side-effects");
+        return NextResponse.json({ received: true, finalized: false, reason: "already finalized" });
+      }
 
       console.log("✅ Payment marked as PAID");
     }
