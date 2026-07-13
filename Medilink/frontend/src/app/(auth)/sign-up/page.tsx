@@ -8,6 +8,7 @@ import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { postSignupDestination } from "@/lib/onboarding";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function SignUpPage() {
@@ -70,7 +71,9 @@ export default function SignUpPage() {
       // active session and no email is sent -> skip /otp and go straight to dashboard.
       if (data.session) {
         router.refresh(); // let middleware / SSR pick up the new session cookie
-        router.push("/dashboard");
+        // Brand-new account with an immediate session -> route first-time patients
+        // through the setup wizard once (same rule as the /otp path).
+        router.push(await postSignupDestination(supabase));
         return;
       }
       router.push(`/otp?email=${encodeURIComponent(form.email)}`);
