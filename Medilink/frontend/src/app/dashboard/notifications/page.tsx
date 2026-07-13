@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -89,6 +90,7 @@ const FILTER_TABS = [
 export default function NotificationsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [filter, setFilter]       = useState("all");
@@ -99,32 +101,43 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    api.notifications
-      .listNotifications(supabase, { limit: 50 })
-      .then((rows) => { if (active) { setItems(rows.map(toNotif)); setError(""); } })
-      .catch(() => { if (active) setError(ar ? "تعذر تحميل الإشعارات." : "Could not load notifications."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    // `silent` refetches (triggered by the cross-view sync event) skip the skeleton so
+    // returning from the details page updates read state without a visible reload.
+    const load = (silent = false) => {
+      if (!silent) setLoading(true);
+      api.notifications
+        .listNotifications(supabase, { limit: 50 })
+        .then((rows) => { if (active) { setItems(rows.map(toNotif)); setError(""); } })
+        .catch(() => { if (active) setError(ar ? "تعذر تحميل الإشعارات." : "Could not load notifications."); })
+        .finally(() => { if (active && !silent) setLoading(false); });
+    };
+    load();
+    const onChange = () => load(true);
+    window.addEventListener("medilink:notifications-changed", onChange);
+    return () => { active = false; window.removeEventListener("medilink:notifications-changed", onChange); };
   }, [supabase, ar]);
+
+  function emitNotifChange() {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("medilink:notifications-changed"));
+  }
 
   async function markAllRead() {
     const snapshot = items;
     setItems(prev => prev.map(n => ({ ...n, unread: false })));
     setMarkedAll(true);
-    try { await api.notifications.markAllRead(supabase); }
+    try { await api.notifications.markAllRead(supabase); emitNotifChange(); }
     catch { setItems(snapshot); setMarkedAll(false); }
   }
   async function dismissItem(id: string) {
     const snapshot = items;
     setItems(prev => prev.filter(n => n.id !== id));
-    try { await api.notifications.deleteNotification(supabase, id); }
+    try { await api.notifications.deleteNotification(supabase, id); emitNotifChange(); }
     catch { setItems(snapshot); }
   }
   async function markOneRead(id: string) {
     const snapshot = items;
     setItems(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
-    try { await api.notifications.markRead(supabase, id); }
+    try { await api.notifications.markRead(supabase, id); emitNotifChange(); }
     catch { setItems(snapshot); }
   }
 
@@ -156,7 +169,11 @@ export default function NotificationsPage() {
     const nd = ar ? n.ar : n.en;
     return (
       <div
-        className={`group relative overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${n.unread ? "shadow-sm" : "opacity-75 hover:opacity-100"}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => router.push(`/dashboard/notifications/${n.id}`)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/dashboard/notifications/${n.id}`); } }}
+        className={`group relative overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer ${n.unread ? "shadow-sm" : "opacity-75 hover:opacity-100"}`}
         style={{ background: n.bg, borderColor: n.border }}>
         {n.unread && (
           <div className={`absolute top-0 bottom-0 w-1 ${ar ? "right-0" : "left-0"}`} style={{ background: n.dotColor }} />
@@ -189,7 +206,7 @@ export default function NotificationsPage() {
           {/* Actions */}
           <div className={`flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${ar ? "flex-row-reverse" : ""}`}>
             {n.unread && (
-              <button onClick={() => markOneRead(n.id)}
+              <button onClick={(e) => { e.stopPropagation(); markOneRead(n.id); }}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                 title={ar ? "تعليم كمقروء" : "Mark as read"}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -197,7 +214,7 @@ export default function NotificationsPage() {
                 </svg>
               </button>
             )}
-            <button onClick={() => dismissItem(n.id)}
+            <button onClick={(e) => { e.stopPropagation(); dismissItem(n.id); }}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
               title={ar ? "حذف" : "Dismiss"}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

@@ -26,6 +26,19 @@ export async function listNotifications(
   return data ?? [];
 }
 
+/** A single notification by id, scoped to the caller (for the details view). */
+export async function getNotification(db: DB, id: string) {
+  const userId = await getCurrentUserId(db);
+  const { data, error } = await db
+    .from("in_app_notifications")
+    .select(SELECT)
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function unreadCount(db: DB): Promise<number> {
   const userId = await getCurrentUserId(db);
   const { count, error } = await db

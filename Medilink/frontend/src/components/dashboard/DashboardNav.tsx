@@ -23,15 +23,21 @@ function NotificationBell({ ar }: { ar: boolean }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      api.notifications.listNotifications(supabase, { limit: 5 }).catch(() => []),
-      api.notifications.unreadCount(supabase).catch(() => 0),
-    ]).then(([rows, count]) => {
-      if (!active) return;
-      setItems(rows.map(toNotifPreview));
-      setUnread(count);
-    }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    const load = () => {
+      Promise.all([
+        api.notifications.listNotifications(supabase, { limit: 5 }).catch(() => []),
+        api.notifications.unreadCount(supabase).catch(() => 0),
+      ]).then(([rows, count]) => {
+        if (!active) return;
+        setItems(rows.map(toNotifPreview));
+        setUnread(count);
+      }).finally(() => { if (active) setLoading(false); });
+    };
+    load();
+    // Re-sync when a notification's read state changes elsewhere (details page / list).
+    const onChange = () => load();
+    window.addEventListener("medilink:notifications-changed", onChange);
+    return () => { active = false; window.removeEventListener("medilink:notifications-changed", onChange); };
   }, [supabase]);
 
   useEffect(() => {
