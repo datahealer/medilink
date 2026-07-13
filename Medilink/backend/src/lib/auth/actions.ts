@@ -1,55 +1,15 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Database } from "@medilink/shared";
 
-export type RegisterPayload = {
-  email?: string; // ✅ optional in UI
-  password: string;
-  full_name: string;
-  phone?: string;
-  role?: "patient" | "doctor" | "technician" | "facility_admin" | "super_admin";
-};
-
 export type LoginPayload = {
   email: string;
   password: string;
 };
 
-// ✅ FIXED REGISTER FUNCTION
-export async function registerWithEmail({
-  email,
-  password,
-  full_name,
-  phone,
-  role = "patient",
-}: RegisterPayload) {
-  const supabase = await createServerSupabaseClient();
-
-  // ❗ Supabase requires email for password signup
-  if (!email) {
-    return {
-      user: null,
-      error: { message: "Email is required for signup" },
-    };
-  }
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: full_name || "User", // ✅ always safe
-        phone: phone || null,
-        role,
-      },
-    },
-  });
-
-  if (error) {
-    return { error };
-  }
-
-  return { user: data.user };
-}
+// NOTE: A legacy `registerWithEmail()` (client-side supabase.auth.signUp) was removed here.
+// It was unused and, with email confirmations enabled, produced the verification-link flow.
+// Patient signup is owned by POST /api/auth/signup (service-role admin.createUser), and the
+// web email-OTP confirmation is handled by the /(auth)/sign-up + /(auth)/otp pages.
 
 // ✅ LOGIN (no change needed)
 export async function loginWithEmail({ email, password }: LoginPayload) {

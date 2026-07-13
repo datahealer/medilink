@@ -62,12 +62,12 @@ export default function SignUpPage() {
         return;
       }
 
-      // When email confirmations are DISABLED (this project's configuration —
-      // see supabase config `enable_confirmations = false`; backend also creates
-      // users with email_confirm:true), signUp returns an active session and NO
-      // email is sent. Go straight to the dashboard — the /otp step does not apply.
-      // Only route to /otp when confirmations are enabled (session is null and a
-      // verification email was actually dispatched).
+      // The hosted project has email confirmations ENABLED, and the "Confirm signup"
+      // template delivers a 6-digit OTP (uses {{ .Token }}, not {{ .ConfirmationURL }}).
+      // So signUp() sends an OTP email and returns NO session -> route to /otp, where
+      // verifyOtp({ type: "signup" }) exchanges the code for a session.
+      // If a given environment DISABLES confirmations instead, signUp() returns an
+      // active session and no email is sent -> skip /otp and go straight to dashboard.
       if (data.session) {
         router.refresh(); // let middleware / SSR pick up the new session cookie
         router.push("/dashboard");
