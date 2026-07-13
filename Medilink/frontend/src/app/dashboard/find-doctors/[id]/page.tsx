@@ -139,7 +139,7 @@ export default function DoctorProfilePage() {
 
       {/* ── Back bar ── */}
       <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <Link
             href="/dashboard/find-doctors"
             className={`inline-flex items-center gap-1.5 text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline ${ar ? "flex-row-reverse" : ""}`}
@@ -154,7 +154,7 @@ export default function DoctorProfilePage() {
 
       {/* ── Hero ── */}
       <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className={`flex items-start gap-5 mb-6 ${ar ? "flex-row-reverse" : ""}`}>
             <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black flex-shrink-0 bg-gradient-to-br ${doctor.grad} text-[#2E1A47]`}>
               {doctor.initials}
@@ -185,11 +185,11 @@ export default function DoctorProfilePage() {
       </section>
 
       {/* ── Body ── */}
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
 
         {/* About */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-          <p className={`text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-3 ${ar ? "text-right" : ""}`}>
+          <p className={`text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-3 ${ar ? "text-right" : ""}`}>
             {ar ? "نبذة" : "About"}
           </p>
           <p className={`text-sm text-[#2E1A47]/65 dark:text-[#DFC8E7]/65 leading-relaxed ${ar ? "text-right" : ""}`}>{doctor.bio}</p>
@@ -205,7 +205,7 @@ export default function DoctorProfilePage() {
           ].map(item => (
             <div key={item.en} className={`bg-white dark:bg-[#1a1030] rounded-2xl p-4 border border-[#e7dcee] dark:border-[#3a2560] ${ar ? "text-right" : ""}`}>
               <p className="text-xl mb-2">{item.icon}</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-1">{ar ? item.ar : item.en}</p>
+              <p className="text-[10px] font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-1">{ar ? item.ar : item.en}</p>
               <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{item.val}</p>
             </div>
           ))}
@@ -214,7 +214,7 @@ export default function DoctorProfilePage() {
         {/* Patient Reviews */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
           <div className={`flex items-center justify-between mb-5 ${ar ? "flex-row-reverse" : ""}`}>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+            <p className="text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
               {ar ? "آراء المرضى" : "Patient Reviews"}
             </p>
             <span className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
@@ -253,7 +253,7 @@ export default function DoctorProfilePage() {
 
         {/* Leave a Review */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-          <p className={`text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5 ${ar ? "text-right" : ""}`}>
+          <p className={`text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5 ${ar ? "text-right" : ""}`}>
             {ar ? "اكتب تقييماً" : "Leave a Review"}
           </p>
 
@@ -308,7 +308,7 @@ export default function DoctorProfilePage() {
 
       {/* ── Sticky Book button ── */}
       <div className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white dark:bg-[#0d0820] border-t border-[#e7dcee] dark:border-[#2a1840] z-20">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <button
             onClick={() => doctor.available && setShowBooking(true)}
             disabled={!doctor.available}

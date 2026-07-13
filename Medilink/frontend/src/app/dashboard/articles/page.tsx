@@ -28,7 +28,7 @@ export default function ArticlesPage() {
             </svg>
             {ar ? "لوحة التحكم" : "Dashboard"}
           </Link>
-          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "المكتبة الصحية" : "Health Library"}
           </p>
           <h1 className="font-black font-serif text-white" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
@@ -58,7 +58,7 @@ export default function ArticlesPage() {
       {/* Articles grid */}
       <section className="py-10 px-6">
         <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
+          <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
             {ar ? `${filtered.length} مقال` : `${filtered.length} article${filtered.length !== 1 ? "s" : ""}`}
           </p>
 
@@ -75,7 +75,7 @@ export default function ArticlesPage() {
                     </span>
                   </div>
                   <div className={`p-5 ${ar ? "text-right" : ""}`}>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-2">
+                    <p className="text-[9px] font-bold  tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-2">
                       {d.tag}
                     </p>
                     <p className="text-[15px] font-semibold text-[#2E1A47] dark:text-[#DFC8E7] leading-snug mb-2">

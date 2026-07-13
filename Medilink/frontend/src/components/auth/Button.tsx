@@ -23,7 +23,7 @@ const variants: Record<Variant, string> = {
   google:
     "border border-[#e7dcee] bg-white text-[#2E1A47] hover:bg-[#f9f4fa] active:scale-[0.98] focus-visible:ring-[#2E1A47] shadow-sm dark:border-[#3a2560] dark:bg-[#1c1030] dark:text-[#DFC8E7]",
   cta:
-    "bg-[#DFC8E7] text-[#2E1A47] hover:bg-[#d0b8da] active:scale-[0.98] focus-visible:ring-[#2E1A47] shadow-md font-bold tracking-widest uppercase text-xs",
+    "bg-[#DFC8E7] text-[#2E1A47] hover:bg-[#d0b8da] active:scale-[0.98] focus-visible:ring-[#2E1A47] shadow-md font-bold tracking-widest  text-xs",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

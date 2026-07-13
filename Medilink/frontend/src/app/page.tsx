@@ -90,7 +90,7 @@ const MARQUEE = [
 /* ─── Section label pill ─────────────────────────────────────────── */
 function SectionPill({ en, ar: arText, isAr }: { en: string; ar: string; isAr: boolean }) {
   return (
-    <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
+    <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold  tracking-widest mb-5"
       style={{ background: "#DFC8E7", color: "#2E1A47" }}>
       {isAr ? arText : en}
     </span>
@@ -109,7 +109,7 @@ function BrandCTA({ href, en, ar: arText, isAr, outline }: { href: string; en: s
   }
   return (
     <Link href={href}
-      className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+      className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
       style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
         {isAr ? arText : en} <span style={{ direction: "ltr" }}>→</span>
@@ -125,7 +125,7 @@ function HeroCard({ ar }: { ar: boolean }) {
       <div className="bg-white rounded-2xl border border-[#ece4f4] p-5"
         style={{ boxShadow: "0 24px 80px rgba(46,26,71,0.13), 0 0 0 1px rgba(46,26,71,0.04)" }}>
 
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 mb-2">
+        <p className="text-[10px] font-bold  tracking-widest text-[#2E1A47]/35 mb-2">
           {ar ? "الموعد القادم" : "Next Appointment"}
         </p>
         <div className="flex items-center gap-3 p-3 rounded-xl bg-[#faf8fc] mb-4">
@@ -137,7 +137,7 @@ function HeroCard({ ar }: { ar: boolean }) {
           </div>
         </div>
 
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 mb-2">
+        <p className="text-[10px] font-bold  tracking-widest text-[#2E1A47]/35 mb-2">
           {ar ? "نتائج المختبر" : "Lab Results"}
         </p>
         <div className="flex items-center gap-3 p-3 rounded-xl border border-[#ece4f4] mb-4">
@@ -149,7 +149,7 @@ function HeroCard({ ar }: { ar: boolean }) {
           <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
         </div>
 
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 mb-2">
+        <p className="text-[10px] font-bold  tracking-widest text-[#2E1A47]/35 mb-2">
           {ar ? "فاحص الأعراض" : "AI Symptom Check"}
         </p>
         <div className="p-3 rounded-xl bg-[#faf8fc] border border-[#ece4f4] mb-4">
@@ -271,7 +271,7 @@ export default function HomePage() {
       <section id="features" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
         <div className="max-w-6xl mx-auto">
           <div className={`mb-12 ${ar ? "text-right" : ""}`}>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+            <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
               {ar ? "لماذا ميديلينك" : "Why Medilink"}
             </p>
             <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
@@ -312,7 +312,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8 mb-14 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
+              <p className="text-xs font-bold  tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
                 {ar ? "رحلة ميديلينك" : "The Medilink Journey"}
               </p>
               <h2 className="font-black font-serif text-white" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
@@ -368,7 +368,7 @@ export default function HomePage() {
                   : { background: "var(--background)", borderColor: "#e7dcee" }}>
                 {!role.active && <div className="absolute inset-0 bg-[#faf8fc] dark:bg-[#1a1030] rounded-2xl" />}
                 <div className="relative z-10">
-                  <p className={`text-xs font-bold uppercase tracking-widest mb-5 ${role.active ? "" : "dark:text-[#DFC8E7]/30"}`}
+                  <p className={`text-xs font-bold  tracking-widest mb-5 ${role.active ? "" : "dark:text-[#DFC8E7]/30"}`}
                     style={{ color: role.active ? "rgba(223,200,231,0.45)" : "rgba(46,26,71,0.3)" }}>
                     {role.num}
                   </p>
@@ -477,7 +477,7 @@ export default function HomePage() {
       <section className="py-20 px-6" style={{ background: "linear-gradient(140deg, #1e1038, #2E1A47, #1e1038)" }}>
         <div className={`max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
+            <p className="text-xs font-bold  tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
               {ar ? "ابدأ رحلتك الصحية" : "Start your care journey"}
             </p>
             <h2 className="font-black font-serif text-white" style={{ fontSize: "clamp(2rem, 3.5vw, 3rem)", lineHeight: 1.08 }}>

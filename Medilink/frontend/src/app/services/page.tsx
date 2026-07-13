@@ -52,7 +52,7 @@ export default function ServicesPage() {
       {/* ── Hero ── */}
       <section className="pt-36 pb-20 bg-[#faf8fc] dark:bg-[#0a0518]" dir={ar ? "rtl" : "ltr"}>
         <div className="max-w-6xl mx-auto px-6">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6"
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold  tracking-widest mb-6"
             style={{ background: "#DFC8E7", color: "#2E1A47" }}>
             {ar ? "الخدمات" : "Services"}
           </span>
@@ -76,7 +76,7 @@ export default function ServicesPage() {
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
               style={{ background: "#DFC8E7" }}>🧑‍⚕️</div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+            <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
               {ar ? "للمرضى" : "For Patients"}
             </p>
           </div>
@@ -102,7 +102,7 @@ export default function ServicesPage() {
           </div>
           <div className="mt-8">
             <Link href="/sign-up"
-              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
               style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
                 {ar ? "ابدأ كمريض →" : "Start as a patient →"}
@@ -119,7 +119,7 @@ export default function ServicesPage() {
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
               style={{ background: "rgba(223,200,231,0.15)" }}>🏥</div>
-            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "rgba(223,200,231,0.45)" }}>
+            <p className="text-xs font-bold  tracking-widest" style={{ color: "rgba(223,200,231,0.45)" }}>
               {ar ? "للعيادات" : "For Clinics"}
             </p>
           </div>
@@ -144,7 +144,7 @@ export default function ServicesPage() {
           </div>
           <div className="mt-8">
             <Link href="/for-clinics"
-              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
               style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.35)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
                 {ar ? "شاهد لوحة العيادة →" : "See clinic dashboard →"}

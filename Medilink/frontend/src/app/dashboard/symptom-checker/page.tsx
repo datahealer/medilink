@@ -180,14 +180,14 @@ export default function SymptomCheckerPage() {
 
       {/* Hero */}
       <section className="py-12 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className={`flex items-center gap-4 ${ar ? "flex-row-reverse text-right" : ""}`}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
               🤖
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: "rgba(223,200,231,0.6)" }}>
+              <p className="text-[10px] font-black  tracking-widest mb-1" style={{ color: "rgba(223,200,231,0.6)" }}>
                 {ar ? "بالذكاء الاصطناعي" : "AI-powered"}
               </p>
               <h1 className="font-black font-serif text-white text-2xl leading-tight">
@@ -203,12 +203,12 @@ export default function SymptomCheckerPage() {
         </div>
       </section>
 
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-5">
 
         {/* Input card */}
         <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6 space-y-5">
           <div className={ar ? "text-right" : ""}>
-            <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-2">
+            <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-2">
               {ar ? "ما هي أعراضك؟" : "What are your symptoms?"}
             </p>
             <textarea
@@ -234,7 +234,7 @@ export default function SymptomCheckerPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className={ar ? "text-right" : ""}>
-              <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-1.5">
+              <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-1.5">
                 {ar ? "العمر (اختياري)" : "Age (optional)"}
               </p>
               <input type="number" min={0} max={120} value={age} disabled={busy}
@@ -242,7 +242,7 @@ export default function SymptomCheckerPage() {
                 className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2 outline-none focus:border-[#46255f]/60 dark:focus:border-[#DFC8E7]/40 transition-all disabled:opacity-60 ${ar ? "text-right" : ""}`} />
             </div>
             <div className={ar ? "text-right" : ""}>
-              <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-1.5">
+              <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-1.5">
                 {ar ? "الجنس (اختياري)" : "Gender (optional)"}
               </p>
               <select value={gender} disabled={busy}
@@ -297,7 +297,7 @@ export default function SymptomCheckerPage() {
             {/* Conditions */}
             {meta.conditions.length > 0 && (
               <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
+                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
                   {ar ? "الحالات المحتملة" : "Possible conditions"}
                 </p>
                 <div className={`flex flex-wrap gap-2 ${ar ? "flex-row-reverse" : ""}`}>
@@ -313,7 +313,7 @@ export default function SymptomCheckerPage() {
             {/* Explanation */}
             {(explanation || status === "streaming") && (
               <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
+                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
                   {ar ? "الشرح التفصيلي" : "Detailed explanation"}
                 </p>
                 <ExplanationText text={explanation} />
@@ -326,7 +326,7 @@ export default function SymptomCheckerPage() {
             {/* Home remedies */}
             {meta.home_remedies.length > 0 && (
               <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
+                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
                   {ar ? "علاجات منزلية" : "Home remedies"}
                 </p>
                 <ul className="space-y-2">
@@ -342,7 +342,7 @@ export default function SymptomCheckerPage() {
             {/* Related doctors */}
             {(meta.recommended_doctors?.length ?? 0) > 0 && (
               <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 uppercase tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
+                <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
                   {ar ? "أطباء ذوو صلة" : "Related doctors"}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

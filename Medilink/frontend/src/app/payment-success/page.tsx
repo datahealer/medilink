@@ -87,7 +87,7 @@ function PaymentSuccessInner() {
 
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen flex items-center justify-center bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] px-4 py-10">
-      <div className="bg-white dark:bg-[#1a1030] rounded-3xl px-7 pt-8 pb-8 max-w-md w-full text-center border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl">
+      <div className="bg-white dark:bg-[#1a1030] rounded-3xl px-7 pt-8 pb-8 max-w-4xl w-full text-center border border-[#e7dcee] dark:border-[#3a2560] shadow-2xl">
         {loading ? (
           <p className="py-16 text-sm font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 animate-pulse">
             {ar ? "جارٍ تأكيد الدفع…" : "Confirming your payment…"}

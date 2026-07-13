@@ -199,7 +199,7 @@ export default function SetupPage() {
   }) {
     return (
       <div className={ar ? "text-right" : ""}>
-        <label className="block text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest mb-1.5">
+        <label className="block text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50  tracking-widest mb-1.5">
           {ar ? arLabel : label}
         </label>
         {options ? (
@@ -221,7 +221,7 @@ export default function SetupPage() {
       {/* ── Top banner ── */}
       <div className="py-5 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-2xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-1" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "خطوة واحدة قبل البدء" : "One step before you start"}
           </p>
           <h1 className="font-black font-serif text-white text-xl">
@@ -345,7 +345,7 @@ export default function SetupPage() {
               {/* Add member form */}
               {addingMember ? (
                 <div className="rounded-2xl border border-[#DFC8E7]/60 dark:border-[#3a2560] bg-[#faf5ff] dark:bg-[#1a1030] p-5 space-y-4">
-                  <p className={`text-xs font-black uppercase tracking-widest text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 ${ar ? "text-right" : ""}`}>
+                  <p className={`text-xs font-black  tracking-widest text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 ${ar ? "text-right" : ""}`}>
                     {ar ? "عضو جديد" : "New member"}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

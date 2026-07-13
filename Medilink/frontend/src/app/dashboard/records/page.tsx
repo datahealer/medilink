@@ -291,7 +291,7 @@ export default function RecordsPage() {
       {/* Hero */}
       <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "سجلاتي الصحية" : "My Health Records"}
           </p>
           <h1 className="font-black font-serif text-white mb-5" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.5rem)", lineHeight: 1.1 }}>
@@ -329,7 +329,7 @@ export default function RecordsPage() {
       {/* Records list */}
       <section className="py-8 px-6">
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
+          <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
             {loading
               ? (ar ? "جارٍ التحميل…" : "Loading…")
               : ar ? `${filtered.length} سجل` : `${filtered.length} record${filtered.length !== 1 ? "s" : ""}`}

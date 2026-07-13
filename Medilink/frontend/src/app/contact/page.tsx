@@ -36,7 +36,7 @@ export default function ContactPage() {
       {/* ── Hero ── */}
       <section className="pt-36 pb-16 bg-[#faf8fc] dark:bg-[#0a0518]" dir={ar ? "rtl" : "ltr"}>
         <div className="max-w-6xl mx-auto px-6">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6"
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold  tracking-widest mb-6"
             style={{ background: "#DFC8E7", color: "#2E1A47" }}>
             {ar ? "اتصل بنا" : "Contact"}
           </span>
@@ -72,7 +72,7 @@ export default function ContactPage() {
                     {o.icon}
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-0.5">
+                    <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-0.5">
                       {ar ? o.ar : o.en}
                     </p>
                     <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] group-hover:text-[#46255f] dark:group-hover:text-white transition-colors">
@@ -84,7 +84,7 @@ export default function ContactPage() {
 
               {/* Office */}
               <div className="p-5 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030]">
-                <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-2">
+                <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-2">
                   {ar ? "المكتب" : "Office"}
                 </p>
                 <p className="text-sm text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 leading-relaxed">
@@ -124,7 +124,7 @@ export default function ContactPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest">
+                      <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50  tracking-widest">
                         {ar ? "الاسم" : "Name"}
                       </label>
                       <input
@@ -136,7 +136,7 @@ export default function ContactPage() {
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest">
+                      <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50  tracking-widest">
                         {ar ? "البريد الإلكتروني" : "Email"}
                       </label>
                       <input
@@ -150,7 +150,7 @@ export default function ContactPage() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest">
+                    <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50  tracking-widest">
                       {ar ? "الموضوع" : "Topic"}
                     </label>
                     <select
@@ -166,7 +166,7 @@ export default function ContactPage() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest">
+                    <label className="text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50  tracking-widest">
                       {ar ? "الرسالة" : "Message"}
                     </label>
                     <textarea
@@ -179,7 +179,7 @@ export default function ContactPage() {
                   </div>
 
                   <button type="submit"
-                    className="self-start inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4 cursor-pointer border-0"
+                    className="self-start inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4 cursor-pointer border-0"
                     style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
                       {ar ? "إرسال الرسالة →" : "Send message →"}

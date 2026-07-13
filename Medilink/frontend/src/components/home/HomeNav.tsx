@@ -70,7 +70,7 @@ export function HomeNav() {
           <div className="w-px h-5 bg-[#e7dcee] dark:bg-[#2a1840] mx-0.5" />
 
           <Link href="/sign-up"
-            className="hidden sm:inline-flex items-center justify-center font-bold text-xs text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-6 py-2.5"
+            className="hidden sm:inline-flex items-center justify-center font-bold text-xs text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-6 py-2.5"
             style={{
               backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)",
               transform: "skewX(-12deg)",
@@ -109,7 +109,7 @@ export function HomeNav() {
           ))}
           <div className="h-px bg-[#e7dcee] dark:bg-[#2a1840] my-2" />
           <Link href="/sign-up"
-            className="flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline px-5 py-3.5 rounded-xl hover:opacity-90 transition-all tracking-widest uppercase"
+            className="flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline px-5 py-3.5 rounded-xl hover:opacity-90 transition-all tracking-widest "
             style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
             onClick={() => setMenuOpen(false)}>
             {ar ? "ابدأ الآن" : "Get Started"}

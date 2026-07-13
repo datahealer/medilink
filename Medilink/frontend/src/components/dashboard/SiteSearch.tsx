@@ -217,7 +217,7 @@ function ResultGroup({
 }) {
   return (
     <div className="mb-1 last:mb-0">
-      <p className="px-4 py-1 text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+      <p className="px-4 py-1 text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
         {label}
       </p>
       {items.map(item => (

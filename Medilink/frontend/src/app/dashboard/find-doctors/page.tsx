@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
@@ -140,12 +141,18 @@ function DoctorCard({
         </div>
       </div>
 
-      {/* Book button — navigates to the doctor details page (single booking flow lives there) */}
-      <div className="mt-4">
+      {/* View Profile + Book — both go to the doctor details page (single booking flow lives there) */}
+      <div className="mt-4 flex gap-2">
+        <Link
+          href={`/dashboard/find-doctors/${doctor.id}`}
+          className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center text-[#2E1A47] dark:text-[#DFC8E7] border border-[#e7dcee] dark:border-[#3a2560] hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30 transition-colors"
+        >
+          {isAr ? "عرض الملف الشخصي" : "View Profile"}
+        </Link>
         <button
           onClick={onBook}
           disabled={!doctor.available}
-          className="w-full py-2.5 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
+          className="flex-1 py-2.5 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
           style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
         >
           {doctor.available
@@ -164,11 +171,14 @@ export default function FindDoctorsPage() {
   const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
+  const PAGE_SIZE = 10;
+
   const [search, setSearch]           = useState("");
   const [activeSpec, setActiveSpec]   = useState("All");
   const [doctors, setDoctors]         = useState<Doctor[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
+  const [page, setPage]               = useState(1);
 
   useEffect(() => {
     let active = true;
@@ -192,6 +202,13 @@ export default function FindDoctorsPage() {
     return matchSpec && matchSearch;
   });
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset to page 1 whenever the result set changes (new search/filter).
+  useEffect(() => { setPage(1); }, [search, activeSpec]);
+
   // Booking happens on the doctor details page (single shared flow).
   function goToDoctor(doc: Doctor) {
     if (doc.available) router.push(`/dashboard/find-doctors/${doc.id}`);
@@ -204,7 +221,7 @@ export default function FindDoctorsPage() {
       <section className="py-12 px-6"
         style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "ابحث عن طبيب" : "Find a Doctor"}
           </p>
           <h1 className="font-black font-serif text-white mb-6" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
@@ -258,7 +275,7 @@ export default function FindDoctorsPage() {
       {/* ── Results ── */}
       <section className="py-10 px-6">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
+          <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
             {loading
               ? (ar ? "جارٍ التحميل…" : "Loading…")
               : ar
@@ -288,16 +305,53 @@ export default function FindDoctorsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filtered.map(doc => (
-                <DoctorCard
-                  key={doc.id}
-                  doctor={doc}
-                  isAr={ar}
-                  onBook={() => goToDoctor(doc)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {paged.map(doc => (
+                  <DoctorCard
+                    key={doc.id}
+                    doctor={doc}
+                    isAr={ar}
+                    onBook={() => goToDoctor(doc)}
+                  />
+                ))}
+              </div>
+
+              {/* ── Pagination ── */}
+              {pageCount > 1 && (
+                <div className={`flex items-center justify-center gap-2 mt-8 ${ar ? "flex-row-reverse" : ""}`}>
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30 transition-colors"
+                  >
+                    {ar ? "السابق" : "Prev"}
+                  </button>
+
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setPage(n)}
+                      className={`w-8 h-8 rounded-lg text-sm font-bold transition-colors ${
+                        n === currentPage
+                          ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030]"
+                          : "border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+                    disabled={currentPage === pageCount}
+                    className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47] dark:text-[#DFC8E7] disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30 transition-colors"
+                  >
+                    {ar ? "السابق" : "Next"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -305,7 +359,7 @@ export default function FindDoctorsPage() {
       {/* ── Nearby clinics map ── */}
       <section className="pb-14 px-6">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+          <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
             {ar ? "📍 عيادات قريبة منك" : "📍 Clinics near you"}
           </p>
           <NearbyDoctorsMap isAr={ar} />

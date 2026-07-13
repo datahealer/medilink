@@ -198,7 +198,7 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
       </div>
       <div className="grid grid-cols-7 mb-1">
         {(isAr ? DAY_AR : DAY_EN).map(l => (
-          <div key={l} className="text-center text-[10px] font-bold uppercase tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">{l}</div>
+          <div key={l} className="text-center text-[10px] font-bold  tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">{l}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-y-1">
@@ -380,7 +380,7 @@ function RescheduleModal({
         {step === "time" && (
           <div className="px-6 py-5">
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
                 {isAr ? "اختر وقتاً جديداً" : "Choose a new time"}
               </p>
               <button onClick={() => { setStep("date"); setSelSlot(null); }}
@@ -535,7 +535,7 @@ export default function AppointmentsPage() {
       {/* Hero */}
       <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "مواعيدي" : "My Appointments"}
           </p>
           <h1 className="font-black font-serif text-white mb-5" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.5rem)", lineHeight: 1.1 }}>
@@ -631,14 +631,14 @@ export default function AppointmentsPage() {
                         { l: ar ? "الوقت"   : "Time",  v: dispTime  },
                       ].map(row => (
                         <div key={row.l}>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-1">{row.l}</p>
+                          <p className="text-[10px] font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-1">{row.l}</p>
                           <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{row.v}</p>
                         </div>
                       ))}
                     </div>
                     {d.notes && (
                       <div className={`bg-[#f9f4fa] dark:bg-[#0d0820] rounded-xl px-4 py-3 mb-4 ${ar ? "text-right" : ""}`}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-1">{ar ? "ملاحظات" : "Notes"}</p>
+                        <p className="text-[10px] font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-1">{ar ? "ملاحظات" : "Notes"}</p>
                         <p className="text-sm text-[#2E1A47]/70 dark:text-[#DFC8E7]/70">{d.notes}</p>
                       </div>
                     )}

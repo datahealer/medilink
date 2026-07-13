@@ -192,7 +192,7 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
       </div>
       <div className="grid grid-cols-7 mb-1">
         {(isAr ? DAY_AR : DAY_EN).map(l => (
-          <div key={l} className="text-center text-[10px] font-bold uppercase tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">{l}</div>
+          <div key={l} className="text-center text-[10px] font-bold  tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">{l}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-y-1">
@@ -299,13 +299,13 @@ function BookModal({ test, isAr, onClose }: { test: typeof LABS[0]; isAr: boolea
         {/* Payment summary */}
         <div className="bg-[#faf8fc] dark:bg-[#0d0820] rounded-xl px-4 py-3 mt-4 mb-6 text-left border border-[#e7dcee] dark:border-[#2a1840]">
           <div className={`flex justify-between items-center ${isAr ? "flex-row-reverse" : ""}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "طريقة الدفع" : "Payment"}</span>
+            <span className="text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "طريقة الدفع" : "Payment"}</span>
             <span className="text-xs font-bold text-[#46255f] dark:text-[#DFC8E7]">
               {PAY_METHODS.find(m => m.key === payMethod)?.[isAr ? "ar" : "en"] ?? ""}
             </span>
           </div>
           <div className={`flex justify-between items-center mt-1 ${isAr ? "flex-row-reverse" : ""}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "الرسوم" : "Fee"}</span>
+            <span className="text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "الرسوم" : "Fee"}</span>
             <span className="text-xs font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{isAr ? `${test.price} ر.ع.` : `OMR ${test.price}`}</span>
           </div>
         </div>
@@ -338,7 +338,7 @@ function BookModal({ test, isAr, onClose }: { test: typeof LABS[0]; isAr: boolea
         {step === "time" && (
           <div className="px-6 py-5">
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">{isAr ? "اختر وقتاً" : "Choose a time"}</p>
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">{isAr ? "اختر وقتاً" : "Choose a time"}</p>
               <button onClick={() => { setStep("date"); setSelTime(null); }} className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
                 {isAr ? "→" : "←"} {selDate ? fmtDate(selDate, isAr) : ""}
               </button>
@@ -371,7 +371,7 @@ function BookModal({ test, isAr, onClose }: { test: typeof LABS[0]; isAr: boolea
         {step === "payment" && (
           <div className="px-6 py-5">
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
                 {isAr ? "طريقة الدفع" : "Payment Method"}
               </p>
               <button onClick={() => { setStep("time"); setPayMethod(null); }} className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
@@ -509,7 +509,7 @@ function LabTestsInner() {
       {/* Hero */}
       <section className="py-12 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "الفحوصات المخبرية" : "Lab Tests"}
           </p>
           <h1 className="font-black font-serif text-white mb-6" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
@@ -546,7 +546,7 @@ function LabTestsInner() {
       {/* Results */}
       <section className="py-10 px-6">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
+          <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
             {ar ? `${filtered.length} فحص متاح` : `${filtered.length} test${filtered.length !== 1 ? "s" : ""} found`}
           </p>
           {filtered.length === 0 ? (
