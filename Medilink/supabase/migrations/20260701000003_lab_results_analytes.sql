@@ -68,13 +68,18 @@ CREATE INDEX IF NOT EXISTS ix_lab_results_status ON public.lab_results (patient_
 -- 6. RLS (mirror lab_results_patient_read / lab_results_facility_write) --------------------------
 ALTER TABLE public.lab_result_analytes ENABLE ROW LEVEL SECURITY;
 
+-- Idempotent (drop-then-create): applied out-of-band on the live project first, so the migration
+-- must replay cleanly whether or not the policies already exist. Definitions unchanged -> no drift.
+DROP POLICY IF EXISTS "lra_patient_read" ON public.lab_result_analytes;
 CREATE POLICY "lra_patient_read" ON public.lab_result_analytes FOR SELECT TO authenticated
   USING (patient_id IN (SELECT id FROM public.patient_profiles WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "lra_facility_write" ON public.lab_result_analytes;
 CREATE POLICY "lra_facility_write" ON public.lab_result_analytes FOR ALL TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles p
                  WHERE p.id = auth.uid() AND p.role IN ('facility_admin','technician','super_admin')));
 
+DROP POLICY IF EXISTS "lra_service_role" ON public.lab_result_analytes;
 CREATE POLICY "lra_service_role" ON public.lab_result_analytes FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 GRANT SELECT ON public.lab_result_analytes TO authenticated;

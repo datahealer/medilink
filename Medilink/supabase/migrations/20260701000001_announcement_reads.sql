@@ -20,12 +20,18 @@ ALTER TABLE public.announcement_reads ENABLE ROW LEVEL SECURITY;
 
 -- Patients read/insert only their own read-markers (scoped by patient_profiles.id, matching the
 -- payments/reviews/lab_results patient-read convention).
+-- Idempotent (drop-then-create): these objects were first applied out-of-band on the live project,
+-- so the migration must be replayable against a DB where the policies already exist as well as a
+-- fresh one. Definitions are unchanged, so replaying causes no schema drift.
+DROP POLICY IF EXISTS "announcement_reads_patient_select" ON public.announcement_reads;
 CREATE POLICY "announcement_reads_patient_select" ON public.announcement_reads FOR SELECT TO authenticated
   USING (patient_id IN (SELECT id FROM public.patient_profiles WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "announcement_reads_patient_insert" ON public.announcement_reads;
 CREATE POLICY "announcement_reads_patient_insert" ON public.announcement_reads FOR INSERT TO authenticated
   WITH CHECK (patient_id IN (SELECT id FROM public.patient_profiles WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "announcement_reads_service" ON public.announcement_reads;
 CREATE POLICY "announcement_reads_service" ON public.announcement_reads FOR ALL TO service_role
   USING (true) WITH CHECK (true);
 
