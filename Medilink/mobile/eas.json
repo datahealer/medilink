@@ -27,7 +27,10 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
-        "EXPO_PUBLIC_DATA_MODE": "mock"
+        "EXPO_PUBLIC_DATA_MODE": "production",
+        "EXPO_PUBLIC_API_URL": "https://medilink-backend-five.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://zojrwuvxrkmgnlwyuypg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvanJ3dXZ4cmttZ25sd3l1eXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTE0OTAsImV4cCI6MjA4OTI4NzQ5MH0.s2A_dE8lKrqTCt4NPQBKujfeVxVTQuKQrJUtrWsTN6E"
       }
     }
   },
