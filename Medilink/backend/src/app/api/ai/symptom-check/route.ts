@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
+// Vercel: this route makes a structured call plus a streamed (SSE) Groq completion;
+// raise the function timeout above the low default so streaming can complete.
+export const maxDuration = 60;
+
 // Lazy init: `next build` imports route modules for page-data collection, and the Groq
 // SDK throws on an empty key at construction. Creating the client on first request keeps
 // the build working without GROQ_API_KEY present, while runtime behavior is unchanged.

@@ -3,6 +3,10 @@ import Groq from "groq-sdk";
 import sharp from "sharp";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 
+// Vercel: sharp image compression + a Groq vision call can exceed the low default
+// timeout; give it headroom.
+export const maxDuration = 60;
+
 // Lazy init: `next build` imports route modules for page-data collection, and the Groq
 // SDK throws on an empty key at construction. Creating the client on first request keeps
 // the build working without GROQ_API_KEY present, while runtime behavior is unchanged.

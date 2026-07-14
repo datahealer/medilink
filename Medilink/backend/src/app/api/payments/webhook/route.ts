@@ -4,6 +4,10 @@ import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
 import { logAudit } from "@/lib/audit/logAudit";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 
+// Vercel: the webhook runs a sequential chain (gateway verify → invoice edge fn →
+// email → notifications); give it headroom above the low default timeout.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = createServiceSupabase();

@@ -5,6 +5,9 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { createHash } from "crypto";
 
+// Vercel: raise the function timeout above the low default to cover the AI call.
+export const maxDuration = 30;
+
 // Lazy init: `next build` imports route modules for page-data collection, and the Groq
 // SDK throws on an empty key at construction. Creating the client on first request keeps
 // the build working without GROQ_API_KEY present, while runtime behavior is unchanged.
