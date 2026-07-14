@@ -31,6 +31,9 @@
     "tailwind-merge": "^3.5.0",
     "zod": "^3.23.8"
   },
+  "optionalDependencies": {
+    "@img/sharp-linux-x64": "0.34.5"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.14.0",
