@@ -44,6 +44,37 @@ const STEPS = [
   { en: "Family",    ar: "العائلة" },
 ];
 
+/* ─── Shared field component ──────────────────────────────────────────────
+   Defined at MODULE scope (not inside SetupPage) so its component identity is
+   stable across renders. Previously it was declared inside SetupPage, so every
+   keystroke → setState → re-render created a NEW Field type, which React
+   remounted, destroying the <input> and dropping focus after each character.
+   It reads the locale via useI18n() so no call site changes. */
+function Field({ label, arLabel, value, onChange, type = "text", options, placeholder = "" }: {
+  label: string; arLabel: string; value: string;
+  onChange: (v: string) => void;
+  type?: string; options?: string[]; placeholder?: string;
+}) {
+  const { locale } = useI18n();
+  const ar = locale === "ar";
+  return (
+    <div className={ar ? "text-right" : ""}>
+      <label className="block text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest mb-1.5">
+        {ar ? arLabel : label}
+      </label>
+      {options ? (
+        <select value={value} onChange={e => onChange(e.target.value)}
+          className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2.5 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`}>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+          className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2.5 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`} />
+      )}
+    </div>
+  );
+}
+
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function SetupPage() {
   const router = useRouter();
@@ -187,30 +218,6 @@ export default function SetupPage() {
             </div>
           );
         })}
-      </div>
-    );
-  }
-
-  /* ─── Shared field component ── */
-  function Field({ label, arLabel, value, onChange, type = "text", options, placeholder = "" }: {
-    label: string; arLabel: string; value: string;
-    onChange: (v: string) => void;
-    type?: string; options?: string[]; placeholder?: string;
-  }) {
-    return (
-      <div className={ar ? "text-right" : ""}>
-        <label className="block text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest mb-1.5">
-          {ar ? arLabel : label}
-        </label>
-        {options ? (
-          <select value={value} onChange={e => onChange(e.target.value)}
-            className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2.5 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`}>
-            {options.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        ) : (
-          <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-            className={`w-full text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-3 py-2.5 outline-none focus:border-[#46255f]/60 transition-all ${ar ? "text-right" : ""}`} />
-        )}
       </div>
     );
   }
