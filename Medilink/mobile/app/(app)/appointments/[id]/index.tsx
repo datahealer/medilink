@@ -152,7 +152,7 @@ export default function AppointmentDetailsScreen() {
             <Button variant="outline" label={t("appointments.cancelAction")} onPress={() => setCancelOpen(true)} />
           ) : null}
           {showRate ? (
-            <Button label={t("appointments.rate")} onPress={() => Alert.alert(t("appointments.rate"), t("appointments.comingSoon"))} />
+            <Button label={t("appointments.rate")} onPress={() => router.push(`/rate/${id}`)} />
           ) : null}
         </View>
       ) : null}

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { AppHeader, Avatar, Button, Card, Checkbox, Chip, Icon, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Avatar, Button, Card, Checkbox, Chip, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n, type MessageKey } from "@/i18n";
@@ -70,6 +70,33 @@ export default function DoctorRatingScreen() {
   };
 
   const canSubmit = rating > 0 && !!doctorId;
+
+  // The screen depends on the appointment (for the doctor to rate) — surface
+  // loading/error/empty instead of silently rendering an un-submittable form.
+  if (appt.isLoading) {
+    return (
+      <Screen padded>
+        <AppHeader showBack title={t("rating.title")} />
+        <LoadingState />
+      </Screen>
+    );
+  }
+  if (appt.isError) {
+    return (
+      <Screen padded>
+        <AppHeader showBack title={t("rating.title")} />
+        <ErrorState message={t("appointments.loadError")} onRetry={() => appt.refetch()} />
+      </Screen>
+    );
+  }
+  if (!appt.data) {
+    return (
+      <Screen padded>
+        <AppHeader showBack title={t("rating.title")} />
+        <EmptyState title={t("appointments.notFoundTitle")} body={t("appointments.notFoundBody")} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen

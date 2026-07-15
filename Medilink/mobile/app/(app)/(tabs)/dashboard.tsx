@@ -196,6 +196,8 @@ export default function DashboardScreen() {
       </View>
       {recents.isLoading ? (
         <Card><View style={{ height: 64 }}><LoadingState /></View></Card>
+      ) : recents.isError ? (
+        <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
       ) : (
         (recents.data ?? []).map((d) => (
           <View key={d.id} style={{ marginBottom: spacing.sm }}>
@@ -215,16 +217,22 @@ export default function DashboardScreen() {
       <Text variant="label" color="textMuted" style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
         {t("dashboard.featuredClinics")}
       </Text>
-      {(featured.data ?? []).map((c) => (
-        <ClinicCard
-          key={c.id}
-          name={c.name}
-          tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
-          meta={num([(c.category ? facilityTypeLabel(c.category, t) : c.area), c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
-          onPress={() => router.push("/search")}
-          isRTL={isRTL}
-        />
-      ))}
+      {featured.isLoading ? (
+        <Card><View style={{ height: 64 }}><LoadingState /></View></Card>
+      ) : featured.isError ? (
+        <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
+      ) : (
+        (featured.data ?? []).map((c) => (
+          <ClinicCard
+            key={c.id}
+            name={c.name}
+            tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
+            meta={num([(c.category ? facilityTypeLabel(c.category, t) : c.area), c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
+            onPress={() => router.push("/search")}
+            isRTL={isRTL}
+          />
+        ))
+      )}
 
       {profile.isError ? (
         <View style={{ marginTop: spacing.lg }}>

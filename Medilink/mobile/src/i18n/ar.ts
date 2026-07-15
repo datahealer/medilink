@@ -101,7 +101,6 @@ export const ar: Messages = {
     confirmCheckIn: "تسجيل الوصول",
     checkedInDone: "تم تسجيل وصولك.",
     actionFailed: "حدث خطأ ما",
-    comingSoon: "قريبًا",
     rescheduleTitle: "إعادة جدولة",
     chooseSlot: "اختر تاريخًا ووقتًا جديدين",
     confirmReschedule: "تأكيد إعادة الجدولة",
@@ -494,6 +493,9 @@ export const ar: Messages = {
   specialties: {
     title: "التخصصات",
     search: "ابحث عن تخصص",
+    loadError: "تعذّر تحميل التخصصات.",
+    emptyTitle: "لا توجد تخصصات",
+    emptyBody: "جرّب بحثًا مختلفًا.",
   },
   map: {
     title: "عيادات قريبة مني",

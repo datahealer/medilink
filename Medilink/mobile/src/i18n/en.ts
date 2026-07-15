@@ -100,7 +100,6 @@ export const en = {
     confirmCheckIn: "Check in",
     checkedInDone: "You're checked in.",
     actionFailed: "Something went wrong",
-    comingSoon: "Coming soon",
     rescheduleTitle: "Reschedule",
     chooseSlot: "Choose a new date and time",
     confirmReschedule: "Confirm reschedule",
@@ -495,6 +494,9 @@ export const en = {
   specialties: {
     title: "Specialties",
     search: "Search specialty",
+    loadError: "Couldn't load specialties.",
+    emptyTitle: "No specialties found",
+    emptyBody: "Try a different search.",
   },
   map: {
     title: "Clinics near me",

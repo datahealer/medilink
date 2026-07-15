@@ -59,7 +59,10 @@ export default function EditProfileScreen() {
   const [allergies, setAllergies] = useState<string[]>(history.data?.allergies ?? []);
   const [newAllergy, setNewAllergy] = useState("");
 
-  if (profile.isLoading) {
+  // Wait for medical history too: the `allergies` state seeds from `history.data`
+  // (once, on first render), so rendering the form before it loads would seed an
+  // empty list and a save could wipe existing allergies.
+  if (profile.isLoading || history.isLoading) {
     return (
       <Screen padded>
         <AppHeader title={t("profile.editTitle")} />
@@ -123,14 +126,23 @@ export default function EditProfileScreen() {
       },
       {
         onSuccess: () => {
+          // Only persist allergies when medical history actually loaded — otherwise the
+          // (empty) local state would overwrite existing allergies.
+          if (!history.isSuccess) {
+            Alert.alert(t("profile.saved"));
+            router.back();
+            return;
+          }
           // Persist allergies (PDF p15 edits them inline) alongside the profile.
+          // Report success only after the allergy save actually succeeds.
           upsertHistory.mutate(
             { allergies },
             {
-              onSettled: () => {
+              onSuccess: () => {
                 Alert.alert(t("profile.saved"));
                 router.back();
               },
+              onError: () => Alert.alert(t("errors.saveFailed")),
             }
           );
         },
