@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import type { NextConfig } from "next";
 // Backend = API-only Next.js app (privileged/heavy ops). No pages/UI.
 const nextConfig: NextConfig = {
@@ -5,4 +7,3 @@ const nextConfig: NextConfig = {
   // Privileged SDKs kept server-side:
   serverExternalPackages: ["pdfkit", "@google/generative-ai", "groq-sdk", "stripe", "nodemailer", "googleapis", "sharp"],
 };
-export default nextConfig;

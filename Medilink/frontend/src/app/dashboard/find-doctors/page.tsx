@@ -175,6 +175,7 @@ export default function FindDoctorsPage() {
 
   const [search, setSearch]           = useState("");
   const [activeSpec, setActiveSpec]   = useState("All");
+  const [availOnly, setAvailOnly]     = useState(false);
   const [doctors, setDoctors]         = useState<Doctor[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
@@ -193,13 +194,14 @@ export default function FindDoctorsPage() {
 
   const filtered = doctors.filter(doc => {
     const matchSpec = activeSpec === "All" || doc.specialty === activeSpec;
+    const matchAvail = !availOnly || doc.available;
     const q = search.toLowerCase();
     const matchSearch = !q
       || doc.en.name.toLowerCase().includes(q)
       || doc.ar.name.includes(q)
       || doc.specialty.toLowerCase().includes(q)
       || doc.en.hospital.toLowerCase().includes(q);
-    return matchSpec && matchSearch;
+    return matchSpec && matchAvail && matchSearch;
   });
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -207,7 +209,7 @@ export default function FindDoctorsPage() {
   const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Reset to page 1 whenever the result set changes (new search/filter).
-  useEffect(() => { setPage(1); }, [search, activeSpec]);
+  useEffect(() => { setPage(1); }, [search, activeSpec, availOnly]);
 
   // Booking happens on the doctor details page (single shared flow).
   function goToDoctor(doc: Doctor) {
@@ -253,9 +255,26 @@ export default function FindDoctorsPage() {
         </div>
       </section>
 
-      {/* ── Specialty filters ── */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 overflow-x-auto">
-        <div className="max-w-4xl mx-auto flex gap-2 flex-nowrap">
+      {/* ── Specialty + availability filters ── */}
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4">
+        <div className={`max-w-4xl mx-auto flex flex-wrap items-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+          {/* Availability toggle */}
+          <button
+            onClick={() => setAvailOnly(v => !v)}
+            aria-pressed={availOnly}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${ar ? "flex-row-reverse" : ""} ${
+              availOnly
+                ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400"
+                : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${availOnly ? "bg-emerald-500" : "bg-[#2E1A47]/25 dark:bg-[#DFC8E7]/25"}`} />
+            {ar ? "متاح فقط" : "Available only"}
+          </button>
+
+          <div className="w-px h-6 bg-[#e7dcee] dark:bg-[#3a2560] flex-shrink-0" />
+
+          {/* Specialty pills — wraps to a new line instead of clipping/scrolling */}
           {SPECIALTIES.map(s => (
             <button
               key={s.en}
