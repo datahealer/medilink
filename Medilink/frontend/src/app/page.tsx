@@ -42,17 +42,17 @@ const ROLES = [
     titleEn: "For patients", titleAr: "للمرضى",
     featuresEn: ["Search & book trusted doctors","Family profiles (up to 5)","AI symptom checker","Document vault & prescriptions"],
     featuresAr: ["ابحث واحجز أطباء موثوقين","ملفات عائلية حتى 5 أفراد","فاحص الأعراض بالذكاء الاصطناعي","خزنة المستندات والوصفات"],
-    ctaEn: "Open patient app →", ctaAr: "افتح تطبيق المريض →" },
+    ctaEn: "Open patient app →", ctaAr: "افتح تطبيق المريض ←" },
   { num: "02", active: true,
     titleEn: "For clinics",  titleAr: "للعيادات",
     featuresEn: ["Team calendar & live queue","Doctor & technician onboarding","Earnings & analytics","Reviews and announcements"],
     featuresAr: ["تقويم الفريق وطابور مباشر","تعداد الأطباء والفنيين","الأرباح والتحليلات","التقييمات والإعلانات"],
-    ctaEn: "See clinic dashboard →", ctaAr: "شاهد لوحة العيادة →" },
+    ctaEn: "See clinic dashboard →", ctaAr: "شاهد لوحة العيادة ←" },
   { num: "03", active: false,
     titleEn: "For doctors",  titleAr: "للأطباء",
     featuresEn: ["Status toggle in real time","Patient history at a glance","Video consults via Daily.co","AI-assisted visit summaries"],
     featuresAr: ["تبديل الحالة في الوقت الفعلي","تاريخ المريض بلمحة","استشارات مرئية","ملخصات الزيارة بالذكاء الاصطناعي"],
-    ctaEn: "Explore for doctors →", ctaAr: "استكشف للأطباء →" },
+    ctaEn: "Explore for doctors →", ctaAr: "استكشف للأطباء ←" },
 ];
 
 const DOCTORS = [
@@ -112,7 +112,7 @@ function BrandCTA({ href, en, ar: arText, isAr, outline }: { href: string; en: s
       className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
       style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
-        {isAr ? arText : en} <span style={{ direction: "ltr" }}>→</span>
+        {isAr ? arText : en} <span>{isAr ? "←" : "→"}</span>
       </span>
     </Link>
   );

@@ -425,7 +425,7 @@ export function BookingModal({
               </p>
               <button onClick={() => { setStep("date"); setSelectedSlot(null); }}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selectedDate ? fmtDate(selectedDate) : ""}
+                {isAr ? "→" : "←"} {selectedDate ? fmtDate(selectedDate) : ""}
               </button>
             </div>
             {slotsLoading ? (
@@ -481,7 +481,7 @@ export function BookingModal({
                 {isAr ? "طريقة الدفع" : "Payment Method"}
               </p>
               <button onClick={() => setStep("time")} className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selectedTime}
+                {isAr ? "→" : "←"} {selectedTime}
               </button>
             </div>
             <div className={`bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl p-4 mb-4 border border-[#e7dcee] dark:border-[#2a1840] space-y-2 ${isAr ? "text-right" : ""}`}>

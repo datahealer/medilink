@@ -360,7 +360,7 @@ export default function DashboardPage() {
             </div>
             <Link href="/dashboard/appointments"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm no-underline transition-all flex-shrink-0 self-start sm:self-auto border-2 border-[#2E1A47]/14 dark:border-[#DFC8E7]/14 text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#2E1A47]/35 hover:bg-[#2E1A47]/5">
-              {ar ? "عرض الكل →" : "View all →"}
+              {ar ? "عرض الكل ←" : "View all →"}
             </Link>
           </div>
 
@@ -510,7 +510,7 @@ export default function DashboardPage() {
             </p>
             <Link href="/dashboard/records"
               className="text-xs font-bold text-[#46255f]/60 dark:text-[#DFC8E7]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-colors no-underline">
-              {ar ? "عرض السجلات →" : "View records →"}
+              {ar ? "عرض السجلات ←" : "View records →"}
             </Link>
           </div>
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${ar ? "direction-rtl" : ""}`}>
@@ -597,7 +597,7 @@ export default function DashboardPage() {
               style={{ border: "1.5px solid rgba(223,200,231,0.28)", color: "#DFC8E7" }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(223,200,231,0.07)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              {ar ? "ابحث عن طبيب →" : "Find a doctor →"}
+              {ar ? "ابحث عن طبيب ←" : "Find a doctor →"}
             </Link>
           </div>
 
@@ -630,7 +630,7 @@ export default function DashboardPage() {
             </div>
             <Link href="/dashboard/specialties"
               className="inline-flex items-center gap-1.5 text-sm font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline flex-shrink-0">
-              {ar ? "تصفح الكل →" : "Browse all →"}
+              {ar ? "تصفح الكل ←" : "Browse all →"}
             </Link>
           </div>
 

@@ -57,7 +57,7 @@ export default function AboutPage() {
             className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
             style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
-              {ar ? "ابدأ مجاناً →" : "Get started free →"}
+              {ar ? "ابدأ مجاناً ←" : "Get started free →"}
             </span>
           </Link>
         </div>

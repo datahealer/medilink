@@ -351,7 +351,7 @@ function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SUR
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
               <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">{isAr ? "اختر وقتاً" : "Choose a time"}</p>
               <button onClick={() => { setStep("date"); setSelTime(null); }} className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selDate ? fmtDate(selDate, isAr) : ""}
+                {isAr ? "→" : "←"} {selDate ? fmtDate(selDate, isAr) : ""}
               </button>
             </div>
             <div className="max-h-56 overflow-y-auto pr-1 space-y-4 mb-5" style={{ scrollbarWidth: "thin", scrollbarColor: "#e7dcee transparent" }}>
@@ -426,7 +426,7 @@ function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SUR
               </p>
               <button onClick={() => setStep("confirm")}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {isAr ? "مراجعة" : "Review"}
+                {isAr ? "→" : "←"} {isAr ? "مراجعة" : "Review"}
               </button>
             </div>
 
