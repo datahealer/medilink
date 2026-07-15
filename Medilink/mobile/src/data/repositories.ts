@@ -45,8 +45,8 @@ import type {
 export interface AuthRepository {
   signIn(input: SignInInput): Promise<AuthResult>;
   signUp(input: SignUpInput): Promise<AuthResult>;
-  sendOtp(phone?: string): Promise<AuthResult>;
-  verifyOtp(code: string, phone?: string): Promise<AuthResult>;
+  sendOtp(email?: string): Promise<AuthResult>;
+  verifyOtp(code: string, email?: string): Promise<AuthResult>;
   requestPasswordReset(identifier: string): Promise<AuthResult>;
   resetPassword(password: string): Promise<AuthResult>;
   googleSignIn(): Promise<AuthResult>;

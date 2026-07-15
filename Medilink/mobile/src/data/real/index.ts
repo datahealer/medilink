@@ -69,8 +69,8 @@ function errText(e: unknown): string {
 const authRepo: AuthRepository = {
   signIn: (input) => authService.signIn(input),
   signUp: (input) => authService.signUp(input),
-  sendOtp: (phone) => authService.sendOtp(phone),
-  verifyOtp: (code, phone) => authService.verifyOtp(code, phone),
+  sendOtp: (email) => authService.sendOtp(email),
+  verifyOtp: (code, email) => authService.verifyOtp(code, email),
   requestPasswordReset: (id) => authService.requestPasswordReset(id),
   resetPassword: (pw) => authService.resetPassword(pw),
   googleSignIn: () => authService.googleSignIn(),

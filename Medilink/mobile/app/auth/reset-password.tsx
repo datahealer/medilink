@@ -36,14 +36,18 @@ export default function ResetPasswordScreen() {
   const onSubmit = async (values: ResetForm) => {
     setFormError(null);
     setLoading(true);
-    // Succeeds only inside a recovery session (deep link from the reset email).
+    // Succeeds inside the recovery session established by verifyOtp(type:"recovery")
+    // on the OTP screen (reached from Forgot Password → 6-digit code).
     const res = await authService.resetPassword(values.password);
-    setLoading(false);
     if (res.ok) {
+      // End the recovery-only session so the user signs in fresh with the new password.
+      await authService.signOut().catch(() => {});
+      setLoading(false);
       Alert.alert(t("reset.title"), undefined, [
         { text: "OK", onPress: () => router.replace("/auth/sign-in") },
       ]);
     } else {
+      setLoading(false);
       setFormError(t(res.messageKey ?? "errors.unknown"));
     }
   };

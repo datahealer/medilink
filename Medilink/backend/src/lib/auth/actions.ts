@@ -41,60 +41,10 @@ export async function loginWithEmail({ email, password }: LoginPayload) {
 //   });
 // }
 
-// ✅ OTP SEND (DB-based)
-export async function sendOtpToPhone(userId: string, phone: string) {
-  const supabase = await createServerSupabaseClient();
-
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString();
-
-  const { error } = await supabase.from("otp_records").insert([
-    {
-      user_id: userId,
-      hash: code,
-      expires_at: expiresAt,
-      attempts: 0,
-    },
-  ]);
-
-  return { code, error };
-}
-
-// ✅ OTP VERIFY
-export async function verifyOtpCode(userId: string, code: string) {
-  const supabase = await createServerSupabaseClient();
-
-  const { data: record, error } = await supabase
-    .from("otp_records")
-    .select("id, hash, expires_at, attempts")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle(); // ✅ safer than .single()
-
-  if (error || !record) {
-    return { error: new Error("OTP not found") };
-  }
-
-  if (record.attempts >= 5) {
-    return { error: new Error("Too many attempts") };
-  }
-
-  if (record.expires_at < new Date().toISOString()) {
-    return { error: new Error("OTP expired") };
-  }
-
-  if (record.hash !== code) {
-    await supabase
-      .from("otp_records")
-      .update({ attempts: record.attempts + 1 })
-      .eq("id", record.id);
-
-    return { error: new Error("Invalid OTP code") };
-  }
-
-  return { success: true };
-}
+// Custom DB-based OTP (sendOtpToPhone / verifyOtpCode against otp_records) was removed:
+// authentication now uses official Supabase Email OTP (see shared/src/api/auth.ts and
+// mobile/src/services/authService.ts). These helpers were never imported anywhere. The
+// otp_records table is kept in the schema for history/GDPR purge but is no longer written.
 
 // ✅ PROFILE (safe)
 export async function createPatientProfile(

@@ -1,20 +1,23 @@
 /**
  * Auth service — the single transport layer for authentication.
  *
- * Routing of work follows the audit (docs/MOBILE_HAMS_API_AUDIT.md):
- *   • sign-in / session / sign-out / reset → Supabase-direct (shared api.auth)
- *   • signup / send-otp / verify-otp        → backend REST (bearer apiFetch)
+ * All auth runs through official Supabase Auth (shared `api.auth`), Supabase-direct:
+ *   • sign-in / session / sign-out            → password grant
+ *   • sign-up                                  → auth.signUp (email confirmation OTP)
+ *   • verify / resend OTP                      → auth.verifyOtp / auth.resend (email)
+ *   • password reset                           → resetPasswordForEmail → recovery OTP
  *
- * Results carry a stable `messageKey` (an i18n key) rather than a raw English
- * string, so errors render correctly in both EN and AR. Tokens, OTP codes and
- * passwords are never logged.
+ * The previous custom `otp_records` backend flow (send/verify/resend-otp, service-role
+ * signup) is retired; delivery was never wired. Results carry a stable `messageKey`
+ * (an i18n key) so errors render in EN + AR. Tokens, OTP codes and passwords are
+ * never logged.
  */
 import { api } from "@medilink/shared/mobile";
 
 import { isGoogleConfigured } from "@/config/env";
 import type { MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
-import { ApiError, apiFetch } from "@/services/api";
+import { ApiError } from "@/services/api";
 
 export interface SignInInput {
   email: string;
@@ -33,6 +36,9 @@ export interface AuthResult {
   ok: boolean;
   /** i18n key for a user-facing message (error or info). */
   messageKey?: MessageKey;
+  /** signUp only: true when a live session was returned (email confirmation is
+   *  disabled), so the OTP step can be skipped. */
+  verified?: boolean;
 }
 
 /** Map a thrown error (ApiError / Supabase AuthError / network) to an i18n key. */
@@ -52,11 +58,17 @@ function toMessageKey(err: unknown): MessageKey {
   }
 
   // Supabase AuthError shape: { message, status }.
+  const status = typeof err === "object" && err && "status" in err ? Number((err as { status: unknown }).status) : 0;
   const msg =
     typeof err === "object" && err && "message" in err
       ? String((err as { message: unknown }).message).toLowerCase()
       : "";
-  if (msg.includes("network")) return "errors.network";
+  if (msg.includes("network") || msg.includes("failed to fetch")) return "errors.network";
+  if (status === 429 || msg.includes("too many") || msg.includes("rate limit")) return "errors.otpTooMany";
+  if (msg.includes("already registered") || msg.includes("already been registered")) return "errors.emailInUse";
+  // Supabase returns "Token has expired or is invalid" for a bad/expired email OTP.
+  if (msg.includes("expired")) return "errors.otpExpired";
+  if (msg.includes("token") || msg.includes("otp")) return "errors.otpInvalid";
   if (msg.includes("invalid login")) return "errors.invalidCredentials";
   if (msg.includes("email not confirmed")) return "errors.invalidCredentials";
   if (msg.includes("auth session missing")) return "errors.recoverySession";
@@ -79,66 +91,55 @@ export const authService = {
   },
 
   /**
-   * Create the account (service-role, email auto-confirmed), then sign in to
-   * obtain a session, then trigger the phone OTP. OTP send is best-effort: if
-   * SMS isn't enabled in this environment, the user can resend on the OTP screen.
+   * Create the account via Supabase Auth. With email confirmations enabled (this
+   * project), Supabase emails a 6-digit verification OTP and returns no session —
+   * the OTP screen then confirms it with `verifyOtp(type:"signup")`. `full_name`/
+   * `phone` ride along as user metadata for the profile-provisioning DB trigger.
+   * If a session IS returned (confirmations disabled), `verified` is true and the
+   * caller can skip the OTP step.
    */
   async signUp(input: SignUpInput): Promise<AuthResult> {
-    const phone = e164(input.dialCode, input.phone);
     try {
-      await apiFetch("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({
-          email: input.email.trim(),
-          password: input.password,
+      const { user, session } = await api.auth.signUp(supabase, {
+        email: input.email.trim(),
+        password: input.password,
+        data: {
           full_name: input.fullName.trim(),
-          phone,
+          phone: e164(input.dialCode, input.phone) || null,
           role: "patient",
-        }),
+        },
       });
+      // Enumeration protection: an already-registered email returns a user with an
+      // empty `identities` array (no error) — surface it instead of a dead OTP screen.
+      if (user && Array.isArray(user.identities) && user.identities.length === 0) {
+        return { ok: false, messageKey: "errors.emailInUse" };
+      }
+      return { ok: true, verified: !!session };
     } catch (err) {
       return { ok: false, messageKey: toMessageKey(err) };
     }
-
-    try {
-      await api.auth.signInWithPassword(supabase, {
-        email: input.email.trim(),
-        password: input.password,
-      });
-    } catch {
-      return { ok: false, messageKey: "errors.server" };
-    }
-
-    // Best-effort OTP dispatch (non-fatal).
-    try {
-      await apiFetch("/api/auth/send-otp", {
-        method: "POST",
-        body: JSON.stringify({ phone }),
-      });
-    } catch {
-      /* swallow: OTP screen offers Resend */
-    }
-    return { ok: true };
   },
 
-  async sendOtp(phone?: string): Promise<AuthResult> {
+  /** Re-send the signup confirmation OTP email. */
+  async sendOtp(email?: string): Promise<AuthResult> {
+    if (!email) return { ok: false, messageKey: "errors.unknown" };
     try {
-      await apiFetch("/api/auth/send-otp", {
-        method: "POST",
-        body: JSON.stringify(phone ? { phone } : {}),
-      });
+      await api.auth.resendSignupOtp(supabase, email.trim());
       return { ok: true, messageKey: "otp.sent" };
     } catch (err) {
       return { ok: false, messageKey: toMessageKey(err) };
     }
   },
 
-  async verifyOtp(code: string, phone?: string): Promise<AuthResult> {
+  /**
+   * Verify an email OTP. `type` is "signup" (confirm a new account) or "recovery"
+   * (password reset). On success Supabase establishes the session, so the caller is
+   * authenticated (signup) or holds a recovery session (reset → updatePassword).
+   */
+  async verifyOtp(code: string, email?: string, type: "signup" | "recovery" = "signup"): Promise<AuthResult> {
+    if (!email) return { ok: false, messageKey: "errors.unknown" };
     try {
-      await apiFetch("/api/auth/verify-otp", {
-        method: "POST",
-        body: JSON.stringify(phone ? { code, phone } : { code }),
-      });
+      await api.auth.verifyEmailOtp(supabase, { email: email.trim(), token: code, type });
       return { ok: true };
     } catch (err) {
       return { ok: false, messageKey: toMessageKey(err) };

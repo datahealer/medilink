@@ -15,9 +15,11 @@ export default function OtpScreen() {
   const { spacing } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
-  const { target, phone } = useLocalSearchParams<{ target?: string; phone?: string }>();
-  // Prefer the display target; fall back to the raw phone, then a generic phrase.
-  const shownTarget = (target || phone || "").trim();
+  const { target, email, flow } = useLocalSearchParams<{ target?: string; email?: string; flow?: string }>();
+  // `flow=recovery` reuses this screen for the password-reset OTP; default is signup.
+  const isRecovery = flow === "recovery";
+  // Prefer the display target; fall back to the email, then a generic phrase.
+  const shownTarget = (target || email || "").trim();
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,11 +40,12 @@ export default function OtpScreen() {
       return;
     }
     setLoading(true);
-    const res = await authService.verifyOtp(code, phone);
+    const res = await authService.verifyOtp(code, email, isRecovery ? "recovery" : "signup");
     setLoading(false);
     if (res.ok) {
-      // Phone verified — the user is already signed in → go to the dashboard.
-      router.replace("/dashboard");
+      // Recovery: a recovery session is now active → set the new password.
+      // Signup: the email is confirmed and the user is signed in → dashboard.
+      router.replace(isRecovery ? "/auth/reset-password" : "/dashboard");
     } else {
       setFormError(t(res.messageKey ?? "errors.unknown"));
     }
@@ -51,7 +54,10 @@ export default function OtpScreen() {
   const resend = async () => {
     if (secondsLeft > 0) return;
     setFormError(null);
-    const res = await authService.sendOtp(phone);
+    // Recovery re-issues the reset email; signup re-sends the confirmation OTP.
+    const res = isRecovery
+      ? await authService.requestPasswordReset(email ?? "")
+      : await authService.sendOtp(email);
     if (!res.ok) setFormError(t(res.messageKey ?? "errors.unknown"));
     setSecondsLeft(RESEND_SECONDS);
     setCode("");
