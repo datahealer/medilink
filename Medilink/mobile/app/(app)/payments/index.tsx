@@ -6,6 +6,8 @@ import { AppHeader, Card, EmptyState, ErrorState, LoadingState, Screen, Text } f
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { usePayments } from "@/hooks/queries/usePatient";
 import type { Payment } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
@@ -23,7 +25,7 @@ export default function PaymentsScreen() {
 
   const subtitle = (p: Payment) => {
     const a = p.appointment;
-    return [a?.doctor?.specialty, formatApptDate(a?.slot_date?.slice(0, 10), t, num) || a?.slot_date]
+    return [specialtyLabel(a?.doctor?.specialty, a?.doctor?.specialty ?? "", t), formatApptDate(a?.slot_date?.slice(0, 10), t, num) || a?.slot_date]
       .filter(Boolean)
       .join(" · ");
   };
@@ -52,7 +54,7 @@ export default function PaymentsScreen() {
               <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                 <View style={styles.flex}>
                   <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>
-                    {p.appointment?.doctor?.full_name || "—"}
+                    {localizedName(p.appointment?.doctor?.full_name || "—", p.appointment?.doctor?.full_name_ar, p.appointment?.doctor?.full_name_ar_status, isRTL)}
                   </Text>
                   <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
                     {subtitle(p)}

@@ -26,6 +26,7 @@ import {
   useUploadProfilePhoto,
   useUpsertMedicalHistory,
 } from "@/hooks/queries/usePatient";
+import { CIVIL_NUMBER_LENGTH, isValidCivilNumber } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
@@ -56,6 +57,8 @@ export default function EditProfileScreen() {
   );
   const [address, setAddress] = useState(patient?.address ?? "");
   const [emergency, setEmergency] = useState(patient?.emergency_contact ?? "");
+  const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
+  const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const [allergies, setAllergies] = useState<string[]>(history.data?.allergies ?? []);
   const [newAllergy, setNewAllergy] = useState("");
 
@@ -114,6 +117,9 @@ export default function EditProfileScreen() {
   };
 
   const onSave = () => {
+    // Block save on an invalid (non-empty, non-8-digit) civil number; the field shows
+    // the error inline. Empty is allowed (optional).
+    if (civilError) return;
     update.mutate(
       {
         full_name: fullName.trim(),
@@ -123,6 +129,7 @@ export default function EditProfileScreen() {
         blood_group: bloodGroup ?? "unknown",
         address: address.trim() || null,
         emergency_contact: emergency.trim() || null,
+        civil_number: civilNumber.trim() || null,
       },
       {
         onSuccess: () => {
@@ -201,6 +208,18 @@ export default function EditProfileScreen() {
           />
         </View>
       </View>
+
+      {/* Civil number (optional; 8 digits) — F2 */}
+      <TextField
+        label={t("profile.civilNumber")}
+        value={civilNumber}
+        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, ""))}
+        keyboardType="number-pad"
+        maxLength={CIVIL_NUMBER_LENGTH}
+        placeholder={t("profile.civilNumberPlaceholder")}
+        error={civilError}
+        containerStyle={{ marginBottom: spacing.md }}
+      />
 
       {/* Allergies — removable chips + add (PDF p15) */}
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.allergies").toUpperCase()}</Text>

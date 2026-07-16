@@ -18,6 +18,7 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { isMockData } from "@/data";
 import { useProfile, useCreateAppointment } from "@/hooks/queries/usePatient";
 import { useFamily } from "@/hooks/queries/useFamily";
@@ -144,7 +145,7 @@ export default function ReviewScreen() {
           <Avatar name={doctorName} size={48} />
           <View style={[styles.flex, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
             <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{doctorName}</Text>
-            <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{`${specialty} · ${facility}`}</Text>
+            <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{`${specialtyLabel(specialty, specialty, t)} · ${facility}`}</Text>
           </View>
         </View>
       </AppCard>

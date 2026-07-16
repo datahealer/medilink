@@ -6,6 +6,8 @@ import { AppCard, AppHeader, Button, EmptyState, ErrorState, Icon, LoadingState,
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { usePrescription, usePrescriptionShareLink, usePrescriptionPdfUrl } from "@/hooks/queries/usePrescriptions";
 import { useProfile } from "@/hooks/queries/usePatient";
 import type { PrescriptionMed } from "@/data/types";
@@ -86,9 +88,11 @@ export default function MedicationDetailsScreen() {
     );
   }
 
-  const doctorName = rx.doctor?.full_name || "—";
-  const subline = [rx.doctor?.specialty, formatApptDate(rx.issued_at?.slice(0, 10) ?? null, t, num)].filter(Boolean).join(" · ");
-  const patientName = profile.data?.account?.full_name || t("appointments.you");
+  const doctorName = localizedName(rx.doctor?.full_name || "—", rx.doctor?.full_name_ar, rx.doctor?.full_name_ar_status, isRTL);
+  const subline = [specialtyLabel(rx.doctor?.specialty, rx.doctor?.specialty ?? "", t), formatApptDate(rx.issued_at?.slice(0, 10) ?? null, t, num)].filter(Boolean).join(" · ");
+  const patientName = profile.data?.account?.full_name
+    ? localizedName(profile.data.account.full_name, profile.data.account.full_name_ar, profile.data.account.full_name_ar_status, isRTL)
+    : t("appointments.you");
   const hasPdf = !!rx.pdf_url;
 
   const dosageLine = (m: PrescriptionMed) => [m.dosage, m.frequency].filter(Boolean).join(" · ");

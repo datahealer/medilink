@@ -11,10 +11,11 @@ export const patientKeys = {
 };
 
 /** Current user's profile: { account, patient } (domain model). */
-export function useProfile() {
+export function useProfile(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: patientKeys.profile,
     queryFn: () => repositories.patient.getProfile(),
+    enabled: options?.enabled ?? true,
   });
 }
 

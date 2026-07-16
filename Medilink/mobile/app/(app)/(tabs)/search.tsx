@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n";
 import { useDoctors } from "@/hooks/queries/useDoctors";
 import { useSearchFilterStore, activeFilterCount } from "@/stores/searchFilterStore";
 import type { Doctor } from "@/data/types";
+import { localizedName } from "@/utils/localizedName";
 
 /** Search & Results (PDF p17): query, quick filters and ranked doctor cards. */
 export default function SearchScreen() {
@@ -37,9 +38,9 @@ export default function SearchScreen() {
     <View key={d.id} style={{ marginBottom: spacing.sm }}>
       <DoctorCard
         variant="searchResult"
-        name={d.full_name}
+        name={localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL)}
         specialty={d.specialty}
-        facility={d.facility}
+        facility={localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL)}
         metaText={num(`★ ${d.rating}   OMR ${d.fee_omr}${d.distance_km != null ? ` · ${d.distance_km} km` : ""}`)}
         availableTodayLabel={d.available_today ? t("search.today") : undefined}
         bookLabel={t("search.book")}

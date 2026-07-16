@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useSignOut } from "@/hooks/queries/useAuth";
 import { useProfile } from "@/hooks/queries/usePatient";
+import { localizedName } from "@/utils/localizedName";
 
 /**
  * Settings (PDF p34): account hub for preferences, privacy and data controls.
@@ -73,7 +74,7 @@ export default function SettingsScreen() {
         <View style={[styles.account, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Avatar name={account?.full_name} uri={profile.data?.patient?.profile_photo_url} size={48} />
           <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-            <Text variant="title" numberOfLines={1}>{account?.full_name ?? "—"}</Text>
+            <Text variant="title" numberOfLines={1}>{localizedName(account?.full_name ?? "—", account?.full_name_ar, account?.full_name_ar_status, isRTL)}</Text>
             <Text variant="caption" color="textMuted" numberOfLines={1}>
               {account?.email ?? "—"}
             </Text>

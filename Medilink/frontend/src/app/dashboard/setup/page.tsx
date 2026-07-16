@@ -58,7 +58,7 @@ export default function SetupPage() {
   /* Step 1 – personal (hydrated from the authenticated profile below) */
   const [form1, setForm1] = useState({
     firstName: "", lastName: "",
-    phone: "", dob: "", gender: "",
+    phone: "", dob: "", gender: "", civilNumber: "",
   });
 
   /* Step 2 – health */
@@ -94,6 +94,7 @@ export default function SetupPage() {
           phone: acc?.phone ?? "",
           dob: pat?.date_of_birth ?? "",
           gender: enumToGenderLabel(pat?.gender),
+          civilNumber: pat?.civil_number ?? "",
         });
         setForm2((f) => ({
           ...f,
@@ -127,6 +128,14 @@ export default function SetupPage() {
     if (saving) return;
     setSaving(true);
     setError("");
+    // Civil number is optional; if present it must be exactly 8 digits (matches
+    // the patient_profiles CHECK constraint and mobile Edit Profile validation).
+    if (form1.civilNumber && !/^[0-9]{8}$/.test(form1.civilNumber)) {
+      setSaving(false);
+      setError(ar ? "أدخل رقماً مدنياً صحيحاً من 8 أرقام" : "Enter a valid 8-digit civil number.");
+      setStep(0);
+      return;
+    }
     try {
       const hasEmergency = form3.name || form3.phone || form3.relation;
       await api.profile.updateMyProfile(supabase, {
@@ -134,6 +143,7 @@ export default function SetupPage() {
         phone: form1.phone || undefined,
         date_of_birth: form1.dob || null,
         gender: form1.gender ? genderToEnum(form1.gender) : undefined,
+        civil_number: form1.civilNumber || null,
         blood_group: form2.blood && form2.blood !== "Unknown" ? setupBloodToDb(form2.blood) : undefined,
         emergency_contact: hasEmergency
           ? { name: form3.name, phone: form3.phone, relationship: form3.relation }
@@ -252,6 +262,7 @@ export default function SetupPage() {
                 <Field label="Last Name"     arLabel="اسم العائلة"        value={form1.lastName}  onChange={v => setForm1(f => ({...f, lastName: v}))} />
                 <Field label="Phone"         arLabel="رقم الهاتف"         value={form1.phone}     onChange={v => setForm1(f => ({...f, phone: v}))}     placeholder="+968 9xxx xxxx" />
                 <Field label="Date of Birth" arLabel="تاريخ الميلاد"      value={form1.dob}       onChange={v => setForm1(f => ({...f, dob: v}))}       type="date" />
+                <Field label="Civil Number"  arLabel="الرقم المدني"       value={form1.civilNumber} onChange={v => setForm1(f => ({...f, civilNumber: v.replace(/[^0-9]/g, "").slice(0, 8)}))} placeholder={ar ? "الرقم المدني (8 أرقام)" : "8-digit civil number"} />
                 <div className="sm:col-span-2">
                   <Field label="Gender" arLabel="الجنس" value={form1.gender} onChange={v => setForm1(f => ({...f, gender: v}))}
                     options={ar ? GENDERS_AR : GENDERS_EN} />

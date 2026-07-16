@@ -10,7 +10,8 @@ import { getMyPatientProfileId } from "./client";
 const PAYMENT_SELECT =
   "id, amount, currency, status, payment_method, gateway, gateway_ref, invoice_url, created_at, " +
   "appointment:appointment_id!inner ( id, patient_id, reference_number, slot_date, slot_start, type, " +
-  "doctor:doctor_id ( full_name, specialty, fees ), facility:facility_id ( name, address ) )";
+  "doctor:doctor_id ( full_name, full_name_ar, full_name_ar_status, specialty, fees ), " +
+  "facility:facility_id ( name, name_ar, name_ar_status, address ) )";
 
 /** The caller's payments (newest first), scoped via appointment ownership. */
 export async function listMyPayments(db: DB) {

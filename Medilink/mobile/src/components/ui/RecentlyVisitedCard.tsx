@@ -2,6 +2,8 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { AppCard } from "./AppCard";
 import { Avatar } from "./Avatar";
 import { Text } from "./Text";
@@ -30,6 +32,8 @@ export function RecentlyVisitedCard({
   onPress,
 }: RecentlyVisitedCardProps) {
   const { colors, isRTL } = useTheme();
+  const { t } = useI18n();
+  const specialtyText = specialtyLabel(specialty, specialty, t);
   return (
     <AppCard variant="recentDoctor" onPress={onPress} accessibilityLabel={name}>
       <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -46,7 +50,7 @@ export function RecentlyVisitedCard({
             </View>
           </View>
           <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
-            {`${specialty} · ${facility}`}
+            {`${specialtyText} · ${facility}`}
           </Text>
           {metaText ? (
             <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>

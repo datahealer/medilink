@@ -91,7 +91,14 @@ const authRepo: AuthRepository = {
 function toDomainProfile(p: Awaited<ReturnType<typeof api.profile.getMyProfile>>): PatientProfile {
   return {
     account: p.account
-      ? { id: p.account.id, full_name: p.account.full_name ?? null, phone: p.account.phone ?? null, email: null }
+      ? {
+          id: p.account.id,
+          full_name: p.account.full_name ?? null,
+          full_name_ar: p.account.full_name_ar ?? null,
+          full_name_ar_status: p.account.full_name_ar_status ?? null,
+          phone: p.account.phone ?? null,
+          email: null,
+        }
       : null,
     patient: p.patient
       ? {
@@ -102,6 +109,7 @@ function toDomainProfile(p: Awaited<ReturnType<typeof api.profile.getMyProfile>>
           address: asText(p.patient.address) || null,
           emergency_contact: asText(p.patient.emergency_contact) || null,
           profile_photo_url: p.patient.profile_photo_url ?? null,
+          civil_number: p.patient.civil_number ?? null,
         }
       : null,
   };
@@ -220,8 +228,8 @@ interface ApptRow {
   payment_status: string | null;
   reason_for_visit: string | null;
   notes: string | null;
-  doctor: { full_name: string | null; specialty?: string | null; fees?: unknown } | null;
-  facility: { name: string | null; address?: string | null } | null;
+  doctor: { full_name: string | null; specialty?: string | null; fees?: unknown; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+  facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
   family_member: { full_name: string | null } | null;
   payments?: ApptPaymentRow[] | null;
 }
@@ -251,8 +259,8 @@ function mapAppointment(r: ApptRow): Appointment {
     reason_for_visit: r.reason_for_visit ?? null,
     notes: r.notes ?? null,
     fee_omr: r.doctor ? feeForType(r.doctor.fees, r.type) : null,
-    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null, specialty: r.doctor.specialty ?? null } : null,
-    facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null } : null,
+    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null, specialty: r.doctor.specialty ?? null, full_name_ar: r.doctor.full_name_ar ?? null, full_name_ar_status: r.doctor.full_name_ar_status ?? null } : null,
+    facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null, name_ar: r.facility.name_ar ?? null, name_ar_status: r.facility.name_ar_status ?? null } : null,
     for_family_member: r.family_member ? { full_name: r.family_member.full_name ?? null } : null,
     payment: pay ? { amount: pay.amount ?? null, currency: pay.currency ?? null, status: pay.status ?? null } : null,
   };
@@ -286,8 +294,8 @@ interface PaymentRow {
     slot_date: string | null;
     slot_start: string | null;
     type: string | null;
-    doctor: { full_name: string | null; specialty?: string | null; fees?: unknown } | null;
-    facility: { name: string | null; address?: string | null } | null;
+    doctor: { full_name: string | null; specialty?: string | null; fees?: unknown; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+    facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
   } | null;
 }
 
@@ -308,8 +316,8 @@ function mapPayment(r: PaymentRow): Payment {
           reference_number: a.reference_number ?? null,
           slot_date: a.slot_date ?? null,
           slot_start: a.slot_start ?? null,
-          doctor: a.doctor ? { full_name: a.doctor.full_name ?? null, specialty: a.doctor.specialty ?? null } : null,
-          facility: a.facility ? { name: a.facility.name ?? null } : null,
+          doctor: a.doctor ? { full_name: a.doctor.full_name ?? null, specialty: a.doctor.specialty ?? null, full_name_ar: a.doctor.full_name_ar ?? null, full_name_ar_status: a.doctor.full_name_ar_status ?? null } : null,
+          facility: a.facility ? { name: a.facility.name ?? null, name_ar: a.facility.name_ar ?? null, name_ar_status: a.facility.name_ar_status ?? null } : null,
           fee_omr: a.doctor ? feeForType(a.doctor.fees, a.type) : null,
         }
       : null,
@@ -458,6 +466,8 @@ const appointmentRepo: AppointmentRepository = {
 interface FacilityRowLoose {
   id: string;
   name: string | null;
+  name_ar?: string | null;
+  name_ar_status?: string | null;
   type: string | null;
   address: unknown;
   rating: number | null;
@@ -469,6 +479,8 @@ function mapFacilityToClinic(f: FacilityRowLoose): Clinic {
   return {
     id: f.id,
     name: f.name ?? "",
+    name_ar: f.name_ar ?? null,
+    name_ar_status: f.name_ar_status ?? null,
     area: asText(f.address) || "",
     category: f.type ?? undefined,
     doctors_count: Array.isArray(f.doctors) ? f.doctors.length : undefined,
@@ -522,6 +534,8 @@ const discoveryRepo: DiscoveryRepository = {
 interface DoctorRowLoose {
   id: string;
   full_name: string | null;
+  full_name_ar?: string | null;
+  full_name_ar_status?: string | null;
   specialty: string | null;
   years_experience: number | null;
   // doctors.fees is JSONB { in_person, online } (not a scalar).
@@ -531,7 +545,7 @@ interface DoctorRowLoose {
   facility_id: string | null;
   branch_id: string | null;
   status: string | null;
-  facilities?: { name: string | null } | { name: string | null }[] | null;
+  facilities?: FacilityNameRef | FacilityNameRef[] | null;
   // detail-only (getDoctor selects doctors.*) — present best-effort:
   gender?: string | null;
   languages?: string[] | null;
@@ -541,9 +555,22 @@ interface DoctorRowLoose {
   reviews_count?: number | null;
 }
 
+/** Embedded facility name reference on a doctor row (obj or single-element array). */
+interface FacilityNameRef {
+  name: string | null;
+  name_ar?: string | null;
+  name_ar_status?: string | null;
+}
+
+/** Read a field off the embedded facility (tolerates object or single-element array). */
+function facilityField(f: DoctorRowLoose["facilities"], key: keyof FacilityNameRef): string | null {
+  if (!f) return null;
+  const row = Array.isArray(f) ? f[0] : f;
+  return (row?.[key] as string | null | undefined) ?? null;
+}
+
 function facilityName(f: DoctorRowLoose["facilities"]): string {
-  if (!f) return "";
-  return Array.isArray(f) ? f[0]?.name ?? "" : f.name ?? "";
+  return facilityField(f, "name") ?? "";
 }
 
 /** doctors.fees is JSONB `{ in_person, online }`; tolerate a scalar too. */
@@ -561,8 +588,12 @@ function mapDoctorRow(r: DoctorRowLoose): Doctor {
   return {
     id: r.id,
     full_name: r.full_name ?? "",
+    full_name_ar: r.full_name_ar ?? null,
+    full_name_ar_status: r.full_name_ar_status ?? null,
     specialty: r.specialty ?? "",
     facility: facilityName(r.facilities),
+    facility_ar: facilityField(r.facilities, "name_ar"),
+    facility_ar_status: facilityField(r.facilities, "name_ar_status"),
     facility_id: r.facility_id ?? undefined,
     rating: r.avg_rating ?? 0,
     fee_omr: feeOf(r.fees),
@@ -859,7 +890,7 @@ interface RxRowLoose {
   instructions: string | null;
   pdf_url: string | null;
   issued_at: string | null;
-  doctors?: { full_name: string | null; specialty: string | null } | null;
+  doctors?: { full_name: string | null; specialty: string | null; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
   appointments?: { slot_date: string | null; type?: string | null } | null;
 }
 
@@ -881,7 +912,7 @@ function mapPrescription(r: RxRowLoose): Prescription {
     medications,
     instructions: r.instructions ?? null,
     pdf_url: r.pdf_url ?? null,
-    doctor: r.doctors ? { full_name: r.doctors.full_name ?? null, specialty: r.doctors.specialty ?? null } : null,
+    doctor: r.doctors ? { full_name: r.doctors.full_name ?? null, specialty: r.doctors.specialty ?? null, full_name_ar: r.doctors.full_name_ar ?? null, full_name_ar_status: r.doctors.full_name_ar_status ?? null } : null,
     appointment: r.appointments ? { slot_date: r.appointments.slot_date ?? null, type: r.appointments.type ?? null } : null,
   };
 }

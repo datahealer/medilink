@@ -16,6 +16,8 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { useAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
 import type { Appointment } from "@/data/types";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
@@ -78,7 +80,7 @@ export default function AppointmentsScreen() {
 
   // Design p24 subtitle: "Cardiology · Royal Hospital · 10:30 AM".
   const upcomingSubtitle = (a: Appointment) =>
-    [a.doctor?.specialty, a.facility?.name, timeLabel(a)].filter(Boolean).join(" · ");
+    [specialtyLabel(a.doctor?.specialty, a.doctor?.specialty ?? "", t), localizedName(a.facility?.name ?? "", a.facility?.name_ar, a.facility?.name_ar_status, isRTL), timeLabel(a)].filter(Boolean).join(" · ");
   const pastSubtitle = (a: Appointment) => [apptStatusLabel(a.status, t), dateLabel(a)].filter(Boolean).join(" · ");
 
   const pastSection = (
@@ -90,7 +92,7 @@ export default function AppointmentsScreen() {
         pastList.map((a) => (
           <AppointmentCompactCard
             key={a.id}
-            doctorName={a.doctor?.full_name || "—"}
+            doctorName={localizedName(a.doctor?.full_name || "—", a.doctor?.full_name_ar, a.doctor?.full_name_ar_status, isRTL)}
             subtitle={pastSubtitle(a)}
             pillLabel={typePill(a)}
             onPress={() => router.push(`/appointments/${a.id}`)}
@@ -143,7 +145,7 @@ export default function AppointmentsScreen() {
                 return (
                   <AppointmentCompactCard
                     key={a.id}
-                    doctorName={a.doctor?.full_name || "—"}
+                    doctorName={localizedName(a.doctor?.full_name || "—", a.doctor?.full_name_ar, a.doctor?.full_name_ar_status, isRTL)}
                     subtitle={upcomingSubtitle(a)}
                     statusLabel={apptStatusLabel(a.status, t)}
                     statusTone={apptTone(colors, apptStatusCategory(a.status))}

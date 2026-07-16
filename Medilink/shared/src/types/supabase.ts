@@ -1028,6 +1028,8 @@ export type Database = {
           facility_id: string | null
           fees: Json | null
           full_name: string
+          full_name_ar: string | null
+          full_name_ar_status: string | null
           id: string
           is_active: boolean
           languages: string[] | null
@@ -1050,6 +1052,8 @@ export type Database = {
           facility_id?: string | null
           fees?: Json | null
           full_name: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           is_active?: boolean
           languages?: string[] | null
@@ -1072,6 +1076,8 @@ export type Database = {
           facility_id?: string | null
           fees?: Json | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           is_active?: boolean
           languages?: string[] | null
@@ -1146,6 +1152,8 @@ export type Database = {
           logo_url: string | null
           max_admins: number | null
           name: string
+          name_ar: string | null
+          name_ar_status: string | null
           phone: string | null
           rating: number
           review_count: number
@@ -1170,6 +1178,8 @@ export type Database = {
           logo_url?: string | null
           max_admins?: number | null
           name: string
+          name_ar?: string | null
+          name_ar_status?: string | null
           phone?: string | null
           rating?: number
           review_count?: number
@@ -1194,6 +1204,8 @@ export type Database = {
           logo_url?: string | null
           max_admins?: number | null
           name?: string
+          name_ar?: string | null
+          name_ar_status?: string | null
           phone?: string | null
           rating?: number
           review_count?: number
@@ -2590,6 +2602,7 @@ export type Database = {
         Row: {
           address: Json | null
           blood_group: Database["public"]["Enums"]["blood_group_type"]
+          civil_number: string | null
           created_at: string
           date_of_birth: string | null
           emergency_contact: Json | null
@@ -2602,6 +2615,7 @@ export type Database = {
         Insert: {
           address?: Json | null
           blood_group?: Database["public"]["Enums"]["blood_group_type"]
+          civil_number?: string | null
           created_at?: string
           date_of_birth?: string | null
           emergency_contact?: Json | null
@@ -2614,6 +2628,7 @@ export type Database = {
         Update: {
           address?: Json | null
           blood_group?: Database["public"]["Enums"]["blood_group_type"]
+          civil_number?: string | null
           created_at?: string
           date_of_birth?: string | null
           emergency_contact?: Json | null
@@ -2921,6 +2936,8 @@ export type Database = {
           export_request_count: number
           facility_id: string | null
           full_name: string
+          full_name_ar: string | null
+          full_name_ar_status: string | null
           id: string
           language: string
           last_export_at: string | null
@@ -2947,6 +2964,8 @@ export type Database = {
           export_request_count?: number
           facility_id?: string | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id: string
           language?: string
           last_export_at?: string | null
@@ -2973,6 +2992,8 @@ export type Database = {
           export_request_count?: number
           facility_id?: string | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           language?: string
           last_export_at?: string | null
@@ -4656,6 +4677,8 @@ export type Database = {
           logo_url: string | null
           max_admins: number | null
           name: string
+          name_ar: string | null
+          name_ar_status: string | null
           phone: string | null
           rating: number
           review_count: number

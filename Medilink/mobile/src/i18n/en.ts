@@ -232,6 +232,11 @@ export const en = {
     slide3Title: "Manage your health records",
     slide3Body: "Keep prescriptions, lab results and documents safe in one place.",
   },
+  setup: {
+    title: "Complete your profile",
+    subtitle: "Add a few details to finish setting up your account.",
+    finish: "Finish",
+  },
   language: {
     title: "Language",
     subtitle: "Choose your preferred language. You can change it anytime in Settings.",
@@ -311,6 +316,7 @@ export const en = {
     passwordsMismatch: "Passwords do not match",
     terms: "Please accept the Terms & Privacy Policy",
     otpIncomplete: "Enter all 6 digits",
+    civilNumber: "Enter a valid 8-digit civil number",
   },
   theme: {
     toggleToDark: "Switch to dark mode",
@@ -398,6 +404,10 @@ export const en = {
     addressPlaceholder: "City, area",
     emergencyPlaceholder: "Name · +968 …",
     saved: "Profile updated",
+    civilNumber: "Civil Number",
+    civilNumberPlaceholder: "8-digit civil number",
+    reveal: "Show",
+    hide: "Hide",
   },
   medical: {
     title: "Medical History",

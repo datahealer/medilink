@@ -2,7 +2,7 @@
 import type { DB } from "./client";
 
 const LIST_SELECT =
-  "id, full_name, specialty, years_experience, fees, avg_rating, review_count, profile_photo_url, facility_id, branch_id, status, status_updated_at, facilities(name)";
+  "id, full_name, full_name_ar, full_name_ar_status, specialty, years_experience, fees, avg_rating, review_count, profile_photo_url, facility_id, branch_id, status, status_updated_at, facilities(name, name_ar, name_ar_status)";
 
 export interface DoctorSearch {
   facilityId?: string;
@@ -38,7 +38,7 @@ export async function searchDoctors(db: DB, q: DoctorSearch = {}) {
 export async function getDoctor(db: DB, id: string) {
   const [{ data: doctor, error: docErr }, { data: availability, error: availErr }] =
     await Promise.all([
-      db.from("doctors").select("*, facilities(name)").eq("id", id).single(),
+      db.from("doctors").select("*, facilities(name, name_ar, name_ar_status)").eq("id", id).single(),
       db.from("doctor_availability").select("*").eq("doctor_id", id),
     ]);
   if (docErr) throw docErr;

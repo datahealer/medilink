@@ -1,9 +1,10 @@
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/authStore";
+import { useProfile } from "@/hooks/queries/usePatient";
 
 /**
  * Auth gate for every authenticated screen. Because this runs for the whole
@@ -14,25 +15,40 @@ import { useAuthStore } from "@/stores/authStore";
 export default function AppLayout() {
   const { colors } = useTheme();
   const status = useAuthStore((s) => s.status);
+  const segments = useSegments();
+  // Only fetch the profile once authed (guests never reach the gated content).
+  const profile = useProfile({ enabled: status === "authed" });
 
-  if (status === "loading") {
-    return (
-      <View
-        style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}
-      >
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
-  }
+  const loader = (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+      <ActivityIndicator color={colors.primary} />
+    </View>
+  );
 
-  if (status === "guest") {
-    return <Redirect href="/auth/sign-in" />;
+  if (status === "loading") return loader;
+  if (status === "guest") return <Redirect href="/auth/sign-in" />;
+
+  // Mandatory profile setup for first-time patients. A freshly-provisioned
+  // patient_profiles row has `date_of_birth === null` (it is written only by the
+  // setup screen / profile editor), so DOB-null is a schema-free "not onboarded yet"
+  // signal — identical to the web rule (frontend/src/lib/onboarding.ts). Existing
+  // users who completed onboarding have a DOB and pass straight through. We never
+  // block on a load error (default into the app) and always allow the setup route
+  // itself through to avoid a redirect loop.
+  const onSetup = segments.includes("setup");
+  if (!onSetup) {
+    if (profile.isLoading) return loader;
+    if (profile.isSuccess && !profile.data?.patient?.date_of_birth) {
+      return <Redirect href="/setup" />;
+    }
   }
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
       {/* The tab navigator (Home/Search/Me/Records/Profile) carries the bottom nav. */}
       <Stack.Screen name="(tabs)" />
+      {/* Mandatory first-time profile setup (full-screen, no tabs). */}
+      <Stack.Screen name="setup" options={{ gestureEnabled: false }} />
       {/* Detail screens push full-screen over the tabs — no bottom nav, matching the PDF. */}
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="medical-history" />

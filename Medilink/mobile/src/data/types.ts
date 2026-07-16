@@ -41,6 +41,9 @@ export interface SignUpInput {
 export interface ProfileAccount {
   id: string;
   full_name: string | null;
+  /** Verified Arabic name + status (HAMS-authored); UI falls back to `full_name`. */
+  full_name_ar?: string | null;
+  full_name_ar_status?: string | null;
   phone: string | null;
   email: string | null;
 }
@@ -54,6 +57,8 @@ export interface ProfilePatient {
   address: string | null;
   emergency_contact: string | null;
   profile_photo_url: string | null;
+  /** Oman civil number (national ID), 8 digits. Optional. */
+  civil_number: string | null;
 }
 
 export interface PatientProfile {
@@ -70,6 +75,7 @@ export interface ProfilePatch {
   address?: string | null;
   emergency_contact?: string | null;
   profile_photo_url?: string | null;
+  civil_number?: string | null;
 }
 
 export interface MedicalHistory {
@@ -119,8 +125,8 @@ export interface Appointment {
   notes?: string | null;
   /** Consultation fee (OMR) for this appointment's type, from the doctor. */
   fee_omr?: number | null;
-  doctor: { full_name: string | null; specialty?: string | null } | null;
-  facility: { name: string | null; address?: string | null } | null;
+  doctor: { full_name: string | null; specialty?: string | null; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+  facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
   for_family_member?: { full_name: string | null } | null;
   payment?: { amount: number | null; currency: string | null; status: string | null } | null;
 }
@@ -145,8 +151,8 @@ export interface Payment {
     reference_number?: string | null;
     slot_date: string | null;
     slot_start: string | null;
-    doctor?: { full_name: string | null; specialty?: string | null } | null;
-    facility?: { name: string | null } | null;
+    doctor?: { full_name: string | null; specialty?: string | null; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+    facility?: { name: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
     /** Consultation fee (OMR) derived from the doctor's fees for this type. */
     fee_omr?: number | null;
   } | null;
@@ -227,7 +233,7 @@ export interface Prescription {
   instructions: string | null;
   /** Storage path of the generated PDF (present only once a doctor has generated it). */
   pdf_url: string | null;
-  doctor: { full_name: string | null; specialty: string | null } | null;
+  doctor: { full_name: string | null; specialty: string | null; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
   appointment?: { slot_date: string | null; type?: string | null } | null;
 }
 
@@ -272,8 +278,14 @@ export interface Specialty {
 export interface Doctor {
   id: string;
   full_name: string;
+  /** Verified Arabic name + its status (HAMS-authored); UI falls back to `full_name`. */
+  full_name_ar?: string | null;
+  full_name_ar_status?: string | null;
   specialty: string;
   facility: string;
+  /** Verified Arabic facility name + status; UI falls back to `facility`. */
+  facility_ar?: string | null;
+  facility_ar_status?: string | null;
   /** Real facility id — the booking target (the clinic picker is cosmetic in real mode). */
   facility_id?: string;
   rating: number;
@@ -294,6 +306,9 @@ export interface Doctor {
 export interface Clinic {
   id: string;
   name: string;
+  /** Verified Arabic clinic name + status (HAMS-authored); UI falls back to `name`. */
+  name_ar?: string | null;
+  name_ar_status?: string | null;
   area: string;
   /** Care category shown in the featured card meta, e.g. "Multi-speciality". */
   category?: string;
