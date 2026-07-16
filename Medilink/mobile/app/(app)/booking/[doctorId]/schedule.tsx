@@ -15,6 +15,7 @@ import {
   Text,
 } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
+import { localizedName } from "@/utils/localizedName";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctor, useMapClinics } from "@/hooks/queries/useDoctors";
@@ -85,8 +86,17 @@ export default function ScheduleScreen() {
   useEffect(() => {
     const d = doctor.data;
     if (!d) return;
-    start({ doctorId: id, doctorName: d.full_name, specialty: d.specialty, facility: d.facility, initials: initialsOf(d.full_name), fee: d.fee_omr });
-  }, [doctor.data, id, start]);
+    // Capture the display name in the active locale (verified Arabic when RTL, else
+    // English — F1 §1a). Initials stay from the English name for stability.
+    start({
+      doctorId: id,
+      doctorName: localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL),
+      specialty: d.specialty,
+      facility: localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL),
+      initials: initialsOf(d.full_name),
+      fee: d.fee_omr,
+    });
+  }, [doctor.data, id, start, isRTL]);
 
   const canContinue = !!clinicId && !!dateId && !!slot;
 

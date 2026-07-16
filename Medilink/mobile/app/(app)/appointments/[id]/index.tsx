@@ -20,6 +20,8 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { useAppointment, useCancelAppointment, useCheckInAppointment, useProfile } from "@/hooks/queries/usePatient";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime, hoursUntilAppt, refundTier } from "@/utils/appointments";
 import type { Appointment } from "@/data/types";
@@ -128,9 +130,9 @@ export default function AppointmentDetailsScreen() {
         <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Avatar name={a.doctor?.full_name ?? undefined} size={48} />
           <View style={[styles.flex, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
-            <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{a.doctor?.full_name || "—"}</Text>
+            <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{localizedName(a.doctor?.full_name || "—", a.doctor?.full_name_ar, a.doctor?.full_name_ar_status, isRTL)}</Text>
             <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
-              {[a.doctor?.specialty, a.facility?.name].filter(Boolean).join(" · ") || "—"}
+              {[specialtyLabel(a.doctor?.specialty, a.doctor?.specialty ?? "", t), localizedName(a.facility?.name ?? "", a.facility?.name_ar, a.facility?.name_ar_status, isRTL)].filter(Boolean).join(" · ") || "—"}
             </Text>
           </View>
         </View>

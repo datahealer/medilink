@@ -21,7 +21,8 @@ async function rpcLoose(db: DB, fn: string, args: Record<string, unknown>): Prom
 }
 
 const LIST_SELECT =
-  "*, doctor:doctor_id ( id, full_name, specialty, fees ), facility:facility_id ( id, name, address ), " +
+  "*, doctor:doctor_id ( id, full_name, full_name_ar, full_name_ar_status, specialty, fees ), " +
+  "facility:facility_id ( id, name, name_ar, name_ar_status, address ), " +
   "family_member:for_family_member_id ( full_name ), " +
   "payments ( id, status, amount, currency, invoice_url )";
 

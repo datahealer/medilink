@@ -11,6 +11,7 @@ import { useProfile, useUpcomingAppointments, useCheckInAppointment } from "@/ho
 import { useRecentDoctors, useFeaturedClinics, useSpecialties } from "@/hooks/queries/useDiscovery";
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
 import { specialtyLabel, facilityTypeLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 
 function greetingKey(): "dashboard.greetingMorning" | "dashboard.greetingAfternoon" | "dashboard.greetingEvening" {
   const h = new Date().getHours();
@@ -38,7 +39,12 @@ export default function DashboardScreen() {
   const specialties = useSpecialties();
   const setFilters = useSearchFilterStore((s) => s.setFilters);
 
-  const name = profile.data?.account?.full_name ?? "";
+  const name = localizedName(
+    profile.data?.account?.full_name ?? "",
+    profile.data?.account?.full_name_ar,
+    profile.data?.account?.full_name_ar_status,
+    isRTL
+  );
   const photo = profile.data?.patient?.profile_photo_url ?? null;
   const next = upcoming.data?.[0];
 
@@ -138,8 +144,8 @@ export default function DashboardScreen() {
       ) : next ? (
         <AppointmentCard
           statusLabel={t("dashboard.upcoming")}
-          doctorName={next.doctor?.full_name ?? "—"}
-          subtitle={[next.facility?.name, next.slot_start].filter(Boolean).join(" · ")}
+          doctorName={localizedName(next.doctor?.full_name ?? "—", next.doctor?.full_name_ar, next.doctor?.full_name_ar_status, isRTL)}
+          subtitle={[localizedName(next.facility?.name ?? "", next.facility?.name_ar, next.facility?.name_ar_status, isRTL), next.slot_start].filter(Boolean).join(" · ")}
           initials={initialsOf(next.doctor?.full_name)}
           primaryLabel={t("dashboard.checkIn")}
           secondaryLabel={t("dashboard.reschedule")}
@@ -209,9 +215,9 @@ export default function DashboardScreen() {
         (recents.data ?? []).map((d) => (
           <View key={d.id} style={{ marginBottom: spacing.sm }}>
             <RecentlyVisitedCard
-              name={d.full_name}
+              name={localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL)}
               specialty={d.specialty}
-              facility={d.facility}
+              facility={localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL)}
               metaText={num(`★ ${d.rating} · OMR ${d.fee_omr}`)}
               visitedLabel={t("dashboard.visited")}
               onPress={() => router.push(`/doctors/${d.id}`)}
@@ -232,7 +238,7 @@ export default function DashboardScreen() {
         (featured.data ?? []).map((c) => (
           <ClinicCard
             key={c.id}
-            name={c.name}
+            name={localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}
             tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
             meta={num([(c.category ? facilityTypeLabel(c.category, t) : c.area), c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
             onPress={() => router.push("/search")}

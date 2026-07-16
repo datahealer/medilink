@@ -11,6 +11,7 @@ import type { MessageKey } from "@/i18n";
 import { useFamily } from "@/hooks/queries/useFamily";
 import { useProfile } from "@/hooks/queries/usePatient";
 import { usePatientStore } from "@/stores/patientStore";
+import { localizedName } from "@/utils/localizedName";
 
 const REL_KEY: Record<FamilyRelation, MessageKey> = {
   spouse: "family.relSpouse",
@@ -42,11 +43,15 @@ export default function MeFamilyScreen() {
   const profile = useProfile();
   const activeId = usePatientStore((s) => s.activePatientId);
 
-  const youName = profile.data?.account?.full_name ?? t("family.you");
-  // Title shows the account holder's first name ("Satyam's Family"); falls back to
-  // the generic title until the profile (and a real name) has loaded.
-  const accountName = profile.data?.account?.full_name?.trim();
-  const firstName = accountName ? accountName.split(/\s+/)[0] : null;
+  // Account holder's display name — verified Arabic when RTL, else English (F1 §1a).
+  const account = profile.data?.account;
+  const accountDisplay = account?.full_name
+    ? localizedName(account.full_name, account.full_name_ar, account.full_name_ar_status, isRTL)
+    : null;
+  const youName = accountDisplay ?? t("family.you");
+  // Title shows the account holder's first name ("Satyam's Family" / "عائلة عائشة");
+  // falls back to the generic title until the profile (and a real name) has loaded.
+  const firstName = accountDisplay ? accountDisplay.split(/\s+/)[0] : null;
   const familyTitle = firstName ? t("family.titleNamed", { name: firstName }) : t("family.title");
   const members: FamilyMember[] = family.data ?? [];
   const atLimit = members.length >= MAX_MEMBERS;

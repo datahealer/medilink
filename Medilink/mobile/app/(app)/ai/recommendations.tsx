@@ -6,6 +6,7 @@ import { AppCard, AppHeader, Avatar, Button, Card, EmptyState, ErrorState, Loadi
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { useSuggestedDoctors } from "@/hooks/queries/useAi";
 import type { AiSuggestedDoctor } from "@/data/types";
 
@@ -74,7 +75,7 @@ export default function AiRecommendationsScreen() {
                     <View style={[styles.flex, isRTL ? { marginEnd: spacing.md } : { marginStart: spacing.md }]}>
                       <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{m.full_name}</Text>
                       {m.specialty ? (
-                        <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{m.specialty}</Text>
+                        <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{specialtyLabel(m.specialty, m.specialty, t)}</Text>
                       ) : null}
                       {metaLine(m) ? (
                         <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"} style={{ marginTop: 2 }}>{metaLine(m)}</Text>

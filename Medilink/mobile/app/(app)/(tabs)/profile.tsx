@@ -18,6 +18,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useProfile, useMedicalHistory } from "@/hooks/queries/usePatient";
 import { useFamily } from "@/hooks/queries/useFamily";
+import { localizedName } from "@/utils/localizedName";
 
 function ageFrom(dob?: string | null): string | null {
   if (!dob) return null;
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const history = useMedicalHistory();
   const family = useFamily();
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [civilRevealed, setCivilRevealed] = useState(false);
 
   if (profile.isLoading) {
     return (
@@ -61,10 +63,15 @@ export default function ProfileScreen() {
 
   const account = profile.data.account;
   const patient = profile.data.patient;
+  const displayName = localizedName(account?.full_name ?? "—", account?.full_name_ar, account?.full_name_ar_status, isRTL);
   const age = ageFrom(patient?.date_of_birth);
   const allergies = history.data?.allergies ?? [];
   const conditions = history.data?.conditions ?? [];
   const medications = history.data?.medications ?? [];
+
+  const civil = patient?.civil_number ?? null;
+  // Mask all but the last 2 digits (e.g. "••••••78"); tap to reveal.
+  const maskedCivil = civil ? "•".repeat(Math.max(0, civil.length - 2)) + civil.slice(-2) : null;
 
   const hasBlood = !!patient?.blood_group && patient.blood_group !== "unknown";
   const stats: { label: string; value: string; pill?: boolean }[] = [
@@ -103,7 +110,7 @@ export default function ProfileScreen() {
           <Avatar name={account?.full_name} uri={patient?.profile_photo_url} size={76} />
         </Pressable>
         <Text variant="h2" align="center" style={{ marginTop: spacing.sm }}>
-          {account?.full_name ?? "—"}
+          {displayName}
         </Text>
         <Text variant="body" color="textMuted" align="center">
           {[account?.phone, patient?.address].filter(Boolean).join(" · ") || t("common.notSet")}
@@ -142,6 +149,29 @@ export default function ProfileScreen() {
         <Text variant="body" style={{ marginTop: 4 }}>
           {patient?.emergency_contact || t("common.notSet")}
         </Text>
+      </Card>
+
+      {/* Civil number — masked national ID; tap to reveal/hide (F2) */}
+      <Card style={{ marginTop: spacing.sm + 2 }}>
+        <Pressable
+          onPress={() => { if (civil) setCivilRevealed((r) => !r); }}
+          disabled={!civil}
+          accessibilityRole="button"
+          accessibilityLabel={t("profile.civilNumber")}
+          style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between" }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text variant="caption" color="textMuted">{t("profile.civilNumber")}</Text>
+            <Text variant="body" style={{ marginTop: 4 }}>
+              {civil ? (civilRevealed ? civil : maskedCivil) : t("common.notSet")}
+            </Text>
+          </View>
+          {civil ? (
+            <Text variant="label" color="primary" style={isRTL ? { marginEnd: 8 } : { marginStart: 8 }}>
+              {t(civilRevealed ? "profile.hide" : "profile.reveal")}
+            </Text>
+          ) : null}
+        </Pressable>
       </Card>
 
       {/* Medical conditions */}

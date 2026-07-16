@@ -67,7 +67,7 @@ const nextId = () => `mock-${uid++}`;
 const MOCK_USER: SessionUser = { id: "mock-user-1", email: "aisha@medilink.om" };
 
 let profile: PatientProfile = {
-  account: { id: "mock-user-1", full_name: "Aisha Al Harthy", phone: "+968 9000 0000", email: "aisha@medilink.om" },
+  account: { id: "mock-user-1", full_name: "Aisha Al Harthy", full_name_ar: "عائشة الحارثية", full_name_ar_status: "verified", phone: "+968 9000 0000", email: "aisha@medilink.om" },
   patient: {
     id: "mock-patient-1",
     date_of_birth: "1994-03-12",
@@ -76,6 +76,7 @@ let profile: PatientProfile = {
     address: "Muscat",
     emergency_contact: "Salim · +968 9111 1111",
     profile_photo_url: null,
+    civil_number: "12345678",
   },
 };
 
@@ -147,8 +148,13 @@ const allDoctors: Doctor[] = [
   {
     id: "doc-khalid",
     full_name: "Dr. Khalid Al Balushi",
+    // Verified Arabic name (demonstrates the status-gated fallback in mock mode).
+    full_name_ar: "د. خالد البلوشي",
+    full_name_ar_status: "verified",
     specialty: "Cardiologist",
     facility: "Royal Hospital",
+    facility_ar: "المستشفى السلطاني",
+    facility_ar_status: "verified",
     rating: 4.9,
     reviews: 320,
     fee_omr: 25,
@@ -239,7 +245,7 @@ const reviewsByDoctor: Record<string, Review[]> = {
 
 const mapClinics: Clinic[] = [
   { id: "clinic-royal", name: "Royal Hospital — Ghubra", area: "Ghubra", rating: 4.9, distance_km: 2.1, open_now: true },
-  { id: "clinic-aster", name: "Aster Clinic — Al Khuwair", area: "Al Khuwair", category: "Multi-speciality", rating: 4.7, distance_km: 0.8, open_now: true, doctors_count: 24, featured: true },
+  { id: "clinic-aster", name: "Aster Clinic — Al Khuwair", name_ar: "عيادة أستر — الخوير", name_ar_status: "verified", area: "Al Khuwair", category: "Multi-speciality", rating: 4.7, distance_km: 0.8, open_now: true, doctors_count: 24, featured: true },
   { id: "clinic-nmc", name: "NMC — Azaiba", area: "Azaiba", rating: 4.6, distance_km: 3.0, open_now: false },
 ];
 
@@ -414,6 +420,7 @@ const patientRepo: PatientRepository = {
         ...(patch.address !== undefined ? { address: patch.address } : null),
         ...(patch.emergency_contact !== undefined ? { emergency_contact: patch.emergency_contact } : null),
         ...(patch.profile_photo_url !== undefined ? { profile_photo_url: patch.profile_photo_url } : null),
+        ...(patch.civil_number !== undefined ? { civil_number: patch.civil_number } : null),
       },
     };
     return delay(structuredCloneSafe(profile));

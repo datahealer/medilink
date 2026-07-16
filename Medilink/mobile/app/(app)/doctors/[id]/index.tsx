@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useIsFavourite, useToggleFavourite } from "@/hooks/queries/useFavourites";
+import { localizedName } from "@/utils/localizedName";
 
 /** Doctor Details (PDF p19): credentials, stats, slots, book bar. */
 export default function DoctorDetailsScreen() {
@@ -81,9 +82,9 @@ export default function DoctorDetailsScreen() {
       {/* Hero — violet orb detail header */}
       <DoctorCard
         variant="detail"
-        name={d.full_name}
+        name={localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL)}
         specialty={d.specialty}
-        facility={d.facility}
+        facility={localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL)}
         initials={(d.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase()}
         availableTodayLabel={d.available_today ? t("doctor.availableToday") : undefined}
       />

@@ -231,6 +231,11 @@ export const ar: Messages = {
     slide3Title: "أدِر سجلاتك الصحية",
     slide3Body: "احفظ الوصفات ونتائج المختبر والمستندات بأمان في مكان واحد.",
   },
+  setup: {
+    title: "أكمل ملفك الشخصي",
+    subtitle: "أضف بعض التفاصيل لإكمال إعداد حسابك.",
+    finish: "إنهاء",
+  },
   language: {
     title: "اللغة",
     subtitle: "اختر لغتك المفضلة. يمكنك تغييرها في أي وقت من الإعدادات.",
@@ -310,6 +315,7 @@ export const ar: Messages = {
     passwordsMismatch: "كلمتا المرور غير متطابقتين",
     terms: "يرجى الموافقة على الشروط وسياسة الخصوصية",
     otpIncomplete: "أدخل الأرقام الستة كاملة",
+    civilNumber: "أدخل رقماً مدنياً صحيحاً من 8 أرقام",
   },
   theme: {
     toggleToDark: "التبديل إلى الوضع الداكن",
@@ -397,6 +403,10 @@ export const ar: Messages = {
     addressPlaceholder: "المدينة، المنطقة",
     emergencyPlaceholder: "الاسم · ‎+968 …",
     saved: "تم تحديث الملف",
+    civilNumber: "الرقم المدني",
+    civilNumberPlaceholder: "الرقم المدني (8 أرقام)",
+    reveal: "إظهار",
+    hide: "إخفاء",
   },
   medical: {
     title: "السجل الطبي",

@@ -8,6 +8,16 @@ type T = (key: MessageKey) => string;
 // Oman mobile numbers are 8 digits (the +968 country code is shown separately).
 const OMAN_PHONE = /^[0-9]{8}$/;
 
+// Oman civil number (national ID) — 8 digits. Optional field: empty is allowed;
+// a non-empty value must match. Length is centralised here (plan F2 assumes 8).
+export const CIVIL_NUMBER_LENGTH = 8;
+export const CIVIL_NUMBER_RE = /^[0-9]{8}$/;
+/** True when the value is empty (optional) OR a valid 8-digit civil number. */
+export const isValidCivilNumber = (value: string): boolean => {
+  const v = value.trim();
+  return v === "" || CIVIL_NUMBER_RE.test(v);
+};
+
 const email = (t: T) =>
   z.string().min(1, t("validation.required")).email(t("validation.email"));
 

@@ -17,10 +17,16 @@ const SPECIALTY_KEYS: Record<string, Parameters<T>[0]> = {
   dentist: "specialtyNames.dentist",
 };
 
-/** Localized catalog specialty label by slug; falls back to the raw name. */
+/**
+ * Localized catalog specialty label. Accepts a catalog slug OR a freetext value
+ * (e.g. `doctors.specialty`): tries an exact slug match first, then a normalized
+ * (trimmed + lower-cased) match so freetext like "Cardiology" resolves to the
+ * `cardiology` slug. Anything unmapped falls back to the raw name unchanged
+ * (so English is untouched and unknown specialties still display).
+ */
 export function specialtyLabel(slugOrName: string | null | undefined, name: string, t: T): string {
   if (!slugOrName) return name;
-  const key = SPECIALTY_KEYS[slugOrName];
+  const key = SPECIALTY_KEYS[slugOrName] ?? SPECIALTY_KEYS[slugOrName.trim().toLowerCase()];
   return key ? t(key) : name;
 }
 

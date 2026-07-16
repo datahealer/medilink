@@ -6,6 +6,7 @@ import { AppCard, AppHeader, Avatar, Button, Screen, Stepper, Text } from "@/com
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { useCreateCheckout } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
 
@@ -103,7 +104,7 @@ export default function PaymentSummaryScreen() {
           <View style={[styles.flex, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
             <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{doctorName || "—"}</Text>
             <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
-              {[specialty, facility].filter(Boolean).join(" · ")}
+              {[specialtyLabel(specialty, specialty, t), facility].filter(Boolean).join(" · ")}
             </Text>
           </View>
         </View>
