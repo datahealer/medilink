@@ -148,12 +148,12 @@ function InvoiceContent({ payment, ar }: { payment: Payment; ar: boolean }) {
 
       <div className={`flex items-center justify-between py-5 ${ar ? "flex-row-reverse" : ""}`}>
         <div className={ar ? "text-right" : ""}>
-          <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "#2E1A4780", fontWeight: 700 }}>{ar ? "الفاتورة إلى" : "Billed To"}</p>
+          <p style={{ fontSize: 11, textTransform: "", letterSpacing: 1, color: "#2E1A4780", fontWeight: 700 }}>{ar ? "الفاتورة إلى" : "Billed To"}</p>
           <p style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>{fullName || (ar ? "المريض" : "Patient")}</p>
           <p style={{ fontSize: 12, color: "#2E1A4799" }}>{email}</p>
         </div>
         <div className={ar ? "text-left" : "text-right"}>
-          <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "#2E1A4780", fontWeight: 700 }}>{ar ? "مزود الخدمة" : "Provider"}</p>
+          <p style={{ fontSize: 11, textTransform: "", letterSpacing: 1, color: "#2E1A4780", fontWeight: 700 }}>{ar ? "مزود الخدمة" : "Provider"}</p>
           <p style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>{info.provider}</p>
           <p style={{ fontSize: 12, color: "#2E1A4799" }}>{ar ? payment.category : payment.category}</p>
         </div>
@@ -162,8 +162,8 @@ function InvoiceContent({ payment, ar }: { payment: Payment; ar: boolean }) {
       <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
         <thead>
           <tr style={{ background: "#f9f4fa" }}>
-            <th style={{ textAlign: ar ? "right" : "left", padding: "10px 12px", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, color: "#2E1A4780" }}>{ar ? "الوصف" : "Description"}</th>
-            <th style={{ textAlign: ar ? "left" : "right", padding: "10px 12px", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, color: "#2E1A4780" }}>{ar ? "المبلغ" : "Amount"}</th>
+            <th style={{ textAlign: ar ? "right" : "left", padding: "10px 12px", fontSize: 11, textTransform: "", letterSpacing: 0.5, color: "#2E1A4780" }}>{ar ? "الوصف" : "Description"}</th>
+            <th style={{ textAlign: ar ? "left" : "right", padding: "10px 12px", fontSize: 11, textTransform: "", letterSpacing: 0.5, color: "#2E1A4780" }}>{ar ? "المبلغ" : "Amount"}</th>
           </tr>
         </thead>
         <tbody>
@@ -346,7 +346,7 @@ export default function PaymentsPage() {
       {/* Hero */}
       <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "المدفوعات" : "My Payments"}
           </p>
           <h1 className="font-black font-serif text-white mb-6" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.5rem)", lineHeight: 1.1 }}>
@@ -356,15 +356,15 @@ export default function PaymentsPage() {
           </h1>
           <div className={`flex flex-wrap gap-3 ${ar ? "flex-row-reverse" : ""}`}>
             <div className="bg-white/10 border border-white/10 rounded-2xl px-5 py-3 min-w-[140px]">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[#DFC8E7]/60">{ar ? "إجمالي المدفوع" : "Total Paid"}</p>
+              <p className="text-[11px] font-bold  tracking-wide text-[#DFC8E7]/60">{ar ? "إجمالي المدفوع" : "Total Paid"}</p>
               <p className="text-lg font-black text-white mt-1">{fmt(totalPaid, "OMR")}</p>
             </div>
             <div className="bg-white/10 border border-white/10 rounded-2xl px-5 py-3 min-w-[140px]">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[#DFC8E7]/60">{ar ? "معلق" : "Pending"}</p>
+              <p className="text-[11px] font-bold  tracking-wide text-[#DFC8E7]/60">{ar ? "معلق" : "Pending"}</p>
               <p className="text-lg font-black text-amber-300 mt-1">{fmt(totalPending, "OMR")}</p>
             </div>
             <div className="bg-white/10 border border-white/10 rounded-2xl px-5 py-3 min-w-[140px]">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[#DFC8E7]/60">{ar ? "المعاملات" : "Transactions"}</p>
+              <p className="text-[11px] font-bold  tracking-wide text-[#DFC8E7]/60">{ar ? "المعاملات" : "Transactions"}</p>
               <p className="text-lg font-black text-white mt-1">{payments.length}</p>
             </div>
           </div>
@@ -386,7 +386,7 @@ export default function PaymentsPage() {
       {/* List */}
       <section className="py-8 px-6">
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
+          <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
             {ar ? `${filtered.length} معاملة` : `${filtered.length} transaction${filtered.length !== 1 ? "s" : ""}`}
           </p>
 

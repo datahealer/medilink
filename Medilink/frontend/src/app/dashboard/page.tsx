@@ -168,7 +168,7 @@ const DASHBOARD_ARTICLES = ARTICLES.slice(0, 2);
 /* ─── SectionPill ────────────────────────────────────────────────────── */
 function SectionPill({ en, ar: arText, isAr }: { en: string; ar: string; isAr: boolean }) {
   return (
-    <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
+    <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold  tracking-widest mb-5"
       style={{ background: "#DFC8E7", color: "#2E1A47" }}>
       {isAr ? arText : en}
     </span>
@@ -179,7 +179,7 @@ function SectionPill({ en, ar: arText, isAr }: { en: string; ar: string; isAr: b
 function BrandCTA({ href, en, ar: arText, isAr }: { href: string; en: string; ar: string; isAr: boolean }) {
   return (
     <Link href={href}
-      className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+      className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
       style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
         {isAr ? arText : en} <span style={{ direction: "ltr" }}>→</span>
@@ -274,7 +274,7 @@ export default function DashboardPage() {
         <div className="relative max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 mb-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4"
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold  tracking-widest mb-4"
                 style={{ background: "rgba(223,200,231,0.12)", border: "1px solid rgba(223,200,231,0.2)", color: "rgba(223,200,231,0.7)" }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 {ar ? "متصل الآن" : "Online now"}
@@ -349,7 +349,7 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
                 {ar ? "مواعيدك" : "Your Schedule"}
               </p>
               <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
@@ -360,7 +360,7 @@ export default function DashboardPage() {
             </div>
             <Link href="/dashboard/appointments"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm no-underline transition-all flex-shrink-0 self-start sm:self-auto border-2 border-[#2E1A47]/14 dark:border-[#DFC8E7]/14 text-[#2E1A47] dark:text-[#DFC8E7] hover:border-[#2E1A47]/35 hover:bg-[#2E1A47]/5">
-              {ar ? "عرض الكل →" : "View all →"}
+              {ar ? "عرض الكل ←" : "View all →"}
             </Link>
           </div>
 
@@ -396,7 +396,7 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className={`flex items-center gap-2 ${ar ? "flex-row-reverse justify-end" : ""}`}>
                       <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{d.name}</p>
-                      {isToday && <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] flex-shrink-0">{ar ? "اليوم" : "NOW"}</span>}
+                      {isToday && <span className="text-[9px] font-black  tracking-widest px-1.5 py-0.5 rounded-full bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] flex-shrink-0">{ar ? "اليوم" : "NOW"}</span>}
                     </div>
                     <p className="text-xs text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 mt-0.5">{d.spec}</p>
                   </div>
@@ -428,7 +428,7 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
                 {ar ? "الإشعارات" : "Notifications"}
               </p>
               <div className={`flex items-center gap-3 ${ar ? "flex-row-reverse" : ""}`}>
@@ -481,7 +481,7 @@ export default function DashboardPage() {
                   </div>
                   <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
                     <div className={`flex items-center gap-2 mb-1.5 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border"
+                      <span className="text-[10px] font-black  tracking-widest px-2 py-0.5 rounded-full border"
                         style={{ background: n.tagBg, color: n.tagColor, borderColor: n.tagBorder }}>
                         {nd.tag}
                       </span>
@@ -505,12 +505,12 @@ export default function DashboardPage() {
       <section className="py-10 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
         <div className="max-w-6xl mx-auto">
           <div className={`flex items-center justify-between mb-6 ${ar ? "flex-row-reverse" : ""}`}>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
+            <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
               {ar ? "لمحة صحية" : "Health Snapshot"}
             </p>
             <Link href="/dashboard/records"
               className="text-xs font-bold text-[#46255f]/60 dark:text-[#DFC8E7]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-colors no-underline">
-              {ar ? "عرض السجلات →" : "View records →"}
+              {ar ? "عرض السجلات ←" : "View records →"}
             </Link>
           </div>
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${ar ? "direction-rtl" : ""}`}>
@@ -536,7 +536,7 @@ export default function DashboardPage() {
       <section className="py-16 px-6 bg-white dark:bg-[#0d0820]">
         <div className="max-w-6xl mx-auto">
           <div className={`mb-10 ${ar ? "text-right" : ""}`}>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
+            <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
               {ar ? "الخدمات" : "Services"}
             </p>
             <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
@@ -555,7 +555,7 @@ export default function DashboardPage() {
                   <div className="absolute top-[-20px] right-[-20px] w-36 h-36 rounded-full opacity-25 bg-white" />
                   <div className="absolute bottom-[-30px] left-[-10px] w-28 h-28 rounded-full opacity-20 bg-white" />
                   {"badge" in card && card.badge && (
-                    <span className={`absolute top-3 z-10 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#2E1A47] text-white ${ar ? "left-3" : "right-3"}`}>
+                    <span className={`absolute top-3 z-10 text-[10px] font-black  tracking-widest px-2.5 py-1 rounded-full bg-[#2E1A47] text-white ${ar ? "left-3" : "right-3"}`}>
                       {ar ? card.badge.ar : card.badge.en}
                     </span>
                   )}
@@ -583,7 +583,7 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8 mb-14 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
-              <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
+              <p className="text-xs font-bold  tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
                 {ar ? "كيف يعمل" : "How it works"}
               </p>
               <h2 className="font-black font-serif text-white" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", lineHeight: 1.1 }}>
@@ -597,7 +597,7 @@ export default function DashboardPage() {
               style={{ border: "1.5px solid rgba(223,200,231,0.28)", color: "#DFC8E7" }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(223,200,231,0.07)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              {ar ? "ابحث عن طبيب →" : "Find a doctor →"}
+              {ar ? "ابحث عن طبيب ←" : "Find a doctor →"}
             </Link>
           </div>
 
@@ -630,7 +630,7 @@ export default function DashboardPage() {
             </div>
             <Link href="/dashboard/find-doctors"
               className="inline-flex items-center gap-1.5 text-sm font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline flex-shrink-0">
-              {ar ? "تصفح الكل →" : "Browse all →"}
+              {ar ? "تصفح الكل ←" : "Browse all →"}
             </Link>
           </div>
 
@@ -643,7 +643,7 @@ export default function DashboardPage() {
                 <p className="text-[11px] text-center text-[#2E1A47]/65 dark:text-[#DFC8E7]/65 leading-tight font-medium px-1">
                   {ar ? s.ar : s.en}
                 </p>
-                <span className="text-[10px] font-bold text-[#46255f] dark:text-[#DFC8E7]/60 tracking-widest uppercase group-hover:underline">
+                <span className="text-[10px] font-bold text-[#46255f] dark:text-[#DFC8E7]/60 tracking-widest  group-hover:underline">
                   {ar ? "استشر الآن" : "Consult Now"}
                 </span>
               </button>
@@ -697,7 +697,7 @@ export default function DashboardPage() {
         <div className={`max-w-6xl mx-auto flex items-center gap-4 ${ar ? "flex-row-reverse" : ""}`}>
           <span className="text-2xl flex-shrink-0">💡</span>
           <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#46255f]/55 dark:text-[#DFC8E7]/45 mr-3">
+            <span className="text-[10px] font-black  tracking-widest text-[#46255f]/55 dark:text-[#DFC8E7]/45 mr-3">
               {ar ? "نصيحة اليوم" : "Tip of the day"}
             </span>
             <span className="text-sm text-[#2E1A47]/65 dark:text-[#DFC8E7]/60">
@@ -734,7 +734,7 @@ export default function DashboardPage() {
                   className="w-[185px] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden bg-[#faf8fc] dark:bg-[#1a1030] hover:shadow-xl hover:-translate-y-1 transition-all duration-200 no-underline block">
                   <div className="h-32" style={{ background: `linear-gradient(135deg, ${article.from}, ${article.to})` }} />
                   <div className={`p-4 ${ar ? "text-right" : ""}`}>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-2">
+                    <p className="text-[9px] font-bold  tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-2">
                       {ar ? article.ar.tag : article.en.tag}
                     </p>
                     <p className="text-[13px] font-semibold text-[#2E1A47] dark:text-[#DFC8E7] leading-snug mb-3">

@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import type { NextConfig } from "next";
 // Backend = API-only Next.js app (privileged/heavy ops). No pages/UI.
 const nextConfig: NextConfig = {
@@ -12,4 +14,3 @@ const nextConfig: NextConfig = {
     "/api/prescriptions/[id]/generate-pdf": ["./node_modules/pdfkit/js/data/**/*"],
   },
 };
-export default nextConfig;

@@ -99,7 +99,7 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
       </div>
       <div className="grid grid-cols-7 mb-1">
         {(isAr ? DAY_NAMES_AR : DAY_NAMES_EN).map(l => (
-          <div key={l} className="text-center text-[10px] font-bold uppercase tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">{l}</div>
+          <div key={l} className="text-center text-[10px] font-bold  tracking-wide text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 py-1">{l}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-y-1">
@@ -295,13 +295,13 @@ export function BookingModal({
           <div className="mb-4" />
           <div className="bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl px-4 py-3 mb-5 text-left border border-[#e7dcee] dark:border-[#2a1840]">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "طريقة الدفع" : "Payment"}</span>
+              <span className="text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "طريقة الدفع" : "Payment"}</span>
               <span className="text-xs font-bold text-[#46255f] dark:text-[#DFC8E7]">
                 {payMethod === "thawani" ? "💳 Thawani Pay" : payMethod === "card" ? "🏦 Card" : "🏥 " + (isAr ? "عند الوصول" : "At Clinic")}
               </span>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "الرسوم" : "Fee"}</span>
+              <span className="text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "الرسوم" : "Fee"}</span>
               <span className="text-xs font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{isAr ? `${doctor.fee} ر.ع.` : `OMR ${doctor.fee}`}</span>
             </div>
           </div>
@@ -375,7 +375,7 @@ export function BookingModal({
 
             {/* Who is this for? */}
             <div className="mb-5">
-              <p className={`text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mb-2.5 ${isAr ? "text-right" : ""}`}>
+              <p className={`text-[10px] font-black  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mb-2.5 ${isAr ? "text-right" : ""}`}>
                 {isAr ? "الموعد لـ" : "Booking for"}
               </p>
               <div className={`flex flex-wrap gap-2 ${isAr ? "flex-row-reverse" : ""}`}>
@@ -427,12 +427,12 @@ export function BookingModal({
         {step === "time" && (
           <div className="px-6 py-5">
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
                 {isAr ? "اختر وقتاً" : "Choose a time"}
               </p>
               <button onClick={() => { setStep("date"); setSelectedSlot(null); }}
                 className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selectedDate ? fmtDate(selectedDate) : ""}
+                {isAr ? "→" : "←"} {selectedDate ? fmtDate(selectedDate) : ""}
               </button>
             </div>
             {slotsLoading ? (
@@ -484,11 +484,11 @@ export function BookingModal({
         {step === "payment" && (
           <div className="px-6 py-5">
             <div className={`flex items-center justify-between mb-4 ${isAr ? "flex-row-reverse" : ""}`}>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
+              <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40">
                 {isAr ? "طريقة الدفع" : "Payment Method"}
               </p>
               <button onClick={() => setStep("time")} className="text-xs font-semibold text-[#46255f] dark:text-[#DFC8E7]/70 hover:underline">
-                ← {selectedTime}
+                {isAr ? "→" : "←"} {selectedTime}
               </button>
             </div>
             <div className={`bg-[#faf8fc] dark:bg-[#0d0820] rounded-2xl p-4 mb-4 border border-[#e7dcee] dark:border-[#2a1840] space-y-2 ${isAr ? "text-right" : ""}`}>

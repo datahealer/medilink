@@ -22,7 +22,7 @@ const variants: Record<Variant, string> = {
   ghost:
     "text-[#2E1A47] hover:bg-[#2E1A47]/8 active:scale-[0.98] dark:text-[#DFC8E7] dark:hover:bg-[#DFC8E7]/10",
   cta:
-    "bg-[#DFC8E7] text-[#2E1A47] hover:opacity-90 active:scale-[0.97] shadow-md font-bold tracking-widest uppercase text-xs",
+    "bg-[#DFC8E7] text-[#2E1A47] hover:opacity-90 active:scale-[0.97] shadow-md font-bold tracking-widest  text-xs",
 };
 
 export function LinkButton({ href, variant = "primary", fullWidth = false, children, className = "", ...rest }: LinkButtonProps) {

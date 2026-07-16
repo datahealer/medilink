@@ -58,7 +58,7 @@ export default function ArticlePage() {
       </section>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#46255f] dark:text-[#DFC8E7]/70 mb-3">
+        <p className="text-[10px] font-black  tracking-widest text-[#46255f] dark:text-[#DFC8E7]/70 mb-3">
           {d.tag}
         </p>
         <h1 className={`font-black font-serif text-[#2E1A47] dark:text-white leading-tight mb-4 ${ar ? "text-right" : ""}`}
@@ -93,7 +93,7 @@ export default function ArticlePage() {
         {/* Related articles */}
         {others.length > 0 && (
           <div className="mt-10">
-            <p className={`text-[11px] font-black uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mb-4 ${ar ? "text-right" : ""}`}>
+            <p className={`text-[11px] font-black  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 mb-4 ${ar ? "text-right" : ""}`}>
               {ar ? "مقالات ذات صلة" : "Related articles"}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -104,7 +104,7 @@ export default function ArticlePage() {
                     className="rounded-2xl overflow-hidden border border-[#e7dcee] dark:border-[#3a2560] bg-white dark:bg-[#1a1030] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 no-underline block">
                     <div className="h-24" style={{ background: `linear-gradient(135deg, ${o.from}, ${o.to})` }} />
                     <div className={`p-4 ${ar ? "text-right" : ""}`}>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-1.5">{od.tag}</p>
+                      <p className="text-[9px] font-bold  tracking-widest text-[#46255f] dark:text-[#DFC8E7]/60 mb-1.5">{od.tag}</p>
                       <p className="text-[13px] font-semibold text-[#2E1A47] dark:text-[#DFC8E7] leading-snug">{od.title}</p>
                     </div>
                   </Link>

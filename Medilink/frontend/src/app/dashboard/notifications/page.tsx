@@ -193,7 +193,7 @@ export default function NotificationsPage() {
           {/* Content */}
           <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
             <div className={`flex items-center gap-2 mb-1 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
-              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border"
+              <span className="text-[10px] font-black  tracking-widest px-2 py-0.5 rounded-full border"
                 style={{ background: n.tagBg, color: n.tagColor, borderColor: n.tagBorder }}>
                 {nd.tag}
               </span>
@@ -347,7 +347,7 @@ export default function NotificationsPage() {
           <>
             {newItems.length > 0 && (
               <div className="space-y-3">
-                <p className={`text-[11px] font-black uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 px-1 ${ar ? "text-right" : ""}`}>
+                <p className={`text-[11px] font-black  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 px-1 ${ar ? "text-right" : ""}`}>
                   {ar ? "جديد" : "New"}
                 </p>
                 {newItems.map(n => <NotifCard key={n.id} n={n} />)}
@@ -355,7 +355,7 @@ export default function NotificationsPage() {
             )}
             {earlierItems.length > 0 && (
               <div className="space-y-3">
-                <p className={`text-[11px] font-black uppercase tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 px-1 ${ar ? "text-right" : ""}`}>
+                <p className={`text-[11px] font-black  tracking-widest text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 px-1 ${ar ? "text-right" : ""}`}>
                   {ar ? "سابقاً" : "Earlier"}
                 </p>
                 {earlierItems.map(n => <NotifCard key={n.id} n={n} />)}

@@ -171,7 +171,7 @@ export default function NearbyDoctorsMap({ isAr }: { isAr: boolean }) {
           {isAr ? "تعذر الوصول إلى موقعك — نعرض عيادات بالقرب من مسقط." : "Couldn't access your location — showing clinics near Muscat."}
         </p>
       )}
-      <div ref={containerRef} className="h-72 rounded-2xl overflow-hidden border border-[#e7dcee] dark:border-[#3a2560]" />
+      <div ref={containerRef} className="h-72 rounded-2xl overflow-hidden border border-[#e7dcee] dark:border-[#3a2560] isolate relative z-0" />
       {!loading && facilities.length === 0 && (
         <p className={`text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 mt-2 ${isAr ? "text-right" : ""}`}>
           {isAr ? "لا توجد عيادات قريبة ضمن هذا النطاق." : "No clinics found nearby within this range."}

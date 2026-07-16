@@ -49,7 +49,7 @@ export default function ForClinicsPage() {
       {/* ── Hero ── */}
       <section className="pt-36 pb-20 bg-[#faf8fc] dark:bg-[#0a0518]" dir={ar ? "rtl" : "ltr"}>
         <div className="max-w-6xl mx-auto px-6">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6"
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold  tracking-widest mb-6"
             style={{ background: "#DFC8E7", color: "#2E1A47" }}>
             {ar ? "للعيادات" : "For Clinics"}
           </span>
@@ -66,10 +66,10 @@ export default function ForClinicsPage() {
           </p>
           <div className="flex flex-wrap gap-4">
             <Link href="/sign-up"
-              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
               style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
-                {ar ? "سجّل عيادتك →" : "Register your clinic →"}
+                {ar ? "سجّل عيادتك ←" : "Register your clinic →"}
               </span>
             </Link>
             <Link href="/contact"
@@ -110,7 +110,7 @@ export default function ForClinicsPage() {
       <section className="py-20" dir={ar ? "rtl" : "ltr"}
         style={{ background: "linear-gradient(140deg, #1e1038, #2E1A47, #1e1038)" }}>
         <div className="max-w-6xl mx-auto px-6">
-          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "rgba(223,200,231,0.45)" }}>
+          <p className="text-xs font-bold  tracking-widest mb-4" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "كيف تنضم" : "How to join"}
           </p>
           <h2 className="font-black font-serif text-white mb-12" style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)" }}>
@@ -131,10 +131,10 @@ export default function ForClinicsPage() {
           </div>
           <div className="mt-12">
             <Link href="/sign-up"
-              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest uppercase px-10 py-4"
+              className="inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4"
               style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.35)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
-                {ar ? "ابدأ التسجيل →" : "Start registration →"}
+                {ar ? "ابدأ التسجيل ←" : "Start registration →"}
               </span>
             </Link>
           </div>

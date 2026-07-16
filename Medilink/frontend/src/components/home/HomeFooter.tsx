@@ -64,14 +64,14 @@ export function HomeFooter() {
                 ? "يربط ميديلينك الناس في عمان بأفضل رعاية صحية بتجربة رقمية هادئة وحديثة."
                 : "Medilink connects people across Oman to trusted healthcare with a calm, modern, and human digital experience."}
             </p>
-            <p className="text-xs font-bold text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 tracking-widest uppercase">
+            <p className="text-xs font-bold text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 tracking-widest ">
               {ar ? "ابحث · احجز · تواصل" : "Find · Book · Connect"}
             </p>
           </div>
 
           {/* Platform */}
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
+            <p className="text-xs font-black  tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
               {ar ? "المنصة" : "Platform"}
             </p>
             <ul className="flex flex-col gap-3">
@@ -88,7 +88,7 @@ export function HomeFooter() {
 
           {/* Company */}
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
+            <p className="text-xs font-black  tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
               {ar ? "الشركة" : "Company"}
             </p>
             <ul className="flex flex-col gap-3">
@@ -117,7 +117,7 @@ export function HomeFooter() {
 
           {/* Follow */}
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
+            <p className="text-xs font-black  tracking-widest text-[#2E1A47] dark:text-[#DFC8E7] mb-5">
               {ar ? "تابعنا" : "Follow"}
             </p>
             <div className="flex flex-wrap gap-2.5">
