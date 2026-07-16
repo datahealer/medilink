@@ -10,6 +10,7 @@ import { usePrescription, usePrescriptionShareLink, usePrescriptionPdfUrl } from
 import { useProfile } from "@/hooks/queries/usePatient";
 import type { PrescriptionMed } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
+import { shareRemoteFile } from "@/utils/shareFile";
 
 /**
  * Medication Details — verified e-Prescription (design p31). Real prescription data.
@@ -47,7 +48,12 @@ export default function MedicationDetailsScreen() {
     setBusy("share");
     try {
       const url = await pdf.mutateAsync(id);
-      await Share.share({ message: url, url });
+      // Share the actual PDF file (downloaded from the signed URL), not a link.
+      await shareRemoteFile(url, {
+        filename: "prescription.pdf",
+        mimeType: "application/pdf",
+        dialogTitle: t("prescriptions.share"),
+      });
     } catch {
       Alert.alert(t("prescriptions.pdfUnavailable"));
     } finally {

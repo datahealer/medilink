@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Linking, Share, StyleSheet, View } from "react-native";
+import { Alert, Linking, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import { AppCard, AppHeader, Button, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n";
 import { usePayment } from "@/hooks/queries/usePatient";
 import { formatApptDate } from "@/utils/appointments";
 import { payCategory, payStatusLabel, payTone, round3 } from "@/utils/payments";
+import { shareRemoteFile } from "@/utils/shareFile";
 
 /**
  * Invoice & Receipt (design p23) — branded breakdown (fee, VAT, total), the card
@@ -64,7 +65,12 @@ export default function InvoiceScreen() {
   };
   const onShare = () => {
     if (!invoiceUrl) return;
-    Share.share({ message: invoiceUrl, url: invoiceUrl }).catch(() => {});
+    // Share the actual invoice PDF (downloaded from the URL), not a link.
+    void shareRemoteFile(invoiceUrl, {
+      filename: "invoice.pdf",
+      mimeType: "application/pdf",
+      dialogTitle: t("payments.share"),
+    });
   };
 
   const Row = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (

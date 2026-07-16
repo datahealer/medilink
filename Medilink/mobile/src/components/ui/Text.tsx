@@ -4,7 +4,7 @@ import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "r
 import { useTheme } from "@/hooks/useTheme";
 import { useThemeStore } from "@/stores/themeStore";
 import type { ThemeColors } from "@/theme/light";
-import { EMIT_FONT_WEIGHT, fontFamilyFor, typeScale, type FontWeight, type TypeVariant } from "@/theme/typography";
+import { ARABIC_FONT_SCALE, EMIT_FONT_WEIGHT, fontFamilyFor, typeScale, type FontWeight, type TypeVariant } from "@/theme/typography";
 
 export interface TextProps extends RNTextProps {
   variant?: TypeVariant;
@@ -32,14 +32,16 @@ export function Text({
   const scale = typeScale[variant];
   const effWeight = (weight ?? scale.fontWeight) as FontWeight;
   const family = fontFamilyFor(scale.family, effWeight, isRTL);
+  // Conservative readability bump for Arabic (see ARABIC_FONT_SCALE); 1× for LTR.
+  const localeScale = isRTL ? ARABIC_FONT_SCALE : 1;
 
   return (
     <RNText
       style={[
         {
           color: colors[color],
-          fontSize: Math.round(scale.fontSize * textScale),
-          lineHeight: Math.round(scale.lineHeight * textScale),
+          fontSize: Math.round(scale.fontSize * textScale * localeScale),
+          lineHeight: Math.round(scale.lineHeight * textScale * localeScale),
           fontFamily: family,
           ...(EMIT_FONT_WEIGHT ? { fontWeight: effWeight } : null),
           textAlign: align ?? (isRTL ? "right" : "left"),

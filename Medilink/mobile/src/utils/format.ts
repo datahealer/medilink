@@ -1,16 +1,16 @@
 import type { Locale } from "@/stores/localeStore";
 
 /**
- * Locale-aware numeral formatting. Arabic artboards in
- * MediLink_Design_Documentation.pdf (OTP `٩ ٠ ٢`, dates, prices, counts) use
- * Eastern-Arabic-Indic digits, so any ASCII digit shown in the Arabic locale is
- * transliterated. English is returned unchanged.
+ * Numeral formatting.
+ *
+ * Product decision: the Arabic UI uses Western (Latin) numerals 0-9 — the same
+ * digits as English — rather than Eastern-Arabic-Indic (٠١٢…). So digits are
+ * returned unchanged in every locale.
+ *
+ * Kept as a locale-parameterised helper (rather than deleted) so the i18n layer and
+ * every call site need no change, and any future locale-specific numeral rule can be
+ * reintroduced here in exactly one place.
  */
-const EASTERN_ARABIC = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"] as const;
-
-/** Convert ASCII digits 0-9 in `input` to Eastern-Arabic-Indic for the `ar` locale. */
-export function localizeDigits(input: string | number, locale: Locale): string {
-  const str = String(input);
-  if (locale !== "ar") return str;
-  return str.replace(/[0-9]/g, (d) => EASTERN_ARABIC[Number(d)]!);
+export function localizeDigits(input: string | number, _locale: Locale): string {
+  return String(input);
 }

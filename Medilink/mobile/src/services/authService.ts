@@ -17,6 +17,7 @@ import { api } from "@medilink/shared/mobile";
 import { isGoogleConfigured } from "@/config/env";
 import type { MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
+import { setRememberSession } from "@/lib/authPersistence";
 import { ApiError } from "@/services/api";
 
 export interface SignInInput {
@@ -84,6 +85,9 @@ export const authService = {
         email: input.email.trim(),
         password: input.password,
       });
+      // Record whether this session should survive a cold app launch. Enforced on
+      // next launch by AuthProvider (see src/lib/authPersistence.ts).
+      await setRememberSession(input.remember ?? false);
       return { ok: true };
     } catch (err) {
       return { ok: false, messageKey: toMessageKey(err) };

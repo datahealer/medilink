@@ -43,6 +43,11 @@ export default function MeFamilyScreen() {
   const activeId = usePatientStore((s) => s.activePatientId);
 
   const youName = profile.data?.account?.full_name ?? t("family.you");
+  // Title shows the account holder's first name ("Satyam's Family"); falls back to
+  // the generic title until the profile (and a real name) has loaded.
+  const accountName = profile.data?.account?.full_name?.trim();
+  const firstName = accountName ? accountName.split(/\s+/)[0] : null;
+  const familyTitle = firstName ? t("family.titleNamed", { name: firstName }) : t("family.title");
   const members: FamilyMember[] = family.data ?? [];
   const atLimit = members.length >= MAX_MEMBERS;
 
@@ -73,9 +78,9 @@ export default function MeFamilyScreen() {
 
   return (
     <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
-      {/* Header: "Me Family" + add (sized to content, never wraps) */}
+      {/* Header: "{first name}'s Family" + add (sized to content, never wraps) */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <Text variant="h2">{t("family.title")}</Text>
+        <Text variant="h2" numberOfLines={1} style={styles.title}>{familyTitle}</Text>
         <Pressable
           onPress={() => router.push("/family/add")}
           disabled={atLimit}
@@ -141,7 +146,8 @@ export default function MeFamilyScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  header: { alignItems: "center", justifyContent: "space-between", marginTop: 4, gap: 8 },
+  title: { flex: 1 },
   addBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   row: { alignItems: "center" },
   rowText: { flex: 1 },

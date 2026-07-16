@@ -69,7 +69,14 @@ export default function DashboardScreen() {
       {/* Greeting header */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.headerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Avatar name={name} uri={photo} size={48} />
+          <Pressable
+            onPress={() => router.push("/profile")}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("tabs.profile")}
+          >
+            <Avatar name={name} uri={photo} size={48} />
+          </Pressable>
           <View style={isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }}>
             <Text variant="caption" color="textMuted">{t(greetingKey())}</Text>
             <Text variant="title" numberOfLines={1}>{name || t("dashboard.hello")}</Text>

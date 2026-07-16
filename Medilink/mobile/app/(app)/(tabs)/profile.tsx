@@ -1,5 +1,5 @@
-import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { Image, Modal, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -42,6 +42,7 @@ export default function ProfileScreen() {
   const profile = useProfile();
   const history = useMedicalHistory();
   const family = useFamily();
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   if (profile.isLoading) {
     return (
@@ -89,7 +90,18 @@ export default function ProfileScreen() {
 
       {/* Identity */}
       <View style={styles.identity}>
-        <Avatar name={account?.full_name} uri={patient?.profile_photo_url} size={76} />
+        <Pressable
+          onPress={() => {
+            // Photo present → open the full-size viewer; otherwise take the user to
+            // edit-profile where they can add one (viewing an initials avatar is pointless).
+            if (patient?.profile_photo_url) setPhotoViewerOpen(true);
+            else router.push("/edit-profile");
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t(patient?.profile_photo_url ? "profile.viewPhoto" : "profile.changePhoto")}
+        >
+          <Avatar name={account?.full_name} uri={patient?.profile_photo_url} size={76} />
+        </Pressable>
         <Text variant="h2" align="center" style={{ marginTop: spacing.sm }}>
           {account?.full_name ?? "—"}
         </Text>
@@ -159,6 +171,40 @@ export default function ProfileScreen() {
           <View style={styles.chips}>{medications.map((m) => <Chip key={m} label={m} />)}</View>
         </Card>
       ) : null}
+
+      {/* Full-size profile photo viewer — tap anywhere to dismiss. */}
+      <Modal
+        visible={photoViewerOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setPhotoViewerOpen(false)}
+      >
+        <Pressable
+          style={styles.viewerBackdrop}
+          onPress={() => setPhotoViewerOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.close")}
+        >
+          {patient?.profile_photo_url ? (
+            <Image
+              source={{ uri: patient.profile_photo_url }}
+              style={styles.viewerImage}
+              resizeMode="contain"
+              accessibilityLabel={account?.full_name ?? undefined}
+            />
+          ) : null}
+          <Pressable
+            onPress={() => setPhotoViewerOpen(false)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.close")}
+            style={[styles.viewerClose, isRTL ? { start: 20 } : { end: 20 }]}
+          >
+            <Icon name="close" size={26} tint="#FFFFFF" />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -172,4 +218,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, lineHeight: 26 },
   bloodPill: { paddingHorizontal: 12, paddingVertical: 3, borderRadius: 999, minWidth: 44, alignItems: "center" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  viewerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
+  viewerImage: { width: "92%", height: "80%" },
+  viewerClose: { position: "absolute", top: 48, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });

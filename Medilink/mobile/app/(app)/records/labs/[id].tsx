@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Alert, Linking, Share, StyleSheet, View } from "react-native";
+import { Alert, Linking, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import {
@@ -19,6 +19,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useLabResult, useLabResultSignedUrl, useMarkLabViewed } from "@/hooks/queries/useLabs";
 import { formatDayMonth } from "@/utils/appointments";
+import { shareRemoteFile } from "@/utils/shareFile";
 import type { LabFlag } from "@/data/types";
 
 /** Result Trends & Detail (design p30). */
@@ -46,7 +47,14 @@ export default function LabDetailScreen() {
     if (url.data) Linking.openURL(url.data).catch(() => Alert.alert(t("labs.downloadError")));
   };
   const onShare = () => {
-    if (url.data) Share.share({ message: url.data, url: url.data }).catch(() => {});
+    // Share the actual report file (downloaded from the signed URL), not a link.
+    if (url.data) {
+      void shareRemoteFile(url.data, {
+        filename: "lab-result.pdf",
+        mimeType: "application/pdf",
+        dialogTitle: t("labs.share"),
+      });
+    }
   };
 
   const pillTones = (flag: LabFlag): { bg: string; fg: string; label: string } => {

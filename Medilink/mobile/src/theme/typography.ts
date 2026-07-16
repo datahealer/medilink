@@ -77,6 +77,16 @@ export function fontFamilyFor(role: FontRole, weight: FontWeight, isRTL: boolean
 /** Custom families already encode weight; only emit fontWeight with system fallbacks. */
 export const EMIT_FONT_WEIGHT = !USE_BRAND_FONTS;
 
+/**
+ * Arabic reads optically smaller than the Latin faces at the same pixel size (29LT
+ * Zarid Sans has a smaller x-height than Manrope), so Arabic/RTL text gets a size
+ * bump for readability. Applied in the Text primitive on top of the accessibility
+ * `textScale`. Set to 15%: noticeably more legible while safe against clipping —
+ * chips/buttons grow via `minHeight`, and single-line rows truncate (ellipsis)
+ * rather than overflow. Tune here in one place if it needs adjustment.
+ */
+export const ARABIC_FONT_SCALE = 1.15;
+
 export type TypeStyle = {
   fontSize: number;
   lineHeight: number;
