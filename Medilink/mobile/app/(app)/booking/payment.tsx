@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Alert, Linking, StyleSheet, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { AppCard, AppHeader, Avatar, Button, Screen, Stepper, Text } from "@/components/ui";
@@ -7,12 +7,10 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
-import { useCreateCheckout } from "@/hooks/queries/usePatient";
+import { useCreateCheckout, useReleaseHold } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
+import { consultationTotal } from "@medilink/shared/mobile";
 
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
 function errMsg(e: unknown): string {
   if (e instanceof Error) return e.message;
   if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
@@ -38,34 +36,50 @@ export default function PaymentSummaryScreen() {
   const fee = useBookingStore((s) => s.fee);
 
   const checkout = useCreateCheckout();
+  const releaseHold = useReleaseHold();
   const [paying, setPaying] = useState(false);
+  // Single-flight guard: synchronous re-entry lock so a fast double-tap can never
+  // create two checkout sessions or push the WebView screen twice.
+  const payingRef = useRef(false);
 
-  const vat = round3(fee * 0.05);
-  const total = round3(fee + vat);
+  // Display breakdown via the shared helper. The amount actually charged is derived
+  // server-side at checkout (BP-4) — the client no longer sends a total.
+  const { vat, total } = consultationTotal(fee);
   const money = (n: number) => `OMR ${num(n.toFixed(3))}`;
 
   const onPay = async () => {
+    if (payingRef.current) return; // already creating a session / navigating
     if (!appointmentId) {
       Alert.alert(t("payments.payFailed"), t("payments.notFoundBody"));
       return;
     }
+    payingRef.current = true;
     setPaying(true);
+    let checkoutUrl: string | null = null;
     try {
-      const { checkoutUrl } = await checkout.mutateAsync({ appointmentId, amount: total });
-      // Only advance to the confirmation screen if we actually hand off to Thawani's hosted
-      // page — otherwise the patient would land on "processing" without ever paying.
-      if (!checkoutUrl || !(await Linking.canOpenURL(checkoutUrl))) {
-        Alert.alert(t("payments.payFailed"), t("payments.checkoutUnavailable"));
-        return;
-      }
-      await Linking.openURL(checkoutUrl);
-      // Confirmation reads the payment and polls until the webhook marks it paid.
-      router.replace(`/booking/payment-success?appointment_id=${appointmentId}`);
+      const res = await checkout.mutateAsync({ appointmentId });
+      checkoutUrl = res.checkoutUrl;
     } catch (e) {
+      // BP-3 rollback: checkout-session creation failed after the pending hold was
+      // created → free the slot now rather than wait out the 10-minute TTL sweep.
+      releaseHold.mutate(appointmentId);
       Alert.alert(t("payments.payFailed"), errMsg(e));
-    } finally {
       setPaying(false);
+      payingRef.current = false;
+      return;
     }
+    setPaying(false);
+    payingRef.current = false; // released here so a later cancel→retry is allowed
+    if (!checkoutUrl) {
+      Alert.alert(t("payments.payFailed"), t("payments.checkoutUnavailable"));
+      return;
+    }
+    // BP-5: open Thawani hosted checkout inside an in-app WebView (no external
+    // browser). The checkout screen intercepts the success/cancel return and
+    // releases the pending hold on cancel/close.
+    router.push(
+      `/booking/checkout?url=${encodeURIComponent(checkoutUrl)}&appointment_id=${appointmentId}`
+    );
   };
 
   const Row = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (

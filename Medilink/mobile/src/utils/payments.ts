@@ -57,6 +57,5 @@ export function payTone(colors: ThemeColors, cat: PayCategory): PayTone {
   }
 }
 
-export function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
+// round3 lives in @medilink/shared (config/payments) — the single source of truth
+// for OMR rounding, shared by backend + mobile. Import it from there.

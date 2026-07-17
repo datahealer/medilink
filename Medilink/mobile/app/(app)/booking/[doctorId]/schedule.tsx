@@ -21,9 +21,11 @@ import { useI18n } from "@/i18n";
 import { useDoctor, useMapClinics } from "@/hooks/queries/useDoctors";
 import { useAvailableSlots } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
+import { BOOKING_WINDOW_DAYS } from "@medilink/shared/mobile";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
-const DAY_COUNT = 5;
+// BP-2: render exactly the booking window (today + N-1). Single source of truth.
+const DAY_COUNT = BOOKING_WINDOW_DAYS;
 
 function initialsOf(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean);
@@ -107,7 +109,7 @@ export default function ScheduleScreen() {
     const meta = `${num(`${clinic.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`;
     setSchedule({
       clinicId: clinic.id,
-      clinicName: clinic.name,
+      clinicName: localizedName(clinic.name, clinic.name_ar, clinic.name_ar_status, isRTL),
       clinicMeta: meta,
       // Real bookings target the doctor's facility; fall back to the clinic id (mock mode).
       facilityId: doctor.data.facility_id || clinic.id,
@@ -158,7 +160,7 @@ export default function ScheduleScreen() {
             style={[styles.clinic, { borderRadius: radii.lg, backgroundColor: colors.surface, borderColor: sel ? colors.primary : colors.border, borderWidth: sel ? 2 : 1, flexDirection: isRTL ? "row-reverse" : "row" }]}
           >
             <View style={styles.flex}>
-              <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{c.name}</Text>
+              <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}</Text>
               <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{`${num(`${c.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`}</Text>
             </View>
             <View style={[styles.radio, { borderColor: sel ? colors.primary : colors.border }, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>

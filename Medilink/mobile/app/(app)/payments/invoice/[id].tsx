@@ -8,7 +8,8 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePayment } from "@/hooks/queries/usePatient";
 import { formatApptDate } from "@/utils/appointments";
-import { payCategory, payStatusLabel, payTone, round3 } from "@/utils/payments";
+import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
+import { consultationTotal, round3 } from "@medilink/shared/mobile";
 import { shareRemoteFile } from "@/utils/shareFile";
 
 /**
@@ -52,7 +53,9 @@ export default function InvoiceScreen() {
   }
 
   const a = payment.appointment;
-  const total = payment.amount ?? (a?.fee_omr != null ? round3(a.fee_omr * 1.05) : 0);
+  // Prefer the server-charged amount (payment.amount); otherwise fall back to the
+  // shared fee+VAT calc so the displayed total matches the backend exactly (BP-4).
+  const total = payment.amount ?? (a?.fee_omr != null ? consultationTotal(a.fee_omr).total : 0);
   const fee = a?.fee_omr ?? round3(total / 1.05);
   const vat = round3(total - fee);
   const tone = payTone(colors, payCategory(payment.status));

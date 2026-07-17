@@ -22,6 +22,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { localizedName } from "@/utils/localizedName";
+import { round3 } from "@medilink/shared/mobile";
 import { useAppointment, useCancelAppointment, useCheckInAppointment, useProfile } from "@/hooks/queries/usePatient";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime, hoursUntilAppt, refundTier } from "@/utils/appointments";
 import type { Appointment } from "@/data/types";
@@ -30,10 +31,6 @@ function errMsg(e: unknown): string {
   if (e instanceof Error) return e.message;
   if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
   return String(e);
-}
-
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
 }
 
 /** Appointment Details (design p24) — status, doctor, date/location/patient + actions. */
@@ -90,10 +87,16 @@ export default function AppointmentDetailsScreen() {
 
   const status = a.status ?? "";
   const tone = apptTone(colors, apptStatusCategory(status));
-  const patientName = a.for_family_member?.full_name || profile.data?.account?.full_name || t("appointments.you");
+  const accountName = profile.data?.account?.full_name
+    ? localizedName(profile.data.account.full_name, profile.data.account.full_name_ar, profile.data.account.full_name_ar_status, isRTL)
+    : null;
+  const patientName = a.for_family_member?.full_name || accountName || t("appointments.you");
 
   // Design p24 details rows: Date & time, Location (with floor where available), Patient.
-  const location = [a.facility?.name, a.facility?.address].filter(Boolean).join(" — ") || "—";
+  const location =
+    [localizedName(a.facility?.name ?? "", a.facility?.name_ar, a.facility?.name_ar_status, isRTL), a.facility?.address]
+      .filter(Boolean)
+      .join(" — ") || "—";
   const detailRows: SummaryRow[] = [
     { label: t("appointments.dateTime"), value: `${formatApptDate(a.slot_date, t, num)} · ${formatApptTime(a.slot_start, num)}`.trim() || "—" },
     { label: t("appointments.location"), value: location },

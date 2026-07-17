@@ -181,6 +181,13 @@ export const en = {
     secured: "Secured & encrypted",
     payFailed: "Couldn't start payment",
     checkoutUnavailable: "We couldn't open the payment page. Please try again.",
+    // In-app WebView checkout (BP-5)
+    checkoutTitle: "Payment",
+    checkoutError: "We couldn't load the payment page. Please try again.",
+    checkoutCancelTitle: "Cancel payment?",
+    checkoutCancelBody: "Your reserved slot will be released.",
+    checkoutCancelConfirm: "Cancel payment",
+    checkoutKeep: "Keep paying",
     // Payment History (read side)
     title: "Payments",
     empty: "No payments yet",

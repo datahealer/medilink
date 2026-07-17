@@ -180,6 +180,13 @@ export const ar: Messages = {
     secured: "آمن ومشفّر",
     payFailed: "تعذّر بدء الدفع",
     checkoutUnavailable: "تعذّر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.",
+    // In-app WebView checkout (BP-5)
+    checkoutTitle: "الدفع",
+    checkoutError: "تعذّر تحميل صفحة الدفع. يرجى المحاولة مرة أخرى.",
+    checkoutCancelTitle: "إلغاء الدفع؟",
+    checkoutCancelBody: "سيتم تحرير الموعد المحجوز.",
+    checkoutCancelConfirm: "إلغاء الدفع",
+    checkoutKeep: "متابعة الدفع",
     // سجل المدفوعات
     title: "المدفوعات",
     empty: "لا توجد مدفوعات بعد",

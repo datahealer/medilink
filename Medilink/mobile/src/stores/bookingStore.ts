@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { consultationTotal } from "@medilink/shared/mobile";
 
 /**
  * In-progress appointment booking draft — a CLIENT-ONLY flow buffer shared across
@@ -6,7 +7,8 @@ import { create } from "zustand";
  * is transient until confirmed. The real appointment is created via
  * repositories.appointment.create() (book_appointment_atomic RPC) on the review
  * screen; `confirm(id)` records that real id + the displayed totals for the
- * success screen. (Payment remains mock — a Thawani step lands in a later batch.)
+ * success screen. Payment is real: Thawani hosted checkout runs in an in-app
+ * WebView (booking/checkout.tsx) and the charged amount is derived server-side.
  */
 export interface ConfirmedBooking {
   id: string;
@@ -66,11 +68,6 @@ const initial = {
   confirmed: null,
 };
 
-/** OMR is quoted to 3 decimals; VAT is 5%. */
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
-
 export const useBookingStore = create<BookingState>((set, get) => ({
   ...initial,
 
@@ -85,9 +82,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   setReason: (reason) => set({ reason }),
 
   confirm: (id) => {
-    const { fee } = get();
-    const vat = round3(fee * 0.05);
-    const total = round3(fee + vat);
+    // Fee + VAT via the shared helper (single source of truth). Note: the amount
+    // actually charged is derived server-side at checkout (BP-4) — this is display.
+    const { fee, vat, total } = consultationTotal(get().fee);
     const confirmed: ConfirmedBooking = { id, fee, vat, total };
     set({ confirmed });
     return confirmed;
