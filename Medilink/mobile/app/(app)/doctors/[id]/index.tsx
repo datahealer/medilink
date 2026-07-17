@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n";
 import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useIsFavourite, useToggleFavourite } from "@/hooks/queries/useFavourites";
 import { localizedName } from "@/utils/localizedName";
+import { useGuestGate } from "@/hooks/useGuestGate";
 
 /** Doctor Details (PDF p19): credentials, stats, slots, book bar. */
 export default function DoctorDetailsScreen() {
@@ -23,6 +24,9 @@ export default function DoctorDetailsScreen() {
   const isFav = useIsFavourite(favTarget);
   const toggleFav = useToggleFavourite();
   const fav = isFav.data ?? false;
+  // F4: booking and favouriting are patient actions — gate them behind the wall
+  // for guests (viewing the profile itself is allow-listed).
+  const { requireAuth } = useGuestGate();
   const [slot, setSlot] = useState<string | undefined>(undefined);
 
   if (doctor.isLoading) {
@@ -58,7 +62,7 @@ export default function DoctorDetailsScreen() {
             <Text variant="title">{`OMR ${d.fee_omr}`}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Button label={t("doctor.book")} onPress={() => router.push(`/booking/${d.id}/schedule`)} />
+            <Button label={t("doctor.book")} onPress={() => requireAuth(() => router.push(`/booking/${d.id}/schedule`))} />
           </View>
         </View>
       }
@@ -67,7 +71,7 @@ export default function DoctorDetailsScreen() {
         title=""
         right={
           <Pressable
-            onPress={() => toggleFav.mutate(favTarget)}
+            onPress={() => requireAuth(() => toggleFav.mutate(favTarget))}
             disabled={isFav.isLoading || toggleFav.isPending}
             hitSlop={10}
             accessibilityRole="button"

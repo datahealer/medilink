@@ -7,14 +7,34 @@ import { useAuthStore } from "@/stores/authStore";
 import { useProfile } from "@/hooks/queries/usePatient";
 
 /**
+ * Guest-browsing allow-list (F4). A signed-out guest may reach ONLY these read-only
+ * discovery routes; every other `(app)` route (patient tabs, booking, records,
+ * profile, family, payments, notifications, settings account, …) redirects to the
+ * sign-in wall. Matched against the joined `useSegments()` path.
+ */
+function isGuestAllowed(segments: string[]): boolean {
+  const path = segments.join("/");
+  return (
+    path.includes("(tabs)/search") || // discovery search tab (guest home)
+    path.includes("/doctors") ||       // doctor profile (doctors/[id])
+    path.includes("search/specialties") ||
+    path.includes("search/map") ||
+    path.includes("search/filters") ||
+    path.includes("settings/appearance") // appearance/theme (no personal data)
+  );
+}
+
+/**
  * Auth gate for every authenticated screen. Because this runs for the whole
  * `(app)` group, deep links into /dashboard, /profile, /family, … cannot bypass
- * it. While the session is still restoring we show a neutral loader; an
- * unauthenticated user is redirected to sign-in.
+ * it. While the session is still restoring we show a neutral loader; a signed-out
+ * user is redirected to sign-in — unless they opted into guest browsing, in which
+ * case allow-listed discovery routes render and everything else hits the wall (F4).
  */
 export default function AppLayout() {
   const { colors } = useTheme();
   const status = useAuthStore((s) => s.status);
+  const guestMode = useAuthStore((s) => s.guestMode);
   const segments = useSegments();
   // Only fetch the profile once authed (guests never reach the gated content).
   const profile = useProfile({ enabled: status === "authed" });
@@ -26,20 +46,29 @@ export default function AppLayout() {
   );
 
   if (status === "loading") return loader;
-  if (status === "guest") return <Redirect href="/auth/sign-in" />;
 
-  // Mandatory profile setup for first-time patients. A freshly-provisioned
-  // patient_profiles row has `date_of_birth === null` (it is written only by the
-  // setup screen / profile editor), so DOB-null is a schema-free "not onboarded yet"
-  // signal — identical to the web rule (frontend/src/lib/onboarding.ts). Existing
-  // users who completed onboarding have a DOB and pass straight through. We never
-  // block on a load error (default into the app) and always allow the setup route
-  // itself through to avoid a redirect loop.
-  const onSetup = segments.includes("setup");
-  if (!onSetup) {
-    if (profile.isLoading) return loader;
-    if (profile.isSuccess && !profile.data?.patient?.date_of_birth) {
-      return <Redirect href="/setup" />;
+  if (status === "guest") {
+    // Guest browsing: render allow-listed discovery; everything else → sign-in wall.
+    // (A guest has no session, so the profile-setup gate below never applies.)
+    if (guestMode && isGuestAllowed(segments)) {
+      // fall through to render the Stack
+    } else {
+      return <Redirect href="/auth/sign-in" />;
+    }
+  } else {
+    // Mandatory profile setup for first-time patients. A freshly-provisioned
+    // patient_profiles row has `date_of_birth === null` (it is written only by the
+    // setup screen / profile editor), so DOB-null is a schema-free "not onboarded yet"
+    // signal — identical to the web rule (frontend/src/lib/onboarding.ts). Existing
+    // users who completed onboarding have a DOB and pass straight through. We never
+    // block on a load error (default into the app) and always allow the setup route
+    // itself through to avoid a redirect loop.
+    const onSetup = segments.includes("setup");
+    if (!onSetup) {
+      if (profile.isLoading) return loader;
+      if (profile.isSuccess && !profile.data?.patient?.date_of_birth) {
+        return <Redirect href="/setup" />;
+      }
     }
   }
 

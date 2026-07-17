@@ -229,6 +229,13 @@ export const ar: Messages = {
     haveAccount: "لدي حساب بالفعل",
     chooseLanguage: "تغيير اللغة",
   },
+  guest: {
+    continueAsGuest: "المتابعة كضيف",
+    wallTitle: "أنشئ حسابًا للمتابعة",
+    wallBody: "سجّل الدخول أو أنشئ حسابًا لحجز المواعيد والوصول إلى سجلاتك الصحية.",
+    wallCancel: "ليس الآن",
+    signInCta: "تسجيل الدخول",
+  },
   onboarding: {
     slide1Title: "اعثر على الطبيب المناسب",
     slide1Body:
@@ -265,6 +272,13 @@ export const ar: Messages = {
     apple: "المتابعة عبر Apple",
     noAccount: "ليس لديك حساب؟",
     createOne: "إنشاء حساب",
+    // F5 — تسجيل الدخول بدون كلمة مرور
+    identifierEmail: "البريد الإلكتروني",
+    identifierPhone: "الجوال",
+    sendCode: "إرسال الرمز",
+    sendCodeHint: "سنرسل رمز تسجيل دخول من 6 أرقام إلى بريدك إن كان هناك حساب.",
+    orPassword: "أو سجّل الدخول بكلمة المرور",
+    phoneComingSoon: "تسجيل الدخول عبر الجوال قريبًا.",
   },
   signUp: {
     title: "إنشاء حساب",

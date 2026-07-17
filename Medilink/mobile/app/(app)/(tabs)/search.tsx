@@ -10,6 +10,7 @@ import { useDoctors } from "@/hooks/queries/useDoctors";
 import { useSearchFilterStore, activeFilterCount } from "@/stores/searchFilterStore";
 import type { Doctor } from "@/data/types";
 import { localizedName } from "@/utils/localizedName";
+import { useGuestGate } from "@/hooks/useGuestGate";
 
 /** Search & Results (PDF p17): query, quick filters and ranked doctor cards. */
 export default function SearchScreen() {
@@ -20,6 +21,7 @@ export default function SearchScreen() {
   const filters = useSearchFilterStore();
   const setFilters = useSearchFilterStore((s) => s.setFilters);
   const [query, setQuery] = useState("");
+  const { requireAuth } = useGuestGate(); // F4: guests can browse, but Book → wall
 
   const doctors = useDoctors({
     query,
@@ -45,7 +47,7 @@ export default function SearchScreen() {
         availableTodayLabel={d.available_today ? t("search.today") : undefined}
         bookLabel={t("search.book")}
         profileLabel={t("search.profile")}
-        onBook={() => router.push(`/booking/${d.id}/schedule`)}
+        onBook={() => requireAuth(() => router.push(`/booking/${d.id}/schedule`))}
         onProfile={() => router.push(`/doctors/${d.id}`)}
         onPress={() => router.push(`/doctors/${d.id}`)}
       />

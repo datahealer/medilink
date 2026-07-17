@@ -230,6 +230,13 @@ export const en = {
     haveAccount: "I already have an account",
     chooseLanguage: "Change language",
   },
+  guest: {
+    continueAsGuest: "Continue as guest",
+    wallTitle: "Create an account to continue",
+    wallBody: "Sign in or create an account to book appointments and access your health records.",
+    wallCancel: "Not now",
+    signInCta: "Sign in",
+  },
   onboarding: {
     slide1Title: "Find the right doctor",
     slide1Body:
@@ -266,6 +273,13 @@ export const en = {
     apple: "Continue with Apple",
     noAccount: "Don't have an account?",
     createOne: "Create account",
+    // F5 — passwordless login
+    identifierEmail: "Email",
+    identifierPhone: "Mobile",
+    sendCode: "Send code",
+    sendCodeHint: "We'll email you a 6-digit login code if an account exists.",
+    orPassword: "or sign in with password",
+    phoneComingSoon: "Mobile login is coming soon.",
   },
   signUp: {
     title: "Create account",
