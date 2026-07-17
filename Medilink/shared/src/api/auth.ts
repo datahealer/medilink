@@ -61,6 +61,26 @@ export async function resendSignupOtp(db: DB, email: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * F5 Login Simplification — passwordless EMAIL login. Sends a 6-digit login code to
+ * an EXISTING account (`shouldCreateUser: false` so this never silently creates one —
+ * signup is a separate flow). Verify with `verifyEmailOtp({ type: "email" })`.
+ *
+ * Enumeration-safe: with `shouldCreateUser: false` Supabase returns success for an
+ * unknown email without sending a code, so the UI shows a neutral "if an account
+ * exists, a code was sent" message (see F5 §7).
+ *
+ * Phone OTP is intentionally NOT implemented here — it is blocked on an SMS provider
+ * (plan F4 §5); the sign-in UI keeps the Mobile option feature-flagged off.
+ */
+export async function signInWithEmailOtp(db: DB, email: string): Promise<void> {
+  const { error } = await db.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw error;
+}
+
 export async function signOut(db: DB): Promise<void> {
   const { error } = await db.auth.signOut();
   if (error) throw error;

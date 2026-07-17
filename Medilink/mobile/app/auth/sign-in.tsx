@@ -29,15 +29,43 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // F5: identifier channel for passwordless login. Phone is intentionally disabled
+  // (blocked on an SMS provider — plan F4 §5); Email OTP is the live path.
+  const [channel, setChannel] = useState<"email" | "phone">("email");
+  const [sendingCode, setSendingCode] = useState(false);
+
   const {
     control,
     handleSubmit,
+    getValues,
+    trigger,
     formState: { errors },
   } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema(t)),
     defaultValues: { email: "", password: "", remember: false },
     mode: "onBlur",
   });
+
+  // F5: send a passwordless email login code, then go to the OTP screen (flow=login).
+  const onSendCode = async () => {
+    setFormError(null);
+    const valid = await trigger("email");
+    if (!valid) return;
+    const email = getValues("email").trim();
+    setSendingCode(true);
+    try {
+      const res = await repositories.auth.sendLoginOtp(email);
+      if (res.ok) {
+        router.push(`/auth/otp?flow=login&email=${encodeURIComponent(email)}&target=${encodeURIComponent(email)}`);
+      } else {
+        setFormError(t(res.messageKey ?? "errors.unknown"));
+      }
+    } catch {
+      setFormError(t("errors.unknown"));
+    } finally {
+      setSendingCode(false);
+    }
+  };
 
   const onSubmit = async (values: SignInForm) => {
     if (__DEV__) console.log("[MediLink] sign-in button pressed");
@@ -95,6 +123,31 @@ export default function SignInScreen() {
         </View>
       ) : null}
 
+      {/* F5: Email / Mobile identifier selector. Mobile is disabled until SMS is live. */}
+      <View style={[styles.segment, { borderColor: colors.border, marginBottom: spacing.md, flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <Pressable
+          onPress={() => setChannel("email")}
+          accessibilityRole="button"
+          accessibilityState={{ selected: channel === "email" }}
+          style={[styles.segmentBtn, channel === "email" && { backgroundColor: colors.primary }]}
+        >
+          <Text variant="label" style={{ color: channel === "email" ? "#FFFFFF" : colors.textMuted }}>
+            {t("signIn.identifierEmail")}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setFormError(t("signIn.phoneComingSoon"))}
+          disabled
+          accessibilityRole="button"
+          accessibilityState={{ disabled: true, selected: false }}
+          style={[styles.segmentBtn, { opacity: 0.5 }]}
+        >
+          <Text variant="label" color="textMuted">
+            {t("signIn.identifierPhone")}
+          </Text>
+        </Pressable>
+      </View>
+
       <Controller
         control={control}
         name="email"
@@ -114,6 +167,21 @@ export default function SignInScreen() {
           />
         )}
       />
+
+      {/* F5: passwordless email login (primary). Neutral enumeration-safe messaging. */}
+      <Button label={t("signIn.sendCode")} loading={sendingCode} onPress={onSendCode} />
+      <Text variant="caption" color="textMuted" align="center" style={{ marginTop: spacing.sm }}>
+        {t("signIn.sendCodeHint")}
+      </Text>
+
+      {/* Password sign-in kept as a secondary path during the OTP transition. */}
+      <View style={[styles.divider, { marginVertical: spacing.lg }]}>
+        <View style={[styles.line, { backgroundColor: colors.border }]} />
+        <Text variant="caption" color="textMuted" style={{ marginHorizontal: 12 }}>
+          {t("signIn.orPassword")}
+        </Text>
+        <View style={[styles.line, { backgroundColor: colors.border }]} />
+      </View>
 
       <Controller
         control={control}
@@ -212,6 +280,8 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   header: { marginBottom: 8 },
+  segment: { borderWidth: StyleSheet.hairlineWidth * 2, borderRadius: 14, padding: 4, gap: 4 },
+  segmentBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 10, borderRadius: 10 },
   rowBetween: { alignItems: "center", justifyContent: "space-between" },
   divider: { flexDirection: "row", alignItems: "center" },
   line: { flex: 1, height: StyleSheet.hairlineWidth * 2 },

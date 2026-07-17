@@ -376,6 +376,15 @@ const authRepo: AuthRepository = {
   async verifyOtp() {
     return delay({ ok: true });
   },
+  async sendLoginOtp() {
+    return delay({ ok: true, messageKey: "otp.sent" });
+  },
+  async verifyLoginOtp() {
+    // Mock email-OTP login: any 6-digit code flips to the authed mock session.
+    currentUser = MOCK_USER;
+    notify();
+    return delay({ ok: true });
+  },
   async requestPasswordReset() {
     return delay({ ok: true, messageKey: "forgot.emailSent" });
   },

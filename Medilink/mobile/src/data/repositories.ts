@@ -47,6 +47,10 @@ export interface AuthRepository {
   signUp(input: SignUpInput): Promise<AuthResult>;
   sendOtp(email?: string): Promise<AuthResult>;
   verifyOtp(code: string, email?: string): Promise<AuthResult>;
+  /** F5 — send a passwordless email login code (enumeration-safe). */
+  sendLoginOtp(email: string): Promise<AuthResult>;
+  /** F5 — verify the email login code; establishes the session on success. */
+  verifyLoginOtp(code: string, email: string): Promise<AuthResult>;
   requestPasswordReset(identifier: string): Promise<AuthResult>;
   resetPassword(password: string): Promise<AuthResult>;
   googleSignIn(): Promise<AuthResult>;

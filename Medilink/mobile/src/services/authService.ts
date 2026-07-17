@@ -124,6 +124,39 @@ export const authService = {
     }
   },
 
+  /**
+   * F5 Login Simplification — send a passwordless EMAIL login code to an existing
+   * account. Enumeration-safe: an unknown-account error is swallowed (we still
+   * proceed to the OTP screen with neutral copy); only rate-limit / network errors
+   * hard-stop. Phone OTP is intentionally not implemented (blocked on SMS provider).
+   */
+  async sendLoginOtp(email: string): Promise<AuthResult> {
+    try {
+      await api.auth.signInWithEmailOtp(supabase, email.trim());
+      return { ok: true, messageKey: "otp.sent" };
+    } catch (err) {
+      const key = toMessageKey(err);
+      // Don't reveal whether the account exists — only surface hard failures.
+      if (key === "errors.otpTooMany" || key === "errors.network") {
+        return { ok: false, messageKey: key };
+      }
+      return { ok: true }; // proceed neutrally
+    }
+  },
+
+  /** F5 — verify the email login code; Supabase establishes the session on success. */
+  async verifyLoginOtp(code: string, email?: string): Promise<AuthResult> {
+    if (!email) return { ok: false, messageKey: "errors.unknown" };
+    try {
+      await api.auth.verifyEmailOtp(supabase, { email: email.trim(), token: code, type: "email" });
+      // An explicit OTP login persists the session across cold launches.
+      await setRememberSession(true);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, messageKey: toMessageKey(err) };
+    }
+  },
+
   /** Re-send the signup confirmation OTP email. */
   async sendOtp(email?: string): Promise<AuthResult> {
     if (!email) return { ok: false, messageKey: "errors.unknown" };
