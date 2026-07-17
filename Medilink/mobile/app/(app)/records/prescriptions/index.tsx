@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n";
 import { usePrescriptions, usePrescriptionShareLink } from "@/hooks/queries/usePrescriptions";
 import type { Prescription } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
+import { localizedName } from "@/utils/localizedName";
 
 /**
  * Prescriptions list (design p30). Active/Previous tabs + the Active badge are hidden:
@@ -34,7 +35,12 @@ export default function PrescriptionsScreen() {
   const dosageOf = (p: Prescription) =>
     [p.medications[0]?.dosage, p.medications[0]?.frequency].filter(Boolean).join(" · ");
   const subtitleOf = (p: Prescription) =>
-    [p.doctor?.full_name, formatApptDate(p.issued_at?.slice(0, 10) ?? null, t, num)].filter(Boolean).join(" · ");
+    [
+      localizedName(p.doctor?.full_name ?? "", p.doctor?.full_name_ar, p.doctor?.full_name_ar_status, isRTL),
+      formatApptDate(p.issued_at?.slice(0, 10) ?? null, t, num),
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   const onShare = async (id: string) => {
     setSharingId(id);

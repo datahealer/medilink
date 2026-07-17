@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePaymentByAppointment, useVerifyPayment } from "@/hooks/queries/usePatient";
 import { formatApptDate, formatApptTime } from "@/utils/appointments";
+import { localizedName } from "@/utils/localizedName";
 
 /**
  * Payment Confirmation (design p23) — shown after returning from Thawani's hosted
@@ -15,7 +16,7 @@ import { formatApptDate, formatApptTime } from "@/utils/appointments";
  * paid it shows a "processing" state the patient can refresh.
  */
 export default function PaymentConfirmationScreen() {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
   const params = useLocalSearchParams<{ appointment_id?: string; appointmentId?: string }>();
@@ -84,7 +85,7 @@ export default function PaymentConfirmationScreen() {
       label: t("payments.appointment"),
       value: a ? `${formatApptDate(a.slot_date, t, num)} · ${formatApptTime(a.slot_start, num)}`.trim() : "—",
     },
-    { label: t("payments.doctor"), value: a?.doctor?.full_name || "—" },
+    { label: t("payments.doctor"), value: localizedName(a?.doctor?.full_name || "—", a?.doctor?.full_name_ar, a?.doctor?.full_name_ar_status, isRTL) },
   ];
 
   const paidSummary = payment.method

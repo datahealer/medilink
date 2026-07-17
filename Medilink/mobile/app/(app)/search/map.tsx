@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { Avatar, Card, Icon, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
+import { localizedName } from "@/utils/localizedName";
 import { useDoctors } from "@/hooks/queries/useDoctors";
 
 // Fixed pin positions (no maps SDK installed — this is a branded static map surface;
@@ -96,9 +97,9 @@ export default function MapViewScreen() {
             <View style={[styles.cardRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <Avatar name={active.full_name} size={44} />
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-                <Text variant="title" numberOfLines={1}>{active.full_name}</Text>
+                <Text variant="title" numberOfLines={1}>{localizedName(active.full_name, active.full_name_ar, active.full_name_ar_status, isRTL)}</Text>
                 <Text variant="caption" color="textMuted" numberOfLines={1}>
-                  {`${active.facility} · ${t("map.openNow")}`}
+                  {`${localizedName(active.facility, active.facility_ar, active.facility_ar_status, isRTL)} · ${t("map.openNow")}`}
                 </Text>
                 <Text variant="caption" color="textMuted">
                   {num(`★ ${active.rating}   OMR ${active.fee_omr}${active.distance_km != null ? ` · ${active.distance_km} km` : ""}`)}

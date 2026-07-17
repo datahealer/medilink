@@ -19,6 +19,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { isMockData } from "@/data";
 import { useProfile, useCreateAppointment } from "@/hooks/queries/usePatient";
 import { useFamily } from "@/hooks/queries/useFamily";
@@ -56,7 +57,9 @@ export default function ReviewScreen() {
   const activeId = usePatientStore((s) => s.activePatientId);
   const setActivePatient = usePatientStore((s) => s.setActivePatient);
 
-  const primaryName = profile.data?.account?.full_name ?? t("booking.you");
+  const primaryName = profile.data?.account?.full_name
+    ? localizedName(profile.data.account.full_name, profile.data.account.full_name_ar, profile.data.account.full_name_ar_status, isRTL)
+    : t("booking.you");
   // Only honour the active-patient selection if it's a REAL member of the current
   // family list. A stale/mock id (e.g. a persisted "mock-100" from mock mode) must
   // never reach the booking RPC, which expects a real UUID — fall back to "self".
