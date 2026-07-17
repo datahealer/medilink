@@ -101,7 +101,21 @@ export function usePaymentByAppointment(appointmentId: string) {
 /** Create a Thawani hosted-checkout session for an appointment (returns the URL). */
 export function useCreateCheckout() {
   return useMutation({
-    mutationFn: (input: { appointmentId: string; amount: number }) => repositories.payment.createCheckout(input),
+    mutationFn: (input: { appointmentId: string }) => repositories.payment.createCheckout(input),
+  });
+}
+
+/**
+ * BP-3 — release a still-pending, unpaid reservation (payment cancel/abandon or a
+ * checkout-creation rollback). Frees the held slot; refreshes appointment + slot views.
+ */
+export function useReleaseHold() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appointmentId: string) => repositories.appointment.releaseHold(appointmentId),
+    onSuccess: () => {
+      invalidateAppointments(qc);
+    },
   });
 }
 

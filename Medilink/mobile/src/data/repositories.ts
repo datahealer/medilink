@@ -87,6 +87,12 @@ export interface AppointmentRepository {
   create(input: NewAppointment): Promise<BookedAppointment>;
   /** Cancel an appointment (atomic RPC; throws with the backend reason on failure). */
   cancel(id: string, reason?: string): Promise<void>;
+  /**
+   * BP-3 — release a still-pending, UNPAID reservation (void → free the slot).
+   * Used on payment cancel/abandon or a checkout-creation rollback; distinct from
+   * cancel() (which is for confirmed/paid bookings).
+   */
+  releaseHold(id: string): Promise<void>;
   /** Reschedule to a new slot (atomic RPC; throws with the backend reason on failure). */
   reschedule(id: string, slot: { date: string; start: string; end: string }): Promise<void>;
   /** Check in to a confirmed appointment (throws with the backend reason on failure). */
@@ -104,8 +110,10 @@ export interface PaymentRepository {
   /**
    * Create a Thawani hosted-checkout session for an appointment. Returns the URL
    * to open in the browser. `checkoutUrl` is null when no gateway is wired (mock).
+   * BP-4: the amount is derived SERVER-side from the doctor's fee — never sent by
+   * the client.
    */
-  createCheckout(input: { appointmentId: string; amount: number }): Promise<{ checkoutUrl: string | null }>;
+  createCheckout(input: { appointmentId: string }): Promise<{ checkoutUrl: string | null }>;
   /**
    * Verify a payment on return from Thawani (authoritative session-status check on
    * the backend). Finalizes paid → confirmed server-side and returns the latest status

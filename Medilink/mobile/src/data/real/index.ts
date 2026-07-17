@@ -5,7 +5,7 @@
  * reads go directly to Supabase via the shared `@medilink/shared` `api.*` modules.
  * This is only the boundary the UI consumes.
  */
-import { api } from "@medilink/shared/mobile";
+import { api, feeForType } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/services/api";
@@ -234,15 +234,8 @@ interface ApptRow {
   payments?: ApptPaymentRow[] | null;
 }
 
-/** Consultation fee for this appointment's type from the doctor's fees JSONB. */
-function feeForType(fees: unknown, type: string | null): number {
-  if (fees && typeof fees === "object") {
-    const f = fees as Record<string, unknown>;
-    const v = (type === "online" ? f.online : f.in_person) ?? f.in_person ?? f.online;
-    return typeof v === "number" ? v : Number(v) || 0;
-  }
-  return Number(fees) || 0;
-}
+// feeForType (consultation fee for an appointment type) is the shared helper
+// imported above — the single source of truth reused by the backend checkout (BP-4).
 
 function mapAppointment(r: ApptRow): Appointment {
   const pay = Array.isArray(r.payments) ? r.payments[0] : null;
@@ -337,12 +330,14 @@ const paymentRepo: PaymentRepository = {
     const row = (await api.payments.getPaymentByAppointment(supabase, appointmentId)) as unknown as PaymentRow | null;
     return row ? mapPayment(row) : null;
   },
-  async createCheckout({ appointmentId, amount }) {
+  async createCheckout({ appointmentId }) {
     // Privileged op: the Thawani secret lives server-side, so this goes through the
-    // MediLink backend route (Bearer = the Supabase access token). Returns a hosted checkout URL.
+    // MediLink backend route (Bearer = the Supabase access token). Returns a hosted
+    // checkout URL. BP-4: the amount is derived server-side from the doctor's fee —
+    // the client no longer sends it (price-manipulation fix).
     const res = await apiFetch<{ checkoutUrl?: string }>("/api/payments/checkout", {
       method: "POST",
-      body: JSON.stringify({ appointment_id: appointmentId, amount }),
+      body: JSON.stringify({ appointment_id: appointmentId }),
     });
     return { checkoutUrl: res?.checkoutUrl ?? null };
   },
@@ -427,6 +422,22 @@ const appointmentRepo: AppointmentRepository = {
     // cancel_appointment_safe returns { success: false, error } on business failures.
     const r = (res ?? {}) as Record<string, unknown>;
     if (r.success === false) throw new Error(String(r.error ?? "CANCEL_FAILED"));
+  },
+  async releaseHold(id) {
+    // BP-3: void a still-pending, unpaid reservation (frees the slot). release_unpaid_hold
+    // returns { success: false, error } for anything it declines (e.g. already paid) —
+    // that is non-fatal here (the TTL sweeper is the backstop), so we don't throw.
+    let res: unknown;
+    try {
+      res = await api.appointments.releaseUnpaidHold(supabase, id);
+    } catch (e) {
+      if (__DEV__) console.warn("[booking] releaseUnpaidHold threw", e);
+      return;
+    }
+    if (__DEV__) {
+      const r = (res ?? {}) as Record<string, unknown>;
+      if (r.success === false) console.warn("[booking] releaseUnpaidHold declined", r.error);
+    }
   },
   async reschedule(id, slot) {
     let res: unknown;
@@ -584,6 +595,12 @@ function feeOf(fees: unknown): number {
   return Number(fees) || 0;
 }
 
+/** Local-date YYYY-MM-DD for "today" (BP-1 availability; timezone handling is R5). */
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function mapDoctorRow(r: DoctorRowLoose): Doctor {
   return {
     id: r.id,
@@ -597,8 +614,10 @@ function mapDoctorRow(r: DoctorRowLoose): Doctor {
     facility_id: r.facility_id ?? undefined,
     rating: r.avg_rating ?? 0,
     fee_omr: feeOf(r.fees),
-    // `status === "available"` is the backend's live-now flag; null → unknown.
-    available_today: r.status == null ? undefined : r.status === "available",
+    // BP-1: availability is slot-based, set by the repository via
+    // `doctors_available_today` (not the runtime `doctors.status`). Left `undefined`
+    // here and populated by doctorRepo.search/get.
+    available_today: undefined,
     experience_years: r.years_experience ?? undefined,
   };
 }
@@ -610,9 +629,9 @@ function mapDoctorDetail(r: DoctorRowLoose): Doctor {
     languages: Array.isArray(r.languages) ? r.languages : undefined,
     about: asText(r.about ?? r.bio ?? null) || undefined,
     reviews: r.review_count ?? r.reviews_count ?? undefined,
-    // slots_today intentionally omitted: real availability comes from
-    // api.appointments.getAvailableSlots(doctorId, date) when the slots batch
-    // is wired. Until then the schedule screen falls back to DEFAULT_SLOTS.
+    // slots_today intentionally omitted: the schedule/reschedule screens read live
+    // availability from the backend `get_available_slots` RPC (via getSlots →
+    // api.appointments.getAvailableSlots) — the single source of truth (R3).
   };
 }
 
@@ -623,6 +642,9 @@ const doctorRepo: DoctorRepository = {
       term: params.query,
     })) as unknown as DoctorRowLoose[];
     let list = rows.map(mapDoctorRow);
+    // BP-1: slot-based "available today" — one set-based backend call, then flag.
+    const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+    list = list.map((d) => ({ ...d, available_today: availableIds.has(d.id) }));
     // Filters the backend list query does not apply are honoured client-side.
     if (params.maxFee != null) list = list.filter((d) => d.fee_omr <= params.maxFee!);
     if (params.minRating != null) list = list.filter((d) => d.rating >= params.minRating!);
@@ -634,7 +656,10 @@ const doctorRepo: DoctorRepository = {
   async get(id) {
     const { doctor } = await api.doctors.getDoctor(supabase, id);
     if (!doctor) return null;
-    return mapDoctorDetail(doctor as unknown as DoctorRowLoose);
+    const detail = mapDoctorDetail(doctor as unknown as DoctorRowLoose);
+    // BP-1: slot-based availability for the detail "available today" pill.
+    const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+    return { ...detail, available_today: availableIds.has(id) };
   },
   async reviews(id) {
     // Reuses the shared public-review read (query + distribution live in

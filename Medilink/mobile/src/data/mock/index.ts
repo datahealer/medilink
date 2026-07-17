@@ -504,6 +504,12 @@ const appointmentRepo: AppointmentRepository = {
     if (a) a.status = "cancelled";
     return delay(undefined, 300);
   },
+  async releaseHold(id) {
+    // BP-3: drop a pending hold from the mock list (frees the slot).
+    const a = appointments.find((x) => x.id === id);
+    if (a && a.status === "pending") a.status = "cancelled";
+    return delay(undefined, 200);
+  },
   async reschedule(id, slot) {
     const a = appointments.find((x) => x.id === id);
     if (a) {
