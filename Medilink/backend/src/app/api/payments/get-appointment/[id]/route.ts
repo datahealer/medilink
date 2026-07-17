@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { feeForType } from "@medilink/shared";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
@@ -19,6 +20,7 @@ export async function GET(
         id,
         patient_id,
         doctor_id,
+        type,
         doctors (
           fees
         )
@@ -33,8 +35,11 @@ export async function GET(
       );
     }
 
-    const amount =
-      (appointment.doctors?.fees as any)?.in_person || 0;
+    // Shared, type-aware consultation fee (single source of truth with checkout).
+    const amount = feeForType(
+      (appointment.doctors as { fees?: unknown } | null)?.fees,
+      appointment.type as string | null
+    );
 
     return NextResponse.json({
       appointment_id: appointment.id,

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
@@ -8,14 +9,52 @@ import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 // email → notifications); give it headroom above the low default timeout.
 export const maxDuration = 60;
 
+/**
+ * BP-6 — HMAC/signature verification (defense-in-depth, in addition to the Thawani
+ * re-query + idempotent claim below).
+ *
+ * Verifies `HMAC-SHA256(rawBody, THAWANI_WEBHOOK_SECRET)` (hex) against the signature
+ * header (`THAWANI_WEBHOOK_SIGNATURE_HEADER`, default `thawani-signature`), using a
+ * timing-safe compare. Gated on the secret being set:
+ *   • secret unset  → skip (the re-query below stays the authoritative anti-spoof
+ *     guard, so no deployment breaks by omitting it).
+ *   • secret set    → a missing/mismatched signature is rejected (401).
+ * Even if the secret is misconfigured, payments still finalize via the client
+ * `/payments/verify` path (which re-queries Thawani directly), so this never strands
+ * a real payment.
+ */
+function verifyWebhookSignature(req: NextRequest, rawBody: string): { ok: boolean; reason?: string } {
+  const secret = process.env.THAWANI_WEBHOOK_SECRET;
+  if (!secret) return { ok: true, reason: "hmac-not-configured" };
+
+  const headerName = process.env.THAWANI_WEBHOOK_SIGNATURE_HEADER || "thawani-signature";
+  const provided = req.headers.get(headerName);
+  if (!provided) return { ok: false, reason: "missing-signature" };
+
+  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return { ok: false, reason: "signature-mismatch" };
+  return { ok: crypto.timingSafeEqual(a, b), reason: "signature-mismatch" };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = createServiceSupabase();
 
+    // Read the RAW body once (HMAC must be computed over the exact bytes), verify the
+    // signature, then parse. See verifyWebhookSignature above.
+    const rawBody = await req.text();
+    const sig = verifyWebhookSignature(req, rawBody);
+    if (!sig.ok) {
+      console.warn("⚠️ Webhook signature rejected:", sig.reason);
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
     // ✅ SAFE BODY
     let body: any = {};
     try {
-      body = await req.json();
+      body = rawBody ? JSON.parse(rawBody) : {};
     } catch {
       body = {};
     }

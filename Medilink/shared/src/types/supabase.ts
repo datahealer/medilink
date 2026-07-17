@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -360,6 +360,7 @@ export type Database = {
           follow_up_of: string | null
           for_family_member_id: string | null
           google_event_id: string | null
+          hold_expires_at: string | null
           id: string
           is_emergency: boolean
           needs_queue_sync: boolean
@@ -400,6 +401,7 @@ export type Database = {
           follow_up_of?: string | null
           for_family_member_id?: string | null
           google_event_id?: string | null
+          hold_expires_at?: string | null
           id?: string
           is_emergency?: boolean
           needs_queue_sync?: boolean
@@ -440,6 +442,7 @@ export type Database = {
           follow_up_of?: string | null
           for_family_member_id?: string | null
           google_event_id?: string | null
+          hold_expires_at?: string | null
           id?: string
           is_emergency?: boolean
           needs_queue_sync?: boolean
@@ -1426,6 +1429,7 @@ export type Database = {
           allow_online_booking: boolean
           allow_telemedicine: boolean
           avg_consultation_minutes: number
+          booking_window_days: number
           buffer_minutes_between_appts: number
           cancellation_cutoff_hours: number
           currency: string
@@ -1443,6 +1447,7 @@ export type Database = {
           allow_online_booking?: boolean
           allow_telemedicine?: boolean
           avg_consultation_minutes?: number
+          booking_window_days?: number
           buffer_minutes_between_appts?: number
           cancellation_cutoff_hours?: number
           currency?: string
@@ -1460,6 +1465,7 @@ export type Database = {
           allow_online_booking?: boolean
           allow_telemedicine?: boolean
           avg_consultation_minutes?: number
+          booking_window_days?: number
           buffer_minutes_between_appts?: number
           cancellation_cutoff_hours?: number
           currency?: string
@@ -4287,6 +4293,12 @@ export type Database = {
         }
       }
       disablelongtransactions: { Args: never; Returns: string }
+      doctors_available_today: {
+        Args: { p_date: string }
+        Returns: {
+          doctor_id: string
+        }[]
+      }
       dropgeometrycolumn:
         | {
             Args: {
@@ -4738,6 +4750,7 @@ export type Database = {
       postgis_wagyu_version: { Args: never; Returns: string }
       purge_deleted_accounts: { Args: never; Returns: undefined }
       rebook_appointment: { Args: { p_original_id: string }; Returns: Json }
+      release_unpaid_hold: { Args: { p_appointment_id: string }; Returns: Json }
       reschedule_appointment: {
         Args: {
           p_id: string

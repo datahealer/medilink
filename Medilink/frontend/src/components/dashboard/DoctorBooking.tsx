@@ -254,7 +254,9 @@ export function BookingModal({
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ appointment_id: res.appointment_id, amount: doctor.fee }),
+          // BP-4: the amount is derived server-side from the doctor's fee + VAT.
+          // The client no longer sends it (previously sent fee without VAT).
+          body: JSON.stringify({ appointment_id: res.appointment_id }),
         });
         const j = await r.json().catch(() => null);
         if (r.ok && j?.checkoutUrl) {

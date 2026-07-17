@@ -418,6 +418,14 @@ entrypoint = "./functions/generate-invoice/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-invoice/*.html" ]
 
+# F3 · BP-3 / R7 — scheduled sweeper for expired unpaid booking holds.
+# Schedule (~1 min) is configured at deploy time (Supabase cron / functions schedule).
+[functions.release-expired-holds]
+enabled = true
+verify_jwt = true
+import_map = "./functions/release-expired-holds/deno.json"
+entrypoint = "./functions/release-expired-holds/index.ts"
+
 [functions.hams_onboarding_architecture]
 enabled = true
 verify_jwt = true
