@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppCard, AppHeader, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { useDocuments } from "@/hooks/queries/useRecords";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { DocumentType, PatientDoc } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
 
@@ -40,6 +41,7 @@ export default function RecordsScreen() {
   const rowDir = isRTL ? "row-reverse" : "row";
 
   const query = useDocuments();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const docs: PatientDoc[] = useMemo(() => query.data ?? [], [query.data]);
   const [filter, setFilter] = useState<DocumentType | null>(null);
   const [q, setQ] = useState("");
@@ -98,6 +100,7 @@ export default function RecordsScreen() {
       padded
       edges={["top", "left", "right"]}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
     >
       <AppHeader
         title={t("records.vaultTitle")}

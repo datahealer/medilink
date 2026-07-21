@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { Chip, DoctorCard, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useRefresh } from "@/hooks/useRefresh";
 import { useSearchFilterStore, activeFilterCount } from "@/stores/searchFilterStore";
 import type { Doctor } from "@/data/types";
 import { localizedName } from "@/utils/localizedName";
@@ -35,6 +36,7 @@ export default function SearchScreen() {
 
   const count = doctors.data?.length ?? 0;
   const filterBadge = activeFilterCount(filters);
+  const { refreshing, onRefresh } = useRefresh(() => doctors.refetch());
 
   const card = (d: Doctor) => (
     <View key={d.id} style={{ marginBottom: spacing.sm }}>
@@ -55,7 +57,7 @@ export default function SearchScreen() {
   );
 
   return (
-    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}>
       {/* Header (tab root — no back) */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Text variant="h2" style={{ flex: 1 }}>{t("search.findDoctor")}</Text>

@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Card, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { localizedName } from "@/utils/localizedName";
 import { usePayments } from "@/hooks/queries/usePatient";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { Payment } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
 import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
@@ -20,6 +21,7 @@ export default function PaymentsScreen() {
   const { t, num } = useI18n();
 
   const query = usePayments();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const payments = query.data ?? [];
   const money = (n: number | null | undefined) => `OMR ${num((n ?? 0).toFixed(3))}`;
 
@@ -35,6 +37,7 @@ export default function PaymentsScreen() {
       scroll
       padded
       edges={["top", "left", "right", "bottom"]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
     >
       <AppHeader title={t("payments.title")} showBack />

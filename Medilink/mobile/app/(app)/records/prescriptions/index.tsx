@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Share, StyleSheet, View } from "react-native";
+import { Alert, RefreshControl, Share, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Button, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePrescriptions, usePrescriptionShareLink } from "@/hooks/queries/usePrescriptions";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { Prescription } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
 import { localizedName } from "@/utils/localizedName";
@@ -23,6 +24,7 @@ export default function PrescriptionsScreen() {
   const rowDir = isRTL ? "row-reverse" : "row";
 
   const query = usePrescriptions();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const items: Prescription[] = query.data ?? [];
   const share = usePrescriptionShareLink();
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -100,6 +102,7 @@ export default function PrescriptionsScreen() {
       scroll
       padded
       edges={["top", "left", "right"]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}
     >
       <AppHeader title={t("prescriptions.title")} showBack />

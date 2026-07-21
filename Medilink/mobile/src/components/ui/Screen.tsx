@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   View,
+  type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -30,6 +31,8 @@ export interface ScreenProps {
   contentStyle?: StyleProp<ViewStyle>;
   /** Dismiss the keyboard when tapping outside inputs (default true). */
   dismissKeyboardOnTap?: boolean;
+  /** Pull-to-refresh control (a <RefreshControl/>); only applies when `scroll`. */
+  refreshControl?: ScrollViewProps["refreshControl"];
 }
 
 /**
@@ -47,6 +50,7 @@ export function Screen({
   backgroundColor,
   contentStyle,
   dismissKeyboardOnTap = true,
+  refreshControl,
 }: ScreenProps) {
   const { colors, scheme, spacing } = useTheme();
   const bg = backgroundColor ?? colors.background;
@@ -64,6 +68,7 @@ export function Screen({
       ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      refreshControl={refreshControl}
     >
       {children}
     </ScrollView>

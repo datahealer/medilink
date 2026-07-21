@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -19,6 +19,7 @@ import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { localizedName } from "@/utils/localizedName";
 import { useAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { Appointment } from "@/data/types";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
 
@@ -37,6 +38,7 @@ export default function AppointmentsScreen() {
 
   // One fetch; split client-side so the Upcoming view can also show a Past section.
   const query = useAppointments("all");
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const all = query.data ?? [];
   const upcomingList = all.filter(isUpcoming);
   const pastList = all.filter((a) => !isUpcoming(a));
@@ -109,6 +111,7 @@ export default function AppointmentsScreen() {
       padded
       edges={["top", "left", "right"]}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.md }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       footer={
         <View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}>
           <StaticTabBar active="home" />

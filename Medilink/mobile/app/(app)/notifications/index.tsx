@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, MeMark, Screen, StaticTabBar, Text } from "@/components/ui";
@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useNotifications, useMarkAllNotificationsRead } from "@/hooks/queries/useNotifications";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { NotificationItem, NotificationKind } from "@/data/types";
 
 const ICON: Record<NotificationKind, IconName> = {
@@ -50,6 +51,7 @@ export default function NotificationsScreen() {
   const notifications = useNotifications();
   const markAll = useMarkAllNotificationsRead();
   const [allRead, setAllRead] = useState(false);
+  const { refreshing, onRefresh } = useRefresh(() => notifications.refetch());
 
   const onMarkAll = () => {
     setAllRead(true); // optimistic
@@ -93,6 +95,7 @@ export default function NotificationsScreen() {
       padded
       edges={["top", "left", "right"]}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.md }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       footer={<View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}><StaticTabBar active="home" /></View>}
     >
       <AppHeader
