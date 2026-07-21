@@ -18,7 +18,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { localizedName } from "@/utils/localizedName";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useDoctor, useMapClinics } from "@/hooks/queries/useDoctors";
+import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useAvailableSlots } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
 import { BOOKING_WINDOW_DAYS } from "@medilink/shared/mobile";
@@ -42,7 +42,6 @@ export default function ScheduleScreen() {
   const id = String(doctorId ?? "");
 
   const doctor = useDoctor(id);
-  const clinics = useMapClinics();
   const start = useBookingStore((s) => s.start);
   const setSchedule = useBookingStore((s) => s.setSchedule);
 
@@ -64,7 +63,24 @@ export default function ScheduleScreen() {
     return { days: items, dateLabels: labels };
   }, [t, num]);
 
-  const clinicList = useMemo(() => clinics.data ?? [], [clinics.data]);
+  // The booking clinic is the doctor's OWN facility. Previously this list came from a
+  // hardcoded mock (`useMapClinics`) unrelated to the selected doctor, so the clinic
+  // shown never matched the facilityId actually booked. Sourcing it from the doctor makes
+  // the displayed clinic and the booked facility a single source of truth (fixes the
+  // "wrong clinic" bug). Kept as a (single-item) selectable list to preserve the UI and
+  // leave room for future per-branch selection.
+  const clinicList = useMemo(() => {
+    const d = doctor.data;
+    if (!d?.facility_id) return [];
+    return [
+      {
+        id: d.facility_id,
+        name: d.facility,
+        name_ar: d.facility_ar ?? null,
+        name_ar_status: d.facility_ar_status ?? null,
+      },
+    ];
+  }, [doctor.data]);
 
   const [clinicId, setClinicId] = useState<string | undefined>(undefined);
   const [dateId, setDateId] = useState<string>(days[0]?.id ?? "");
@@ -106,13 +122,14 @@ export default function ScheduleScreen() {
     const clinic = clinicList.find((c) => c.id === clinicId);
     const picked = availableSlots.find((s) => s.label === slot);
     if (!clinic || !picked || !doctor.data) return;
-    const meta = `${num(`${clinic.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`;
+    const meta = t("booking.inPerson");
     setSchedule({
       clinicId: clinic.id,
       clinicName: localizedName(clinic.name, clinic.name_ar, clinic.name_ar_status, isRTL),
       clinicMeta: meta,
-      // Real bookings target the doctor's facility; fall back to the clinic id (mock mode).
-      facilityId: doctor.data.facility_id || clinic.id,
+      // clinic.id IS the doctor's facility_id (the clinic list is derived from the doctor),
+      // so the displayed clinic and the booked facility are guaranteed consistent.
+      facilityId: clinic.id,
       dateId,
       dateLabel: dateLabels[dateId] ?? "",
       slot: picked.label,
@@ -161,7 +178,7 @@ export default function ScheduleScreen() {
           >
             <View style={styles.flex}>
               <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}</Text>
-              <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{`${num(`${c.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`}</Text>
+              <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{t("booking.inPerson")}</Text>
             </View>
             <View style={[styles.radio, { borderColor: sel ? colors.primary : colors.border }, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
               {sel ? <View style={[styles.radioDot, { backgroundColor: colors.primary }]} /> : null}
