@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Switch, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
 import { AppHeader, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
@@ -8,6 +8,7 @@ import { useLocale } from "@/hooks/useLocale";
 import { useI18n } from "@/i18n";
 import { useThemeStore, LARGE_TEXT_SCALE } from "@/stores/themeStore";
 import type { ColorMode } from "@/stores/themeStore";
+import { canReloadApp, reloadApp } from "@/utils/restart";
 
 const THEMES: { value: ColorMode; label: "light" | "dark" | "system" }[] = [
   { value: "light", label: "light" },
@@ -28,9 +29,22 @@ export default function AppearanceScreen() {
   const setLargerText = useThemeStore((s) => s.setLargerText);
 
   const onToggleRTL = (on: boolean) => {
-    // Save immediately; the RTL layout change applies on the next app open —
-    // no restart dialog, no forced restart, no logout.
-    changeLocale(on ? "ar" : "en");
+    // Toggling EN ↔ AR always flips the native layout direction. RN only fully applies
+    // an LTR↔RTL flip after the root view is recreated, so we must reload — otherwise
+    // the UI is left half-mirrored (the AR→EN "stays RTL" bug). Reload now in a dev
+    // build; in production guide the user to relaunch (the choice is already persisted).
+    const directionChanged = changeLocale(on ? "ar" : "en");
+    if (!directionChanged) return;
+    if (canReloadApp) {
+      Alert.alert(t("common.restartTitle"), t("common.restartBody"), [
+        { text: t("common.restartLater"), style: "cancel" },
+        { text: t("common.restartNow"), onPress: () => reloadApp() },
+      ]);
+    } else {
+      Alert.alert(t("common.restartTitle"), t("common.restartBody"), [
+        { text: t("common.done") },
+      ]);
+    }
   };
 
   // Mini mock surfaces for the theme tiles.
