@@ -54,7 +54,7 @@ function useQrMatrix(seed: string): boolean[][] {
 
 /** Check-in (design p25) — confirmation, scannable QR pass + booking ref, live queue. */
 export default function CheckInScreen() {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
   const { id: rawId } = useLocalSearchParams<{ id?: string }>();
@@ -104,7 +104,7 @@ export default function CheckInScreen() {
 
           {/* Live queue */}
           <AppCard variant="detail" style={{ marginTop: spacing.sm, alignSelf: "stretch" }}>
-            <View style={styles.queueRow}>
+            <View style={[styles.queueRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View style={styles.queueCell}>
                 <Text variant="caption" color="textMuted" align="center">{t("appointments.queueNumber")}</Text>
                 <Text variant="display" color="primary" align="center" style={styles.queueValue}>{num(queueNo)}</Text>

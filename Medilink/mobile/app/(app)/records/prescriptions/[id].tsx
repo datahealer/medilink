@@ -113,7 +113,7 @@ export default function MedicationDetailsScreen() {
               onPress={onSharePdf}
               disabled={!hasPdf}
               loading={busy === "share"}
-              style={[styles.footerBtn, { marginEnd: spacing.sm }]}
+              style={[styles.footerBtn, isRTL ? { marginStart: spacing.sm } : { marginEnd: spacing.sm }]}
             />
             <Button
               label={t("prescriptions.sendToPharmacy")}
@@ -136,7 +136,7 @@ export default function MedicationDetailsScreen() {
           <MeMark height={18} color={colors.primary} />
           <View style={[styles.pill, { backgroundColor: colors.successSurface, borderRadius: radii.pill, flexDirection: rowDir }]}>
             <Icon name="done-circle" size={14} color="success" filled />
-            <Text variant="caption" color="success" style={{ marginStart: 4 }}>{t("prescriptions.verified")}</Text>
+            <Text variant="caption" color="success" style={isRTL ? { marginEnd: 4 } : { marginStart: 4 }}>{t("prescriptions.verified")}</Text>
           </View>
         </View>
 
@@ -160,13 +160,13 @@ export default function MedicationDetailsScreen() {
             {dosageLine(m) ? (
               <View style={[styles.kvRow, { flexDirection: rowDir, marginTop: spacing.sm }]}>
                 <Text variant="label" color="textMuted">{t("prescriptions.dosageLabel")}</Text>
-                <Text variant="body" align={isRTL ? "left" : "right"} style={styles.kvValue}>{dosageLine(m)}</Text>
+                <Text variant="body" align={isRTL ? "left" : "right"} style={[styles.kvValue, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>{dosageLine(m)}</Text>
               </View>
             ) : null}
             {m.duration ? (
               <View style={[styles.kvRow, { flexDirection: rowDir, marginTop: spacing.sm }]}>
                 <Text variant="label" color="textMuted">{t("prescriptions.durationLabel")}</Text>
-                <Text variant="body" align={isRTL ? "left" : "right"} style={styles.kvValue}>{num(m.duration)}</Text>
+                <Text variant="body" align={isRTL ? "left" : "right"} style={[styles.kvValue, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>{num(m.duration)}</Text>
               </View>
             ) : null}
             {m.notes ? (
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   pill: { alignItems: "center", paddingHorizontal: 10, paddingVertical: 3 },
   divider: { height: StyleSheet.hairlineWidth },
   kvRow: { alignItems: "center", justifyContent: "space-between" },
-  kvValue: { flex: 1, marginStart: 12 },
+  kvValue: { flex: 1 },
   signature: { fontStyle: "italic", marginTop: 4 },
   footer: { alignItems: "center" },
   footerBtn: { flex: 1 },

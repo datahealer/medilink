@@ -54,7 +54,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
         <BackButton />
       </View>
 

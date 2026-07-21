@@ -63,7 +63,7 @@ export default function PaymentsScreen() {
                     {subtitle(p)}
                   </Text>
                 </View>
-                <View style={[styles.right, isRTL ? { alignItems: "flex-start" } : { alignItems: "flex-end" }]}>
+                <View style={isRTL ? { alignItems: "flex-start", marginEnd: 12 } : { alignItems: "flex-end", marginStart: 12 }}>
                   <Text variant="title">{money(p.amount)}</Text>
                   <View style={[styles.pill, { backgroundColor: tone.bg, marginTop: 4 }]}>
                     <Text variant="caption" weight="700" style={{ color: tone.fg }}>{payStatusLabel(p.status, t)}</Text>
@@ -81,6 +81,5 @@ export default function PaymentsScreen() {
 const styles = StyleSheet.create({
   row: { alignItems: "center", justifyContent: "space-between" },
   flex: { flex: 1 },
-  right: { marginStart: 12 },
   pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
 });

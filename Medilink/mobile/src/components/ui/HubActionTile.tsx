@@ -23,7 +23,7 @@ export interface HubActionTileProps {
  * rounded-square sub-tile (with a small notification dot), label below in semibold.
  */
 export function HubActionTile({ label, brandIcon, icon, dot = false, onPress }: HubActionTileProps) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, isRTL } = useTheme();
   return (
     <AppCard variant="specialty" onPress={onPress} accessibilityLabel={label} style={styles.card}>
       <View>
@@ -34,7 +34,7 @@ export function HubActionTile({ label, brandIcon, icon, dot = false, onPress }: 
             <Icon name={icon ?? "ai"} size={24} tint={colors.primary} />
           )}
         </View>
-        {dot ? <View style={[styles.dot, { backgroundColor: colors.primary, borderColor: colors.surface }]} /> : null}
+        {dot ? <View style={[styles.dot, { backgroundColor: colors.primary, borderColor: colors.surface }, isRTL ? { left: -2 } : { right: -2 }]} /> : null}
       </View>
       {/* Fixed 2-line label box + auto-shrink so long words ("Assistant") never
           break mid-word and all four tiles stay identical height. */}
@@ -60,7 +60,7 @@ export function HubActionTile({ label, brandIcon, icon, dot = false, onPress }: 
 const styles = StyleSheet.create({
   card: { alignItems: "center", justifyContent: "flex-start" },
   iconWrap: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  dot: { position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
+  dot: { position: "absolute", top: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   labelBox: { height: 30, justifyContent: "center", marginTop: 8, alignSelf: "stretch" },
   label: { fontSize: 11, lineHeight: 14 },
 });

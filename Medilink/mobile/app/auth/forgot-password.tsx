@@ -12,7 +12,7 @@ import { authService } from "@/services/authService";
 import { forgotSchema, type ForgotForm } from "@/utils/validation";
 
 export default function ForgotPasswordScreen() {
-  const { spacing } = useTheme();
+  const { spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
         <BackButton />
       </View>
 

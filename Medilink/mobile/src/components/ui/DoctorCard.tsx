@@ -91,11 +91,11 @@ export function DoctorCard({
           <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Text variant="title" numberOfLines={1} style={styles.name} align={isRTL ? "right" : "left"}>{name}</Text>
             {availableTodayLabel ? (
-              <View style={[styles.tag, { borderColor: colors.success }]}>
+              <View style={[styles.tag, { borderColor: colors.success }, isRTL ? { marginEnd: 6 } : { marginStart: 6 }]}>
                 <Text variant="caption" color="success" numberOfLines={1}>{availableTodayLabel}</Text>
               </View>
             ) : visitedLabel ? (
-              <View style={[styles.tag, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              <View style={[styles.tag, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, isRTL ? { marginEnd: 6 } : { marginStart: 6 }]}>
                 <Text variant="caption" color="textMuted">{visitedLabel}</Text>
               </View>
             ) : null}
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   titleRow: { alignItems: "center" },
   name: { flex: 1, flexShrink: 1 },
-  tag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, marginStart: 6 },
+  tag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1 },
   actions: { gap: 8, marginTop: 10 },
   flex: { flex: 1 },
   detailCard: { minHeight: 140, justifyContent: "center" },

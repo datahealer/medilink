@@ -24,7 +24,7 @@ function sizeLabel(bytes: number | null | undefined, num: (s: string) => string)
 
 /** Document Preview (design p29) — signed-URL preview + metadata, share/download, delete. */
 export default function DocumentPreviewScreen() {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
   const { id: rawId } = useLocalSearchParams<{ id?: string }>();
@@ -104,7 +104,7 @@ export default function DocumentPreviewScreen() {
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}
       footer={
         <View style={{ gap: spacing.sm }}>
-          <View style={styles.footer}>
+          <View style={[styles.footer, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Button
               variant="outline"
               label={t("docPreview.share")}

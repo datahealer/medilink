@@ -75,7 +75,7 @@ export default function FacilityMessagesScreen() {
                 </View>
                 <Text variant="caption" color="textMuted" numberOfLines={1}>{m.preview}</Text>
               </View>
-              {m.unread ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}
+              {m.unread ? <View style={[styles.dot, { backgroundColor: colors.primary }, isRTL ? { marginEnd: 6 } : { marginStart: 6 }]} /> : null}
             </View>
           </Card>
         ))
@@ -88,5 +88,5 @@ const styles = StyleSheet.create({
   row: { alignItems: "flex-start" },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   titleRow: { alignItems: "center", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginStart: 6, marginTop: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
 });

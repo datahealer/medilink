@@ -82,7 +82,7 @@ export default function FamilyScreen() {
 
   return (
     <Screen scroll padded edges={["top", "left", "right", "bottom"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
         <BackButton />
       </View>
 

@@ -26,7 +26,7 @@ const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
  * numeric, ≤8 digits, validated). Saves through the existing profile API.
  */
 export default function SetupScreen() {
-  const { spacing } = useTheme();
+  const { spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
 
@@ -111,7 +111,7 @@ export default function SetupScreen() {
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>
         {t("profile.gender").toUpperCase()}
       </Text>
-      <View style={[styles.chips, { marginBottom: spacing.md }]}>
+      <View style={[styles.chips, { marginBottom: spacing.md, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {GENDERS.map((g) => (
           <Chip
             key={g.value}

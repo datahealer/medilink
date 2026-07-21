@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { BackButton, Button, LanguageCard, Screen, Text } from "@/components/ui";
@@ -8,11 +8,10 @@ import { useI18n } from "@/i18n";
 import { useLocale } from "@/hooks/useLocale";
 import { useAuthStore } from "@/stores/authStore";
 import type { Locale } from "@/stores/localeStore";
-import { canReloadApp, reloadApp } from "@/utils/restart";
 
 /**
- * Language selection. Persists the choice. Switching between EN ↔ AR flips layout
- * direction, which RN only fully applies after a reload — so we confirm a restart.
+ * Language selection. Persists the choice. Switching EN ↔ AR updates the language AND
+ * layout direction instantly (runtime RTL) — no restart needed.
  */
 export default function LanguageScreen() {
   const { spacing, isRTL } = useTheme();
@@ -36,37 +35,16 @@ export default function LanguageScreen() {
   };
 
   const onContinue = () => {
-    // Persist the choice. `changeLocale` returns true when this flips the native
-    // layout direction (EN ↔ AR). React Native only fully applies an LTR↔RTL flip
-    // after the root view is recreated, so a direction change WITHOUT a reload leaves
-    // the UI half-mirrored (text switched, layout still in the old direction) — which
-    // is exactly the AR→EN bug. So when the direction changes we must reload.
-    const directionChanged = changeLocale(selected);
-    if (!directionChanged) {
-      proceed();
-      return;
-    }
-
-    if (canReloadApp) {
-      // Dev/dev-client build: reload immediately so LTR/RTL applies fully.
-      Alert.alert(t("common.restartTitle"), t("common.restartBody"), [
-        { text: t("common.restartLater"), style: "cancel", onPress: proceed },
-        { text: t("common.restartNow"), onPress: () => reloadApp() },
-      ]);
-      return;
-    }
-
-    // Production build: no programmatic restart available, so guide the user to
-    // relaunch manually. The direction is already persisted natively, so the next
-    // launch comes up fully in the new direction rather than half-mirrored.
-    Alert.alert(t("common.restartTitle"), t("common.restartBody"), [
-      { text: t("common.done"), onPress: proceed },
-    ]);
+    // Runtime RTL: persisting the locale switches language AND layout direction
+    // immediately (every screen re-renders from the new `isRTL`), so we just save and
+    // continue — no restart dialog, no forced native RTL.
+    changeLocale(selected);
+    proceed();
   };
 
   return (
     <Screen scroll padded dismissKeyboardOnTap={false}>
-      <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+      <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }, isRTL ? { marginEnd: -8 } : { marginStart: -8 }]}>
         <BackButton />
       </View>
 
@@ -100,5 +78,5 @@ export default function LanguageScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: 8, marginStart: -8 },
+  header: { marginBottom: 8 },
 });

@@ -18,7 +18,7 @@ import { Text } from "./Text";
  * stack intact — Back returns to whatever the guest was browsing.
  */
 export function GuestWall() {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isRTL } = useTheme();
   const { t } = useI18n();
 
   const goBack = () => {
@@ -28,7 +28,7 @@ export function GuestWall() {
 
   return (
     <Screen padded edges={["top", "left", "right", "bottom"]}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
         <BackButton onPress={goBack} />
       </View>
 

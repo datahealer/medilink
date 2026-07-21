@@ -64,9 +64,9 @@ export default function SearchScreen() {
         <Pressable onPress={() => router.push("/search/map")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("map.title")} style={[styles.iconBtn, { borderColor: colors.border }]}>
           <Icon name="map" size={18} tint={colors.text} />
         </Pressable>
-        <Pressable onPress={() => router.push("/search/filters")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("filters.title")} style={[styles.iconBtn, { borderColor: colors.border, marginStart: 8 }]}>
+        <Pressable onPress={() => router.push("/search/filters")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("filters.title")} style={[styles.iconBtn, { borderColor: colors.border, ...(isRTL ? { marginEnd: 8 } : { marginStart: 8 }) }]}>
           <Icon name="filter" size={18} tint={colors.text} />
-          {filterBadge > 0 ? <View style={[styles.badge, { backgroundColor: colors.primary }]} /> : null}
+          {filterBadge > 0 ? <View style={[styles.badge, { backgroundColor: colors.primary }, isRTL ? { left: 8 } : { right: 8 }]} /> : null}
         </Pressable>
       </View>
 
@@ -124,7 +124,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   header: { alignItems: "center", marginBottom: 12 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: StyleSheet.hairlineWidth * 2 },
-  badge: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4 },
+  badge: { position: "absolute", top: 8, width: 8, height: 8, borderRadius: 4 },
   chips: { flexWrap: "wrap", gap: 8 },
   rowBetween: { alignItems: "center", justifyContent: "space-between" },
 });

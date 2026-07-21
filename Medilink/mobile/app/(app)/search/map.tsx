@@ -36,7 +36,7 @@ export default function MapViewScreen() {
   return (
     <Screen scroll={false} padded={false} edges={["top", "left", "right", "bottom"]}>
       {/* Search header */}
-      <View style={[styles.header, { paddingHorizontal: spacing.lg }]}>
+      <View style={[styles.header, { paddingHorizontal: spacing.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")}>
           <Icon name="chevron" direction={isRTL ? "right" : "left"} size={26} tint={colors.text} strokeWidth={2.2} />
         </Pressable>

@@ -78,7 +78,7 @@ export default function SignUpScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
         {/* Explicit fallback: reached from the guest wall / sign-in via replace(), so
             back must resolve to a real screen rather than no-op on an empty stack. */}
         <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/auth/sign-in"))} />

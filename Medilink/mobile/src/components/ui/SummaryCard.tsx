@@ -29,7 +29,7 @@ export function SummaryCard({ rows }: SummaryCardProps) {
           ]}
         >
           <Text variant="caption" color="textMuted">{r.label}</Text>
-          <Text variant="label" align={isRTL ? "left" : "right"} style={styles.value}>{r.value}</Text>
+          <Text variant="label" align={isRTL ? "left" : "right"} style={[styles.value, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>{r.value}</Text>
         </View>
       ))}
     </AppCard>
@@ -38,5 +38,5 @@ export function SummaryCard({ rows }: SummaryCardProps) {
 
 const styles = StyleSheet.create({
   row: { alignItems: "flex-start", justifyContent: "space-between" },
-  value: { flex: 1, marginStart: 12 },
+  value: { flex: 1 },
 });

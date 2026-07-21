@@ -30,7 +30,7 @@ export default function AiAssistantScreen() {
         ]}
       >
         {isAssistant ? (
-          <View style={[styles.avatarDot, { backgroundColor: colors.primaryMuted, marginEnd: spacing.xs }]}>
+          <View style={[styles.avatarDot, { backgroundColor: colors.primaryMuted, ...(isRTL ? { marginStart: spacing.xs } : { marginEnd: spacing.xs }) }]}>
             <MeMark height={16} color={colors.primary} />
           </View>
         ) : null}
@@ -124,7 +124,7 @@ export default function AiAssistantScreen() {
           variant="caption"
           color="textMuted"
           align={isRTL ? "right" : "left"}
-          style={{ flex: 1, marginStart: spacing.sm }}
+          style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}
         >
           {t("aiAssistant.disclaimer")}
         </Text>

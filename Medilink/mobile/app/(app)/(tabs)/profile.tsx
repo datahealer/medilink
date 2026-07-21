@@ -178,7 +178,7 @@ export default function ProfileScreen() {
       <Card style={{ marginTop: spacing.sm + 2 }}>
         <Text variant="caption" color="textMuted">{t("profile.conditions")}</Text>
         {conditions.length ? (
-          <View style={styles.chips}>{conditions.map((c) => <Chip key={c} label={c} />)}</View>
+          <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>{conditions.map((c) => <Chip key={c} label={c} />)}</View>
         ) : (
           <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>{t("profile.noneRecorded")}</Text>
         )}
@@ -188,7 +188,7 @@ export default function ProfileScreen() {
       <Card style={{ marginTop: spacing.sm + 2 }}>
         <Text variant="caption" color="textMuted">{t("profile.allergies")}</Text>
         {allergies.length ? (
-          <View style={styles.chips}>{allergies.map((a) => <Chip key={a} label={a} />)}</View>
+          <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>{allergies.map((a) => <Chip key={a} label={a} />)}</View>
         ) : (
           <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>{t("profile.noneRecorded")}</Text>
         )}
@@ -198,7 +198,7 @@ export default function ProfileScreen() {
       {medications.length ? (
         <Card style={{ marginTop: spacing.sm + 2 }}>
           <Text variant="caption" color="textMuted">{t("medical.medications")}</Text>
-          <View style={styles.chips}>{medications.map((m) => <Chip key={m} label={m} />)}</View>
+          <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>{medications.map((m) => <Chip key={m} label={m} />)}</View>
         </Card>
       ) : null}
 

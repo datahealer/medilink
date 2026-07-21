@@ -13,7 +13,7 @@ const OTP_LENGTH = 6;
 const RESEND_SECONDS = 24;
 
 export default function OtpScreen() {
-  const { spacing } = useTheme();
+  const { spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const { target, email, flow } = useLocalSearchParams<{ target?: string; email?: string; flow?: string }>();
@@ -78,7 +78,7 @@ export default function OtpScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
         {/* OTP is always pushed, but keep an explicit fallback so back is never a no-op. */}
         <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/auth/sign-in"))} />
       </View>

@@ -99,7 +99,7 @@ export default function SignInScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={[styles.header, { marginStart: -8 }]}>
+      <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }, isRTL ? { marginEnd: -8 } : { marginStart: -8 }]}>
         {/* Explicit fallback: sign-in↔sign-up cross-links use replace(), and a returning
             user can land here as the stack root, so back would otherwise no-op. */}
         <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))} />
@@ -115,7 +115,7 @@ export default function SignInScreen() {
         <View
           style={[
             styles.demoBanner,
-            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            { backgroundColor: colors.surfaceAlt, borderColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" },
           ]}
         >
           <Icon name="lab" size={16} tint={colors.primary} />
@@ -223,7 +223,7 @@ export default function SignInScreen() {
       {/* Visible error box directly under the Login button. */}
       {formError ? (
         <View
-          style={[styles.errorBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.error }]}
+          style={[styles.errorBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.error, flexDirection: isRTL ? "row-reverse" : "row" }]}
           accessibilityLiveRegion="polite"
         >
           <Icon name="alert" size={16} tint={colors.error} />

@@ -143,7 +143,7 @@ export default function UploadDocumentScreen() {
         ]}
       >
         <Text variant="label" color="textMuted">{t("upload.fileLabel")}</Text>
-        <Text variant="body" align={isRTL ? "left" : "right"} numberOfLines={1} style={styles.fileValue}>
+        <Text variant="body" align={isRTL ? "left" : "right"} numberOfLines={1} style={[styles.fileValue, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
           {asset ? asset.name ?? t("upload.fileSelected") : t("upload.noFile")}
         </Text>
       </View>
@@ -157,5 +157,5 @@ const styles = StyleSheet.create({
   choiceTile: { width: 56, height: 56, alignItems: "center", justifyContent: "center" },
   chips: { flexWrap: "wrap", gap: 8 },
   fileRow: { alignItems: "center", justifyContent: "space-between", borderWidth: 1 },
-  fileValue: { flex: 1, marginStart: 12 },
+  fileValue: { flex: 1 },
 });

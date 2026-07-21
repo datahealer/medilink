@@ -61,7 +61,7 @@ export default function PrescriptionsScreen() {
     return (
       <Card key={p.id} onPress={() => router.push(`/records/prescriptions/${p.id}`)} style={{ marginBottom: spacing.md }}>
         <View style={[styles.headRow, { flexDirection: rowDir }]}>
-          <View style={[styles.tile, { backgroundColor: colors.accent2, borderRadius: radii.md, marginEnd: spacing.md }]}>
+          <View style={[styles.tile, { backgroundColor: colors.accent2, borderRadius: radii.md, ...(isRTL ? { marginStart: spacing.md } : { marginEnd: spacing.md }) }]}>
             <Icon name="medication" color="primary" />
           </View>
           <View style={styles.headText}>
@@ -82,7 +82,7 @@ export default function PrescriptionsScreen() {
             loading={sharingId === p.id}
             leading={<Icon name="share" size={18} color="primary" />}
             onPress={() => onShare(p.id)}
-            style={[styles.action, { marginEnd: spacing.sm }]}
+            style={[styles.action, isRTL ? { marginStart: spacing.sm } : { marginEnd: spacing.sm }]}
           />
           <Button
             label={t("prescriptions.setReminder")}

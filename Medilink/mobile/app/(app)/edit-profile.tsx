@@ -227,7 +227,7 @@ export default function EditProfileScreen() {
       {/* Allergies — removable chips + add (PDF p15) */}
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.allergies").toUpperCase()}</Text>
       {allergies.length ? (
-        <View style={[styles.chips, { marginBottom: 8 }]}>
+        <View style={[styles.chips, { marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {allergies.map((a) => (
             <Chip key={a} label={a} onRemove={() => setAllergies(allergies.filter((x) => x !== a))} />
           ))}
@@ -250,7 +250,7 @@ export default function EditProfileScreen() {
 
       {/* Additional profile fields (kept for completeness; surface on Profile p15) */}
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.gender").toUpperCase()}</Text>
-      <View style={styles.chips}>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {GENDERS.map((g) => (
           <Chip
             key={g.value}

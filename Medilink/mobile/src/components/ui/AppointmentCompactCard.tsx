@@ -53,7 +53,7 @@ export function AppointmentCompactCard({
     <Card onPress={hasActions ? undefined : onPress} style={{ marginBottom: spacing.sm }}>
       {statusLabel && statusTone ? (
         <View style={[styles.topRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <View style={[styles.chip, { backgroundColor: statusTone.bg }]}>
+          <View style={[styles.chip, { backgroundColor: statusTone.bg, flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={[styles.dot, { backgroundColor: statusTone.fg }]} />
             <Text variant="caption" weight="700" style={{ color: statusTone.fg }}>{statusLabel}</Text>
           </View>
@@ -70,7 +70,7 @@ export function AppointmentCompactCard({
           ) : null}
         </View>
         {pillLabel ? (
-          <View style={[styles.pill, { backgroundColor: colors.accent }]}>
+          <View style={[styles.pill, { backgroundColor: colors.accent }, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}>
             <Text variant="caption" weight="700" style={{ color: colors.primary }}>{pillLabel}</Text>
           </View>
         ) : null}
@@ -96,11 +96,11 @@ export function AppointmentCompactCard({
 
 const styles = StyleSheet.create({
   topRow: { alignItems: "center", justifyContent: "space-between" },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  chip: { alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   row: { alignItems: "center" },
   info: { flex: 1 },
-  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginStart: 8 },
+  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   actions: { marginTop: 12, gap: 8 },
   actionItem: { flex: 1 },
 });

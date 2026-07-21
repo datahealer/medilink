@@ -43,7 +43,7 @@ export function RecentlyVisitedCard({
             <Text variant="label" weight="700" numberOfLines={1} style={styles.name} align={isRTL ? "right" : "left"}>
               {name}
             </Text>
-            <View style={[styles.pill, { backgroundColor: colors.accent }]}>
+            <View style={[styles.pill, { backgroundColor: colors.accent }, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}>
               <Text variant="caption" weight="600" style={{ color: colors.primary }} numberOfLines={1}>
                 {visitedLabel}
               </Text>
@@ -68,5 +68,5 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   titleRow: { alignItems: "center" },
   name: { flex: 1, flexShrink: 1 },
-  pill: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginStart: 8 },
+  pill: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
 });

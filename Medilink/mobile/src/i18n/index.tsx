@@ -10,6 +10,7 @@ import { I18nManager } from "react-native";
 
 import { useLocaleStore, type Locale } from "@/stores/localeStore";
 import { localizeDigits } from "@/utils/format";
+import { reloadApp } from "@/utils/restart";
 import { en, type Messages } from "./en";
 import { ar } from "./ar";
 
@@ -30,8 +31,8 @@ interface I18nContextValue {
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   /** Localize raw numbers/digit-bearing strings (Eastern-Arabic in `ar`). */
   num: (value: string | number) => string;
-  /** Persists the locale + aligns native RTL. Returns `true` if a restart is needed. */
-  setLocale: (locale: Locale) => boolean;
+  /** Persist the locale. Direction updates instantly from `isRTL` — no restart. */
+  setLocale: (locale: Locale) => void;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -51,33 +52,38 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
 }
 
 /**
- * Aligns React Native's native layout direction with the locale. `forceRTL` only
- * takes full effect after a reload, so callers switching language must prompt a
- * restart. Returns whether the direction actually changed.
+ * Runtime RTL — keep the NATIVE layout LTR permanently and drive all right-to-left
+ * mirroring from the JS `isRTL` context (every screen/component reads it and flips its
+ * own `flexDirection`, spacing and text alignment). That lets language + direction
+ * switch instantly, with no `forceRTL` and no app restart.
+ *
+ * This only needs to run once at launch: disallow native RTL, and if a previous build
+ * had forced native RTL on, reset it (persists immediately; `reloadApp()` makes the
+ * current dev session LTR right away, and production self-heals on the next launch).
  */
-function applyRtl(locale: Locale): boolean {
-  const shouldBeRTL = locale === "ar";
-  I18nManager.allowRTL(true);
-  if (I18nManager.isRTL !== shouldBeRTL) {
-    I18nManager.forceRTL(shouldBeRTL);
-    return true;
+function enforceNativeLtr(): void {
+  I18nManager.allowRTL(false);
+  if (I18nManager.isRTL) {
+    I18nManager.forceRTL(false);
+    reloadApp();
   }
-  return false;
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const locale = useLocaleStore((s) => s.locale);
   const setStoreLocale = useLocaleStore((s) => s.setLocale);
 
-  // Keep the native RTL flag aligned with the persisted locale on launch.
+  // Runtime RTL: keep native layout LTR (once, on launch). Direction is derived from
+  // `isRTL` below and re-renders instantly when the locale changes — no native flip.
   useEffect(() => {
-    applyRtl(locale);
-  }, [locale]);
+    enforceNativeLtr();
+  }, []);
 
   const setLocale = useCallback(
-    (next: Locale): boolean => {
+    (next: Locale): void => {
+      // Persisting the locale re-renders every consumer with the new `isRTL`, flipping
+      // layout direction immediately — no restart, no native forceRTL.
       setStoreLocale(next);
-      return applyRtl(next);
     },
     [setStoreLocale]
   );

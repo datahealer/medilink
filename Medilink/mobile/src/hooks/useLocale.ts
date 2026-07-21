@@ -2,8 +2,8 @@ import { useI18n } from "@/i18n";
 import { useLocaleStore, type Locale } from "@/stores/localeStore";
 
 /**
- * Locale hook. Wraps the i18n context + persisted store. `changeLocale` returns
- * whether an app restart is needed (LTR ↔ RTL switch) so the caller can prompt.
+ * Locale hook. Wraps the i18n context + persisted store. `changeLocale` switches the
+ * language AND layout direction instantly (runtime RTL) — no restart required.
  */
 export function useLocale() {
   const { locale, dir, isRTL, t, setLocale } = useI18n();
@@ -15,7 +15,7 @@ export function useLocale() {
     isRTL,
     hasHydrated,
     t,
-    /** @returns true when a restart is required to fully apply RTL/LTR. */
-    changeLocale: (next: Locale): boolean => setLocale(next),
+    /** Switch language + direction immediately (no restart). */
+    changeLocale: (next: Locale): void => setLocale(next),
   };
 }
