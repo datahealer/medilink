@@ -235,6 +235,9 @@ export const ar: Messages = {
     wallBody: "سجّل الدخول أو أنشئ حسابًا لحجز المواعيد والوصول إلى سجلاتك الصحية.",
     wallCancel: "ليس الآن",
     signInCta: "تسجيل الدخول",
+    createAccountCta: "إنشاء حساب",
+    keepBrowsing: "متابعة التصفح",
+    hello: "مرحبًا، ضيف",
   },
   onboarding: {
     slide1Title: "اعثر على الطبيب المناسب",

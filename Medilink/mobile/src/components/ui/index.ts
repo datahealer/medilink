@@ -41,6 +41,7 @@ export { ProgressDots } from "./ProgressDots";
 export { ThemeToggle } from "./ThemeToggle";
 export { Checkbox } from "./Checkbox";
 export { BackButton } from "./BackButton";
+export { GuestWall } from "./GuestWall";
 export { Card } from "./Card";
 export { Avatar } from "./Avatar";
 export { Chip } from "./Chip";

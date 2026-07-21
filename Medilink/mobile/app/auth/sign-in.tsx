@@ -100,7 +100,9 @@ export default function SignInScreen() {
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
       <View style={[styles.header, { marginStart: -8 }]}>
-        <BackButton />
+        {/* Explicit fallback: sign-in↔sign-up cross-links use replace(), and a returning
+            user can land here as the stack root, so back would otherwise no-op. */}
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))} />
       </View>
 
       <Text variant="h1">{t("signIn.welcomeBack")}</Text>

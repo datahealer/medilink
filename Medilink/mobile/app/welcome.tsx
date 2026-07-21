@@ -18,10 +18,11 @@ export default function WelcomeScreen() {
   const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
 
   const onGuest = () => {
-    // Enter guest browsing and land on discovery (search). The (app) gate allows
-    // only the guest allow-list; restricted actions show the sign-in wall (F4).
+    // Enter guest browsing and land on the discovery dashboard (guest home). The (app)
+    // gate allows only the guest allow-list; protected routes show the in-place
+    // sign-in wall and restricted actions show the per-action sign-in prompt (F4).
     continueAsGuest();
-    router.replace("/search");
+    router.replace("/dashboard");
   };
 
   return (

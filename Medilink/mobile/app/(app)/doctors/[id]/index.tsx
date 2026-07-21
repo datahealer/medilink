@@ -21,12 +21,12 @@ export default function DoctorDetailsScreen() {
   const doctorId = String(id ?? "");
   const doctor = useDoctor(doctorId);
   const favTarget = { targetId: doctorId, targetType: "doctor" as const };
-  const isFav = useIsFavourite(favTarget);
-  const toggleFav = useToggleFavourite();
-  const fav = isFav.data ?? false;
   // F4: booking and favouriting are patient actions — gate them behind the wall
   // for guests (viewing the profile itself is allow-listed).
-  const { requireAuth } = useGuestGate();
+  const { isGuest, requireAuth } = useGuestGate();
+  const isFav = useIsFavourite(favTarget, { enabled: !isGuest });
+  const toggleFav = useToggleFavourite();
+  const fav = isFav.data ?? false;
   const [slot, setSlot] = useState<string | undefined>(undefined);
 
   if (doctor.isLoading) {

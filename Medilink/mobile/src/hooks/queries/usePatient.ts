@@ -48,10 +48,11 @@ export function useUpsertMedicalHistory() {
 }
 
 /** Upcoming appointments for the dashboard "next visit" card (read-only). */
-export function useUpcomingAppointments() {
+export function useUpcomingAppointments(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: patientKeys.appointmentsUpcoming,
     queryFn: () => repositories.appointment.listUpcoming(),
+    enabled: options?.enabled ?? true,
   });
 }
 

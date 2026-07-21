@@ -2,21 +2,28 @@ import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Redirect, Stack, useSegments } from "expo-router";
 
+import { GuestWall } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/authStore";
 import { useProfile } from "@/hooks/queries/usePatient";
 
 /**
  * Guest-browsing allow-list (F4). A signed-out guest may reach ONLY these read-only
- * discovery routes; every other `(app)` route (patient tabs, booking, records,
- * profile, family, payments, notifications, settings account, …) redirects to the
- * sign-in wall. Matched against the joined `useSegments()` path.
+ * discovery routes; every other `(app)` route (patient-only tabs, booking, records,
+ * profile, family, payments, notifications, settings account, …) shows the in-place
+ * sign-in wall (`<GuestWall/>`). Matched against the joined `useSegments()` path.
+ *
+ * Public discovery surface: the Dashboard (guest home — public sections only), the
+ * Search tab and its specialties/map/filters, doctor profiles, and the appearance
+ * screen (no personal data). Protected ACTIONS that live on these allowed screens
+ * (Book, favourite, notifications, …) are gated per-action via `useGuestGate`.
  */
 function isGuestAllowed(segments: string[]): boolean {
   const path = segments.join("/");
   return (
-    path.includes("(tabs)/search") || // discovery search tab (guest home)
-    path.includes("/doctors") ||       // doctor profile (doctors/[id])
+    path.includes("(tabs)/dashboard") || // discovery dashboard (guest home)
+    path.includes("(tabs)/search") ||    // discovery search tab
+    path.includes("/doctors") ||          // doctor profile (doctors/[id])
     path.includes("search/specialties") ||
     path.includes("search/map") ||
     path.includes("search/filters") ||
@@ -48,13 +55,13 @@ export default function AppLayout() {
   if (status === "loading") return loader;
 
   if (status === "guest") {
-    // Guest browsing: render allow-listed discovery; everything else → sign-in wall.
+    // A signed-out user who never opted into guest browsing (e.g. a deep link) is sent
+    // to sign-in. A guest browsing a protected route sees the in-place sign-in wall,
+    // which keeps the navigation stack intact so Back still works (F4 + back-nav fix).
     // (A guest has no session, so the profile-setup gate below never applies.)
-    if (guestMode && isGuestAllowed(segments)) {
-      // fall through to render the Stack
-    } else {
-      return <Redirect href="/auth/sign-in" />;
-    }
+    if (!guestMode) return <Redirect href="/auth/sign-in" />;
+    if (!isGuestAllowed(segments)) return <GuestWall />;
+    // Allowed discovery route → fall through to render the Stack.
   } else {
     // Mandatory profile setup for first-time patients. A freshly-provisioned
     // patient_profiles row has `date_of_birth === null` (it is written only by the

@@ -645,12 +645,24 @@ const doctorRepo: DoctorRepository = {
     })) as unknown as DoctorRowLoose[];
     let list = rows.map(mapDoctorRow);
     // BP-1: slot-based "available today" — one set-based backend call, then flag.
-    const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
-    list = list.map((d) => ({ ...d, available_today: availableIds.has(d.id) }));
+    // Best-effort ONLY: doctors_available_today reads public.appointments, which an
+    // anonymous (guest) session has no grant on, so the RPC can fail for guests. A
+    // failure here must NOT blank the whole doctor list (that was the guest "no data"
+    // bug) — we simply skip the availability badge/filter and still return the list.
+    let availabilityKnown = false;
+    try {
+      const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+      list = list.map((d) => ({ ...d, available_today: availableIds.has(d.id) }));
+      availabilityKnown = true;
+    } catch (e) {
+      if (__DEV__) console.warn("[discovery] doctors_available_today unavailable; showing list without the 'today' badge", e);
+    }
     // Filters the backend list query does not apply are honoured client-side.
     if (params.maxFee != null) list = list.filter((d) => d.fee_omr <= params.maxFee!);
     if (params.minRating != null) list = list.filter((d) => d.rating >= params.minRating!);
-    if (params.availableToday) list = list.filter((d) => d.available_today);
+    // Only apply the "available today" filter when availability actually resolved —
+    // otherwise an unavailable RPC would filter every doctor out.
+    if (params.availableToday && availabilityKnown) list = list.filter((d) => d.available_today);
     // `gender` has no column in the list select, so it cannot be filtered here;
     // `topRated` is already satisfied by the backend's avg_rating ordering.
     return list;
@@ -659,9 +671,16 @@ const doctorRepo: DoctorRepository = {
     const { doctor } = await api.doctors.getDoctor(supabase, id);
     if (!doctor) return null;
     const detail = mapDoctorDetail(doctor as unknown as DoctorRowLoose);
-    // BP-1: slot-based availability for the detail "available today" pill.
-    const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
-    return { ...detail, available_today: availableIds.has(id) };
+    // BP-1: slot-based availability for the detail "available today" pill. Best-effort
+    // (see search): a guest session may not execute the RPC, so a failure just leaves
+    // the pill off rather than failing the whole doctor profile.
+    try {
+      const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+      return { ...detail, available_today: availableIds.has(id) };
+    } catch (e) {
+      if (__DEV__) console.warn("[discovery] doctors_available_today unavailable for doctor detail", e);
+      return detail;
+    }
   },
   async reviews(id) {
     // Reuses the shared public-review read (query + distribution live in

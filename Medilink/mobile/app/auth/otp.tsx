@@ -79,7 +79,8 @@ export default function OtpScreen() {
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
       <View style={{ marginBottom: 8, marginStart: -8 }}>
-        <BackButton />
+        {/* OTP is always pushed, but keep an explicit fallback so back is never a no-op. */}
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/auth/sign-in"))} />
       </View>
 
       <Text variant="h1">{t("otp.title")}</Text>

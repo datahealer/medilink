@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Alert, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppointmentCard, Avatar, Card, Chip, ClinicCard, ErrorState, HubActionTile, Icon, type IconName, LoadingState, MeMark, RecentlyVisitedCard, Screen, Text } from "@/components/ui";
@@ -12,6 +12,8 @@ import { useRecentDoctors, useFeaturedClinics, useSpecialties } from "@/hooks/qu
 import { useSearchFilterStore } from "@/stores/searchFilterStore";
 import { specialtyLabel, facilityTypeLabel } from "@/utils/specialties";
 import { localizedName } from "@/utils/localizedName";
+import { useGuestGate } from "@/hooks/useGuestGate";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function greetingKey(): "dashboard.greetingMorning" | "dashboard.greetingAfternoon" | "dashboard.greetingEvening" {
   const h = new Date().getHours();
@@ -32,12 +34,28 @@ export default function DashboardScreen() {
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
 
-  const profile = useProfile();
-  const upcoming = useUpcomingAppointments();
-  const recents = useRecentDoctors();
+  // F4 Guest Mode: the dashboard doubles as the guest discovery home. Personal
+  // sections (profile, upcoming visits, recently visited) require a session, so their
+  // queries are disabled for guests and the sections are hidden; the public discovery
+  // sections (specialties, featured clinics, search) stay live for everyone.
+  const { isGuest, requireAuth } = useGuestGate();
+
+  const profile = useProfile({ enabled: !isGuest });
+  const upcoming = useUpcomingAppointments({ enabled: !isGuest });
+  const recents = useRecentDoctors({ enabled: !isGuest });
   const featured = useFeaturedClinics();
   const specialties = useSpecialties();
   const setFilters = useSearchFilterStore((s) => s.setFilters);
+
+  // Pull-to-refresh: refetch the public discovery sections always, plus the personal
+  // sections when signed in.
+  const { refreshing, onRefresh } = useRefresh(() =>
+    Promise.all([
+      featured.refetch(),
+      specialties.refetch(),
+      ...(isGuest ? [] : [profile.refetch(), upcoming.refetch(), recents.refetch()]),
+    ])
+  );
 
   const name = localizedName(
     profile.data?.account?.full_name ?? "",
@@ -63,29 +81,31 @@ export default function DashboardScreen() {
     ]);
 
   // Me Care Hub tiles (PDF p14): Me Assistant · Book · Lab results · Me Vault.
+  // "Book" opens Search (public discovery — reachable by guests too); the other tiles
+  // lead to personal areas, so they run behind the guest sign-in prompt.
   const actions: { key: string; label: string; icon: IconName; onPress: () => void }[] = [
-    { key: "assistant", label: t("dashboard.meAssistant"), icon: "ai", onPress: () => router.push("/ai/assistant") },
+    { key: "assistant", label: t("dashboard.meAssistant"), icon: "ai", onPress: () => requireAuth(() => router.push("/ai/assistant")) },
     { key: "book", label: t("dashboard.book"), icon: "calendar", onPress: () => router.push("/search") },
-    { key: "labs", label: t("dashboard.labResults"), icon: "lab", onPress: () => router.push("/records/labs") },
-    { key: "vault", label: t("dashboard.meVault"), icon: "document", onPress: () => router.push("/records") },
+    { key: "labs", label: t("dashboard.labResults"), icon: "lab", onPress: () => requireAuth(() => router.push("/records/labs")) },
+    { key: "vault", label: t("dashboard.meVault"), icon: "document", onPress: () => requireAuth(() => router.push("/records")) },
   ];
 
   return (
-    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
+    <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}>
       {/* Greeting header */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.headerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Pressable
-            onPress={() => router.push("/profile")}
+            onPress={() => requireAuth(() => router.push("/profile"))}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={t("tabs.profile")}
           >
-            <Avatar name={name} uri={photo} size={48} />
+            <Avatar name={isGuest ? "" : name} uri={isGuest ? null : photo} size={48} />
           </Pressable>
           <View style={isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }}>
             <Text variant="caption" color="textMuted">{t(greetingKey())}</Text>
-            <Text variant="title" numberOfLines={1}>{name || t("dashboard.hello")}</Text>
+            <Text variant="title" numberOfLines={1}>{isGuest ? t("guest.hello") : (name || t("dashboard.hello"))}</Text>
           </View>
         </View>
         <View style={[styles.headerActions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -101,7 +121,7 @@ export default function DashboardScreen() {
             </Pressable>
           ) : null}
           <Pressable
-            onPress={() => router.push("/notifications")}
+            onPress={() => requireAuth(() => router.push("/notifications"))}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={t("dashboard.notifications")}
@@ -125,40 +145,44 @@ export default function DashboardScreen() {
         </Text>
       </Pressable>
 
-      {/* Upcoming / next visit — header links to the full Appointments list */}
-      <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
-        <Text variant="label" color="textMuted">{t("dashboard.upcoming")}</Text>
-        <Pressable
-          onPress={() => router.push("/appointments")}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t("appointments.title")}
-        >
-          <Text variant="caption" color="primary">{t("dashboard.seeAll")}</Text>
-        </Pressable>
-      </View>
-      {upcoming.isLoading ? (
-        <Card><View style={{ height: 72 }}><LoadingState /></View></Card>
-      ) : upcoming.isError ? (
-        <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
-      ) : next ? (
-        <AppointmentCard
-          statusLabel={t("dashboard.upcoming")}
-          doctorName={localizedName(next.doctor?.full_name ?? "—", next.doctor?.full_name_ar, next.doctor?.full_name_ar_status, isRTL)}
-          subtitle={[localizedName(next.facility?.name ?? "", next.facility?.name_ar, next.facility?.name_ar_status, isRTL), next.slot_start].filter(Boolean).join(" · ")}
-          initials={initialsOf(next.doctor?.full_name)}
-          primaryLabel={t("dashboard.checkIn")}
-          secondaryLabel={t("dashboard.reschedule")}
-          onPrimary={() => onCheckIn(next.id)}
-          onSecondary={() => router.push(`/appointments/${next.id}/reschedule`)}
-          isRTL={isRTL}
-        />
-      ) : (
-        <Card>
-          <Text variant="title">{t("dashboard.noUpcomingTitle")}</Text>
-          <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>{t("dashboard.noUpcomingBody")}</Text>
-        </Card>
-      )}
+      {/* Upcoming / next visit — personal; hidden for guests (F4). */}
+      {!isGuest ? (
+        <>
+          <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
+            <Text variant="label" color="textMuted">{t("dashboard.upcoming")}</Text>
+            <Pressable
+              onPress={() => router.push("/appointments")}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("appointments.title")}
+            >
+              <Text variant="caption" color="primary">{t("dashboard.seeAll")}</Text>
+            </Pressable>
+          </View>
+          {upcoming.isLoading ? (
+            <Card><View style={{ height: 72 }}><LoadingState /></View></Card>
+          ) : upcoming.isError ? (
+            <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
+          ) : next ? (
+            <AppointmentCard
+              statusLabel={t("dashboard.upcoming")}
+              doctorName={localizedName(next.doctor?.full_name ?? "—", next.doctor?.full_name_ar, next.doctor?.full_name_ar_status, isRTL)}
+              subtitle={[localizedName(next.facility?.name ?? "", next.facility?.name_ar, next.facility?.name_ar_status, isRTL), next.slot_start].filter(Boolean).join(" · ")}
+              initials={initialsOf(next.doctor?.full_name)}
+              primaryLabel={t("dashboard.checkIn")}
+              secondaryLabel={t("dashboard.reschedule")}
+              onPrimary={() => onCheckIn(next.id)}
+              onSecondary={() => router.push(`/appointments/${next.id}/reschedule`)}
+              isRTL={isRTL}
+            />
+          ) : (
+            <Card>
+              <Text variant="title">{t("dashboard.noUpcomingTitle")}</Text>
+              <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>{t("dashboard.noUpcomingBody")}</Text>
+            </Card>
+          )}
+        </>
+      ) : null}
 
       {/* Me Care Hub */}
       <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
@@ -200,31 +224,35 @@ export default function DashboardScreen() {
           ))}
       </View>
 
-      {/* Recently visited */}
-      <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
-        <Text variant="label" color="textMuted">{t("dashboard.recentlyVisited")}</Text>
-        <Pressable onPress={() => router.push("/search")} hitSlop={8}>
-          <Text variant="caption" color="primary">{t("dashboard.seeAll")}</Text>
-        </Pressable>
-      </View>
-      {recents.isLoading ? (
-        <Card><View style={{ height: 64 }}><LoadingState /></View></Card>
-      ) : recents.isError ? (
-        <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
-      ) : (
-        (recents.data ?? []).map((d) => (
-          <View key={d.id} style={{ marginBottom: spacing.sm }}>
-            <RecentlyVisitedCard
-              name={localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL)}
-              specialty={d.specialty}
-              facility={localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL)}
-              metaText={num(`★ ${d.rating} · OMR ${d.fee_omr}`)}
-              visitedLabel={t("dashboard.visited")}
-              onPress={() => router.push(`/doctors/${d.id}`)}
-            />
+      {/* Recently visited — personal; hidden for guests (F4). */}
+      {!isGuest ? (
+        <>
+          <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
+            <Text variant="label" color="textMuted">{t("dashboard.recentlyVisited")}</Text>
+            <Pressable onPress={() => router.push("/search")} hitSlop={8}>
+              <Text variant="caption" color="primary">{t("dashboard.seeAll")}</Text>
+            </Pressable>
           </View>
-        ))
-      )}
+          {recents.isLoading ? (
+            <Card><View style={{ height: 64 }}><LoadingState /></View></Card>
+          ) : recents.isError ? (
+            <Card><Text variant="body" color="textMuted">{t("dashboard.loadError")}</Text></Card>
+          ) : (
+            (recents.data ?? []).map((d) => (
+              <View key={d.id} style={{ marginBottom: spacing.sm }}>
+                <RecentlyVisitedCard
+                  name={localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL)}
+                  specialty={d.specialty}
+                  facility={localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL)}
+                  metaText={num(`★ ${d.rating} · OMR ${d.fee_omr}`)}
+                  visitedLabel={t("dashboard.visited")}
+                  onPress={() => router.push(`/doctors/${d.id}`)}
+                />
+              </View>
+            ))
+          )}
+        </>
+      ) : null}
 
       {/* Featured clinics */}
       <Text variant="label" color="textMuted" style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
@@ -247,7 +275,7 @@ export default function DashboardScreen() {
         ))
       )}
 
-      {profile.isError ? (
+      {!isGuest && profile.isError ? (
         <View style={{ marginTop: spacing.lg }}>
           <ErrorState message={t("profile.loadError")} onRetry={() => profile.refetch()} />
         </View>

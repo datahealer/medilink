@@ -20,10 +20,11 @@ export function useSpecialties() {
   });
 }
 
-export function useRecentDoctors() {
+export function useRecentDoctors(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: discoveryKeys.recentDoctors,
     queryFn: () => repositories.discovery.recentDoctors(),
+    enabled: options?.enabled ?? true,
   });
 }
 

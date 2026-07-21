@@ -236,6 +236,9 @@ export const en = {
     wallBody: "Sign in or create an account to book appointments and access your health records.",
     wallCancel: "Not now",
     signInCta: "Sign in",
+    createAccountCta: "Create account",
+    keepBrowsing: "Keep browsing",
+    hello: "Hello, Guest",
   },
   onboarding: {
     slide1Title: "Find the right doctor",
