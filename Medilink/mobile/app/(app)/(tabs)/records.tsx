@@ -20,6 +20,7 @@ const CATEGORIES: { type: DocumentType; labelKey: MessageKey; icon: IconName; ro
   { type: "report", labelKey: "records.catLabReports", icon: "lab", route: "/records/labs" },
   { type: "imaging", labelKey: "records.catImaging", icon: "records", route: null },
   { type: "other", labelKey: "records.catVaccinations", icon: "security", route: null },
+  { type: "invoice", labelKey: "records.catInvoices", icon: "payment", route: null },
 ];
 
 function extLabel(fileType: string): string {

@@ -618,6 +618,7 @@ export const en = {
     catLabReports: "Lab reports",
     catImaging: "Imaging",
     catVaccinations: "Vaccinations",
+    catInvoices: "Invoices",
     files: "{n} files",
     recent: "Recent",
     addDocument: "Add document",

@@ -617,6 +617,7 @@ export const ar: Messages = {
     catLabReports: "تقارير المختبر",
     catImaging: "الأشعة",
     catVaccinations: "التطعيمات",
+    catInvoices: "الفواتير",
     files: "{n} ملفات",
     recent: "الأحدث",
     addDocument: "إضافة مستند",

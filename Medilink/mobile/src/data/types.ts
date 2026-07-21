@@ -188,8 +188,10 @@ export interface PhotoAsset {
 // ---- document vault (PDF p28-29) --------------------------------------------
 
 /** Backend `document_type` enum. NOTE: there is no `vaccination` value; the
- *  design's "Vaccinations" category maps to `other` until the enum gains one. */
-export type DocumentType = "prescription" | "report" | "imaging" | "insurance" | "other";
+ *  design's "Vaccinations" category maps to `other` until the enum gains one.
+ *  `invoice` is added by migration 20260721000001 for paid-invoice PDFs filed
+ *  into the vault. */
+export type DocumentType = "prescription" | "report" | "imaging" | "insurance" | "other" | "invoice";
 
 export interface PatientDoc {
   id: string;
@@ -214,6 +216,8 @@ export interface NewDocumentUpload {
   type: DocumentType;
   /** Local file to upload to the `patient-docs` bucket. */
   asset: PhotoAsset;
+  /** Optional appointment to link the document to (e.g. an invoice's appointment). */
+  linkedAppointmentId?: string | null;
 }
 
 // ---- prescriptions (PDF p30-31) ---------------------------------------------

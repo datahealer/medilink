@@ -915,9 +915,13 @@ const documentRepo: DocumentRepository = {
     if (upErr) throw upErr;
     const row = (await api.records.addDocument(supabase, {
       name: input.name,
-      type: input.type,
+      // 'invoice' is added by migration 20260721000001; the generated DB types won't
+      // include it until `npm run db:types` runs post-push, so bridge with a cast to the
+      // exact expected union (safe at runtime once the enum value exists).
+      type: input.type as Parameters<typeof api.records.addDocument>[1]["type"],
       file_url: path,
       file_type: contentType,
+      linked_appointment_id: input.linkedAppointmentId ?? null,
     })) as unknown as DocRowLoose;
     return mapDoc(row);
   },

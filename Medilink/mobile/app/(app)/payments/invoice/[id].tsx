@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Alert, Linking, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePayment } from "@/hooks/queries/usePatient";
+import { useSaveInvoiceToVault } from "@/hooks/queries/useRecords";
 import { formatApptDate } from "@/utils/appointments";
 import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
 import { consultationTotal, round3 } from "@medilink/shared/mobile";
@@ -26,6 +27,22 @@ export default function InvoiceScreen() {
   const query = usePayment(id);
   const payment = query.data;
   const money = (n: number) => `OMR ${num(n.toFixed(3))}`;
+
+  // Auto-file the invoice into the Document Vault the first time it's viewed. Idempotent
+  // (the hook skips if a same-named invoice doc already exists), so re-opening never
+  // duplicates. Non-blocking: failures don't affect the invoice view.
+  const { mutate: saveInvoice } = useSaveInvoiceToVault();
+  const savedRef = useRef(false);
+  useEffect(() => {
+    const inv = payment?.invoiceUrl;
+    if (!inv || savedRef.current) return;
+    savedRef.current = true;
+    saveInvoice({
+      invoiceUrl: inv,
+      name: `Invoice ${payment?.reference || id.slice(0, 8)}`,
+      appointmentId: payment?.appointment?.id ?? null,
+    });
+  }, [payment?.invoiceUrl, payment?.reference, payment?.appointment?.id, id, saveInvoice]);
 
   if (query.isLoading) {
     return (
