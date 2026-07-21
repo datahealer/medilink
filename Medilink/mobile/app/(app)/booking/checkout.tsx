@@ -114,6 +114,23 @@ export default function CheckoutScreen() {
           <WebView
             source={{ uri: checkoutUrl }}
             originWhitelist={["https://*", "http://*"]}
+            // Input / keyboard / performance config for the Thawani hosted page. Without
+            // these the Android checkout was slow, controls were hard to tap, and the
+            // keyboard sometimes wouldn't open (BP-5 UX fix):
+            //  • domStorageEnabled — Thawani's SPA needs local/sessionStorage (Android
+            //    defaults this OFF, which made the page load slowly / partly break).
+            //  • androidLayerType="hardware" — removes render jank & input lag.
+            //  • nestedScrollEnabled — stops inner scroll areas from fighting taps/scroll.
+            //  • setSupportMultipleWindows={false} — load 3-D-Secure `target=_blank`
+            //    popups in-place instead of swallowing them into a blank window.
+            //  • keyboardDisplayRequiresUserAction={false} (iOS) — let card fields focus
+            //    and raise the keyboard programmatically.
+            javaScriptEnabled
+            domStorageEnabled
+            androidLayerType="hardware"
+            nestedScrollEnabled
+            setSupportMultipleWindows={false}
+            keyboardDisplayRequiresUserAction={false}
             onShouldStartLoadWithRequest={(req) => shouldLoad(req.url)}
             onNavigationStateChange={(nav: WebViewNavigation) => {
               // Fallback for platforms/redirects where the request hook doesn't fire.
