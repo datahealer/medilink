@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Alert, RefreshControl, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import {
   AppHeader,
@@ -34,7 +34,9 @@ export default function AppointmentsScreen() {
   const { colors, spacing, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
-  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  // The Me hub links "Appointment History" here with ?tab=past to open the Past view.
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<"upcoming" | "past">(tabParam === "past" ? "past" : "upcoming");
 
   // One fetch; split client-side so the Upcoming view can also show a Past section.
   const query = useAppointments("all");

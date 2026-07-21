@@ -1,169 +1,185 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import type { FamilyMember, FamilyRelation } from "@/data/types";
 
-import { Avatar, Card, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
+import { Avatar, Button, Icon, type IconName, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
-import { useFamily } from "@/hooks/queries/useFamily";
+import { useSignOut, useDeleteAccount } from "@/hooks/queries/useAuth";
 import { useProfile } from "@/hooks/queries/usePatient";
-import { usePatientStore } from "@/stores/patientStore";
 import { localizedName } from "@/utils/localizedName";
 
-const REL_KEY: Record<FamilyRelation, MessageKey> = {
-  spouse: "family.relSpouse",
-  child: "family.relChild",
-  parent: "family.relParent",
-  sibling: "family.relSibling",
-  other: "family.relOther",
-};
-
-const MAX_MEMBERS = 5;
-
-function age(dob?: string | null): number | null {
-  if (!dob) return null;
-  const d = new Date(dob);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let a = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
-  return a;
+interface HubItem {
+  key: string;
+  labelKey: MessageKey;
+  icon: IconName;
+  onPress: () => void;
 }
 
-export default function MeFamilyScreen() {
+/**
+ * "Me" hub (F7) — the center tab is now a navigation hub to the user's areas, not the
+ * Family list (which moved to /family). Groups real destinations only; transient
+ * screens (filters, search results, booking steps) are intentionally excluded.
+ */
+export default function MeHubScreen() {
   const { spacing, colors, isRTL, radii } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t } = useI18n();
 
-  const family = useFamily();
   const profile = useProfile();
-  const activeId = usePatientStore((s) => s.activePatientId);
-
-  // Account holder's display name — verified Arabic when RTL, else English (F1 §1a).
+  const signOut = useSignOut();
+  const deleteAccount = useDeleteAccount();
   const account = profile.data?.account;
-  const accountDisplay = account?.full_name
-    ? localizedName(account.full_name, account.full_name_ar, account.full_name_ar_status, isRTL)
-    : null;
-  const youName = accountDisplay ?? t("family.you");
-  // Title shows the account holder's first name ("Satyam's Family" / "عائلة عائشة");
-  // falls back to the generic title until the profile (and a real name) has loaded.
-  const firstName = accountDisplay ? accountDisplay.split(/\s+/)[0] : null;
-  const familyTitle = firstName ? t("family.titleNamed", { name: firstName }) : t("family.title");
-  const members: FamilyMember[] = family.data ?? [];
-  const atLimit = members.length >= MAX_MEMBERS;
+  const name = localizedName(account?.full_name ?? "—", account?.full_name_ar, account?.full_name_ar_status, isRTL);
 
-  const memberRow = (m: FamilyMember) => {
-    const a = age(m.date_of_birth);
-    const sub = [t(REL_KEY[m.relation]), a != null ? t("family.ageYears", { age: a }) : null]
-      .filter(Boolean)
-      .join(" · ");
-    const isActive = activeId === m.id;
-    return (
-      <Card key={m.id} onPress={() => router.push(`/family/${m.id}`)} style={{ marginBottom: spacing.sm }}>
-        <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Avatar name={m.full_name} size={44} />
-          <View style={[styles.rowText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-            <Text variant="title" numberOfLines={1}>{m.full_name}</Text>
-            <Text variant="caption" color="textMuted">{sub}</Text>
-          </View>
-          {isActive ? (
-            <View style={[styles.badge, { backgroundColor: colors.success }]}>
-              <Text variant="caption" color="textOnPrimary">{t("family.active")}</Text>
-            </View>
-          ) : null}
-          <Icon name="chevron" direction={isRTL ? "left" : "right"} size={20} tint={colors.textMuted} />
-        </View>
-      </Card>
-    );
+  const go = (path: string) => () => router.push(path as never);
+
+  const sections: { titleKey: MessageKey; items: HubItem[] }[] = [
+    {
+      titleKey: "meHub.sectionAccount",
+      items: [
+        { key: "profile", labelKey: "meHub.profile", icon: "profile", onPress: go("/profile") },
+        { key: "family", labelKey: "meHub.family", icon: "people", onPress: go("/family") },
+      ],
+    },
+    {
+      titleKey: "meHub.sectionHealth",
+      items: [
+        { key: "appointments", labelKey: "meHub.appointments", icon: "calendar", onPress: go("/appointments") },
+        { key: "history", labelKey: "meHub.appointmentHistory", icon: "time", onPress: go("/appointments?tab=past") },
+        { key: "medical", labelKey: "meHub.medicalRecords", icon: "records", onPress: go("/medical-history") },
+        { key: "vault", labelKey: "meHub.vault", icon: "document", onPress: go("/records") },
+        { key: "rx", labelKey: "meHub.prescriptions", icon: "medication", onPress: go("/records/prescriptions") },
+        { key: "labs", labelKey: "meHub.labs", icon: "lab", onPress: go("/records/labs") },
+      ],
+    },
+    {
+      titleKey: "meHub.sectionActivity",
+      items: [
+        { key: "payments", labelKey: "meHub.payments", icon: "payment", onPress: go("/payments") },
+        { key: "notifications", labelKey: "meHub.notifications", icon: "alerts", onPress: go("/notifications") },
+      ],
+    },
+    {
+      titleKey: "meHub.sectionTools",
+      items: [
+        { key: "ai", labelKey: "meHub.aiSymptoms", icon: "ai", onPress: go("/ai/assistant") },
+        { key: "map", labelKey: "meHub.map", icon: "map", onPress: go("/search/map") },
+      ],
+    },
+    {
+      titleKey: "meHub.sectionSettings",
+      items: [
+        { key: "settings", labelKey: "meHub.settings", icon: "settings", onPress: go("/settings") },
+        { key: "language", labelKey: "meHub.language", icon: "language", onPress: go("/language") },
+        { key: "theme", labelKey: "meHub.theme", icon: "moon", onPress: go("/settings/appearance") },
+      ],
+    },
+  ];
+
+  const onSignOut = () => {
+    Alert.alert(t("dashboard.signOutConfirm"), undefined, [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("settings.signOut"),
+        style: "destructive",
+        onPress: () => signOut.mutate(undefined, { onSettled: () => router.replace("/auth/sign-in") }),
+      },
+    ]);
   };
+
+  const onDeleteAccount = () => {
+    Alert.alert(t("settings.deleteConfirmTitle"), t("settings.deleteConfirmBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("settings.deleteConfirmCta"),
+        style: "destructive",
+        onPress: () =>
+          deleteAccount.mutate(undefined, {
+            onSuccess: (res) => {
+              if (res.ok) {
+                router.replace("/auth/sign-in");
+                Alert.alert(t("settings.deleteScheduled"));
+              } else {
+                Alert.alert(t(res.messageKey ?? "settings.deleteFailed"));
+              }
+            },
+            onError: () => Alert.alert(t("settings.deleteFailed")),
+          }),
+      },
+    ]);
+  };
+
+  const row = (item: HubItem) => (
+    <Pressable
+      key={item.key}
+      onPress={item.onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t(item.labelKey)}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          flexDirection: isRTL ? "row-reverse" : "row",
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          borderRadius: radii.md,
+          opacity: pressed ? 0.9 : 1,
+        },
+      ]}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt, borderRadius: radii.sm }]}>
+        <Icon name={item.icon} size={20} tint={colors.primary} />
+      </View>
+      <Text variant="title" style={[styles.rowLabel, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
+        {t(item.labelKey)}
+      </Text>
+      <Icon name="chevron" direction={isRTL ? "left" : "right"} size={20} tint={colors.textMuted} />
+    </Pressable>
+  );
 
   return (
     <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
-      {/* Header: "{first name}'s Family" + add (sized to content, never wraps) */}
+      {/* Account header */}
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <Text variant="h2" numberOfLines={1} style={styles.title}>{familyTitle}</Text>
-        <Pressable
-          onPress={() => router.push("/family/add")}
-          disabled={atLimit}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t("family.addMember")}
-          style={[styles.addBtn, { backgroundColor: colors.primary, opacity: atLimit ? 0.4 : 1 }]}
-        >
-          <Icon name="plus" size={22} tint={colors.textOnPrimary} strokeWidth={2.2} />
-        </Pressable>
-      </View>
-      <Text variant="body" color="textMuted" style={{ marginBottom: spacing.sm }}>
-        {t("family.subtitle")}
-      </Text>
-
-      {/* Primary account holder */}
-      <Card style={{ marginBottom: spacing.sm, borderColor: activeId === null ? colors.primary : colors.border }}>
-        <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Avatar name={youName} uri={profile.data?.patient?.profile_photo_url} size={44} />
-          <View style={[styles.rowText, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-            <Text variant="title" numberOfLines={1}>{youName}</Text>
-            <Text variant="caption" color="textMuted">{t("family.primaryAccount")}</Text>
-          </View>
-          {activeId === null ? (
-            <View style={[styles.badge, { backgroundColor: colors.success }]}>
-              <Text variant="caption" color="textOnPrimary">{t("family.active")}</Text>
-            </View>
+        <Avatar name={account?.full_name} uri={profile.data?.patient?.profile_photo_url} size={52} />
+        <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
+          <Text variant="h2" numberOfLines={1}>{account?.full_name ? name : t("meHub.title")}</Text>
+          {account?.email ? (
+            <Text variant="caption" color="textMuted" numberOfLines={1}>{account.email}</Text>
           ) : null}
         </View>
-      </Card>
+      </View>
 
-      {family.isLoading ? (
-        <LoadingState />
-      ) : family.isError ? (
-        <ErrorState message={t("family.loadError")} onRetry={() => family.refetch()} />
-      ) : members.length === 0 ? (
-        <View style={styles.empty}>
-          <Text variant="body" color="textMuted" align="center">{t("family.emptyBody")}</Text>
+      {sections.map((section) => (
+        <View key={section.titleKey}>
+          <Text variant="label" color="textMuted" style={styles.section}>{t(section.titleKey)}</Text>
+          {section.items.map(row)}
         </View>
-      ) : (
-        members.map(memberRow)
-      )}
+      ))}
 
-      {/* Add member row (ghost, not a giant footer button) */}
-      {!atLimit ? (
-        <Pressable
-          onPress={() => router.push("/family/add")}
-          accessibilityRole="button"
-          style={[styles.addRow, { borderColor: colors.border, borderRadius: radii.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}
-        >
-          <Icon name="plus-circle" size={22} tint={colors.primary} />
-          <Text variant="title" color="primary" style={isRTL ? { marginEnd: 8 } : { marginStart: 8 }}>
-            {t("family.addMember")}
-          </Text>
-        </Pressable>
-      ) : (
-        <Text variant="caption" color="textMuted" align="center" style={{ marginTop: spacing.md }}>
-          {t("family.maxReached")}
-        </Text>
-      )}
+      {/* Danger zone */}
+      <View style={styles.danger}>
+        <Button label={t("settings.signOut")} variant="ghost" loading={signOut.isPending} onPress={onSignOut} />
+        <Button label={t("settings.deleteAccount")} variant="destructive" loading={deleteAccount.isPending} onPress={onDeleteAccount} />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: "center", justifyContent: "space-between", marginTop: 4, gap: 8 },
-  title: { flex: 1 },
-  addBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  row: { alignItems: "center" },
-  rowText: { flex: 1 },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginHorizontal: 6 },
-  empty: { paddingVertical: 24 },
-  addRow: {
+  header: { alignItems: "center", marginBottom: 8 },
+  section: { marginTop: 20, marginBottom: 8 },
+  row: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
+    minHeight: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: StyleSheet.hairlineWidth * 2,
-    borderStyle: "dashed",
-    marginTop: 4,
+    marginBottom: 8,
   },
+  iconWrap: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  rowLabel: { flex: 1 },
+  danger: { gap: 12, marginTop: 28 },
 });

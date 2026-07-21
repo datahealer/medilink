@@ -88,6 +88,7 @@ export default function AppLayout() {
       {/* Detail screens push full-screen over the tabs — no bottom nav, matching the PDF. */}
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="medical-history" />
+      <Stack.Screen name="family/index" />
       <Stack.Screen name="family/add" />
       <Stack.Screen name="family/[id]" />
       <Stack.Screen name="patient-switcher" />
