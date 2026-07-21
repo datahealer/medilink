@@ -6,7 +6,7 @@ import { Avatar, Button, Card, Icon, Screen, StaticTabBar, Text } from "@/compon
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useSignOut } from "@/hooks/queries/useAuth";
+import { useSignOut, useDeleteAccount } from "@/hooks/queries/useAuth";
 import { useProfile } from "@/hooks/queries/usePatient";
 import { localizedName } from "@/utils/localizedName";
 
@@ -27,6 +27,7 @@ export default function SettingsScreen() {
 
   const profile = useProfile();
   const signOut = useSignOut();
+  const deleteAccount = useDeleteAccount();
 
   const account = profile.data?.account;
 
@@ -37,6 +38,28 @@ export default function SettingsScreen() {
         text: t("settings.signOut"),
         style: "destructive",
         onPress: () => signOut.mutate(undefined, { onSettled: () => router.replace("/auth/sign-in") }),
+      },
+    ]);
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(t("settings.deleteConfirmTitle"), t("settings.deleteConfirmBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("settings.deleteConfirmCta"),
+        style: "destructive",
+        onPress: () =>
+          deleteAccount.mutate(undefined, {
+            onSuccess: (res) => {
+              if (res.ok) {
+                router.replace("/auth/sign-in");
+                Alert.alert(t("settings.deleteScheduled"));
+              } else {
+                Alert.alert(t(res.messageKey ?? "settings.deleteFailed"));
+              }
+            },
+            onError: () => Alert.alert(t("settings.deleteFailed")),
+          }),
       },
     ]);
   };
@@ -103,7 +126,8 @@ export default function SettingsScreen() {
           <Button
             label={t("settings.deleteAccount")}
             variant="destructive"
-            onPress={() => Alert.alert(t("settings.deleteAccount"), t("settings.deleteComingSoon"))}
+            loading={deleteAccount.isPending}
+            onPress={onDeleteAccount}
           />
         </View>
       </View>

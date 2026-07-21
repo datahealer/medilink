@@ -399,6 +399,12 @@ const authRepo: AuthRepository = {
     notify();
     await delay(null, 150);
   },
+  async deleteAccount() {
+    // Mock: simulate the soft-delete by ending the session.
+    currentUser = null;
+    notify();
+    return delay({ ok: true });
+  },
   async restoreSession() {
     return delay(currentUser, 150);
   },

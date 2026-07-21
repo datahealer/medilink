@@ -792,6 +792,12 @@ export const en = {
     signOut: "Sign out",
     deleteAccount: "Delete account",
     deleteComingSoon: "Account deletion opens in a later update.",
+    deleteConfirmTitle: "Delete your account?",
+    deleteConfirmBody:
+      "Your login, email, phone number and personal profile will be removed. Medical records that must be kept for legal and healthcare history are retained. You have 30 days to change your mind before deletion is finalized.",
+    deleteConfirmCta: "Delete account",
+    deleteScheduled: "Your account is scheduled for deletion. You've been signed out.",
+    deleteFailed: "We couldn't process the deletion. Please try again.",
     exportComingSoon: "Data export opens in a later update.",
     privacyComingSoon: "Privacy & security controls open in a later update.",
   },

@@ -77,6 +77,7 @@ const authRepo: AuthRepository = {
   resetPassword: (pw) => authService.resetPassword(pw),
   googleSignIn: () => authService.googleSignIn(),
   signOut: () => authService.signOut(),
+  deleteAccount: () => authService.deleteAccount(),
   async restoreSession() {
     const session = await api.auth.getSession(supabase);
     return session?.user ? { id: session.user.id, email: session.user.email ?? null } : null;

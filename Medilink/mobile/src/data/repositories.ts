@@ -55,6 +55,8 @@ export interface AuthRepository {
   resetPassword(password: string): Promise<AuthResult>;
   googleSignIn(): Promise<AuthResult>;
   signOut(): Promise<void>;
+  /** F57 — request account deletion (soft-delete + 30-day grace; records retained). */
+  deleteAccount(): Promise<AuthResult>;
   /** Restore a persisted session on launch. Resolves to the user, or null. */
   restoreSession(): Promise<SessionUser | null>;
   /** Subscribe to session changes; returns an unsubscribe fn. */

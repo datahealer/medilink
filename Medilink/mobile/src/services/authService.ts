@@ -18,7 +18,7 @@ import { isGoogleConfigured } from "@/config/env";
 import type { MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { setRememberSession } from "@/lib/authPersistence";
-import { ApiError } from "@/services/api";
+import { ApiError, apiFetch } from "@/services/api";
 
 export interface SignInInput {
   email: string;
@@ -215,5 +215,27 @@ export const authService = {
 
   async signOut(): Promise<void> {
     await api.auth.signOut(supabase);
+  },
+
+  /**
+   * Request account deletion (F57 GDPR). Privileged/service-role op → backend REST.
+   * The backend soft-deletes: sets profiles.status = "deletion_pending" (30-day grace),
+   * cancels active appointments, and a nightly job anonymizes PII while RETAINING the
+   * medical/legal records (appointments/prescriptions/payments are RESTRICT-protected).
+   * Requires the literal { confirmation: "DELETE" } body. Patients are exempt from the
+   * backend's AAL2 check, so an ordinary mobile session is sufficient.
+   */
+  async deleteAccount(): Promise<AuthResult> {
+    try {
+      await apiFetch("/api/users/me/account", {
+        method: "DELETE",
+        body: JSON.stringify({ confirmation: "DELETE" }),
+      });
+      return { ok: true };
+    } catch (err) {
+      // Already requested → treat as success (idempotent from the user's view).
+      if (err instanceof ApiError && err.status === 409) return { ok: true };
+      return { ok: false, messageKey: toMessageKey(err) };
+    }
   },
 };
