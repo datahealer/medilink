@@ -136,9 +136,10 @@ export default function SetupScreen() {
       <TextField
         label={t("profile.civilNumber")}
         value={civilNumber}
-        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, ""))}
+        // Clamp length in JS (not via native `maxLength`) to avoid the controlled-input
+        // boundary bug that makes the last digit un-editable. See edit-profile.tsx. (F2)
+        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, "").slice(0, CIVIL_NUMBER_LENGTH))}
         keyboardType="number-pad"
-        maxLength={CIVIL_NUMBER_LENGTH}
         placeholder={t("profile.civilNumberPlaceholder")}
         error={civilError}
         containerStyle={{ marginBottom: spacing.md }}

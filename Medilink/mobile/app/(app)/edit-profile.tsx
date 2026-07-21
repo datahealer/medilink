@@ -213,9 +213,12 @@ export default function EditProfileScreen() {
       <TextField
         label={t("profile.civilNumber")}
         value={civilNumber}
-        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, ""))}
+        // Clamp length in JS (not via native `maxLength`): a controlled TextInput whose
+        // value sits exactly at `maxLength` hits a React Native reconciliation bug where
+        // edits to the final character (delete/replace) get reverted. Slicing here keeps
+        // the field fully JS-controlled so every digit stays editable. (F2)
+        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, "").slice(0, CIVIL_NUMBER_LENGTH))}
         keyboardType="number-pad"
-        maxLength={CIVIL_NUMBER_LENGTH}
         placeholder={t("profile.civilNumberPlaceholder")}
         error={civilError}
         containerStyle={{ marginBottom: spacing.md }}
