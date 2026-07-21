@@ -235,6 +235,14 @@ otp_expiry = 3600
 subject = "Confirm Your Signup"
 content_path = "./supabase/templates/confirmation.html"
 
+# Passwordless email LOGIN (signInWithOtp) uses Supabase's Magic Link template. We render
+# {{ .Token }} (a 6-digit code), NOT {{ .ConfirmationURL }} (a link), so mobile's
+# verifyOtp({ type: "email" }) receives an actual OTP. The hosted project's "Magic Link"
+# template has already been updated to match; keep them in sync. (F5 / email-OTP fix.)
+[auth.email.template.magic_link]
+subject = "Your MediLink sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
