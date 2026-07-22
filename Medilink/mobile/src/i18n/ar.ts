@@ -20,6 +20,7 @@ export const ar: Messages = {
     add: "إضافة",
     remove: "إزالة",
     retry: "إعادة المحاولة",
+    offline: "أنت غير متصل بالإنترنت",
     optional: "اختياري",
     notSet: "غير محدد",
     none: "لا يوجد",

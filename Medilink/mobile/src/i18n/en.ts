@@ -19,6 +19,7 @@ export const en = {
     add: "Add",
     remove: "Remove",
     retry: "Retry",
+    offline: "You're offline",
     optional: "Optional",
     notSet: "Not set",
     none: "None",

@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 
-import { queryClient } from "@/providers/QueryProvider";
+import { queryClient, clearPersistedCache } from "@/providers/QueryProvider";
 import { repositories } from "@/data";
 import type { SignInInput, SignUpInput } from "@/data/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -56,6 +56,7 @@ export function useSignOut() {
     onSettled: () => {
       usePatientStore.getState().reset();
       queryClient.clear();
+      void clearPersistedCache(); // don't retain patient data at rest after logout
     },
   });
 }
@@ -80,6 +81,7 @@ export function useDeleteAccount() {
       if (res?.ok) {
         usePatientStore.getState().reset();
         queryClient.clear();
+        void clearPersistedCache();
       }
     },
   });

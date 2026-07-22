@@ -11,6 +11,7 @@ import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PushNotifications } from "@/components/PushNotifications";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { BRAND_FONT_FILES } from "@/theme/typography";
 
 /**
@@ -50,6 +51,7 @@ export default function RootLayout() {
                     <Stack.Screen name="dev/screen-gallery" />
                   </Stack>
                 </ErrorBoundary>
+                <OfflineBanner />
               </AuthProvider>
             </I18nProvider>
           </ThemeProvider>
