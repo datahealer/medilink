@@ -1,72 +1,56 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import React, { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useColorScheme } from "react-native";
-import * as SecureStore from "expo-secure-store";
 
-import {
-  darkColors,
-  lightColors,
-  radii,
-  spacing,
-  type ThemeColors,
-} from "@/theme/tokens";
+import { useThemeStore, type ColorMode } from "@/stores/themeStore";
+import { darkTheme } from "./dark";
+import { lightTheme } from "./light";
+import type { ThemeColors } from "./light";
 
-type ColorMode = "light" | "dark" | "system";
-
-interface ThemeContextValue {
-  mode: ColorMode; // user preference
-  scheme: "light" | "dark"; // resolved scheme actually in use
+export interface Theme {
+  scheme: "light" | "dark";
   colors: ThemeColors;
-  radii: typeof radii;
-  spacing: typeof spacing;
-  setMode: (mode: ColorMode) => void;
+  spacing: typeof lightTheme.spacing;
+  radii: typeof lightTheme.radii;
 }
 
-const STORAGE_KEY = "medilink.colorMode";
+interface ThemeContextValue {
+  theme: Theme;
+  /** User preference (light/dark/system). */
+  mode: ColorMode;
+  setMode: (mode: ColorMode) => void;
+  toggle: () => void;
+}
+
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/**
+ * Resolves the active theme from the persisted user preference + the OS colour
+ * scheme, and exposes it via context. Every component reads colours/spacing from
+ * here — no hardcoded values in screens.
+ */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const system = useColorScheme() ?? "light";
-  const [mode, setModeState] = useState<ColorMode>("system");
+  const systemScheme = useColorScheme() ?? "light";
+  const mode = useThemeStore((s) => s.mode);
+  const setMode = useThemeStore((s) => s.setMode);
+  const toggleStore = useThemeStore((s) => s.toggle);
 
-  useEffect(() => {
-    SecureStore.getItemAsync(STORAGE_KEY).then((stored) => {
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        setModeState(stored);
-      }
-    });
-  }, []);
-
-  const setMode = useCallback((next: ColorMode) => {
-    setModeState(next);
-    void SecureStore.setItemAsync(STORAGE_KEY, next);
-  }, []);
-
-  const scheme: "light" | "dark" = mode === "system" ? system : mode;
+  const scheme: "light" | "dark" = mode === "system" ? systemScheme : mode;
+  const theme = scheme === "dark" ? darkTheme : lightTheme;
 
   const value = useMemo<ThemeContextValue>(
     () => ({
+      theme,
       mode,
-      scheme,
-      colors: scheme === "dark" ? darkColors : lightColors,
-      radii,
-      spacing,
       setMode,
+      toggle: () => toggleStore(scheme),
     }),
-    [mode, scheme, setMode]
+    [theme, mode, setMode, toggleStore, scheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export function useTheme(): ThemeContextValue {
+export function useThemeContext(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error("useTheme must be used within <ThemeProvider>");
   return ctx;

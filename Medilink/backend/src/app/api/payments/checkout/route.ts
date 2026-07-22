@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           appointment_id,
+          // payments.patient_id FK → profiles(id) (the auth uid). Keep user.id; the
+          // patient read is enabled by the corrected RLS policy (patient_id = auth.uid()),
+          // see migration 20260630_fix_payments_patient_read_rls.sql.
           patient_id: user.id,
           facility_id: appointment.facility_id ?? "",
           amount,
