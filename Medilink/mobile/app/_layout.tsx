@@ -10,6 +10,7 @@ import { I18nProvider } from "@/i18n";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PushNotifications } from "@/components/PushNotifications";
 import { BRAND_FONT_FILES } from "@/theme/typography";
 
 /**
@@ -35,6 +36,7 @@ export default function RootLayout() {
           <ThemeProvider>
             <I18nProvider>
               <AuthProvider>
+                <PushNotifications />
                 <ErrorBoundary>
                   <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
                     <Stack.Screen name="index" />
