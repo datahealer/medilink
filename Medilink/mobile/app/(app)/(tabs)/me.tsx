@@ -63,9 +63,16 @@ export default function MeHubScreen() {
       ],
     },
     {
+      titleKey: "meHub.sectionAI",
+      items: [
+        { key: "ai-symptoms", labelKey: "meHub.aiSymptoms", icon: "ai", onPress: go("/ai/assistant") },
+        { key: "ai-recommend", labelKey: "meHub.aiRecommend", icon: "people", onPress: go("/ai/recommendations") },
+        { key: "ai-insights", labelKey: "meHub.aiInsights", icon: "records", onPress: go("/ai/insights") },
+      ],
+    },
+    {
       titleKey: "meHub.sectionTools",
       items: [
-        { key: "ai", labelKey: "meHub.aiSymptoms", icon: "ai", onPress: go("/ai/assistant") },
         { key: "map", labelKey: "meHub.map", icon: "map", onPress: go("/search/map") },
       ],
     },

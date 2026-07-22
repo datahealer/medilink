@@ -119,6 +119,7 @@ export default function SymptomCheckerPage() {
       const res = await fetch(`${env.BACKEND_URL}/api/ai/symptom-check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           symptoms: symptoms.trim(),
           patient_age: age ? Number(age) : undefined,

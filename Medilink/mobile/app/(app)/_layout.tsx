@@ -85,6 +85,10 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       {/* Mandatory first-time profile setup (full-screen, no tabs). */}
       <Stack.Screen name="setup" options={{ gestureEnabled: false }} />
+      {/* Payment confirmation is terminal — disable swipe-back so the booking/payment
+          flow can never be reached again after a payment attempt (hardware-back and the
+          primary action route to the Dashboard). */}
+      <Stack.Screen name="booking/payment-success" options={{ gestureEnabled: false }} />
       {/* Detail screens push full-screen over the tabs — no bottom nav, matching the PDF. */}
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="medical-history" />

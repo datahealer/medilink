@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { I18nProvider } from "@/i18n";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BRAND_FONT_FILES } from "@/theme/typography";
 
 /**
@@ -34,17 +35,19 @@ export default function RootLayout() {
           <ThemeProvider>
             <I18nProvider>
               <AuthProvider>
-                <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="splash" />
-                  <Stack.Screen name="welcome" />
-                  <Stack.Screen name="onboarding" />
-                  <Stack.Screen name="language" />
-                  <Stack.Screen name="auth" />
-                  <Stack.Screen name="(app)" />
-                  {/* Dev-only Screen Gallery (gated inside the route by isDev). */}
-                  <Stack.Screen name="dev/screen-gallery" />
-                </Stack>
+                <ErrorBoundary>
+                  <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="splash" />
+                    <Stack.Screen name="welcome" />
+                    <Stack.Screen name="onboarding" />
+                    <Stack.Screen name="language" />
+                    <Stack.Screen name="auth" />
+                    <Stack.Screen name="(app)" />
+                    {/* Dev-only Screen Gallery (gated inside the route by isDev). */}
+                    <Stack.Screen name="dev/screen-gallery" />
+                  </Stack>
+                </ErrorBoundary>
               </AuthProvider>
             </I18nProvider>
           </ThemeProvider>
