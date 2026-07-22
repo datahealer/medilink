@@ -8,14 +8,14 @@
 
 | | |
 |---|---|
-| **Current completion** | **~91%** |
-| **Remaining** | **~9%** |
-| **Estimated days remaining** | **~11–15 focused engineering days** + device/QA time (iOS hardware not yet available) |
-| **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push APNs/EAS creds + device delivery verification, zero iOS-device validation. *(Resolved in code: fake vitals, symptom-check auth, error boundary, refund correctness, push/deep-link client wiring.)* |
+| **Current completion** | **~93%** |
+| **Remaining** | **~7%** |
+| **Estimated days remaining** | **~9–13 focused engineering days** + device/QA time (iOS hardware not yet available) |
+| **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push APNs/EAS creds + device delivery verification, offline dep install + verification, zero iOS-device validation. *(Resolved in code: fake vitals, symptom-check auth, error boundary, refund correctness, push/deep-link client wiring, offline read-cache.)* |
 | **Current branch** | `runtime-rtl` (work merges toward `main`; prior feature work landed on `ios-production-backend`) |
 | **Last updated** | 2026-07-22 |
 
-> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — **client code complete** (2.1–2.5, 2.8); awaiting APNs/EAS creds (2.7) + on-device delivery verification (2.6). Phase 3 (Offline) is next.
+> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — client code complete + pipeline hardened; awaiting APNs/EAS (2.7) + device delivery (2.6). Phase 3 (Offline) — **code complete (3.1–3.3), pending dep install + native rebuild** (install blocked in the current sandbox). Phase 4 (AI Assistant & Insights) is next.
 
 ### Status legend
 `☐` Not Started · `⏳` In Progress / Partial · `☑` Completed · `🚫` Not Required (de-scoped / superseded)
@@ -85,18 +85,21 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 
 | # | Task | Status | Priority | Backend dep | Effort | Notes |
 |---|---|---|---|---|---|---|
-| 3.1 | Install `@react-native-community/netinfo`; wire React Query `onlineManager` | ☐ | Medium | No | 0.5 d | Not in `package.json`. |
-| 3.2 | Add query cache persistence (`@tanstack/react-query-persist-client` + AsyncStorage/MMKV) | ☐ | Medium | No | 1 d | So cached appointments/records/profile render offline. |
-| 3.3 | Add a connectivity banner ("You're offline") | ☐ | Medium | No | 0.5 d | — |
-| 3.4 | Offline mutation queue (booking/profile edits retry on reconnect) | ☐ | Low | No | 2–3 d | **Recommend defer past v1** — offline booking is risky. |
+| 3.1 | Install `@react-native-community/netinfo`; wire React Query `onlineManager` | ☑ | Medium | No | 0.5 d | **Code done (pending dep install).** `onlineManager.setEventListener` driven by NetInfo in `QueryProvider`; `refetchOnReconnect` on. Deps added to `package.json`. |
+| 3.2 | Add query cache persistence (`@tanstack/react-query-persist-client` + AsyncStorage) | ☑ | Medium | No | 1 d | **Code done (pending dep install).** `PersistQueryClientProvider` + AsyncStorage persister; 24h maxAge, version buster, success-only dehydrate, `gcTime` 24h. **Purged on logout** (`clearPersistedCache`). ⚠️ AsyncStorage is unencrypted — see security note (recommend encrypted MMKV for PHI before prod). |
+| 3.3 | Add a connectivity banner ("You're offline") | ☑ | Medium | No | 0.5 d | **Done.** `OfflineBanner` (top overlay, themed + localized EN/AR) driven by `onlineManager` — no second NetInfo subscription. Typechecks now (no new-dep import). |
+| 3.4 | Offline mutation queue (booking/profile edits retry on reconnect) | 🚫 | Low | No | 2–3 d | **Not required for v1** — offline booking/payment is risky; reads-offline (3.1–3.3) is the v1 scope. Revisit post-launch. |
 
-**Progress:** Completed 0% · Remaining 100%
-**Estimated remaining hours:** ~2 days (read-only; 3.4 deferred)
+**Progress:** Code complete 3.1–3.3 (**pending `npx expo install` of 4 deps + native rebuild** — install fails in the current sandbox, npm-workspace bug); 3.4 de-scoped for v1.
+**Estimated remaining hours:** ~0 dev · dep install + native rebuild + on-device verification (user)
 **Exit criteria:** In airplane mode, previously-loaded data still renders and an offline banner shows; no crashes on any screen offline.
+**Blocking install (user):** `cd mobile && npx expo install @react-native-community/netinfo @react-native-async-storage/async-storage @tanstack/react-query-persist-client @tanstack/query-async-storage-persister` then rebuild (native modules). Until then `typecheck`/`lint`/build report 4 unresolved-module errors in `QueryProvider.tsx` (only).
 **Testing checklist:**
-- ☐ Airplane mode on every screen → cached data or clean empty/error, no crash
-- ☐ Banner appears/disappears with connectivity
-- ☐ Reconnect refetches stale queries
+- ☐ Airplane mode on every screen → cached data or clean empty/error, no crash *(after install)*
+- ☐ Banner appears/disappears with connectivity *(after install)*
+- ☐ Reconnect refetches stale queries *(after install)*
+- ☐ Cold start offline → last-cached data rehydrates *(after install)*
+- ☐ Logout → persisted cache purged (no PHI at rest) *(after install)*
 
 ---
 
@@ -277,14 +280,14 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 
 ### Overall Progress
 ```
-█████████░ 91%
+█████████▍ 93%
 ```
 
 ### Phase Progress (remaining-work completion)
 ```
 Phase 1  Production Blockers      █████████░  95%  (code done; awaiting db:push + RLS test)
 Phase 2  Push & Deep Links        ████████░░  80%  (client done; awaiting APNs/EAS + device)
-Phase 3  Offline & Resilience     ░░░░░░░░░░  0%
+Phase 3  Offline & Resilience     ████████░░  85%  (code done; awaiting dep install + rebuild)
 Phase 4  AI Assistant & Insights  ░░░░░░░░░░  0%
 Phase 5  Maps & Discovery         ░░░░░░░░░░  0%
 Phase 6  Remaining Wiring         ░░░░░░░░░░  0%
@@ -318,7 +321,7 @@ Prescription Reminders             ☐
 Notifications (in-app)             ✅
 Push Notifications                 ⏳  (client wired; APNs/EAS + device pending)
 Deep Links (inbound)               ✅  (expo-router scheme + notification data routing)
-Offline Support                    ☐
+Offline Support                    ⏳  (read-cache + banner coded; dep install pending)
 Delete Account                     ✅
 Export Data / Privacy              ☐
 Localization (EN/AR)               ✅
