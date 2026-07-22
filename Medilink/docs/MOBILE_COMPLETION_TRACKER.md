@@ -8,14 +8,14 @@
 
 | | |
 |---|---|
-| **Current completion** | **~89%** |
-| **Remaining** | **~11%** |
-| **Estimated days remaining** | **~13–18 focused engineering days** + device/QA time (iOS hardware not yet available) |
-| **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push notifications, zero iOS-device validation. *(Resolved: fake vitals, symptom-check auth, error boundary, refund correctness — refund pending `db:push` + staging verify.)* |
+| **Current completion** | **~91%** |
+| **Remaining** | **~9%** |
+| **Estimated days remaining** | **~11–15 focused engineering days** + device/QA time (iOS hardware not yet available) |
+| **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push APNs/EAS creds + device delivery verification, zero iOS-device validation. *(Resolved in code: fake vitals, symptom-check auth, error boundary, refund correctness, push/deep-link client wiring.)* |
 | **Current branch** | `runtime-rtl` (work merges toward `main`; prior feature work landed on `ios-production-backend`) |
 | **Last updated** | 2026-07-22 |
 
-> **Phase status:** Phase 1 (Production Blockers) — code complete; awaiting user `db:push` (1.8) + guest-RLS staging test (1.9). Phase 2 (Push & Deep Links) is next.
+> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — **client code complete** (2.1–2.5, 2.8); awaiting APNs/EAS creds (2.7) + on-device delivery verification (2.6). Phase 3 (Offline) is next.
 
 ### Status legend
 `☐` Not Started · `⏳` In Progress / Partial · `☑` Completed · `🚫` Not Required (de-scoped / superseded)
@@ -57,24 +57,24 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 
 | # | Task | Status | Priority | Backend dep | Effort | Notes |
 |---|---|---|---|---|---|---|
-| 2.1 | Call `syncPushToken()` after successful sign-in / session restore | ☐ | High | No | 0.5 d | `src/services/push.ts` is fully written but has **zero callers**. |
-| 2.2 | Request notification permission at the right moment (post-auth) | ☐ | High | No | 2 h | Included in push.ts but never invoked. |
-| 2.3 | Register foreground `setNotificationHandler` | ☐ | High | No | 1 h | Never registered anywhere. |
-| 2.4 | Add `addNotificationReceivedListener` (in-app/badge handling) | ☐ | High | No | 2 h | — |
-| 2.5 | Add `addNotificationResponseReceivedListener` (tap → route to target screen) | ☐ | High | No | 3 h | Needs deep-link routing (2.8). |
-| 2.6 | Verify backend writes/reads `device_tokens` and dispatches via `notifications/push` | ☐ | High | Yes | 2 h | Backend route + table exist; confirm token round-trip. |
-| 2.7 | Configure APNs credentials in EAS + add `aps-environment` entitlement to `app.json` | ☐ | High | No | 0.5 d | No entitlement present (`app.json:18-21`); required for iOS push. |
-| 2.8 | Add inbound deep-link handler (`getInitialURL` + `Linking` listener + expo-router `linking` config) | ☐ | Medium | No | 1 d | Scheme `medilink` declared but nothing consumes inbound URLs. Now only needed for notification taps + external returns — payment return uses in-app WebView, password reset uses OTP. |
+| 2.1 | Call `syncPushToken()` after successful sign-in / session restore | ☑ | High | No | 0.5 d | **Done.** `usePushNotifications` syncs the token when `authStore.status === "authed"` (mounted via `<PushNotifications/>` in the root layout). |
+| 2.2 | Request notification permission at the right moment (post-auth) | ☑ | High | No | 2 h | **Done.** `registerForPushNotifications` requests permission, invoked by `syncPushToken` post-auth (not at cold launch). |
+| 2.3 | Register foreground `setNotificationHandler` | ☑ | High | No | 1 h | **Done.** Registered on import of `services/push` (now imported), banner+list+sound+badge. |
+| 2.4 | Add `addNotificationReceivedListener` (in-app/badge handling) | ☑ | High | No | 2 h | **Done.** Foreground received listener in `usePushNotifications` (hook point for badge/refresh). |
+| 2.5 | Add `addNotificationResponseReceivedListener` (tap → route to target screen) | ☑ | High | No | 3 h | **Done.** Tap routes via shared `routeForNotificationData` (payload `data.kind`/`appointment_id`/`url`), incl. cold-start (`getLastNotificationResponseAsync`). |
+| 2.6 | Verify backend writes/reads `device_tokens` and dispatches via `notifications/push` | ☐ | High | Yes | 2 h | **User action (device/backend).** Client upserts `device_tokens`; confirm round-trip + dispatch. |
+| 2.7 | Configure APNs credentials in EAS + add `aps-environment` entitlement to `app.json` | ☐ | High | No | 0.5 d | **Isolated (user action).** EAS `projectId` already set; APNs key + `aps-environment` entitlement pending. |
+| 2.8 | Inbound deep-link routing | ☑ | Medium | No | 1 d | **Done.** expo-router auto-links the `medilink://` scheme (path → route); notification taps consume `data` via `routeForNotificationData` (supports an explicit `data.url`). No redundant manual `Linking` listener (would double-navigate with expo-router). |
 | 2.9 | Add iOS `associatedDomains` / Android `intentFilters` (only if universal links wanted) | ☐ | Low | No | 0.5 d | Optional; scheme-based links cover v1. |
 
-**Progress:** Completed 0% · Remaining 100%
-**Estimated remaining hours:** ~4 days
+**Progress:** Client code 100% (2.1–2.5, 2.8) · Awaiting device/creds: 2.6 (token round-trip), 2.7 (APNs/EAS), 2.9 (optional)
+**Estimated remaining hours:** ~0 dev (client) · ~0.5 d user APNs/EAS + device verification
 **Exit criteria:** A push sent from backend is received in fg/bg/killed on a physical device; tapping it routes to the correct screen; token is stored per-device under RLS.
 **Testing checklist:**
-- ☐ Token appears in `device_tokens` after sign-in
-- ☐ Notification received foreground / background / app-killed
-- ☐ Tap routes to appointment / payment / message target
-- ☐ APNs delivery confirmed in TestFlight
+- ☐ Token appears in `device_tokens` after sign-in *(device)*
+- ☐ Notification received foreground / background / app-killed *(device + APNs)*
+- ☑ Tap routes to appointment / payment / message target *(routing logic; verify delivery on device)*
+- ☐ APNs delivery confirmed in TestFlight *(user)*
 
 ---
 
@@ -276,13 +276,13 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 
 ### Overall Progress
 ```
-████████▉░ 89%
+█████████░ 91%
 ```
 
 ### Phase Progress (remaining-work completion)
 ```
 Phase 1  Production Blockers      █████████░  95%  (code done; awaiting db:push + RLS test)
-Phase 2  Push & Deep Links        ░░░░░░░░░░  0%
+Phase 2  Push & Deep Links        ████████░░  80%  (client done; awaiting APNs/EAS + device)
 Phase 3  Offline & Resilience     ░░░░░░░░░░  0%
 Phase 4  AI Assistant & Insights  ░░░░░░░░░░  0%
 Phase 5  Maps & Discovery         ░░░░░░░░░░  0%
@@ -315,8 +315,8 @@ Lab Trend Chart                    ☐
 Prescriptions (read)               ✅
 Prescription Reminders             ☐
 Notifications (in-app)             ✅
-Push Notifications                 ☐
-Deep Links (inbound)               ☐
+Push Notifications                 ⏳  (client wired; APNs/EAS + device pending)
+Deep Links (inbound)               ✅  (expo-router scheme + notification data routing)
 Offline Support                    ☐
 Delete Account                     ✅
 Export Data / Privacy              ☐
@@ -389,7 +389,7 @@ Verified against current code. These are **done** and no longer tracked as remai
 
 ## 2. Remaining Critical Tasks (production blockers only)
 
-1. **Push notifications end-to-end** (Phase 2) — reminders/confirmations silently do nothing; APNs entitlement missing.
+1. **Push notifications — APNs/EAS credentials + on-device delivery** (2.6, 2.7) — client is wired (token sync, listeners, tap-routing); needs the APNs key/entitlement and device/TestFlight verification.
 2. **Deploy pending migrations + guest RLS staging verification** (1.8, 1.9) — **user action**.
 3. **iOS device + TestFlight validation** (9.2–9.4) — payment WebView return, push, permissions, RTL unproven on hardware.
 
