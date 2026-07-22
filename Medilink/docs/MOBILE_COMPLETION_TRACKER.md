@@ -62,19 +62,20 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 | 2.3 | Register foreground `setNotificationHandler` | ☑ | High | No | 1 h | **Done.** Registered on import of `services/push` (now imported), banner+list+sound+badge. |
 | 2.4 | Add `addNotificationReceivedListener` (in-app/badge handling) | ☑ | High | No | 2 h | **Done.** Foreground received listener in `usePushNotifications` (hook point for badge/refresh). |
 | 2.5 | Add `addNotificationResponseReceivedListener` (tap → route to target screen) | ☑ | High | No | 3 h | **Done.** Tap routes via shared `routeForNotificationData` (payload `data.kind`/`appointment_id`/`url`), incl. cold-start (`getLastNotificationResponseAsync`). |
-| 2.6 | Verify backend writes/reads `device_tokens` and dispatches via `notifications/push` | ☐ | High | Yes | 2 h | **User action (device/backend).** Client upserts `device_tokens`; confirm round-trip + dispatch. |
-| 2.7 | Configure APNs credentials in EAS + add `aps-environment` entitlement to `app.json` | ☐ | High | No | 0.5 d | **Isolated (user action).** EAS `projectId` already set; APNs key + `aps-environment` entitlement pending. |
+| 2.6 | Backend push pipeline (dispatch + token/prefs stores + invalid-token cleanup) | ⏳ | High | Yes | 2 h | **Hardened (code):** canonical `sendPushToUser` dispatcher (device_tokens + `profiles.notification_prefs` opt-in + Expo 100-batch + `DeviceNotRegistered` cleanup); `notifications/push` route delegates to it; **payment** success now dispatches a push; **logout removes this device's token**. **Remaining:** edge functions (announcement/insight) still read the never-populated `profiles.push_tokens` → converge to `device_tokens` / route via the dispatcher; wire lab/waitlist/appointment pushes; **on-device delivery verification** (needs device). |
+| 2.7 | APNs / EAS configuration | ☐ | High | No | 0.5 d | **Pending External Verification.** EAS `projectId` set + `expo-notifications` plugin present; **missing:** iOS `aps-environment` entitlement in `app.json` + APNs key via `eas credentials`. Requires Apple Developer + Expo dashboard. Exact steps in the Phase 2 Part 2 report. |
 | 2.8 | Inbound deep-link routing | ☑ | Medium | No | 1 d | **Done.** expo-router auto-links the `medilink://` scheme (path → route); notification taps consume `data` via `routeForNotificationData` (supports an explicit `data.url`). No redundant manual `Linking` listener (would double-navigate with expo-router). |
-| 2.9 | Add iOS `associatedDomains` / Android `intentFilters` (only if universal links wanted) | ☐ | Low | No | 0.5 d | Optional; scheme-based links cover v1. |
+| 2.9 | Universal Links / App Links | 🚫 | Low | No | 0.5 d | **Not required for v1** — the `medilink://` custom scheme + notification-data routing cover launch needs. Revisit only if https:// universal links are a requirement. |
 
-**Progress:** Client code 100% (2.1–2.5, 2.8) · Awaiting device/creds: 2.6 (token round-trip), 2.7 (APNs/EAS), 2.9 (optional)
-**Estimated remaining hours:** ~0 dev (client) · ~0.5 d user APNs/EAS + device verification
-**Exit criteria:** A push sent from backend is received in fg/bg/killed on a physical device; tapping it routes to the correct screen; token is stored per-device under RLS.
+**Progress:** Client wiring 100% (2.1–2.5, 2.8); dispatcher + payment push + logout cleanup done (2.6). Remaining: edge token-store convergence + per-type push wiring (2.6), APNs/EAS creds (2.7), on-device delivery verification — all **pending external (device/creds/deploy)**.
+**Estimated remaining hours:** ~0.5 d edge convergence (needs redeploy) · ~0.5 d user APNs/EAS + device verification
+**Exit criteria:** A push sent from backend is received in fg/bg/killed on a physical device; tapping it routes to the correct screen; token is stored per-device under RLS; invalid tokens are pruned.
 **Testing checklist:**
-- ☐ Token appears in `device_tokens` after sign-in *(device)*
+- ☐ Token appears in `device_tokens` after sign-in; removed on logout *(device)*
 - ☐ Notification received foreground / background / app-killed *(device + APNs)*
-- ☑ Tap routes to appointment / payment / message target *(routing logic; verify delivery on device)*
-- ☐ APNs delivery confirmed in TestFlight *(user)*
+- ☑ Tap routes to appointment / payment / message target *(routing logic verified; delivery on device pending)*
+- ☐ Invalid token (`DeviceNotRegistered`) pruned from `device_tokens` *(device)*
+- ☐ APNs delivery confirmed in TestFlight *(user — Pending External Verification)*
 
 ---
 
