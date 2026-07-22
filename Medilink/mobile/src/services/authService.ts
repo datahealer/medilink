@@ -19,6 +19,7 @@ import type { MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { setRememberSession } from "@/lib/authPersistence";
 import { ApiError, apiFetch } from "@/services/api";
+import { clearPushToken } from "@/services/push";
 
 export interface SignInInput {
   email: string;
@@ -214,6 +215,9 @@ export const authService = {
   },
 
   async signOut(): Promise<void> {
+    // Remove this device's push token first (while the session is still valid for the
+    // RLS-scoped delete), then end the session.
+    await clearPushToken();
     await api.auth.signOut(supabase);
   },
 

@@ -1,4 +1,5 @@
 import type { createServiceSupabase } from "@/lib/supabase/service";
+import { sendPushToUser } from "@/lib/notifications/sendPush";
 
 type ServiceClient = ReturnType<typeof createServiceSupabase>;
 
@@ -30,6 +31,15 @@ export async function notifyPaymentSuccess(
     console.error("❌ Patient payment notification failed:", error.message);
     return { success: false, error: error.message };
   }
+
+  // Dispatch the device push (best-effort — never fails the in-app notification). The
+  // payload's `kind`/`appointment_id` drive the mobile tap-routing to the appointment.
+  await sendPushToUser(service, {
+    userId: input.userId,
+    title: input.title,
+    body: input.body,
+    data: { appointment_id: input.appointmentId, kind: "payment" },
+  });
 
   return { success: true };
 }

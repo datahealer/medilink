@@ -78,3 +78,24 @@ export async function syncPushToken(): Promise<void> {
   const token = await registerForPushNotifications();
   if (token) await saveDeviceToken(token);
 }
+
+/**
+ * Remove THIS device's push token on sign-out, so the signed-out account (and the next
+ * user of this device) stops receiving the previous user's notifications. Must run while
+ * the session is still valid (the RLS delete is scoped to `auth.uid() = user_id`).
+ * Best-effort: never throws, so it can never block sign-out. Only this device's token is
+ * removed — other devices the user is signed in on keep working.
+ */
+export async function clearPushToken(): Promise<void> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const token = await registerForPushNotifications();
+    if (!token) return; // can't resolve this device's token (e.g. simulator) — leave others intact
+    await supabase.from("device_tokens").delete().eq("user_id", user.id).eq("token", token);
+  } catch {
+    // Cleanup is best-effort — sign-out must proceed regardless.
+  }
+}
