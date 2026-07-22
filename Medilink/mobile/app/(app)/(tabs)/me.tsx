@@ -2,13 +2,14 @@ import React from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Avatar, Button, Icon, type IconName, Screen, Text } from "@/components/ui";
+import { Avatar, Button, Icon, type IconName, MeMark, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { useSignOut, useDeleteAccount } from "@/hooks/queries/useAuth";
 import { useProfile } from "@/hooks/queries/usePatient";
+import { useAuthStore } from "@/stores/authStore";
 import { localizedName } from "@/utils/localizedName";
 
 interface HubItem {
@@ -28,7 +29,8 @@ export default function MeHubScreen() {
   const { contentMaxWidth } = useResponsive();
   const { t } = useI18n();
 
-  const profile = useProfile();
+  const guestMode = useAuthStore((s) => s.guestMode);
+  const profile = useProfile({ enabled: !guestMode });
   const signOut = useSignOut();
   const deleteAccount = useDeleteAccount();
   const account = profile.data?.account;
@@ -146,6 +148,45 @@ export default function MeHubScreen() {
     </Pressable>
   );
 
+  // Guest variant — no account data. Show a sign-in prompt + the account-free
+  // preferences a guest is allowed to use (language, theme). Every patient area stays
+  // behind the sign-in wall (enforced by the (app) gate), so it is intentionally absent
+  // here rather than shown as a dead row.
+  if (guestMode) {
+    const guestRows: HubItem[] = [
+      { key: "language", labelKey: "meHub.language", icon: "language", onPress: go("/language") },
+      { key: "theme", labelKey: "meHub.theme", icon: "moon", onPress: go("/settings/appearance") },
+    ];
+    return (
+      <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
+        <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <View style={[styles.guestAvatar, { backgroundColor: colors.surfaceAlt, borderRadius: radii.xl }]}>
+            <MeMark height={26} color={colors.primary} />
+          </View>
+          <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
+            <Text variant="h2">{t("guest.hello")}</Text>
+          </View>
+        </View>
+
+        {/* Sign-in prompt */}
+        <View style={[styles.guestCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}>
+          <Text variant="title" align={isRTL ? "right" : "left"}>{t("guest.wallTitle")}</Text>
+          <Text variant="body" color="textMuted" align={isRTL ? "right" : "left"} style={{ marginTop: spacing.xs }}>
+            {t("guest.wallBody")}
+          </Text>
+          <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+            <Button label={t("guest.signInCta")} onPress={() => router.push("/auth/sign-in")} />
+            <Button label={t("guest.createAccountCta")} variant="outline" onPress={() => router.push("/auth/sign-up")} />
+          </View>
+        </View>
+
+        {/* Account-free preferences */}
+        <Text variant="label" color="textMuted" style={styles.section}>{t("meHub.sectionSettings")}</Text>
+        {guestRows.map(row)}
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}>
       {/* Account header */}
@@ -177,6 +218,8 @@ export default function MeHubScreen() {
 
 const styles = StyleSheet.create({
   header: { alignItems: "center", marginBottom: 8 },
+  guestAvatar: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
+  guestCard: { borderWidth: StyleSheet.hairlineWidth * 2, padding: 16, marginTop: 8 },
   section: { marginTop: 20, marginBottom: 8 },
   row: {
     alignItems: "center",

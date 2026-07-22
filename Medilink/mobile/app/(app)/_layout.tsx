@@ -23,6 +23,7 @@ function isGuestAllowed(segments: string[]): boolean {
   return (
     path.includes("(tabs)/dashboard") || // discovery dashboard (guest home)
     path.includes("(tabs)/search") ||    // discovery search tab
+    path.includes("(tabs)/me") ||        // guest hub: sign-in prompt + account-free preferences
     path.includes("/doctors") ||          // doctor profile (doctors/[id])
     path.includes("search/specialties") ||
     path.includes("search/map") ||
