@@ -17,6 +17,7 @@ const ICON: Record<NotificationKind, IconName> = {
   lab: "lab",
   prescription: "medication",
   facility: "location",
+  general: "alerts",
 };
 
 /** PDF: each item has a rounded-square icon container with a varied tint. */
@@ -28,20 +29,35 @@ const TINT: Record<NotificationKind, Tint> = {
   lab: "blue",
   prescription: "lavender",
   facility: "blue",
+  general: "lavender",
 };
 
-// Notifications currently carry no target id (in_app_notifications.data is not surfaced by the
-// list mapping), so each kind opens its list/index screen rather than a specific record. This
-// keeps navigation correct for real data; deep-linking to a specific appointment/invoice can be
-// added once the notification payload carries the related id.
-const ROUTE: Record<NotificationKind, string> = {
-  assistant: "/ai/insights",
-  appointment: "/appointments",
-  payment: "/payments",
-  lab: "/records/labs",
-  prescription: "/records/prescriptions",
-  facility: "/notifications/messages",
-};
+/**
+ * Resolve a notification's tap destination from its kind, deep-linking to the specific
+ * record when the payload carries an id. Returns `null` when there is nothing to open
+ * beyond this screen (general announcements) so the row is a no-op instead of routing
+ * somewhere wrong.
+ */
+function targetFor(n: NotificationItem): string | null {
+  switch (n.kind) {
+    case "payment":
+      return n.appointmentId ? `/appointments/${n.appointmentId}` : "/payments";
+    case "appointment":
+      return n.appointmentId ? `/appointments/${n.appointmentId}` : "/appointments";
+    case "lab":
+      return "/records/labs";
+    case "prescription":
+      return "/records/prescriptions";
+    case "assistant":
+      return "/ai/insights";
+    case "facility":
+      return "/notifications/messages";
+    case "general":
+      return null; // already on the notifications screen
+    default:
+      return null;
+  }
+}
 
 /** Notification Center (PDF p31): grouped feed of reminders, payments, lab alerts. */
 export default function NotificationsScreen() {
@@ -65,8 +81,13 @@ export default function NotificationsScreen() {
   const tintBg = (t: Tint) =>
     t === "blue" ? colors.accent2 : t === "mint" ? (scheme === "dark" ? "rgba(95,207,155,0.20)" : "#D7F0E2") : colors.accent;
 
+  const openNotification = (n: NotificationItem) => {
+    const target = targetFor(n);
+    if (target) router.push(target as never);
+  };
+
   const row = (n: NotificationItem) => (
-    <Card key={n.id} onPress={() => router.push(ROUTE[n.kind] as never)} style={{ marginBottom: spacing.sm }}>
+    <Card key={n.id} onPress={() => openNotification(n)} style={{ marginBottom: spacing.sm }}>
       <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {n.kind === "assistant" ? (
           <View style={[styles.iconWrap, { backgroundColor: colors.accent }]}>

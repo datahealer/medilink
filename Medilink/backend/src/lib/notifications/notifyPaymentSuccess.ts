@@ -7,8 +7,12 @@ export type NotifyResult = { success: true } | { success: false; error: string }
 /**
  * Single insert point for the patient "payment successful" notification — used by
  * both the Thawani webhook and the /api/payments/verify fallback, so a payment
- * finalized through either path notifies the patient the same way. Uses the
- * existing "info" notification type (schema is unchanged in this phase).
+ * finalized through either path notifies the patient the same way.
+ *
+ * The DB `type` column is constrained to info|warning|error, so the routable category
+ * lives in `data.kind` ("payment"). The mobile app classifies on `data.kind` to route
+ * the tap to the payment / appointment destination (a bare "info" notification with no
+ * kind used to fall through to the wrong screen).
  */
 export async function notifyPaymentSuccess(
   service: ServiceClient,
@@ -19,7 +23,7 @@ export async function notifyPaymentSuccess(
     type: "info" as const,
     title: input.title,
     body: input.body,
-    data: { appointment_id: input.appointmentId },
+    data: { appointment_id: input.appointmentId, kind: "payment" },
   });
 
   if (error) {

@@ -132,7 +132,7 @@ serve(async (req) => {
           type: "info",
           title: "Visit Summary Ready",
           body: "Your visit summary from your recent appointment is now available.",
-          data: { appointment_id },
+          data: { appointment_id, kind: "insight" },
         });
         if (ptNotifErr) {
           console.error("Failed to notify patient:", ptNotifErr.message);

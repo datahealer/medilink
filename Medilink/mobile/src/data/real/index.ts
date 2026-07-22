@@ -719,17 +719,35 @@ interface NotificationRowLoose {
   body: string | null;
   is_read: boolean | null;
   created_at: string | null;
+  data: Record<string, unknown> | null;
 }
 
-/** Backend `type` strings are mapped onto the UI's notification kinds. */
-function mapNotificationKind(type: string | null): NotificationKind {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("appointment") || t.includes("reminder") || t.includes("booking") || t.includes("check")) return "appointment";
+/**
+ * Classify a notification into the UI's kinds. The DB `type` column is constrained to
+ * info|warning|error, so producers put the routable category in `data.kind`
+ * (payment / appointment / lab / prescription / insight / announcement …). We read
+ * `data.kind` first, then fall back to any keyword in `type`, then to the `data`
+ * payload contents. Unknown / legacy rows fall back to `general`, which routes to the
+ * notifications screen — never to the wrong destination. (`facility` is reserved for
+ * actual facility-message notifications; facility *messages* are a separate feed.)
+ */
+function mapNotificationKind(type: string | null, data: Record<string, unknown> | null): NotificationKind {
+  const explicit = typeof data?.kind === "string" ? data.kind.toLowerCase() : "";
+  const t = explicit || (type ?? "").toLowerCase();
   if (t.includes("payment") || t.includes("invoice") || t.includes("refund")) return "payment";
+  if (
+    t.includes("appointment") || t.includes("booking") || t.includes("reminder") ||
+    t.includes("reschedul") || t.includes("cancel") || t.includes("confirm") ||
+    t.includes("checkin") || t.includes("check_in") || t.includes("waitlist")
+  )
+    return "appointment";
   if (t.includes("lab") || t.includes("result")) return "lab";
-  if (t.includes("prescription") || t.includes("medication")) return "prescription";
-  if (t.includes("assistant") || t.includes("insight") || t.includes("ai")) return "assistant";
-  return "facility";
+  if (t.includes("prescription") || t.includes("medication") || t.includes("rx")) return "prescription";
+  if (t.includes("insight") || t.includes("assistant") || t.includes("ai")) return "assistant";
+  if (t.includes("message") || t.includes("chat")) return "facility";
+  // Legacy rows with no kind: infer an appointment/payment link from the payload id.
+  if (!explicit && typeof data?.appointment_id === "string") return "appointment";
+  return "general";
 }
 
 /** Compact relative label (e.g. "3h", "2d") matching the design. */
@@ -755,14 +773,16 @@ function isToday(iso: string | null): boolean {
 }
 
 function mapNotification(r: NotificationRowLoose): NotificationItem {
+  const appointmentId = typeof r.data?.appointment_id === "string" ? r.data.appointment_id : null;
   return {
     id: r.id,
-    kind: mapNotificationKind(r.type),
+    kind: mapNotificationKind(r.type, r.data),
     title: r.title ?? "",
     body: r.body ?? "",
     time: relativeTime(r.created_at),
     group: isToday(r.created_at) ? "today" : "earlier",
     unread: !r.is_read,
+    appointmentId,
   };
 }
 

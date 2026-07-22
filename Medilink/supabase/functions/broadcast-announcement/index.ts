@@ -79,6 +79,7 @@ serve(async (req) => {
         title: announcement.title,
         body: announcement.message,
         type: "info",
+        data: { kind: "announcement" },
       }))
     );
 

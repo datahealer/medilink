@@ -386,7 +386,8 @@ export type NotificationKind =
   | "payment"
   | "lab"
   | "prescription"
-  | "facility";
+  | "facility"
+  | "general";
 
 export interface NotificationItem {
   id: string;
@@ -396,6 +397,8 @@ export interface NotificationItem {
   time: string;
   group: "today" | "earlier";
   unread?: boolean;
+  /** Related appointment id (from the notification `data` payload), for deep-linking. */
+  appointmentId?: string | null;
 }
 
 export interface FacilityMessage {
