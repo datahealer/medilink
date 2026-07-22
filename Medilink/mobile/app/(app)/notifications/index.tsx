@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useNotifications, useMarkAllNotificationsRead } from "@/hooks/queries/useNotifications";
 import { useRefresh } from "@/hooks/useRefresh";
+import { routeForNotification } from "@/utils/notifications";
 import type { NotificationItem, NotificationKind } from "@/data/types";
 
 const ICON: Record<NotificationKind, IconName> = {
@@ -32,33 +33,6 @@ const TINT: Record<NotificationKind, Tint> = {
   general: "lavender",
 };
 
-/**
- * Resolve a notification's tap destination from its kind, deep-linking to the specific
- * record when the payload carries an id. Returns `null` when there is nothing to open
- * beyond this screen (general announcements) so the row is a no-op instead of routing
- * somewhere wrong.
- */
-function targetFor(n: NotificationItem): string | null {
-  switch (n.kind) {
-    case "payment":
-      return n.appointmentId ? `/appointments/${n.appointmentId}` : "/payments";
-    case "appointment":
-      return n.appointmentId ? `/appointments/${n.appointmentId}` : "/appointments";
-    case "lab":
-      return "/records/labs";
-    case "prescription":
-      return "/records/prescriptions";
-    case "assistant":
-      return "/ai/insights";
-    case "facility":
-      return "/notifications/messages";
-    case "general":
-      return null; // already on the notifications screen
-    default:
-      return null;
-  }
-}
-
 /** Notification Center (PDF p31): grouped feed of reminders, payments, lab alerts. */
 export default function NotificationsScreen() {
   const { colors, spacing, isRTL, scheme } = useTheme();
@@ -82,8 +56,9 @@ export default function NotificationsScreen() {
     t === "blue" ? colors.accent2 : t === "mint" ? (scheme === "dark" ? "rgba(95,207,155,0.20)" : "#D7F0E2") : colors.accent;
 
   const openNotification = (n: NotificationItem) => {
-    const target = targetFor(n);
-    if (target) router.push(target as never);
+    const target = routeForNotification(n.kind, n.appointmentId);
+    // Already on the notifications screen → general announcements are a no-op.
+    if (target && target !== "/notifications") router.push(target as never);
   };
 
   const row = (n: NotificationItem) => (
