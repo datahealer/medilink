@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { AppHeader, Button, Icon, MeMark, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Button, Chip, Icon, MeMark, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -97,6 +97,28 @@ export default function AiAssistantScreen() {
         </View>
       </View>
 
+      {/* Real example chips — tapping fills the input with the sample symptoms. */}
+      <View style={{ marginBottom: spacing.md }}>
+        <Text
+          variant="caption"
+          color="textMuted"
+          align={isRTL ? "right" : "left"}
+          style={{ marginBottom: spacing.sm }}
+        >
+          {t("aiAssistant.examplesLabel")}
+        </Text>
+        <View style={[styles.chipRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          {[
+            t("aiAssistant.example1"),
+            t("aiAssistant.example2"),
+            t("aiAssistant.example3"),
+            t("aiAssistant.example4"),
+          ].map((ex) => (
+            <Chip key={ex} label={ex} onPress={() => setDraft(ex)} />
+          ))}
+        </View>
+      </View>
+
       <View
         style={[
           styles.disclaimer,
@@ -132,5 +154,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   bubble: { maxWidth: "82%", paddingHorizontal: 14, paddingVertical: 10 },
+  chipRow: { flexWrap: "wrap", gap: 8 },
   disclaimer: { alignItems: "center" },
 });
