@@ -244,9 +244,9 @@ const reviewsByDoctor: Record<string, Review[]> = {
 };
 
 const mapClinics: Clinic[] = [
-  { id: "clinic-royal", name: "Royal Hospital — Ghubra", area: "Ghubra", rating: 4.9, distance_km: 2.1, open_now: true },
-  { id: "clinic-aster", name: "Aster Clinic — Al Khuwair", name_ar: "عيادة أستر — الخوير", name_ar_status: "verified", area: "Al Khuwair", category: "Multi-speciality", rating: 4.7, distance_km: 0.8, open_now: true, doctors_count: 24, featured: true },
-  { id: "clinic-nmc", name: "NMC — Azaiba", area: "Azaiba", rating: 4.6, distance_km: 3.0, open_now: false },
+  { id: "clinic-royal", name: "Royal Hospital — Ghubra", area: "Ghubra", rating: 4.9, distance_km: 2.1, open_now: true, latitude: 23.5859, longitude: 58.4059 },
+  { id: "clinic-aster", name: "Aster Clinic — Al Khuwair", name_ar: "عيادة أستر — الخوير", name_ar_status: "verified", area: "Al Khuwair", category: "Multi-speciality", rating: 4.7, distance_km: 0.8, open_now: true, doctors_count: 24, featured: true, latitude: 23.5975, longitude: 58.4187 },
+  { id: "clinic-nmc", name: "NMC — Azaiba", area: "Azaiba", rating: 4.6, distance_km: 3.0, open_now: false, latitude: 23.605, longitude: 58.4295 },
 ];
 
 const featuredClinics: Clinic[] = mapClinics.filter((c) => c.featured);
@@ -260,6 +260,9 @@ const discoveryRepo: DiscoveryRepository = {
   },
   async featuredClinics() {
     return delay(featuredClinics.map((c) => ({ ...c })), 350);
+  },
+  async nearbyClinics() {
+    return delay(mapClinics.map((c) => ({ ...c })), 350);
   },
 };
 

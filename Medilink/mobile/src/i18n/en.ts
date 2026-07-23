@@ -569,6 +569,11 @@ export const en = {
     title: "Clinics near me",
     openNow: "Open now",
     closed: "Closed",
+    searchPlaceholder: "Search clinics",
+    directions: "Get directions",
+    loadError: "Couldn't load nearby clinics.",
+    emptyTitle: "No clinics found nearby",
+    emptyBody: "Try widening your search or check back later.",
   },
   doctor: {
     about: "About",

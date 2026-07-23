@@ -321,6 +321,9 @@ export interface Clinic {
   rating: number;
   featured?: boolean;
   open_now?: boolean;
+  /** Real coordinates for the Map View (PDF p19); null when the facility has no geo. */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 /** Filters bottom sheet (PDF p18). */

@@ -133,6 +133,8 @@ export interface DiscoveryRepository {
   listSpecialties(): Promise<Specialty[]>;
   recentDoctors(): Promise<Doctor[]>;
   featuredClinics(): Promise<Clinic[]>;
+  /** Verified clinics near a point, with real coordinates, for the Map View (PDF p19). */
+  nearbyClinics(geo: { lat: number; lng: number; radiusM?: number }): Promise<Clinic[]>;
 }
 
 /** Doctor search / profile / reviews (PDF flows 05–06). */

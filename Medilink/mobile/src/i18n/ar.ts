@@ -568,6 +568,11 @@ export const ar: Messages = {
     title: "عيادات قريبة مني",
     openNow: "مفتوح الآن",
     closed: "مغلق",
+    searchPlaceholder: "ابحث عن العيادات",
+    directions: "الاتجاهات",
+    loadError: "تعذّر تحميل العيادات القريبة.",
+    emptyTitle: "لا توجد عيادات قريبة",
+    emptyBody: "جرّب توسيع نطاق البحث أو تحقق لاحقًا.",
   },
   doctor: {
     about: "نبذة",

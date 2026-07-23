@@ -489,6 +489,31 @@ interface FacilityRowLoose {
   doctors?: { id: string }[] | null;
 }
 
+/** Loose shape of a row from api.facilities.nearbyFacilities (get_nearby_facilities RPC). */
+interface NearbyFacilityRow {
+  id: string;
+  name: string | null;
+  type: string | null;
+  address: unknown;
+  rating: number | null;
+  distance_km: number | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+function mapNearbyToClinic(f: NearbyFacilityRow): Clinic {
+  return {
+    id: f.id,
+    name: f.name ?? "",
+    area: asText(f.address) || "",
+    category: f.type ?? undefined,
+    rating: f.rating ?? 0,
+    distance_km: f.distance_km ?? undefined,
+    latitude: f.latitude ?? null,
+    longitude: f.longitude ?? null,
+  };
+}
+
 function mapFacilityToClinic(f: FacilityRowLoose): Clinic {
   return {
     id: f.id,
@@ -535,6 +560,16 @@ const discoveryRepo: DiscoveryRepository = {
   async featuredClinics() {
     const rows = (await api.facilities.listFacilities(supabase, { limit: 6 })) as unknown as FacilityRowLoose[];
     return rows.map(mapFacilityToClinic);
+  },
+  async nearbyClinics(geo) {
+    // Reuses the existing get_nearby_facilities RPC (via shared api.facilities), which
+    // now also returns latitude/longitude for map pins. Drops any row without geo.
+    const rows = (await api.facilities.nearbyFacilities(supabase, {
+      lat: geo.lat,
+      lng: geo.lng,
+      radiusM: geo.radiusM ?? 50000,
+    })) as unknown as NearbyFacilityRow[];
+    return rows.map(mapNearbyToClinic).filter((c) => c.latitude != null && c.longitude != null);
   },
 };
 

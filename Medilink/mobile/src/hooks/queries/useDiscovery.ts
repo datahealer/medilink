@@ -11,6 +11,8 @@ export const discoveryKeys = {
   specialties: ["discovery", "specialties"] as const,
   recentDoctors: ["discovery", "recent-doctors"] as const,
   featuredClinics: ["discovery", "featured-clinics"] as const,
+  nearbyClinics: (lat: number, lng: number, radiusM: number) =>
+    ["discovery", "nearby-clinics", lat, lng, radiusM] as const,
 };
 
 export function useSpecialties() {
@@ -32,5 +34,14 @@ export function useFeaturedClinics() {
   return useQuery({
     queryKey: discoveryKeys.featuredClinics,
     queryFn: () => repositories.discovery.featuredClinics(),
+  });
+}
+
+/** Verified clinics near a point, with real coordinates (Map View, PDF p19). */
+export function useNearbyClinics(geo: { lat: number; lng: number; radiusM?: number }) {
+  const radiusM = geo.radiusM ?? 50000;
+  return useQuery({
+    queryKey: discoveryKeys.nearbyClinics(geo.lat, geo.lng, radiusM),
+    queryFn: () => repositories.discovery.nearbyClinics({ ...geo, radiusM }),
   });
 }
