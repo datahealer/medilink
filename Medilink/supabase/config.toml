@@ -434,6 +434,14 @@ verify_jwt = true
 import_map = "./functions/release-expired-holds/deno.json"
 entrypoint = "./functions/release-expired-holds/index.ts"
 
+# Backend-only clinic geocoding (address → coordinates). Invoked by a Database Webhook
+# on public.facilities INSERT/UPDATE, or manually with { facility_id } for backfill.
+[functions.geocode-facility]
+enabled = true
+verify_jwt = true
+import_map = "./functions/geocode-facility/deno.json"
+entrypoint = "./functions/geocode-facility/index.ts"
+
 [functions.hams_onboarding_architecture]
 enabled = true
 verify_jwt = true
