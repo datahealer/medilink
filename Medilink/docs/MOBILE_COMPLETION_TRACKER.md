@@ -8,14 +8,14 @@
 
 | | |
 |---|---|
-| **Current completion** | **~97%** |
-| **Remaining** | **~3%** |
-| **Estimated days remaining** | **~5–8 focused engineering days** + device/QA time (iOS hardware not yet available) |
+| **Current completion** | **~98%** |
+| **Remaining** | **~2%** |
+| **Estimated days remaining** | **~4–7 focused engineering days** + device/QA time (iOS hardware not yet available) |
 | **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push APNs/EAS creds + device delivery verification, offline dep install + verification, zero iOS-device validation. *(Resolved in code: fake vitals, symptom-check auth, error boundary, refund correctness, push/deep-link client wiring, offline read-cache.)* |
 | **Current branch** | `runtime-rtl` (work merges toward `main`; prior feature work landed on `ios-production-backend`) |
 | **Last updated** | 2026-07-24 |
 
-> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — client code complete + pipeline hardened; awaiting APNs/EAS (2.7) + device delivery (2.6). Phase 3 (Offline) — code complete (deps now installed; typecheck + lint green). Phase 4 (AI Assistant & Insights) — complete. Phase 5 (Maps) — code-complete, paused (see the Maps guide). Phase 6 (Remaining Feature Wiring) — **Batches 1–2 + decisions done** (lab trend chart, MIME, payment auto-poll, profile validation; 6.5/6.7/6.8/6.9 hidden or not-required; 6.11 orphan removed; 6.12 deferred). **Queued:** 6.4 booking-reason (needs `db:push`), 6.1 PDF upload (needs `expo install`). Phase 7 (Backend Hardening) is next.
+> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — client code complete + pipeline hardened; awaiting APNs/EAS (2.7) + device delivery (2.6). Phase 3 (Offline) — code complete (deps now installed; typecheck + lint green). Phase 4 (AI Assistant & Insights) — complete. Phase 5 (Maps) — code-complete, paused (see the Maps guide). Phase 6 (Remaining Feature Wiring) — **100% code-complete.** Built: 6.1 PDF upload, 6.2 MIME, 6.3 lab trend chart, 6.4 booking reason, 6.6 profile validation, 6.10 payment auto-poll, 6.11 check-in cleanup; 6.5/6.7/6.8/6.9 hidden or not-required; 6.12 deferred. Remaining = external only: `db:push` (6.4) + `expo install expo-document-picker` (6.1). Phase 7 (Backend Hardening) is next.
 
 ### Status legend
 `☐` Not Started · `⏳` In Progress / Partial · `☑` Completed · `🚫` Not Required (de-scoped / superseded)
@@ -170,10 +170,10 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 
 | # | Task | Status | Priority | Backend dep | Effort | Notes |
 |---|---|---|---|---|---|---|
-| 6.1 | Records upload: add `expo-document-picker` so PDFs can be uploaded | ☐ | Medium | No | 0.5 d | **Queued (Batch 4 — native install).** MIME path ready (6.2). Needs `npx expo install expo-document-picker` + rebuild + verify `patient-docs` bucket allows `application/pdf`. |
+| 6.1 | Records upload: add `expo-document-picker` so PDFs can be uploaded | ☑ | Medium | No | 0.5 d | **Code done (pending `expo install` + rebuild).** "Upload File" uses `expo-document-picker` (PDF + images); camera "scan" unchanged; reuses `mimeFromName()`. Verify `patient-docs` bucket allows `application/pdf`. |
 | 6.2 | Records upload: derive MIME from the picked file | ☑ | Medium | No | 1 h | **Done.** Shared `mimeFromName()` replaces the two hardcoded `image/jpeg` fallbacks. |
 | 6.3 | Lab detail: analyte trend chart via `useAnalyteTrend` | ☑ | Medium | No | 0.5–1 d | **Done.** New `TrendChart` (react-native-svg) + expandable on-demand per-analyte trend (real data; no N+1); sparse/empty handled; EN/AR + RTL. |
-| 6.4 | Booking: send `reason` in the create/book payload | ☐ | Medium | Yes | 1–2 h | **Queued (Batch 3 — needs migration + `db:push`).** Column `reason_for_visit` already exists; only the write chain (RPC `CREATE OR REPLACE` +`p_reason` + 4 client edits) is unwired. |
+| 6.4 | Booking: send `reason` in the create/book payload | ☑ | Medium | Yes | 1–2 h | **Code done (pending `db:push`).** Migration `20260725000000` DROP+CREATE `book_appointment_atomic` +`p_reason` (no overload; re-granted); threaded through shared → repo → review. Read path already maps `reason_for_visit`. |
 | 6.5 | Prescriptions "Set reminder" | 🚫 | Medium | No | — | **Hidden for v1** (D1). Local-notification reliability caveats; revisit post-launch. |
 | 6.6 | edit-profile validation (name/DOB/blood-group/phone) | ☑ | Medium | No | 2–3 h | **Done.** Name (min 2), phone (Oman 8-digit), DOB (YYYY-MM-DD, real, not future — free-text, D7), blood group → enum chips. Save blocked on any invalid field. |
 | 6.7 | Settings "Export Data" | 🚫 | Medium | Yes | — | **Hidden for v1** (D2). Backend exists but is AAL2/2FA-gated on mobile → move to Phase 7. |
@@ -183,9 +183,9 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 | 6.11 | check-in route | ☑ | Low | Yes | — | **Done (D5).** Deleted the orphaned/unreachable hardcoded QR screen + dev-registry entry; real check-in works via the appointment Alert flow (`checkin_my_appointment`). *Follow-up: surface the RPC's queue `position` in the success Alert.* |
 | 6.12 | patient-switcher app-wide "act as" | 🚫 | Low | No | Decision | **Deferred** (D6). Needs RLS/guardian-access design + pervasive threading; PHI-boundary risk. Booking-scope act-as already works. |
 
-**Progress:** Code-complete: 6.2, 6.3, 6.6, 6.10, 6.11. Decisions applied: 6.5/6.7/6.8/6.9 hidden/not-required, 6.12 deferred. **Remaining code:** 6.4 (Batch 3 — `db:push`), 6.1 (Batch 4 — native install).
-**Estimated remaining hours:** ~0.5 d (6.4 wiring + 6.1 wiring), gated on `db:push` + `expo install`.
-**Exit criteria:** No coming-soon stubs on shipped surfaces ✅; lab trends render ✅; profile inputs validated ✅; payment success self-resolves ✅; PDF upload (6.1) + booking reason (6.4) pending their external steps.
+**Progress:** **100% code-complete.** Built: 6.1, 6.2, 6.3, 6.4, 6.6, 6.10, 6.11. Decisions applied: 6.5/6.7/6.8/6.9 hidden/not-required, 6.12 deferred. **Remaining = external only:** `db:push` (6.4 migration) + `npx expo install expo-document-picker` + rebuild (6.1).
+**Estimated remaining hours:** ~0 dev; external deploy/install + device verification.
+**Exit criteria:** No coming-soon stubs on shipped surfaces ✅; lab trends render ✅; profile inputs validated ✅; payment success self-resolves ✅; booking reason persisted ✅ (code); PDF upload ✅ (code). All code-complete; PDF upload + booking reason await their external steps.
 **Testing checklist:**
 - ☐ Upload a PDF end-to-end
 - ☐ Lab detail renders a real analyte trend
@@ -301,7 +301,7 @@ Phase 2  Push & Deep Links        ████████░░  80%  (client d
 Phase 3  Offline & Resilience     █████████░  90%  (code done; deps installed; device QA pending)
 Phase 4  AI Assistant & Insights   ██████████  100% (input→real recs; no fabricated AI data)
 Phase 5  Maps & Discovery          ████████░░  85%  (real map coded; install+key+db:push pending)
-Phase 6  Remaining Feature Wiring   █████████░  90%  (5 done, 5 hidden/deferred; 6.4+6.1 queued)
+Phase 6  Remaining Feature Wiring   ██████████  100% (code-complete; 6.4 db:push + 6.1 install pending)
 Phase 4  AI Assistant & Insights  ░░░░░░░░░░  0%
 Phase 5  Maps & Discovery         ░░░░░░░░░░  0%
 Phase 6  Remaining Wiring         ░░░░░░░░░░  0%
