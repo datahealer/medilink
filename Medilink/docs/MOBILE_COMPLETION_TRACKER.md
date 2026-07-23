@@ -13,7 +13,7 @@
 | **Estimated days remaining** | **~6–9 focused engineering days** + device/QA time (iOS hardware not yet available) |
 | **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push APNs/EAS creds + device delivery verification, offline dep install + verification, zero iOS-device validation. *(Resolved in code: fake vitals, symptom-check auth, error boundary, refund correctness, push/deep-link client wiring, offline read-cache.)* |
 | **Current branch** | `runtime-rtl` (work merges toward `main`; prior feature work landed on `ios-production-backend`) |
-| **Last updated** | 2026-07-22 |
+| **Last updated** | 2026-07-24 |
 
 > **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — client code complete + pipeline hardened; awaiting APNs/EAS (2.7) + device delivery (2.6). Phase 3 (Offline) — code complete (deps now installed; typecheck + lint green). Phase 4 (AI Assistant & Insights) — complete. Phase 5 (Maps & Discovery) — **code complete** (real `react-native-maps` map + real clinic coordinates via the reused `get_nearby_facilities` RPC); pending dep install + Android Maps key + `db:push` + device QA. Phase 6 (Remaining Feature Wiring) is next.
 
@@ -148,7 +148,7 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 | 5.6 | Loading/error/empty states on map | ☑ | Low | No | 2 h | **Done.** Overlay LoadingState / ErrorState+retry / EmptyState. |
 | 5.7 | (Alternative) Hide Map View for v1 | 🚫 | Low | No | 1 h | Not taken — build path chosen. |
 
-**Progress:** Code complete (build path); **pending: `react-native-maps` install + native rebuild, Android Google Maps API key, `db:push` of the coords migration, on-device verification.**
+**Progress:** **Code-complete — paused, awaiting external deployment/configuration.** Full handover: **`docs/MAPS_COMPLETION_AND_DEPLOYMENT_GUIDE.md`** (status, architecture, deployment checklist, Google Cloud/billing requirements, free OSM/Nominatim alternative, blockers, resume guide). Pending: `react-native-maps` install + native rebuild, Android Google Maps API key, `db:push` (coords + address/geocode migrations), edge-fn deploy + `GOOGLE_GEOCODING_API_KEY` secret + Database Webhook, backfill, on-device verification.
 **Estimated remaining hours:** ~0 dev · dep install + key + `db:push` + device QA (user)
 **Blocking install (user):** `cd mobile && npx expo install react-native-maps` + native rebuild; set `expo.android.config.googleMaps.apiKey` in `app.json` (placeholder present); iOS uses Apple Maps (no key). Until installed, `typecheck`/`lint` report **1** unresolved-module error in `search/map.tsx` (only).
 **Follow-up (documented, not v1-blocking):** center on the device's real location via `expo-location` (currently anchored to Muscat + a 50 km radius). Real per-facility open/closed via `working_hours` (5.5).
