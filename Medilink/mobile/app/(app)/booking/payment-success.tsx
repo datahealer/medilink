@@ -65,6 +65,26 @@ export default function PaymentConfirmationScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointmentId]);
 
+  // Auto-poll while the payment is still processing (the webhook may land after the
+  // app returns from Thawani), so success resolves without a manual Retry tap. Bounded
+  // to a few attempts, and stops as soon as it's paid — the Retry button remains as a
+  // fallback beyond the window.
+  const pollAttempts = useRef(0);
+  useEffect(() => {
+    if (isPaid || !appointmentId) return;
+    const MAX_ATTEMPTS = 6; // ~18s at 3s intervals
+    const interval = setInterval(() => {
+      if (pollAttempts.current >= MAX_ATTEMPTS) {
+        clearInterval(interval);
+        return;
+      }
+      pollAttempts.current += 1;
+      verify.mutate(appointmentId);
+    }, 3000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPaid, appointmentId]);
+
   // Auto-file the paid invoice into the Document Vault (no manual step). Idempotent —
   // the hook skips if a same-named invoice doc already exists, so this never duplicates
   // the copy filed when the invoice detail screen is later opened. Non-blocking.

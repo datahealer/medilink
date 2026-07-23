@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { Alert, Linking, StyleSheet, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, Linking, Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import {
@@ -13,14 +13,101 @@ import {
   MeMark,
   Screen,
   Text,
+  TrendChart,
 } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useLabResult, useLabResultSignedUrl, useMarkLabViewed } from "@/hooks/queries/useLabs";
+import { useAnalyteTrend, useLabResult, useLabResultSignedUrl, useMarkLabViewed } from "@/hooks/queries/useLabs";
 import { formatDayMonth } from "@/utils/appointments";
 import { shareRemoteFile } from "@/utils/shareFile";
-import type { LabFlag } from "@/data/types";
+import type { LabAnalyte, LabFlag } from "@/data/types";
+
+/** One analyte row with an expandable, real trend chart (fetched on demand). */
+function AnalyteTrendRow({ analyte, first }: { analyte: LabAnalyte; first: boolean }) {
+  const { colors, radii, isRTL } = useTheme();
+  const { t, num } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const rowDir = isRTL ? "row-reverse" : "row";
+
+  const isNumeric = analyte.value_numeric != null;
+  // Fetch the trend only when this row is expanded (avoids an N+1 on load).
+  const trend = useAnalyteTrend(expanded ? analyte.analyte_code : undefined);
+  const points = (trend.data ?? [])
+    .filter((p) => p.value_numeric != null)
+    .map((p) => ({ value: p.value_numeric as number }));
+  const vmin = points.length ? Math.min(...points.map((p) => p.value)) : 0;
+  const vmax = points.length ? Math.max(...points.map((p) => p.value)) : 0;
+
+  const pillTones = (flag: LabFlag): { bg: string; fg: string; label: string } => {
+    if (flag === "high") return { bg: colors.errorSurface, fg: colors.error, label: t("labs.high") };
+    if (flag === "abnormal") return { bg: colors.errorSurface, fg: colors.error, label: t("labs.abnormal") };
+    if (flag === "low") return { bg: colors.warning, fg: colors.textOnPrimary, label: t("labs.low") };
+    return { bg: colors.successSurface, fg: colors.success, label: t("labs.ok") };
+  };
+  const tones = pillTones(analyte.flag);
+  const value = analyte.value_text ?? (analyte.value_numeric != null ? String(analyte.value_numeric) : "");
+
+  return (
+    <View
+      style={first ? null : { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}
+    >
+      <View style={[styles.analyteRow, { flexDirection: rowDir }]}>
+        <View style={styles.analyteInfo}>
+          <Text variant="body" numberOfLines={1}>
+            {analyte.analyte_name}
+          </Text>
+          {analyte.reference_text ? (
+            <Text variant="caption" color="textMuted">
+              {t("labs.reference", { range: analyte.reference_text })}
+            </Text>
+          ) : null}
+        </View>
+        <View style={[styles.analyteRight, { flexDirection: rowDir }]}>
+          <Text variant="title">{value ? num(value) : "—"}</Text>
+          <View style={[styles.pill, { backgroundColor: tones.bg, borderRadius: radii.pill }]}>
+            <Text variant="caption" style={{ color: tones.fg }}>
+              {tones.label}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {isNumeric ? (
+        <Pressable
+          onPress={() => setExpanded((e) => !e)}
+          accessibilityRole="button"
+          hitSlop={6}
+          style={[styles.trendToggle, { flexDirection: rowDir }]}
+        >
+          <Icon name="lab" size={14} tint={colors.primary} />
+          <Text variant="caption" color="primary" style={isRTL ? { marginEnd: 6 } : { marginStart: 6 }}>
+            {expanded ? t("labs.trendHide") : t("labs.trendShow")}
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {expanded ? (
+        <View style={styles.trendBox}>
+          {trend.isLoading ? (
+            <LoadingState />
+          ) : points.length >= 2 ? (
+            <>
+              <TrendChart points={points} />
+              <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>
+                {t("labs.trendRange", { min: num(String(vmin)), max: num(String(vmax)) })}
+              </Text>
+            </>
+          ) : (
+            <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>
+              {t("labs.trendEmpty")}
+            </Text>
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 /** Result Trends & Detail (design p30). */
 export default function LabDetailScreen() {
@@ -55,13 +142,6 @@ export default function LabDetailScreen() {
         dialogTitle: t("labs.share"),
       });
     }
-  };
-
-  const pillTones = (flag: LabFlag): { bg: string; fg: string; label: string } => {
-    if (flag === "high") return { bg: colors.errorSurface, fg: colors.error, label: t("labs.high") };
-    if (flag === "abnormal") return { bg: colors.errorSurface, fg: colors.error, label: t("labs.abnormal") };
-    if (flag === "low") return { bg: colors.warning, fg: colors.textOnPrimary, label: t("labs.low") };
-    return { bg: colors.successSurface, fg: colors.success, label: t("labs.ok") };
   };
 
   if (query.isLoading) {
@@ -151,44 +231,9 @@ export default function LabDetailScreen() {
 
       {detail.analytes.length > 0 ? (
         <Card style={styles.analytesCard}>
-          {detail.analytes.map((a, i) => {
-            const tones = pillTones(a.flag);
-            const value = a.value_text ?? (a.value_numeric != null ? String(a.value_numeric) : "");
-            return (
-              <View
-                key={a.id}
-                style={[
-                  styles.analyteRow,
-                  { flexDirection: rowDir },
-                  i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border } : null,
-                ]}
-              >
-                <View style={styles.analyteInfo}>
-                  <Text variant="body" numberOfLines={1}>
-                    {a.analyte_name}
-                  </Text>
-                  {a.reference_text ? (
-                    <Text variant="caption" color="textMuted">
-                      {t("labs.reference", { range: a.reference_text })}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={[styles.analyteRight, { flexDirection: rowDir }]}>
-                  <Text variant="title">{value ? num(value) : "—"}</Text>
-                  <View
-                    style={[
-                      styles.pill,
-                      { backgroundColor: tones.bg, borderRadius: radii.pill },
-                    ]}
-                  >
-                    <Text variant="caption" style={{ color: tones.fg }}>
-                      {tones.label}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
+          {detail.analytes.map((a, i) => (
+            <AnalyteTrendRow key={a.id} analyte={a} first={i === 0} />
+          ))}
         </Card>
       ) : null}
 
@@ -219,6 +264,8 @@ const styles = StyleSheet.create({
   analyteInfo: { flex: 1, gap: 2 },
   analyteRight: { alignItems: "center", gap: 8 },
   pill: { paddingHorizontal: 10, paddingVertical: 3 },
+  trendToggle: { alignItems: "center", paddingBottom: 12, marginTop: -4 },
+  trendBox: { paddingBottom: 14, gap: 6 },
   insightCard: { gap: 8 },
   insightHead: { alignItems: "center", gap: 8 },
   insightLabel: {},

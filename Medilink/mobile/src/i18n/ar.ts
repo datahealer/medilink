@@ -681,6 +681,11 @@ export const ar: Messages = {
   labs: {
     // Lab Reports + Result detail (design p29–30)
     title: "نتائج المختبر",
+    trendTitle: "التغيّر عبر الزمن",
+    trendShow: "عرض التغيّر",
+    trendHide: "إخفاء التغيّر",
+    trendEmpty: "لا توجد نتائج كافية لعرض التغيّر بعد.",
+    trendRange: "النطاق {min}–{max}",
     tabAll: "الكل",
     tabNormal: "طبيعي",
     tabFlagged: "مُعلَّم",

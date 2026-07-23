@@ -10,6 +10,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { useUploadDocument } from "@/hooks/queries/useRecords";
+import { mimeFromName } from "@/utils/mime";
 import type { DocumentType, PhotoAsset } from "@/data/types";
 
 interface UploadChoice {
@@ -47,7 +48,7 @@ export default function UploadDocumentScreen() {
   const toAsset = (a: ImagePicker.ImagePickerAsset): PhotoAsset => ({
     uri: a.uri,
     name: a.fileName ?? undefined,
-    mimeType: a.mimeType ?? "image/jpeg",
+    mimeType: a.mimeType ?? mimeFromName(a.fileName ?? a.uri),
   });
 
   const pick = async (choice: "file" | "scan") => {

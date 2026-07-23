@@ -13,6 +13,7 @@ import { env } from "@/config/env";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
 import { classifyNotification } from "@/utils/notifications";
+import { mimeFromName } from "@/utils/mime";
 import type {
   AiRepository,
   AppointmentRepository,
@@ -935,7 +936,7 @@ const documentRepo: DocumentRepository = {
         .replace(/[^a-z0-9]/g, "") || "jpg";
     const path = `${auth.user.id}/${Date.now()}.${ext}`;
     const body = await fetch(input.asset.uri).then((r) => r.arrayBuffer());
-    const contentType = input.asset.mimeType ?? "image/jpeg";
+    const contentType = input.asset.mimeType ?? mimeFromName(input.asset.name);
     const { error: upErr } = await supabase.storage
       .from("patient-docs")
       .upload(path, body, { contentType, upsert: false });

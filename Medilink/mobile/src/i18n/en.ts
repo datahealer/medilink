@@ -682,6 +682,11 @@ export const en = {
   labs: {
     // Lab Reports + Result detail (design p29–30)
     title: "Lab Results",
+    trendTitle: "Trend",
+    trendShow: "Show trend",
+    trendHide: "Hide trend",
+    trendEmpty: "Not enough results yet to show a trend.",
+    trendRange: "Range {min}–{max}",
     tabAll: "All",
     tabNormal: "Normal",
     tabFlagged: "Flagged",
