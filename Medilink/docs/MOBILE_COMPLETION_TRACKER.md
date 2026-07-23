@@ -8,14 +8,14 @@
 
 | | |
 |---|---|
-| **Current completion** | **~95%** |
-| **Remaining** | **~5%** |
-| **Estimated days remaining** | **~7–11 focused engineering days** + device/QA time (iOS hardware not yet available) |
+| **Current completion** | **~96%** |
+| **Remaining** | **~4%** |
+| **Estimated days remaining** | **~6–9 focused engineering days** + device/QA time (iOS hardware not yet available) |
 | **Production readiness** | 🟠 **Not release-ready** — remaining blockers: push APNs/EAS creds + device delivery verification, offline dep install + verification, zero iOS-device validation. *(Resolved in code: fake vitals, symptom-check auth, error boundary, refund correctness, push/deep-link client wiring, offline read-cache.)* |
 | **Current branch** | `runtime-rtl` (work merges toward `main`; prior feature work landed on `ios-production-backend`) |
 | **Last updated** | 2026-07-22 |
 
-> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — client code complete + pipeline hardened; awaiting APNs/EAS (2.7) + device delivery (2.6). Phase 3 (Offline) — code complete (deps now installed; typecheck + lint green). Phase 4 (AI Assistant & Insights) — **complete** (input→real-recommendations, real example chips, all states, no fabricated AI data). Phase 5 (Maps & Discovery) is next.
+> **Phase status:** Phase 1 — code complete (awaiting user `db:push` 1.8 + guest-RLS test 1.9). Phase 2 (Push & Deep Links) — client code complete + pipeline hardened; awaiting APNs/EAS (2.7) + device delivery (2.6). Phase 3 (Offline) — code complete (deps now installed; typecheck + lint green). Phase 4 (AI Assistant & Insights) — complete. Phase 5 (Maps & Discovery) — **code complete** (real `react-native-maps` map + real clinic coordinates via the reused `get_nearby_facilities` RPC); pending dep install + Android Maps key + `db:push` + device QA. Phase 6 (Remaining Feature Wiring) is next.
 
 ### Status legend
 `☐` Not Started · `⏳` In Progress / Partial · `☑` Completed · `🚫` Not Required (de-scoped / superseded)
@@ -140,20 +140,25 @@ Priority: **Critical** (blocks release) · **High** · **Medium** · **Low**
 
 | # | Task | Status | Priority | Backend dep | Effort | Notes |
 |---|---|---|---|---|---|---|
-| 5.1 | Decide: integrate a real map SDK vs. hide Map View for v1 | ☐ | Medium | No | Decision | Data (`useDoctors`) is already real; only the surface is fake. |
-| 5.2 | Backend: expose real clinic lat/lng on doctor/facility reads | ☐ | Medium | Yes | 0.5 d | Needed for real pins. `get_nearby_branches` RPC exists — verify it returns coordinates. |
-| 5.3 | Integrate `react-native-maps` / Expo Maps with real coordinates (replace hardcoded `PIN_POS`/`MAP_BLOCKS` L11-25) | ☐ | Medium | No | 3–5 d | Native dep → rebuild. |
-| 5.4 | Wire the dead search pill on the map | ☐ | Low | No | 2 h | — |
-| 5.5 | Real open/closed status on pins (replace hardcoded "Open now") | ☐ | Low | Yes | 2 h | — |
-| 5.6 | Add loading/error/empty states to map | ☐ | Low | No | 2 h | — |
-| 5.7 | (Alternative to 5.3) Hide Map View entry points behind a flag for v1 | ☐ | Low | No | 1 h | Recommended if launch is near. |
+| 5.1 | Decide: build real map vs. hide | ☑ | Medium | No | Decision | **Decided: build** (2026-07-23). |
+| 5.2 | Backend: expose real clinic lat/lng | ☑ | Medium | Yes | 0.5 d | **Done (needs `db:push`).** Reused the existing `get_nearby_facilities` RPC — added `latitude`/`longitude` (`ST_Y/ST_X` of `facilities.location`). No new/duplicate API. Migration `20260723000000`. |
+| 5.3 | Integrate `react-native-maps` with real coordinates | ☑ | Medium | No | 3–5 d | **Code done (pending dep install + Android Google Maps key).** `search/map.tsx` rewritten: `MapView` (`PROVIDER_DEFAULT` → Apple Maps on iOS keyless, Google on Android) + a `Marker` per nearby clinic at its real lat/lng, via new `discovery.nearbyClinics` + `useNearbyClinics`. Removed the fake `PIN_POS`/`MAP_BLOCKS`. |
+| 5.4 | Wire the search field on the map | ☑ | Low | No | 2 h | **Done.** Real `TextField` filters clinics by name/area (client-side). |
+| 5.5 | Real open/closed status on pins | ⏳ | Low | Yes | 2 h | **Fake "Open now" removed** (no fabricated status). Real open/closed needs `working_hours` parsing — deferred (the nearby RPC doesn't return it). |
+| 5.6 | Loading/error/empty states on map | ☑ | Low | No | 2 h | **Done.** Overlay LoadingState / ErrorState+retry / EmptyState. |
+| 5.7 | (Alternative) Hide Map View for v1 | 🚫 | Low | No | 1 h | Not taken — build path chosen. |
 
-**Progress:** Completed 0% · Remaining 100%
-**Estimated remaining hours:** ~1 h (hide) or ~4 days (build)
-**Exit criteria:** Either a working native map with real clinic locations, or Map View cleanly hidden and unreachable.
+**Progress:** Code complete (build path); **pending: `react-native-maps` install + native rebuild, Android Google Maps API key, `db:push` of the coords migration, on-device verification.**
+**Estimated remaining hours:** ~0 dev · dep install + key + `db:push` + device QA (user)
+**Blocking install (user):** `cd mobile && npx expo install react-native-maps` + native rebuild; set `expo.android.config.googleMaps.apiKey` in `app.json` (placeholder present); iOS uses Apple Maps (no key). Until installed, `typecheck`/`lint` report **1** unresolved-module error in `search/map.tsx` (only).
+**Follow-up (documented, not v1-blocking):** center on the device's real location via `expo-location` (currently anchored to Muscat + a 50 km radius). Real per-facility open/closed via `working_hours` (5.5).
+**Exit criteria:** Real map renders clinic markers at real coordinates; search + states work; tapping a clinic opens directions.
 **Testing checklist:**
-- ☐ Pins reflect real clinics at real coordinates (if built) **or** entry points removed (if hidden)
-- ☐ Search + states functional (if built)
+- ☐ Markers appear at real clinic coordinates *(after install + key + db:push)*
+- ☐ Search filters markers; tapping a marker selects the bottom card
+- ☐ "Get directions" opens the maps app at the clinic
+- ☐ Loading / error+retry / empty states render
+- ☐ EN/AR + RTL
 
 ---
 
@@ -293,6 +298,7 @@ Phase 1  Production Blockers      █████████░  95%  (code don
 Phase 2  Push & Deep Links        ████████░░  80%  (client done; awaiting APNs/EAS + device)
 Phase 3  Offline & Resilience     █████████░  90%  (code done; deps installed; device QA pending)
 Phase 4  AI Assistant & Insights   ██████████  100% (input→real recs; no fabricated AI data)
+Phase 5  Maps & Discovery          ████████░░  85%  (real map coded; install+key+db:push pending)
 Phase 4  AI Assistant & Insights  ░░░░░░░░░░  0%
 Phase 5  Maps & Discovery         ░░░░░░░░░░  0%
 Phase 6  Remaining Wiring         ░░░░░░░░░░  0%
@@ -338,7 +344,7 @@ Payment Success (terminal nav)     ✅
 AI Recommendations                 ✅
 AI Symptom Assistant               ✅  (real input + example chips → real recommendations)
 AI Insights (vitals honest)        ✅
-Maps                               ⏳
+Maps                               ⏳  (real react-native-maps coded; dep install + key pending)
 Error Boundary                     ✅
 Backend Security (B1/B4/B2/refund) ⏳  (Phase 7 hardening remains: B7/B8/B6…)
 iOS / Store Readiness              ☐
