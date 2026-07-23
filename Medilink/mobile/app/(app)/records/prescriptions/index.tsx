@@ -82,14 +82,6 @@ export default function PrescriptionsScreen() {
             loading={sharingId === p.id}
             leading={<Icon name="share" size={18} color="primary" />}
             onPress={() => onShare(p.id)}
-            style={[styles.action, isRTL ? { marginStart: spacing.sm } : { marginEnd: spacing.sm }]}
-          />
-          <Button
-            label={t("prescriptions.setReminder")}
-            variant="outline"
-            fullWidth={false}
-            leading={<Icon name="alerts" size={18} color="primary" />}
-            onPress={() => Alert.alert(t("prescriptions.setReminder"), t("prescriptions.reminderSoon"))}
             style={styles.action}
           />
         </View>

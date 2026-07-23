@@ -112,11 +112,6 @@ export default function SettingsScreen() {
       {row(t("settings.notifications"), null, () => router.push("/settings/notifications"))}
       {row(t("settings.medicalHistory"), null, () => router.push("/medical-history"))}
 
-      {/* Account & data */}
-      <Text variant="label" color="textMuted" style={styles.section}>{t("settings.accountData")}</Text>
-      {row(t("settings.privacy"), null, () => Alert.alert(t("settings.privacy"), t("settings.privacyComingSoon")))}
-      {row(t("settings.exportData"), null, () => Alert.alert(t("settings.exportData"), t("settings.exportComingSoon")))}
-
       {/* Sign out / delete */}
       <View style={[styles.actions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={{ flex: 1 }}>
