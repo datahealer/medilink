@@ -343,6 +343,7 @@ export const en = {
     terms: "Please accept the Terms & Privacy Policy",
     otpIncomplete: "Enter all 6 digits",
     civilNumber: "Enter a valid 8-digit civil number",
+    dob: "Enter a valid date (YYYY-MM-DD)",
   },
   theme: {
     toggleToDark: "Switch to dark mode",
