@@ -172,6 +172,8 @@ export interface NewAppointment {
   slotStart: string; // HH:MM
   type: "in_person" | "online";
   forFamilyMemberId?: string | null;
+  /** Patient's reason for visit (optional) → appointments.reason_for_visit (6.4). */
+  reason?: string | null;
 }
 
 export interface BookedAppointment {

@@ -395,6 +395,7 @@ const appointmentRepo: AppointmentRepository = {
       slotStart: input.slotStart,
       type: input.type,
       forFamilyMemberId,
+      reason: input.reason ?? null,
     };
     if (__DEV__) console.warn("[booking] book_appointment_atomic payload", payload);
 

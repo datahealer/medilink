@@ -66,12 +66,17 @@ export interface BookAppointmentInput {
   type: Enums["appointment_type"];
   forFamilyMemberId?: string;
   isEmergency?: boolean;
+  /** Patient's reason for visit → appointments.reason_for_visit (6.4). */
+  reason?: string | null;
 }
 
 /** Book atomically (RPC enforces slot uniqueness / overbooking guards). */
 export async function bookAppointment(db: DB, input: BookAppointmentInput): Promise<Json> {
   const patientId = await getMyPatientProfileId(db);
-  const { data, error } = await db.rpc("book_appointment_atomic", {
+  // Built as a variable (not an inline literal) so the extra `p_reason` is accepted
+  // while the generated RPC Args type lags until `db:types` runs after the migration
+  // is pushed; the other params stay type-checked.
+  const args = {
     p_patient_id: patientId,
     p_doctor_id: input.doctorId,
     p_facility_id: input.facilityId,
@@ -80,7 +85,9 @@ export async function bookAppointment(db: DB, input: BookAppointmentInput): Prom
     p_type: input.type,
     p_is_emergency: input.isEmergency ?? false,
     p_for_family_member_id: input.forFamilyMemberId,
-  });
+    p_reason: input.reason ?? null,
+  };
+  const { data, error } = await db.rpc("book_appointment_atomic", args);
   if (error) throw error;
   return data;
 }

@@ -98,6 +98,7 @@ export default function ReviewScreen() {
         slotStart,
         type: "in_person",
         forFamilyMemberId: bookForId ?? undefined,
+        reason: reason.trim() || undefined,
       },
       {
         onSuccess: (res) => {

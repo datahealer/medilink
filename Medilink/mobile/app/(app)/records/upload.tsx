@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 
 import { AppHeader, Button, Chip, Icon, Screen, Text } from "@/components/ui";
 import type { IconName } from "@/components/ui";
@@ -59,10 +60,21 @@ export default function UploadDocumentScreen() {
       const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
       if (!res.canceled && res.assets[0]) setAsset(toAsset(res.assets[0]));
     } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return Alert.alert(t("upload.permissionTitle"), t("upload.libraryPermission"));
-      const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
-      if (!res.canceled && res.assets[0]) setAsset(toAsset(res.assets[0]));
+      // Documents (PDF) + images. The document picker needs no runtime permission and
+      // preserves the real name/MIME; MIME falls back via the shared mimeFromName().
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (!res.canceled && res.assets?.[0]) {
+        const a = res.assets[0];
+        setAsset({
+          uri: a.uri,
+          name: a.name ?? undefined,
+          mimeType: a.mimeType ?? mimeFromName(a.name ?? a.uri),
+        });
+      }
     }
   };
 
