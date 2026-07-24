@@ -6,7 +6,7 @@ import { Button, Chip, DoctorCard, EmptyState, ErrorState, Icon, LoadingState, S
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useDoctors, useFavouriteDoctors } from "@/hooks/queries/useDoctors";
 import { useRefresh } from "@/hooks/useRefresh";
 import { useSearchFilterStore, activeFilterCount } from "@/stores/searchFilterStore";
 import type { Doctor } from "@/data/types";
@@ -42,6 +42,11 @@ export default function SearchScreen() {
     topRated: filters.topRated,
     limit,
   });
+
+  // Favourites tab (QA #6) — a dedicated view of the user's saved doctors, composed
+  // from existing repos; leaves normal search + pagination + ordering untouched.
+  const [showFavourites, setShowFavourites] = useState(false);
+  const favDoctors = useFavouriteDoctors({ enabled: showFavourites });
 
   const count = doctors.data?.length ?? 0;
   // A full window came back → more likely exist. (When client-side filters trim a
@@ -97,29 +102,46 @@ export default function SearchScreen() {
       <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Chip
           label={t("search.all")}
-          selected={!filters.availableToday && !filters.topRated}
-          onPress={() => setFilters({ availableToday: false, topRated: false })}
+          selected={!showFavourites && !filters.availableToday && !filters.topRated}
+          onPress={() => { setShowFavourites(false); setFilters({ availableToday: false, topRated: false }); }}
         />
         <Chip
           label={t("search.availableToday")}
-          selected={!!filters.availableToday}
-          onPress={() => setFilters({ availableToday: !filters.availableToday })}
+          selected={!showFavourites && !!filters.availableToday}
+          onPress={() => { setShowFavourites(false); setFilters({ availableToday: !filters.availableToday }); }}
         />
         <Chip
           label={t("search.topRated")}
-          selected={!!filters.topRated}
-          onPress={() => setFilters({ topRated: !filters.topRated })}
+          selected={!showFavourites && !!filters.topRated}
+          onPress={() => { setShowFavourites(false); setFilters({ topRated: !filters.topRated }); }}
+        />
+        <Chip
+          label={t("search.favourites")}
+          selected={showFavourites}
+          onPress={() => requireAuth(() => setShowFavourites(true))}
         />
       </View>
 
       {/* Count + sort */}
       <View style={[styles.rowBetween, { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.md, marginBottom: spacing.sm }]}>
-        <Text variant="caption" color="textMuted">{t("search.results", { count: num(count) })}</Text>
-        <Text variant="caption" color="textMuted">{t("search.sortRating")}</Text>
+        <Text variant="caption" color="textMuted">{t("search.results", { count: num(showFavourites ? (favDoctors.data?.length ?? 0) : count) })}</Text>
+        {!showFavourites ? <Text variant="caption" color="textMuted">{t("search.sortRating")}</Text> : null}
       </View>
 
-      {/* Results */}
-      {doctors.isLoading ? (
+      {/* Results — favourites view (QA #6) or the normal paginated search */}
+      {showFavourites ? (
+        favDoctors.isLoading ? (
+          <View style={{ paddingTop: spacing.lg }}><LoadingState /></View>
+        ) : favDoctors.isError ? (
+          <ErrorState message={t("search.loadError")} onRetry={() => favDoctors.refetch()} />
+        ) : (favDoctors.data?.length ?? 0) === 0 ? (
+          <View style={{ borderRadius: radii.lg }}>
+            <EmptyState title={t("search.noFavouritesTitle")} body={t("search.noFavouritesBody")} />
+          </View>
+        ) : (
+          (favDoctors.data ?? []).map(card)
+        )
+      ) : doctors.isLoading ? (
         <View style={{ paddingTop: spacing.lg }}><LoadingState /></View>
       ) : doctors.isError ? (
         <ErrorState message={t("search.loadError")} onRetry={() => doctors.refetch()} />

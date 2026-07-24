@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
-import type { DoctorSearchParams, NewReviewSubmission } from "@/data/types";
+import type { Doctor, DoctorSearchParams, NewReviewSubmission } from "@/data/types";
 
 /** Doctor search / profile / reviews (PDF flows 05–06). Mock-backed in dev. */
 export const doctorKeys = {
@@ -18,6 +18,23 @@ export function useDoctors(params: DoctorSearchParams = {}) {
     // Keep the current results visible while a larger "Load more" window fetches
     // (the query key changes with `limit`), avoiding a full loading flash (QA #13).
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The user's favourite doctors (QA #6) — composed from existing repos (favourite.list
+ * + doctor.get), so no new repository logic and no backend ordering change. Powers the
+ * dedicated "Favourites" tab in search; independent of the normal search/pagination.
+ */
+export function useFavouriteDoctors(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["doctors", "favourites"] as const,
+    queryFn: async (): Promise<Doctor[]> => {
+      const favs = await repositories.favourite.list("doctor");
+      const results = await Promise.all(favs.map((f) => repositories.doctor.get(f.targetId)));
+      return results.filter((d): d is Doctor => d != null);
+    },
+    enabled: options?.enabled ?? true,
   });
 }
 

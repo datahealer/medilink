@@ -547,6 +547,9 @@ export const ar: Messages = {
     noResultsBody: "جرّب تعديل البحث أو عوامل التصفية.",
     loadError: "تعذّر تحميل الأطباء.",
     loadMore: "تحميل المزيد",
+    favourites: "المفضّلة",
+    noFavouritesTitle: "لا يوجد أطباء مفضّلون بعد",
+    noFavouritesBody: "اضغط على القلب لدى طبيب لحفظه هنا.",
   },
   filters: {
     title: "عوامل التصفية",

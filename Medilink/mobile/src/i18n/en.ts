@@ -548,6 +548,9 @@ export const en = {
     noResultsBody: "Try adjusting your search or filters.",
     loadError: "Couldn't load doctors.",
     loadMore: "Load more",
+    favourites: "Favourites",
+    noFavouritesTitle: "No favourite doctors yet",
+    noFavouritesBody: "Tap the heart on a doctor to save them here.",
   },
   filters: {
     title: "Filters",
