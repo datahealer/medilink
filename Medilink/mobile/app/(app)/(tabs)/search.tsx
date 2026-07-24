@@ -60,7 +60,9 @@ export default function SearchScreen() {
   // filters needs server-side filtering, tracked as a backend follow-up.)
   const canLoadMore = count >= limit;
   const filterBadge = activeFilterCount(filters);
-  const { refreshing, onRefresh } = useRefresh(() => (mode === "clinics" ? clinics.refetch() : doctors.refetch()));
+  const { refreshing, onRefresh } = useRefresh(() =>
+    showFavourites ? favDoctors.refetch() : mode === "clinics" ? clinics.refetch() : doctors.refetch()
+  );
 
   const clinicCard = (c: Clinic) => (
     <View key={c.id} style={{ marginBottom: spacing.sm }}>
