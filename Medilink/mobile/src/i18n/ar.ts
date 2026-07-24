@@ -431,7 +431,7 @@ export const ar: Messages = {
     genderFemale: "أنثى",
     genderOther: "آخر",
     addressPlaceholder: "المدينة، المنطقة",
-    emergencyPlaceholder: "الاسم · ‎+968 …",
+    emergencyPlaceholder: "9XXX XXXX",
     saved: "تم تحديث الملف",
     civilNumber: "الرقم المدني",
     civilNumberPlaceholder: "الرقم المدني (8 أرقام)",

@@ -13,6 +13,7 @@ import {
   ErrorState,
   Icon,
   LoadingState,
+  PhoneField,
   Screen,
   Text,
   TextField,
@@ -71,6 +72,8 @@ export default function EditProfileScreen() {
   const nameError = isValidName(fullName) ? undefined : t("validation.nameMin");
   const dobError = isValidDob(dob) ? undefined : t("validation.dob");
   const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
+  // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
+  const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
   const [allergies, setAllergies] = useState<string[]>(history.data?.allergies ?? []);
   const [newAllergy, setNewAllergy] = useState("");
 
@@ -130,7 +133,7 @@ export default function EditProfileScreen() {
 
   const onSave = () => {
     // Block save on any invalid field; each shows its error inline.
-    if (civilError || nameError || dobError || phoneError) return;
+    if (civilError || nameError || dobError || phoneError || emergencyError) return;
     update.mutate(
       {
         full_name: fullName.trim(),
@@ -290,11 +293,13 @@ export default function EditProfileScreen() {
         placeholder={t("profile.addressPlaceholder")}
         containerStyle={{ marginBottom: spacing.md }}
       />
-      <TextField
+      {/* Emergency contact — phone number only (QA #3): numeric, +968, validated */}
+      <PhoneField
         label={t("profile.emergencyContact")}
         value={emergency}
         onChangeText={setEmergency}
         placeholder={t("profile.emergencyPlaceholder")}
+        error={emergencyError}
       />
     </Screen>
   );

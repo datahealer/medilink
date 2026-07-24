@@ -3,12 +3,12 @@ import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { BloodGroup, Gender } from "@/data/types";
 
-import { AppHeader, Button, Chip, DateField, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Button, Chip, DateField, PhoneField, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useProfile, useUpdateProfile } from "@/hooks/queries/usePatient";
-import { CIVIL_NUMBER_LENGTH, isValidCivilNumber } from "@/utils/validation";
+import { CIVIL_NUMBER_LENGTH, isValidCivilNumber, isValidOmanPhone } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
@@ -50,7 +50,9 @@ export default function SetupScreen() {
 
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const dobValid = DOB_RE.test(dob.trim());
-  const canFinish = !!fullName.trim() && dobValid && !!gender && !civilError;
+  // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
+  const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
+  const canFinish = !!fullName.trim() && dobValid && !!gender && !civilError && !emergencyError;
 
   const onFinish = () => {
     if (!canFinish) return;
@@ -160,11 +162,13 @@ export default function SetupScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <TextField
+      {/* Emergency contact — phone number only (QA #3): numeric, +968, validated */}
+      <PhoneField
         label={t("profile.emergencyContact")}
         value={emergency}
         onChangeText={setEmergency}
         placeholder={t("profile.emergencyPlaceholder")}
+        error={emergencyError}
       />
     </Screen>
   );

@@ -432,7 +432,7 @@ export const en = {
     genderFemale: "Female",
     genderOther: "Other",
     addressPlaceholder: "City, area",
-    emergencyPlaceholder: "Name · +968 …",
+    emergencyPlaceholder: "9XXX XXXX",
     saved: "Profile updated",
     civilNumber: "Civil Number",
     civilNumberPlaceholder: "8-digit civil number",
