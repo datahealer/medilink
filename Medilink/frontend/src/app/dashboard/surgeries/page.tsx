@@ -79,7 +79,7 @@ const SURGERIES = [
     rating: 4.7,
     reviews: 380,
     en: { name: "Laparoscopic Appendectomy", hospital: "Sunrise Surgical Centre",  desc: "Minimally invasive appendix removal with 3 small incisions and rapid recovery." },
-    ar: { name: "استئصال الزائدة بالمنظار", hospital: "مركز الشروق الجراحي",     desc: "إزالة الزائدة بالمنظار عبر ٣ شقوق صغيرة مع تعافٍ سريع." },
+    ar: { name: "استئصال الزائدة بالمنظار", hospital: "مركز الشروق الجراحي",     desc: "إزالة الزائدة بالمنظار عبر 3 شقوق صغيرة مع تعافٍ سريع." },
     slots: buildSlots([1, 3, 6]),
   },
   {
@@ -155,7 +155,7 @@ const DAY_EN   = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 const DAY_AR   = ["أح","اث","ثل","أر","خم","جم","سب"];
 const MONTH_LONG_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const TODAY = new Date(2026, 5, 29);
+const TODAY = new Date();
 
 function buildCalendar(y: number, m: number) {
   const first = new Date(y, m, 1).getDay();
@@ -314,7 +314,7 @@ function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SUR
               {isAr ? "المبلغ" : "Amount"}
             </span>
             <span className="text-xs font-bold text-[#2E1A47] dark:text-[#DFC8E7]">
-              {isAr ? `${surgery.price.toLocaleString()} ر.ع.` : `OMR ${surgery.price.toLocaleString()}`}
+              {isAr ? `${surgery.price.toLocaleString("en-US")} ر.ع.` : `OMR ${surgery.price.toLocaleString("en-US")}`}
             </span>
           </div>
         </div>
@@ -391,7 +391,7 @@ function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SUR
                 { label: isAr ? "الوقت" : "Time",           val: selTime ?? "" },
                 { label: isAr ? "المدة" : "Duration",       val: surgery.duration },
                 { label: isAr ? "الإقامة" : "Hospital stay",val: surgery.stay },
-                { label: isAr ? "التكلفة التقديرية" : "Est. cost", val: isAr ? `${surgery.price.toLocaleString()} ر.ع.` : `OMR ${surgery.price.toLocaleString()}` },
+                { label: isAr ? "التكلفة التقديرية" : "Est. cost", val: isAr ? `${surgery.price.toLocaleString("en-US")} ر.ع.` : `OMR ${surgery.price.toLocaleString("en-US")}` },
               ].map(row => (
                 <div key={row.label} className={`flex justify-between items-start gap-4 ${isAr ? "flex-row-reverse" : ""}`}>
                   <span className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 flex-shrink-0">{row.label}</span>
@@ -444,7 +444,7 @@ function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SUR
               <div className={`flex justify-between items-center pt-2 mt-1 border-t border-[#e7dcee] dark:border-[#2a1840] ${isAr ? "flex-row-reverse" : ""}`}>
                 <span className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{isAr ? "الإجمالي" : "Total"}</span>
                 <span className="text-sm font-black text-[#46255f] dark:text-[#DFC8E7]">
-                  {isAr ? `${surgery.price.toLocaleString()} ر.ع.` : `OMR ${surgery.price.toLocaleString()}`}
+                  {isAr ? `${surgery.price.toLocaleString("en-US")} ر.ع.` : `OMR ${surgery.price.toLocaleString("en-US")}`}
                 </span>
               </div>
             </div>
@@ -481,7 +481,7 @@ function ConsultModal({ surgery, isAr, contact, onClose }: { surgery: typeof SUR
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
               {payMethod === "cash"
                 ? isAr ? "تأكيد الحجز" : "Confirm Booking"
-                : isAr ? `ادفع ${surgery.price.toLocaleString()} ر.ع.` : `Pay OMR ${surgery.price.toLocaleString()}`}
+                : isAr ? `ادفع ${surgery.price.toLocaleString("en-US")} ر.ع.` : `Pay OMR ${surgery.price.toLocaleString("en-US")}`}
             </button>
           </div>
         )}
@@ -521,7 +521,7 @@ function SurgeryCard({ surgery, isAr, onBook }: { surgery: typeof SURGERIES[0]; 
           <div className={isAr ? "text-right" : ""}>
             <p className="text-[10px] text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">{isAr ? "تكلفة تقديرية" : "Est. cost"}</p>
             <p className="font-black text-lg text-[#2E1A47] dark:text-[#DFC8E7]">
-              {isAr ? `${surgery.price.toLocaleString()} ر.ع.` : `OMR ${surgery.price.toLocaleString()}`}
+              {isAr ? `${surgery.price.toLocaleString("en-US")} ر.ع.` : `OMR ${surgery.price.toLocaleString("en-US")}`}
             </p>
           </div>
           <button onClick={onBook}
@@ -569,8 +569,8 @@ function SurgeriesInner() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* Hero */}
-      <section className="py-12 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-4xl mx-auto">
+      <section className="py-12 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "العمليات الجراحية" : "Surgeries"}
           </p>
@@ -594,8 +594,8 @@ function SurgeriesInner() {
       </section>
 
       {/* Category tabs */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 overflow-x-auto">
-        <div className="max-w-4xl mx-auto flex gap-2 flex-nowrap">
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-4 overflow-x-auto">
+        <div className="max-w-6xl mx-auto flex gap-2 flex-nowrap px-4">
           {CATEGORIES.map(c => (
             <button key={c.en} onClick={() => setActiveTab(c.en)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${activeTab === c.en ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent" : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"}`}>
@@ -606,8 +606,8 @@ function SurgeriesInner() {
       </section>
 
       {/* Results */}
-      <section className="py-10 px-6">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-10 px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
             {ar ? `${filtered.length} إجراء متاح` : `${filtered.length} procedure${filtered.length !== 1 ? "s" : ""} found`}
           </p>

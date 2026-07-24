@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { api } from "@medilink/shared";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { env } from "@/lib/env";
 import { useI18n } from "@/i18n/I18nProvider";
 
@@ -60,6 +62,8 @@ function PaymentSuccessInner() {
 
   const [recap, setRecap] = useState<Recap | null>(null);
   const [loading, setLoading] = useState(true);
+  const [releasing, setReleasing] = useState(false);
+  const [released, setReleased] = useState(false);
 
   // Verify + finalize on the backend, then render the recap it returns.
   useEffect(() => {
@@ -84,6 +88,21 @@ function PaymentSuccessInner() {
 
   const appt = recap?.appointment ?? null;
   const amount = recap?.amount ?? appt?.fee_omr ?? null;
+  // Thawani can redirect here even on a declined/failed payment — only Thawani's own
+  // "paid" status (verified server-side) may confirm the appointment. Anything else
+  // must not claim success, and the reserved slot should be released back on cancel.
+  const paid = recap?.status === "paid";
+
+  async function releaseSlot() {
+    if (!appointmentId || releasing) return;
+    setReleasing(true);
+    const supabase = createBrowserSupabaseClient();
+    await api.appointments
+      .cancelAppointment(supabase, appointmentId, { reason: "Payment not completed", skipCutoff: true })
+      .catch(() => {});
+    setReleasing(false);
+    setReleased(true);
+  }
 
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen flex items-center justify-center bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] px-4 py-10">
@@ -92,6 +111,34 @@ function PaymentSuccessInner() {
           <p className="py-16 text-sm font-semibold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 animate-pulse">
             {ar ? "جارٍ تأكيد الدفع…" : "Confirming your payment…"}
           </p>
+        ) : !paid ? (
+          <>
+            <div className="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-4xl mx-auto mb-4">⚠️</div>
+            <h1 className="font-black font-serif text-2xl text-[#2E1A47] dark:text-[#DFC8E7] mb-1">
+              {ar ? "لم تكتمل عملية الدفع" : "Payment Not Completed"}
+            </h1>
+            <p className="text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 mb-6">
+              {released
+                ? (ar ? "تم إلغاء الحجز وإتاحة الموعد من جديد." : "The appointment has been cancelled and the slot released.")
+                : (ar ? "لم نتمكن من تأكيد دفعتك. لم يتم تأكيد الموعد بعد." : "We couldn't confirm your payment, so this appointment hasn't been confirmed.")}
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {!released && (
+                <button
+                  onClick={releaseSlot}
+                  disabled={releasing}
+                  className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
+                  {releasing ? (ar ? "جارٍ الإلغاء…" : "Cancelling…") : (ar ? "إلغاء الحجز وتحرير الموعد" : "Cancel & Release Slot")}
+                </button>
+              )}
+              <Link href="/dashboard/find-doctors"
+                className="w-full py-3 rounded-xl font-bold text-sm border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#2E1A47]/30 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20 transition-all no-underline">
+                {ar ? "احجز موعداً جديداً" : "Book Another Appointment"}
+              </Link>
+            </div>
+          </>
         ) : (
           <>
             <div className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-4xl mx-auto mb-4">✅</div>

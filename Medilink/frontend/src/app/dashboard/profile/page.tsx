@@ -58,6 +58,33 @@ function fileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const canWebShare = () => typeof navigator !== "undefined" && typeof navigator.share === "function";
+const canShareFiles = (file: File) =>
+  typeof navigator !== "undefined" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+
+/** Fetches the document as a blob and shares it as a real file via the OS share sheet (so
+ * WhatsApp/etc. attach the actual file, not a web link) — falls back to a link share, then
+ * clipboard, if the fetch fails or this browser's Web Share API doesn't support files. */
+async function shareDoc(doc: Doc): Promise<void> {
+  try {
+    const res = await fetch(doc.url);
+    if (!res.ok) throw new Error("fetch_failed");
+    const blob = await res.blob();
+    const file = new File([blob], doc.name, { type: blob.type || "application/octet-stream" });
+    if (canWebShare() && canShareFiles(file)) {
+      await navigator.share({ title: doc.name, files: [file] });
+      return;
+    }
+  } catch (err) {
+    if ((err as { name?: string })?.name === "AbortError") throw err; // user cancelled — don't fall back
+  }
+  if (canWebShare()) {
+    await navigator.share({ title: doc.name, text: doc.url, url: doc.url });
+  } else {
+    await navigator.clipboard.writeText(doc.url);
+  }
+}
+
 // ── Medications — Vartika's UI type (verbatim); data comes from prescriptions ──
 type Medication = {
   id: string; status: "active" | "completed"; startDate: string;
@@ -161,7 +188,21 @@ export default function ProfilePage() {
   /* Documents (Document Vault) — Supabase Storage `patient-docs` + api.records */
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [dragOver, setDragOver]   = useState(false);
+  const [sharedDoc, setSharedDoc] = useState<string | null>(null);
+  const [shareErrDoc, setShareErrDoc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleShareDoc(doc: Doc) {
+    try {
+      await shareDoc(doc);
+      setSharedDoc(doc.id);
+      setTimeout(() => setSharedDoc(null), 2000);
+    } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") return; // user cancelled the share sheet
+      setShareErrDoc(doc.id);
+      setTimeout(() => setShareErrDoc(null), 3000);
+    }
+  }
 
   /* Medications — derived from api.prescriptions.listPrescriptions */
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -424,8 +465,8 @@ export default function ProfilePage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* Hero */}
-      <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-3xl mx-auto">
+      <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex items-center gap-5 ${ar ? "flex-row-reverse" : ""}`}>
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black text-[#2E1A47] flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
@@ -477,8 +518,8 @@ export default function ProfilePage() {
       )}
 
       {/* Section shortcuts */}
-      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840]">
-        <div className={`max-w-3xl mx-auto px-6 py-2 flex items-center gap-1 overflow-x-auto ${ar ? "flex-row-reverse" : ""}`}
+      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4">
+        <div className={`max-w-6xl mx-auto py-2 flex items-center gap-1 overflow-x-auto ${ar ? "flex-row-reverse" : ""}`}
           style={{ scrollbarWidth: "none" }}>
           {[
             { label: ar ? "المعلومات الشخصية" : "Personal Info",   id: "personal" },
@@ -501,7 +542,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
+      <div className="px-4 py-8">
+      <div className="max-w-6xl mx-auto space-y-5">
 
         {/* Personal Info */}
         <div id="personal" />
@@ -792,11 +834,32 @@ export default function ProfilePage() {
                     </div>
                     <div className={`flex items-center gap-1 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
                       <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                        title={ar ? "عرض" : "View"}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-[#46255f] hover:bg-[#f0e8f8] dark:hover:text-[#DFC8E7] dark:hover:bg-[#2E1A47]/30 transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                         </svg>
                       </a>
+                      <button onClick={() => handleShareDoc(doc)}
+                        title={ar ? "مشاركة" : "Share"}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                          shareErrDoc === doc.id
+                            ? "text-rose-500"
+                            : sharedDoc === doc.id
+                              ? "text-emerald-500"
+                              : "text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-[#46255f] hover:bg-[#f0e8f8] dark:hover:text-[#DFC8E7] dark:hover:bg-[#2E1A47]/30"
+                        }`}>
+                        {sharedDoc === doc.id ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                            <line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/>
+                          </svg>
+                        )}
+                      </button>
                       <button onClick={() => removeDocument(doc.id)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/30 dark:text-[#DFC8E7]/30 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -826,6 +889,7 @@ export default function ProfilePage() {
           ))}
         </div>
 
+      </div>
       </div>
     </div>
   );

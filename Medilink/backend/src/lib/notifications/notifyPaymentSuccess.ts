@@ -12,13 +12,19 @@ export type NotifyResult = { success: true } | { success: false; error: string }
  */
 export async function notifyPaymentSuccess(
   service: ServiceClient,
-  input: { userId: string; appointmentId: string; title: string; body: string }
+  input: {
+    userId: string; appointmentId: string;
+    title: string; body: string;
+    titleAr: string; bodyAr: string;
+  }
 ): Promise<NotifyResult> {
   const { error } = await service.from("in_app_notifications").insert({
     user_id: input.userId,
     type: "info" as const,
     title: input.title,
     body: input.body,
+    title_ar: input.titleAr,
+    body_ar: input.bodyAr,
     data: { appointment_id: input.appointmentId },
   });
 

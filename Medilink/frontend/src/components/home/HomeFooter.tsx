@@ -46,16 +46,12 @@ export function HomeFooter() {
 
   return (
     <footer className="border-t border-[#e7dcee] dark:border-[#2a1c44] bg-white dark:bg-[#0d0820] py-14">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-[#e7dcee] dark:border-[#2a1c44]">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-[#e7dcee] dark:border-[#2a1c44]">
 
           {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0">
-                <img src="/logo/submark-light.svg"    alt="Medilink" className="w-full h-full object-cover dark:hidden" />
-                <img src="/logo/submark-dark-mode.svg" alt="Medilink" className="w-full h-full object-cover hidden dark:block" />
-              </div>
+            <div className="flex items-center mb-4">
               <img src="/logo/wordmark-violet.svg"   alt="Medilink" className="h-5 w-auto dark:hidden" />
               <img src="/logo/wordmark-lavender.svg" alt="Medilink" className="h-5 w-auto hidden dark:block" />
             </div>

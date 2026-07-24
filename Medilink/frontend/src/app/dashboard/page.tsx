@@ -6,6 +6,7 @@ import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ARTICLES } from "@/lib/data/articles";
+import { specialtyLabel } from "@/lib/specialties";
 
 /* ─── Data ───────────────────────────────────────────────────────────── */
 
@@ -108,7 +109,8 @@ const QUICK_ACTIONS = [
 ];
 
 // Dashboard notification preview — mapped from api.notifications (in_app_notifications).
-// Visual presets keyed by notification type (backend stores a single title/body → ar mirrors en).
+// Visual presets keyed by notification type; title_ar/body_ar fall back to the
+// English text for older rows or call sites that haven't been backfilled.
 type NotifPreview = {
   icon: string; unread: boolean; dotColor: string; bg: string; border: string;
   tagBg: string; tagColor: string; tagBorder: string;
@@ -143,22 +145,22 @@ function notifRel(iso: string | null, isAr: boolean): string {
 const HEALTH_METRICS = [
   { icon: "❤️",
     en: { label: "Heart Rate",     value: "72 bpm",  sub: "Normal"  },
-    ar: { label: "معدل ضربات القلب", value: "٧٢ نبضة/د", sub: "طبيعي" },
+    ar: { label: "معدل ضربات القلب", value: "72 نبضة/د", sub: "طبيعي" },
     color: "from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20",
     badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
   { icon: "⚖️",
     en: { label: "BMI",            value: "22.4",    sub: "Healthy" },
-    ar: { label: "مؤشر كتلة الجسم",  value: "٢٢.٤",    sub: "صحي"   },
+    ar: { label: "مؤشر كتلة الجسم",  value: "22.4",    sub: "صحي"   },
     color: "from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20",
     badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
   { icon: "💉",
     en: { label: "Blood Pressure", value: "118/78",  sub: "Normal"  },
-    ar: { label: "ضغط الدم",       value: "١١٨/٧٨",  sub: "طبيعي" },
+    ar: { label: "ضغط الدم",       value: "118/78",  sub: "طبيعي" },
     color: "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
     badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
   { icon: "💊",
     en: { label: "Active Rx",      value: "2",       sub: "Ongoing" },
-    ar: { label: "الأدوية النشطة",  value: "٢",       sub: "جارية" },
+    ar: { label: "الأدوية النشطة",  value: "2",       sub: "جارية" },
     color: "from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20",
     badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
 ];
@@ -228,7 +230,7 @@ export default function DashboardPage() {
             icon: s.icon, unread: !r.is_read, dotColor: s.dotColor, bg: s.bg, border: s.border,
             tagBg: s.tagBg, tagColor: s.tagColor, tagBorder: s.tagBorder,
             en: { tag: s.tagEn, title, body, time: notifRel(r.created_at, false) },
-            ar: { tag: s.tagAr, title, body, time: notifRel(r.created_at, true) },
+            ar: { tag: s.tagAr, title: r.title_ar || title, body: r.body_ar || body, time: notifRel(r.created_at, true) },
           };
         }));
         const full = (profile?.account?.full_name ?? "").trim();
@@ -236,12 +238,11 @@ export default function DashboardPage() {
         const ups = (up as unknown as ApptLite[]);
         setUpcoming(ups.slice(0, 3).map((a, i) => {
           const name = a.doctor?.full_name ?? "—";
-          const spec = a.doctor?.specialty ?? "";
           const time = a.slot_start ? upTime(a.slot_start) : "";
           return {
             initials: upInitials(name), grad: UP_GRADS[i % UP_GRADS.length]!,
-            en: { name, spec, date: upDate(a.slot_date, false), time, type: TYPE_EN2[a.type] ?? a.type, status: STATUS_EN[a.status] ?? "Pending" },
-            ar: { name, spec, date: upDate(a.slot_date, true),  time, type: TYPE_AR2[a.type] ?? a.type, status: STATUS_AR2[a.status] ?? "معلق" },
+            en: { name, spec: a.doctor?.specialty ?? "", date: upDate(a.slot_date, false), time, type: TYPE_EN2[a.type] ?? a.type, status: STATUS_EN[a.status] ?? "Pending" },
+            ar: { name, spec: specialtyLabel(a.doctor?.specialty, true), date: upDate(a.slot_date, true),  time, type: TYPE_AR2[a.type] ?? a.type, status: STATUS_AR2[a.status] ?? "معلق" },
           };
         }));
         setStats({
@@ -346,7 +347,7 @@ export default function DashboardPage() {
 
       {/* UPCOMING APPOINTMENTS */}
       <section className="py-16 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
               <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
@@ -425,7 +426,7 @@ export default function DashboardPage() {
 
       {/* NOTIFICATIONS */}
       <section id="notifications" className="py-16 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
               <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
@@ -503,7 +504,7 @@ export default function DashboardPage() {
 
       {/* HEALTH SNAPSHOT */}
       <section className="py-10 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex items-center justify-between mb-6 ${ar ? "flex-row-reverse" : ""}`}>
             <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35">
               {ar ? "لمحة صحية" : "Health Snapshot"}
@@ -534,7 +535,7 @@ export default function DashboardPage() {
 
       {/* SERVICES */}
       <section className="py-16 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`mb-10 ${ar ? "text-right" : ""}`}>
             <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
               {ar ? "الخدمات" : "Services"}
@@ -580,7 +581,7 @@ export default function DashboardPage() {
       {/* HOW IT WORKS */}
       <section className="py-20 px-6"
         style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 50%, #1e1038 100%)" }}>
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8 mb-14 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
               <p className="text-xs font-bold  tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
@@ -619,7 +620,7 @@ export default function DashboardPage() {
 
       {/* CONSULT ONLINE */}
       <section className="py-20 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className={ar ? "text-right" : ""}>
               <SectionPill en="Online Consult" ar="استشارة عبر الإنترنت" isAr={ar} />
@@ -654,7 +655,7 @@ export default function DashboardPage() {
 
       {/* CLINIC TYPES */}
       <section className="py-20 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`mb-12 ${ar ? "text-right" : ""}`}>
             <SectionPill en="In-Clinic" ar="في العيادة" isAr={ar} />
             <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
@@ -702,7 +703,7 @@ export default function DashboardPage() {
             </span>
             <span className="text-sm text-[#2E1A47]/65 dark:text-[#DFC8E7]/60">
               {ar
-                ? "اشرب ٨ أكواب من الماء يومياً. الترطيب الجيد يحسن طاقتك وتركيزك."
+                ? "اشرب 8 أكواب من الماء يومياً. الترطيب الجيد يحسن طاقتك وتركيزك."
                 : "Stay hydrated — drink 8 glasses of water daily. Good hydration improves energy and focus."}
             </span>
           </div>
@@ -711,7 +712,7 @@ export default function DashboardPage() {
 
       {/* ARTICLES */}
       <section className="py-20 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row gap-14 items-center ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div className="flex-1">
               <SectionPill en="Health Library" ar="المكتبة الصحية" isAr={ar} />
@@ -728,7 +729,7 @@ export default function DashboardPage() {
               <BrandCTA href="/dashboard/articles" en="See all articles" ar="عرض جميع المقالات" isAr={ar} />
             </div>
 
-            <div className={`flex gap-5 flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
+            <div className={`flex gap-5 flex-shrink-0 max-w-full overflow-x-auto pb-1 ${ar ? "flex-row-reverse" : ""}`}>
               {DASHBOARD_ARTICLES.map(article => (
                 <Link key={article.id} href={`/dashboard/articles/${article.id}`}
                   className="w-[185px] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] overflow-hidden bg-[#faf8fc] dark:bg-[#1a1030] hover:shadow-xl hover:-translate-y-1 transition-all duration-200 no-underline block">

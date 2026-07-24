@@ -8,6 +8,7 @@ import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+import { specialtyLabel, matchesSpecialtyCategory } from "@/lib/specialties";
 
 // Nearby-clinics map (leaflet). Self-contained — fetches its own nearby
 // facilities via Supabase. Loaded client-only (leaflet needs `window`).
@@ -83,10 +84,56 @@ function toDoctor(row: DoctorRow, i: number): Doctor {
     fee: feeOf(row.fees),
     rating: row.avg_rating ?? 0,
     reviews: row.review_count ?? 0,
-    available: row.status === "available",
+    // Resolved separately from real bookable slots (doctor_availability) — see computeAvailableTodayIds.
+    // `doctors.status` is a live 15-min presence flag with no writer anywhere in the app; it can't drive this.
+    available: false,
     en: { name: row.full_name, hospital, type },
     ar: { name: row.full_name, hospital, type: "في العيادة" },
   };
+}
+
+function toYMD(date: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+
+/** Doctors with at least one open (unbooked) slot today, from their weekly availability template. */
+async function computeAvailableTodayIds(
+  supabase: ReturnType<typeof createBrowserSupabaseClient>,
+  doctorIds: string[]
+): Promise<Set<string>> {
+  if (doctorIds.length === 0) return new Set();
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const today = toYMD(now);
+
+  const [{ data: availRows }, { data: bookedRows }] = await Promise.all([
+    supabase.from("doctor_availability").select("doctor_id, slots").eq("day_of_week", dayOfWeek).in("doctor_id", doctorIds),
+    supabase.from("appointments").select("doctor_id, slot_start")
+      .eq("slot_date", today).in("doctor_id", doctorIds)
+      .in("status", ["pending", "confirmed", "checked_in"]).eq("is_emergency", false),
+  ]);
+
+  const bookedByDoctor = new Map<string, Set<string>>();
+  for (const r of bookedRows ?? []) {
+    const doctorId = r.doctor_id;
+    const start = typeof r.slot_start === "string" ? r.slot_start.slice(0, 5) : "";
+    if (!doctorId || !start) continue;
+    if (!bookedByDoctor.has(doctorId)) bookedByDoctor.set(doctorId, new Set());
+    bookedByDoctor.get(doctorId)!.add(start);
+  }
+
+  const availableToday = new Set<string>();
+  for (const row of availRows ?? []) {
+    const booked = bookedByDoctor.get(row.doctor_id) ?? new Set<string>();
+    const slots = (row.slots ?? []) as { start?: string }[];
+    const hasOpenSlot = slots.some(s => {
+      const start = typeof s.start === "string" ? s.start.slice(0, 5) : "";
+      return Boolean(start) && !booked.has(start);
+    });
+    if (hasOpenSlot) availableToday.add(row.doctor_id);
+  }
+  return availableToday;
 }
 
 /* ─── DoctorCard ─────────────────────────────────────────────────────── */
@@ -121,7 +168,7 @@ function DoctorCard({
                 </span>}
           </div>
           <p className="text-xs text-[#46255f] dark:text-[#DFC8E7]/70 font-semibold mb-0.5">
-            {isAr ? SPECIALTIES.find(s => s.en === doctor.specialty)?.ar : doctor.specialty}
+            {specialtyLabel(doctor.specialty, isAr)}
           </p>
           <p className="text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 truncate">{d.hospital}</p>
 
@@ -186,14 +233,20 @@ export default function FindDoctorsPage() {
     setLoading(true);
     api.doctors
       .searchDoctors(supabase, { limit: 100 })
-      .then((rows) => { if (active) setDoctors(rows.map(toDoctor)); })
+      .then(async (rows) => {
+        if (!active) return;
+        const base = rows.map(toDoctor);
+        const availableToday = await computeAvailableTodayIds(supabase, base.map(d => d.id)).catch(() => new Set<string>());
+        if (!active) return;
+        setDoctors(base.map(d => ({ ...d, available: availableToday.has(d.id) })));
+      })
       .catch(() => { if (active) setError(ar ? "تعذر تحميل الأطباء." : "Could not load doctors."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [supabase, ar]);
 
   const filtered = doctors.filter(doc => {
-    const matchSpec = activeSpec === "All" || doc.specialty === activeSpec;
+    const matchSpec = matchesSpecialtyCategory(doc.specialty, activeSpec);
     const matchAvail = !availOnly || doc.available;
     const q = search.toLowerCase();
     const matchSearch = !q
@@ -220,9 +273,9 @@ export default function FindDoctorsPage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* ── Hero ── */}
-      <section className="py-12 px-6"
+      <section className="py-12 px-4"
         style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "ابحث عن طبيب" : "Find a Doctor"}
           </p>
@@ -256,8 +309,8 @@ export default function FindDoctorsPage() {
       </section>
 
       {/* ── Specialty + availability filters ── */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4">
-        <div className={`max-w-4xl mx-auto flex flex-wrap items-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-4">
+        <div className={`max-w-6xl mx-auto flex flex-wrap items-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
           {/* Availability toggle */}
           <button
             onClick={() => setAvailOnly(v => !v)}
@@ -292,8 +345,8 @@ export default function FindDoctorsPage() {
       </section>
 
       {/* ── Results ── */}
-      <section className="py-10 px-6">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-10 px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
             {loading
               ? (ar ? "جارٍ التحميل…" : "Loading…")
@@ -376,8 +429,8 @@ export default function FindDoctorsPage() {
       </section>
 
       {/* ── Nearby clinics map ── */}
-      <section className="pb-14 px-6">
-        <div className="max-w-4xl mx-auto">
+      <section className="pb-14 px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
             {ar ? "📍 عيادات قريبة منك" : "📍 Clinics near you"}
           </p>

@@ -15,6 +15,7 @@ function OTPForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") ?? "";
+  const next = params.get("next") || "/dashboard";
   const { locale } = useI18n();
   const ar = locale === "ar";
 
@@ -43,7 +44,7 @@ function OTPForm() {
       const supabase = createBrowserSupabaseClient();
       const { error: err } = await supabase.auth.verifyOtp({ email, token: otp, type: "signup" });
       if (err) setError(err.message);
-      else router.push("/dashboard");
+      else router.push(next);
     } catch {
       setError(ar ? "فشل التحقق. حاول مرة أخرى." : "Verification failed. Please try again.");
     } finally {
@@ -80,10 +81,10 @@ function OTPForm() {
 
         <h2 className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] mb-2"
           style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px" }}>
-          {ar ? "أدخل الرمز المكون من ٦ أرقام" : "Enter the 6-digit code"}
+          {ar ? "أدخل الرمز المكون من 6 أرقام" : "Enter the 6-digit code"}
         </h2>
         <p className="text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 mb-1">
-          {ar ? "أرسلنا رمزاً مكوناً من ٦ أرقام إلى" : "We sent a 6-digit code to"}
+          {ar ? "أرسلنا رمزاً مكوناً من 6 أرقام إلى" : "We sent a 6-digit code to"}
         </p>
         <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] mb-7">{maskedEmail || (ar ? "بريدك الإلكتروني" : "your email")}</p>
 

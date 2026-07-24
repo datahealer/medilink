@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
+import { specialtyLabel } from "@/lib/specialties";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -68,7 +69,6 @@ function toAppt(row: ApptRow, i: number): Appt {
   const facility = (row as { facility?: { id?: string; name?: string } | null }).facility;
   const name = doctor?.full_name ?? "—";
   const hospital = facility?.name ?? "";
-  const spec = doctor?.specialty ?? "";
   const time = row.slot_start ? to12hClock(row.slot_start) : "";
   const notes = row.notes ?? undefined;
   return {
@@ -79,8 +79,8 @@ function toAppt(row: ApptRow, i: number): Appt {
     doctorId: row.doctor_id ?? null,
     facilityId: row.facility_id ?? null,
     rawDate: row.slot_date,
-    en: { name, spec, hospital, date: relDate(row.slot_date, false), time, type: TYPE_EN[row.type] ?? row.type, notes },
-    ar: { name, spec, hospital, date: relDate(row.slot_date, true), time, type: TYPE_AR[row.type] ?? row.type, notes },
+    en: { name, spec: doctor?.specialty ?? "", hospital, date: relDate(row.slot_date, false), time, type: TYPE_EN[row.type] ?? row.type, notes },
+    ar: { name, spec: specialtyLabel(doctor?.specialty, true), hospital, date: relDate(row.slot_date, true), time, type: TYPE_AR[row.type] ?? row.type, notes },
   };
 }
 
@@ -533,8 +533,8 @@ export default function AppointmentsPage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* Hero */}
-      <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-3xl mx-auto">
+      <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "مواعيدي" : "My Appointments"}
           </p>
@@ -560,8 +560,8 @@ export default function AppointmentsPage() {
       </section>
 
       {/* Tabs */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-3">
-        <div className="max-w-3xl mx-auto flex gap-2">
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-3 overflow-x-auto">
+        <div className="max-w-6xl mx-auto flex gap-2 flex-nowrap px-4">
           {TABS.map(t => (
             <button key={t.en} onClick={() => setTab(t.en)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${tab === t.en ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent" : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30"}`}>
@@ -572,8 +572,8 @@ export default function AppointmentsPage() {
       </section>
 
       {/* List */}
-      <section className="py-8 px-6">
-        <div className="max-w-3xl mx-auto space-y-3">
+      <section className="py-8 px-4">
+        <div className="max-w-6xl mx-auto space-y-3">
           {error && (
             <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
               {error}

@@ -35,8 +35,11 @@ function downloadRecord(rec: MedRecord, isAr: boolean) {
 }
 
 const canWebShare = () => typeof navigator !== "undefined" && typeof navigator.share === "function";
+const canShareFiles = (file: File) =>
+  typeof navigator !== "undefined" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
 
-async function shareRecord(rec: MedRecord, isAr: boolean) {
+/** Text-only share for records with no underlying file (nothing to attach) — last-resort fallback. */
+async function shareRecordText(rec: MedRecord, isAr: boolean) {
   const info = isAr ? rec.ar : rec.en;
   const text = [
     info.title,
@@ -54,6 +57,49 @@ async function shareRecord(rec: MedRecord, isAr: boolean) {
   }
 }
 
+/** Fetches a URL as a blob and shares it as a real file via the OS share sheet (so WhatsApp/etc.
+ * attach the actual PDF, not a web link) — falls back to a link share, then clipboard, if the
+ * file can't be fetched or this browser's Web Share API doesn't support file attachments. */
+async function shareFile(url: string, filename: string, title: string): Promise<void> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("fetch_failed");
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: blob.type || "application/pdf" });
+    if (canWebShare() && canShareFiles(file)) {
+      await navigator.share({ title, files: [file] });
+      return;
+    }
+  } catch (err) {
+    if ((err as { name?: string })?.name === "AbortError") throw err; // user cancelled — don't fall back
+  }
+  if (canWebShare()) {
+    await navigator.share({ title, text: url, url });
+  } else {
+    await navigator.clipboard.writeText(url);
+  }
+}
+
+/** Fetches a URL as a blob and forces a real file download instead of just opening/previewing
+ * it in a new tab — falls back to opening the URL directly if the fetch fails (e.g. CORS). */
+async function downloadFile(url: string, filename: string): Promise<void> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("fetch_failed");
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
 /** Real backend PDF for a prescription — replaces the generic local text export. */
 async function downloadPrescriptionPdf(prescriptionId: string): Promise<string> {
   const res = await fetch(`${env.BACKEND_URL}/api/prescriptions/${prescriptionId}/download`, {
@@ -62,21 +108,6 @@ async function downloadPrescriptionPdf(prescriptionId: string): Promise<string> 
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.signed_url) throw new Error(data?.error ?? "download_failed");
   return data.signed_url as string;
-}
-
-/** Real backend share link for a prescription — replaces the generic text share. */
-async function sharePrescriptionLink(prescriptionId: string, isAr: boolean): Promise<void> {
-  const res = await fetch(`${env.BACKEND_URL}/api/prescriptions/${prescriptionId}/share-link`, {
-    credentials: "include",
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.url) throw new Error(data?.error ?? "share_failed");
-  const shareUrl = `${env.BACKEND_URL}${data.url}`;
-  if (canWebShare()) {
-    await navigator.share({ title: isAr ? "وصفة طبية" : "Prescription", text: shareUrl, url: shareUrl });
-  } else {
-    await navigator.clipboard.writeText(shareUrl);
-  }
 }
 
 const CATEGORIES = [
@@ -141,7 +172,7 @@ function medNames(meds: Json[] | null): string[] {
 // Explicit row shapes — the nested selects degrade the generated types to an error union.
 type RxRow = { id: string; medications: Json[] | null; instructions: string | null; issued_at: string; doctors?: { full_name?: string } | null };
 type LabRowLite = { id: string; test_name: string | null; notes: string | null; uploaded_at: string; file_url: string | null };
-type DocRow = { id: string; name: string; type: string; uploaded_at: string; appointment?: { doctor?: { full_name?: string } | null } | null };
+type DocRow = { id: string; name: string; type: string; uploaded_at: string; file_url: string | null; appointment?: { doctor?: { full_name?: string } | null } | null };
 
 function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecord[] {
   const rxRecs: (MedRecord & { _ts: number })[] = rx.map((p) => {
@@ -172,7 +203,7 @@ function buildRecords(rx: RxRow[], labs: LabRowLite[], docs: DocRow[]): MedRecor
     const doctor = d.appointment?.doctor?.full_name ?? "";
     const date = fmtRecDate(d.uploaded_at);
     return {
-      id: `doc-${d.id}`, kind: "document", sourceId: d.id,
+      id: `doc-${d.id}`, kind: "document", sourceId: d.id, filePath: d.file_url,
       category, emoji: CAT_EMOJI[category] ?? "📋", grad: "", date, _ts: Date.parse(d.uploaded_at) || 0,
       en: { title: d.name, doctor, detail: "" }, ar: { title: d.name, doctor, detail: "" },
     };
@@ -223,37 +254,49 @@ export default function RecordsPage() {
     setTimeout(() => setActionError(null), 3000);
   }
 
-  async function handleDownload(rec: MedRecord) {
-    if (rec.kind === "prescription") {
-      try {
-        const url = await downloadPrescriptionPdf(rec.sourceId);
-        window.open(url, "_blank", "noopener,noreferrer");
-        setDownloaded(rec.id);
-        setTimeout(() => setDownloaded(null), 2000);
-      } catch {
-        flashActionError(rec.id, ar ? "تعذر تحميل الوصفة." : "Could not download the prescription.");
-      }
-      return;
-    }
-    downloadRecord(rec, ar);
-    setDownloaded(rec.id);
-    setTimeout(() => setDownloaded(null), 2000);
+  /** Real signed URL to the underlying file, if this record has one — the same file for
+   * both Download and Share, so Share can attach the actual PDF instead of a web link. */
+  async function resolveFileUrl(rec: MedRecord): Promise<string | null> {
+    if (rec.kind === "prescription") return downloadPrescriptionPdf(rec.sourceId);
+    if (!rec.filePath) return null;
+    return rec.kind === "lab"
+      ? api.labs.getLabResultSignedUrl(supabase, rec.filePath)
+      : api.records.getDocumentSignedUrl(supabase, rec.filePath);
   }
 
-  function handleShare(rec: MedRecord) {
-    if (rec.kind === "prescription") {
-      sharePrescriptionLink(rec.sourceId, ar).then(() => {
-        setShared(rec.id);
-        setTimeout(() => setShared(null), 2000);
-      }).catch(() => {
-        flashActionError(rec.id, ar ? "تعذر إنشاء رابط المشاركة." : "Could not create a share link.");
-      });
-      return;
+  async function handleDownload(rec: MedRecord) {
+    try {
+      const url = await resolveFileUrl(rec);
+      if (url) {
+        const info = ar ? rec.ar : rec.en;
+        const ext = (rec.kind === "prescription" ? "pdf" : rec.filePath?.split(".").pop()) || "pdf";
+        await downloadFile(url, `${info.title.replace(/\s+/g, "_")}.${ext}`);
+      } else {
+        downloadRecord(rec, ar); // no underlying file — export the text summary
+      }
+      setDownloaded(rec.id);
+      setTimeout(() => setDownloaded(null), 2000);
+    } catch {
+      flashActionError(rec.id, ar ? "تعذر تحميل الملف." : "Could not download the file.");
     }
-    shareRecord(rec, ar).then(() => {
+  }
+
+  async function handleShare(rec: MedRecord) {
+    try {
+      const url = await resolveFileUrl(rec);
+      if (url) {
+        const info = ar ? rec.ar : rec.en;
+        const ext = (rec.kind === "prescription" ? "pdf" : rec.filePath?.split(".").pop()) || "pdf";
+        await shareFile(url, `${info.title.replace(/\s+/g, "_")}.${ext}`, info.title);
+      } else {
+        await shareRecordText(rec, ar); // no underlying file — share a text summary instead
+      }
       setShared(rec.id);
       setTimeout(() => setShared(null), 2000);
-    }).catch(() => {});
+    } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") return; // user cancelled the share sheet
+      flashActionError(rec.id, ar ? "تعذر مشاركة الملف." : "Could not share the file.");
+    }
   }
 
   async function handleViewReport(rec: MedRecord) {
@@ -289,8 +332,8 @@ export default function RecordsPage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* Hero */}
-      <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-3xl mx-auto">
+      <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "سجلاتي الصحية" : "My Health Records"}
           </p>
@@ -315,8 +358,8 @@ export default function RecordsPage() {
       </section>
 
       {/* Category tabs */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-3 overflow-x-auto">
-        <div className="max-w-3xl mx-auto flex gap-2 flex-nowrap">
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-3 overflow-x-auto">
+        <div className="max-w-6xl mx-auto flex gap-2 flex-nowrap px-4">
           {CATEGORIES.map(c => (
             <button key={c.en} onClick={() => setActiveTab(c.en)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${activeTab === c.en ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent" : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30"}`}>
@@ -327,8 +370,8 @@ export default function RecordsPage() {
       </section>
 
       {/* Records list */}
-      <section className="py-8 px-6">
-        <div className="max-w-3xl mx-auto">
+      <section className="py-8 px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
             {loading
               ? (ar ? "جارٍ التحميل…" : "Loading…")

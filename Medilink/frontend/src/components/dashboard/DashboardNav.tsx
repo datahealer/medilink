@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { LangToggle } from "@/components/auth/LangToggle";
@@ -59,10 +59,10 @@ function NotificationBell({ ar }: { ar: boolean }) {
       </button>
 
       {open && (
-        <div className={`absolute top-full mt-1.5 w-80 bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#2a1840] shadow-xl shadow-[#2E1A47]/10 z-50 overflow-hidden ${ar ? "left-0" : "right-0"}`}>
+        <div className={`fixed sm:absolute left-3 right-3 top-[64px] sm:top-full w-auto sm:w-80 sm:mt-1.5 bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#2a1840] shadow-xl shadow-[#2E1A47]/10 z-50 overflow-hidden ${ar ? "sm:left-0 sm:right-auto" : "sm:right-0 sm:left-auto"}`}>
           {/* Header */}
-          <div className={`flex items-center justify-between px-4 py-3 border-b border-[#e7dcee] dark:border-[#2a1840] ${ar ? "flex-row-reverse" : ""}`}>
-            <div className={`flex items-center gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#e7dcee] dark:border-[#2a1840]">
+            <div className="flex items-center gap-2">
               <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">{ar ? "الإشعارات" : "Notifications"}</p>
               {unread > 0 && (
                 <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-500 text-white">{unread} {ar ? "جديد" : "new"}</span>
@@ -88,7 +88,7 @@ function NotificationBell({ ar }: { ar: boolean }) {
               const nd = ar ? n.ar : n.en;
               return (
                 <div key={n.id}
-                  className={`flex items-start gap-3 px-4 py-3 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20 transition-colors cursor-pointer ${!n.unread ? "opacity-60 hover:opacity-100" : ""} ${ar ? "flex-row-reverse" : ""}`}>
+                  className={`flex items-start gap-3 px-4 py-3 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20 transition-colors cursor-pointer ${!n.unread ? "opacity-60 hover:opacity-100" : ""}`}>
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${n.unread ? "bg-[#faf5ff] dark:bg-[#2E1A47]/40" : "bg-[#f5f5f5] dark:bg-[#1a1030]"} relative`}>
                     {n.icon}
                     {n.unread && n.dotColor && (
@@ -118,6 +118,18 @@ const NAV_LINKS = [
   { href: "/dashboard/surgeries",        en: "Surgeries",          ar: "العمليات الجراحية" },
   { href: "/dashboard/profile",          en: "My Profile",         ar: "ملفي الشخصي" },
 ];
+
+function SettingsLink() {
+  return (
+    <Link href="/dashboard/settings" aria-label="Settings"
+      className="p-2 rounded-xl text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#2E1A47]/5 dark:hover:bg-[#DFC8E7]/8 transition-colors">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </Link>
+  );
+}
 
 function UserMenu() {
   const [open, setOpen] = useState(false);
@@ -213,9 +225,35 @@ function UserMenu() {
   );
 }
 
+function GuestActions({ ar }: { ar: boolean }) {
+  const pathname = usePathname();
+  const next = encodeURIComponent(pathname || "/dashboard");
+  return (
+    <div className="flex items-center gap-2">
+      <Link href={`/sign-in?next=${next}`}
+        className="px-3 py-1.5 rounded-xl text-sm font-semibold no-underline text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#2E1A47]/5 dark:hover:bg-[#DFC8E7]/8 transition-colors">
+        {ar ? "تسجيل الدخول" : "Sign in"}
+      </Link>
+      <Link href={`/sign-up?next=${next}`}
+        className="inline-flex items-center justify-center font-bold text-xs text-[#2E1A47] no-underline hover:opacity-90 active:scale-[0.97] transition-all tracking-widest px-5 py-2"
+        style={{
+          backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)",
+          transform: "skewX(-12deg)",
+          borderRadius: "8px",
+          boxShadow: "0 6px 22px rgba(223,200,231,0.45)",
+        }}>
+        <span style={{ display: "inline-flex", alignItems: "center", transform: "skewX(12deg)" }}>
+          {ar ? "ابدأ الآن" : "Get Started"}
+        </span>
+      </Link>
+    </div>
+  );
+}
+
 export function DashboardNav() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const { user, loading } = useAuth();
   const [activeLink, setActiveLink] = useState("");
   const [menuOpen, setMenuOpen]     = useState(false);
 
@@ -225,16 +263,12 @@ export function DashboardNav() {
       className="bg-white dark:bg-[#0a0518] border-b border-[#e7dcee] dark:border-[#2a1840] sticky top-0 z-50 shadow-sm shadow-[#2E1A47]/5"
     >
       {/* ── Row 1 ─────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-4 h-[56px]">
+      <div className="max-w-6xl mx-auto px-4 flex items-center gap-4 h-[56px]">
 
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 no-underline flex-shrink-0 group">
-          <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm transition-transform group-hover:scale-105 flex-shrink-0">
-            <img src="/logo/submark-light.svg"  alt="MediLink" width={32} height={32} className="w-full h-full object-cover dark:hidden" />
-            <img src="/logo/submark-dark-mode.svg" alt="MediLink" width={32} height={32} className="w-full h-full object-cover hidden dark:block" />
-          </div>
-          <img src="/logo/wordmark-violet.svg"  alt="MediLink" className="h-[18px] w-auto hidden sm:block dark:hidden" />
-          <img src="/logo/wordmark-lavender.svg" alt="MediLink" className="h-[18px] w-auto hidden dark:sm:block" />
+        <Link href="/dashboard" className="flex items-center no-underline flex-shrink-0 group transition-transform group-hover:scale-105">
+          <img src="/logo/wordmark-violet.svg"  alt="MediLink" className="h-[18px] w-auto dark:hidden" />
+          <img src="/logo/wordmark-lavender.svg" alt="MediLink" className="h-[18px] w-auto hidden dark:block" />
         </Link>
 
         {/* Nav links */}
@@ -258,9 +292,19 @@ export function DashboardNav() {
         <div className="flex items-center gap-1">
           <LangToggle />
           <ThemeToggle />
-          <NotificationBell ar={ar} />
-          <div className="w-px h-5 bg-[#e7dcee] dark:bg-[#2a1840] mx-1" />
-          <UserMenu />
+          {loading ? null : user ? (
+            <>
+              <NotificationBell ar={ar} />
+              <SettingsLink />
+              <div className="w-px h-5 bg-[#e7dcee] dark:bg-[#2a1840] mx-1" />
+              <UserMenu />
+            </>
+          ) : (
+            <>
+              <div className="w-px h-5 bg-[#e7dcee] dark:bg-[#2a1840] mx-1" />
+              <GuestActions ar={ar} />
+            </>
+          )}
         </div>
 
         {/* Hamburger */}
@@ -279,7 +323,7 @@ export function DashboardNav() {
 
       {/* ── Row 2: Location + Search ──────────────────────────── */}
       <div className="border-t border-[#e7dcee]/60 dark:border-[#2a1840] bg-[#faf8fc] dark:bg-[#0d0820] hidden sm:block">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-3">
           <div className="flex-1 max-w-xl">
             <SiteSearch isAr={ar} placeholder={ar ? "ابحث عن أطباء، عيادات، مستشفيات..." : "Search doctors, clinics, hospitals, etc."} />
           </div>

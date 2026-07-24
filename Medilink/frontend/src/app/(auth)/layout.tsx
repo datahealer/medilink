@@ -5,7 +5,7 @@ import { LangToggle } from "@/components/auth/LangToggle";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh grid grid-cols-1 sm:grid-cols-[1.1fr_1fr]">
+    <div className="min-h-dvh grid grid-cols-1 md:grid-cols-[1.1fr_1fr]">
       {/* Left: brand panel — hidden on mobile */}
       <BrandPanel />
 

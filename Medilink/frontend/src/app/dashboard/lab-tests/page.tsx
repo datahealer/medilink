@@ -62,7 +62,7 @@ const LABS = [
     reviews: 615,
     homeCollection: true,
     en: { name: "HbA1c (Glycated Haemoglobin)",   lab: "Sunrise Diagnostics",    desc: "3-month average blood sugar indicator for diabetes management." },
-    ar: { name: "الهيموغلوبين الغليكوزيلاتي HbA1c", lab: "مختبرات الشروق",        desc: "مؤشر متوسط السكر لمدة ٣ أشهر لإدارة مرض السكري." },
+    ar: { name: "الهيموغلوبين الغليكوزيلاتي HbA1c", lab: "مختبرات الشروق",        desc: "مؤشر متوسط السكر لمدة 3 أشهر لإدارة مرض السكري." },
     slots: buildSlots([0, 4, 7]),
   },
   {
@@ -148,7 +148,7 @@ const DAY_EN   = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 const DAY_AR   = ["أح","اث","ثل","أر","خم","جم","سب"];
 const MONTH_LONG_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const TODAY = new Date(2026, 5, 29);
+const TODAY = new Date();
 
 function buildCalendar(y: number, m: number) {
   const first = new Date(y, m, 1).getDay();
@@ -507,8 +507,8 @@ function LabTestsInner() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* Hero */}
-      <section className="py-12 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-4xl mx-auto">
+      <section className="py-12 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest mb-3" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "الفحوصات المخبرية" : "Lab Tests"}
           </p>
@@ -532,8 +532,8 @@ function LabTestsInner() {
       </section>
 
       {/* Category tabs */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 overflow-x-auto">
-        <div className="max-w-4xl mx-auto flex gap-2 flex-nowrap">
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-4 overflow-x-auto">
+        <div className="max-w-6xl mx-auto flex gap-2 flex-nowrap px-4">
           {CATEGORIES.map(c => (
             <button key={c.en} onClick={() => setActiveTab(c.en)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 border transition-all ${activeTab === c.en ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent" : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30 dark:hover:border-[#DFC8E7]/30"}`}>
@@ -544,8 +544,8 @@ function LabTestsInner() {
       </section>
 
       {/* Results */}
-      <section className="py-10 px-6">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-10 px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-6">
             {ar ? `${filtered.length} فحص متاح` : `${filtered.length} test${filtered.length !== 1 ? "s" : ""} found`}
           </p>

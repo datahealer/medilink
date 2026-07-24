@@ -138,6 +138,8 @@ export async function POST(req: NextRequest) {
           appointmentId: appointment_id,
           title: "Payment Successful",
           body: "Your payment has been received and your appointment is confirmed.",
+          titleAr: "تمت عملية الدفع بنجاح",
+          bodyAr: "تم استلام دفعتك وتأكيد موعدك.",
         });
         if (!notifResult.success) {
           console.error("❌ Patient payment notification failed:", notifResult.error);

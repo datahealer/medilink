@@ -54,6 +54,8 @@ serve(async (req) => {
           type: "waitlist_offer",
           title: "A slot is available for you",
           body: `A slot has opened up for ${entry.preferred_date}. You have 15 minutes to claim it.`,
+          title_ar: "يتوفر لك موعد الآن",
+          body_ar: `تم توفر موعد بتاريخ ${entry.preferred_date}. أمامك 15 دقيقة للحجز.`,
           data: { waitlist_id, offered_slot: entry.offered_slot },
           is_read: false,
         });

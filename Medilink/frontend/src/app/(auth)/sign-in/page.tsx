@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@medilink/shared";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
@@ -10,8 +10,9 @@ import { Button } from "@/components/auth/Button";
 import { createBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
+  const next = useSearchParams().get("next") || "/dashboard";
   const { locale } = useI18n();
   const ar = locale === "ar";
 
@@ -27,7 +28,7 @@ export default function SignInPage() {
     try {
       const supabase = createBrowserSupabaseClient();
       await api.auth.signInWithPassword(supabase, { email, password });
-      router.push("/dashboard");
+      router.push(next);
       router.refresh(); // let middleware + server components pick up the new session cookie
     } catch (err) {
       setError(
@@ -45,7 +46,7 @@ export default function SignInPage() {
   const handleGoogle = async () => {
     setError("");
     try {
-      await signInWithGoogle(); // redirects to Google, then /auth/callback
+      await signInWithGoogle(next); // redirects to Google, then /auth/callback
     } catch {
       setError(ar ? "تعذر المتابعة مع Google." : "Could not continue with Google.");
     }
@@ -108,10 +109,18 @@ export default function SignInPage() {
 
       <p className="mt-3 text-center text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
         {ar ? "ليس لديك حساب؟" : "No account yet?"}{" "}
-        <Link href="/sign-up" className="font-semibold text-[#46255f] hover:underline">
+        <Link href={`/sign-up?next=${encodeURIComponent(next)}`} className="font-semibold text-[#46255f] hover:underline">
           {ar ? "أنشئ واحداً" : "Create one"}
         </Link>
       </p>
     </AuthCard>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInForm />
+    </Suspense>
   );
 }

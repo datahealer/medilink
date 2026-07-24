@@ -19,11 +19,14 @@ export function createBrowserSupabaseClient(): SupabaseClient<Database> {
   return browserClient;
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(next?: string) {
   const supabase = createBrowserSupabaseClient();
+  const redirectTo = next
+    ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+    : `${window.location.origin}/auth/callback`;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
+    options: { redirectTo },
   });
   if (error) throw error;
 }

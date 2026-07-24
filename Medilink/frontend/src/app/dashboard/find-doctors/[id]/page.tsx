@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/context/AuthContext";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { specialtyLabel } from "@/lib/specialties";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
 /* ─── Shared data ────────────────────────────────────────────────────── */
@@ -27,7 +29,47 @@ type RealDoctorRow = {
   review_count: number | null;
 };
 
-function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDoctor {
+/* ─── Weekly availability (doctor_availability.slots → "Sun - Thu · 9:00 AM - 5:00 PM") ── */
+type AvailabilityRow = { day_of_week: number; slots: { start?: string }[] | null };
+type DayRange = { start: string; end: string };
+
+const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+/** "08:30:00" / "08:30" → "8:30 AM" */
+function formatHour(hhmm: string) {
+  const [hh = "0", mm = "00"] = hhmm.split(":");
+  let h = parseInt(hh, 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${mm} ${ampm}`;
+}
+
+/** Reduces each day's list of individual bookable slots down to its earliest–latest hour range. */
+function buildWeeklyHours(rows: AvailabilityRow[]): (DayRange | null)[] {
+  const byDay: (DayRange | null)[] = Array(7).fill(null);
+  for (const row of rows) {
+    const starts = (row.slots ?? [])
+      .map(s => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
+      .filter(Boolean)
+      .sort();
+    if (starts.length === 0) continue;
+    byDay[row.day_of_week] = { start: starts[0]!, end: starts[starts.length - 1]! };
+  }
+  return byDay;
+}
+
+/** One row per day of the week, in order — hours if the doctor has slots that day, else "Closed". */
+function listWeeklyHours(byDay: (DayRange | null)[], isAr: boolean) {
+  const dayNames = isAr ? DAYS_AR : DAYS_EN;
+  return byDay.map((range, i) => ({
+    label: dayNames[i]!,
+    hours: range ? `${formatHour(range.start)} – ${formatHour(range.end)}` : (isAr ? "مغلق" : "Closed"),
+    open: Boolean(range),
+  }));
+}
+
+function realToView(row: RealDoctorRow, isAr: boolean, index: number, bookable: boolean): ViewDoctor {
   const initials = row.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "DR";
   const fees = row.fees as { in_person?: number; online?: number } | null;
   const qualifications = row.qualifications ?? [];
@@ -36,12 +78,14 @@ function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDocto
     id: row.id,
     initials,
     grad: PROFILE_GRADS[index % PROFILE_GRADS.length]!,
-    specialty: row.specialty ?? (isAr ? "طب عام" : "General Medicine"),
+    specialty: row.specialty ? specialtyLabel(row.specialty, isAr) : (isAr ? "طب عام" : "General Medicine"),
     bio: row.bio?.trim() || (isAr ? "لا تتوفر نبذة تعريفية لهذا الطبيب بعد." : "No biography available for this doctor yet."),
     fee: fees?.in_person ?? fees?.online ?? 0,
     rating: row.avg_rating ?? 0,
     reviews: row.review_count ?? 0,
-    available: row.status === "available",
+    // Bookable when the doctor has a weekly schedule configured at all — not the
+    // live 15-min presence flag (`doctors.status`), which has no writer in the app.
+    available: bookable,
     name: row.full_name,
     hospital: isAr ? "شبكة ميدلينك" : "MediLink Network",
     type: isAr ? "في العيادة" : "In-clinic",
@@ -68,31 +112,43 @@ export default function DoctorProfilePage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const rawId = (params.id as string) ?? "";
 
   const [realDoctor, setRealDoctor] = useState<RealDoctorRow | null>(null);
   const [loadingReal, setLoadingReal] = useState(true);
   const [realNotFound, setRealNotFound] = useState(false);
+  const [weeklyHours, setWeeklyHours] = useState<(DayRange | null)[]>(Array(7).fill(null));
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = createBrowserSupabaseClient();
-      const { data } = await supabase
-        .from("doctors")
-        .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count")
-        .eq("id", rawId)
-        .eq("is_active", true)
-        .maybeSingle();
+      const [{ data }, { data: availability }] = await Promise.all([
+        supabase
+          .from("doctors")
+          .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count")
+          .eq("id", rawId)
+          .eq("is_active", true)
+          .maybeSingle(),
+        supabase
+          .from("doctor_availability")
+          .select("day_of_week, slots")
+          .eq("doctor_id", rawId),
+      ]);
       if (cancelled) return;
       if (data) setRealDoctor(data as RealDoctorRow);
       else setRealNotFound(true);
+      setWeeklyHours(buildWeeklyHours((availability ?? []) as AvailabilityRow[]));
       setLoadingReal(false);
     })();
     return () => { cancelled = true; };
   }, [rawId]);
 
-  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0) : null;
+  const hoursRows = listWeeklyHours(weeklyHours, ar);
+  const hasAnyAvailability = hoursRows.some(r => r.open);
+  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0, hasAnyAvailability) : null;
 
   const [reviews, setReviews]     = useState<Review[]>(SEED_REVIEWS);
   const [hoverStar, setHoverStar] = useState(0);
@@ -123,6 +179,15 @@ export default function DoctorProfilePage() {
     );
   }
 
+  function handleBookClick() {
+    if (!doctor?.available) return;
+    if (!user) {
+      router.push(`/sign-in?next=${encodeURIComponent(`/dashboard/find-doctors/${rawId}`)}`);
+      return;
+    }
+    setShowBooking(true);
+  }
+
   function submitReview() {
     if (!selStar || !reviewText.trim()) return;
     setReviews(prev => [{ initials: "ME", rating: selStar, en: reviewText, ar: reviewText, own: true }, ...prev]);
@@ -138,8 +203,8 @@ export default function DoctorProfilePage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] pb-28">
 
       {/* ── Back bar ── */}
-      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto">
+      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-4 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4">
           <Link
             href="/dashboard/find-doctors"
             className={`inline-flex items-center gap-1.5 text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline ${ar ? "flex-row-reverse" : ""}`}
@@ -153,8 +218,8 @@ export default function DoctorProfilePage() {
       </div>
 
       {/* ── Hero ── */}
-      <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-4xl mx-auto">
+      <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex items-start gap-5 mb-6 ${ar ? "flex-row-reverse" : ""}`}>
             <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black flex-shrink-0 bg-gradient-to-br ${doctor.grad} text-[#2E1A47]`}>
               {doctor.initials}
@@ -185,7 +250,8 @@ export default function DoctorProfilePage() {
       </section>
 
       {/* ── Body ── */}
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <div className="px-4 py-8">
+      <div className="max-w-6xl mx-auto space-y-6">
 
         {/* About */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
@@ -196,7 +262,7 @@ export default function DoctorProfilePage() {
         </section>
 
         {/* Details grid */}
-        <section className="grid grid-cols-2 gap-3">
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { icon: "🎓", en: "Education",  ar: "التعليم",  val: doctor.education },
             { icon: "⏱",  en: "Experience", ar: "الخبرة",   val: doctor.experience },
@@ -210,6 +276,23 @@ export default function DoctorProfilePage() {
             </div>
           ))}
         </section>
+
+        {/* Availability */}
+        {hasAnyAvailability && (
+          <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
+            <p className={`text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4 ${ar ? "text-right" : ""}`}>
+              {ar ? "أوقات التوفر" : "Availability"}
+            </p>
+            <div className="space-y-2">
+              {hoursRows.map(r => (
+                <div key={r.label} className={`flex items-center justify-between text-sm ${ar ? "flex-row-reverse" : ""}`}>
+                  <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{r.label}</span>
+                  <span className={r.open ? "text-[#2E1A47]/60 dark:text-[#DFC8E7]/60" : "text-[#2E1A47]/30 dark:text-[#DFC8E7]/30"}>{r.hours}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Patient Reviews */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
@@ -305,12 +388,13 @@ export default function DoctorProfilePage() {
           </button>
         </section>
       </div>
+      </div>
 
       {/* ── Sticky Book button ── */}
-      <div className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white dark:bg-[#0d0820] border-t border-[#e7dcee] dark:border-[#2a1840] z-20">
-        <div className="max-w-4xl mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white dark:bg-[#0d0820] border-t border-[#e7dcee] dark:border-[#2a1840] z-20">
+        <div className="max-w-6xl mx-auto px-4">
           <button
-            onClick={() => doctor.available && setShowBooking(true)}
+            onClick={handleBookClick}
             disabled={!doctor.available}
             className="w-full py-3.5 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
             style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}

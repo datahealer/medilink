@@ -41,11 +41,27 @@
   html {
     color-scheme: light dark;
   }
+  /* Arabic script reads smaller than Latin at the same declared size, and the app's
+   * fonts (Manrope/Agatho) have no Arabic glyphs, so RTL falls back to the OS Arabic
+   * font at an unadjusted size. Bump the root size so Tailwind's rem-based scale
+   * (text-xs, text-sm, ...) comes out larger for readability, without touching LTR. */
+  html[dir="rtl"] {
+    font-size: 108%;
+  }
   body {
     background-color: var(--background);
     color: var(--foreground);
   }
   [dir="rtl"] body {
+    text-align: right;
+  }
+  /* Chromium/Firefox force direction:ltr on tel/number/password-type inputs (so digits
+   * and masked dots read naturally), which also resets their own text-align to "start"
+   * (i.e. left) regardless of the inherited RTL direction. Re-align those fields to the
+   * right so they match the rest of the RTL form instead of clinging to the left edge. */
+  [dir="rtl"] input,
+  [dir="rtl"] textarea,
+  [dir="rtl"] select {
     text-align: right;
   }
   * {

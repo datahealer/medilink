@@ -160,7 +160,7 @@ function HeroCard({ ar }: { ar: boolean }) {
             <span className="text-sm">🩺</span>
             <div>
               <p className="text-xs font-semibold text-[#2E1A47]">{ar ? "اقتراح: الطب العام" : "Suggested: General Care"}</p>
-              <p className="text-[10px] text-[#2E1A47]/45">{ar ? "٣ أطباء متاحون" : "3 doctors available today"}</p>
+              <p className="text-[10px] text-[#2E1A47]/45">{ar ? "3 أطباء متاحون" : "3 doctors available today"}</p>
             </div>
           </div>
         </div>
@@ -175,7 +175,7 @@ function HeroCard({ ar }: { ar: boolean }) {
         style={{ boxShadow: "0 8px 30px rgba(46,26,71,0.12)" }}>
         <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-sm flex-shrink-0">✅</div>
         <div>
-          <p className="text-xs font-bold text-[#2E1A47] whitespace-nowrap">{ar ? "أنت رقم ٢ في الطابور" : "You're #2 in queue"}</p>
+          <p className="text-xs font-bold text-[#2E1A47] whitespace-nowrap">{ar ? "أنت رقم 2 في الطابور" : "You're #2 in queue"}</p>
           <p className="text-[10px] text-[#2E1A47]/40">~12 min</p>
         </div>
       </div>
@@ -269,7 +269,7 @@ export default function HomePage() {
 
       {/* ══════════ WHY MEDILINK ══════════ */}
       <section id="features" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`mb-12 ${ar ? "text-right" : ""}`}>
             <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4">
               {ar ? "لماذا ميديلينك" : "Why Medilink"}
@@ -309,7 +309,7 @@ export default function HomePage() {
       {/* ══════════ JOURNEY — dark band ══════════ */}
       <section id="how-it-works" className="py-20 px-6"
         style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 50%, #1e1038 100%)" }}>
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8 mb-14 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div>
               <p className="text-xs font-bold  tracking-widest mb-5" style={{ color: "rgba(223,200,231,0.45)" }}>
@@ -330,7 +330,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-8">
             {STEPS.map(step => (
               <div key={step.num}>
                 <p className="text-4xl font-black font-serif mb-4 leading-none" style={{ color: "rgba(223,200,231,0.2)" }}>
@@ -350,7 +350,7 @@ export default function HomePage() {
 
       {/* ══════════ ROLES ══════════ */}
       <section id="specialties" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`mb-12 ${ar ? "text-right" : ""}`}>
             <SectionPill en="Platform" ar="المنصة" isAr={ar} />
             <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
@@ -397,7 +397,7 @@ export default function HomePage() {
 
       {/* ══════════ DOCTORS ══════════ */}
       <section className="py-20 px-6 bg-[#faf8fc] dark:bg-[#0a0518]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 ${ar ? "sm:flex-row-reverse" : ""}`}>
             <div>
               <SectionPill en="Trusted Providers" ar="مزودون موثوقون" isAr={ar} />
@@ -450,7 +450,7 @@ export default function HomePage() {
 
       {/* ══════════ TESTIMONIALS ══════════ */}
       <section id="testimonials" className="py-20 px-6 bg-white dark:bg-[#0d0820]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
             <SectionPill en="Testimonials" ar="آراء المستخدمين" isAr={ar} />
             <h2 className="font-black font-serif text-[#2E1A47] dark:text-white"
