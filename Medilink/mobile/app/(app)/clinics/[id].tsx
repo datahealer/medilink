@@ -19,7 +19,7 @@ import type { Doctor } from "@/data/types";
  * to active (bookable) doctors — the same basis as the featured card's count (QA #12).
  */
 export default function ClinicDetailScreen() {
-  const { colors, spacing, radii, isRTL } = useTheme();
+  const { spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
   const { id: rawId } = useLocalSearchParams<{ id?: string }>();
