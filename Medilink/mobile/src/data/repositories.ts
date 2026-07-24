@@ -135,6 +135,10 @@ export interface DiscoveryRepository {
   featuredClinics(): Promise<Clinic[]>;
   /** Verified clinics near a point, with real coordinates, for the Map View (PDF p19). */
   nearbyClinics(geo: { lat: number; lng: number; radiusM?: number }): Promise<Clinic[]>;
+  /** Verified clinics whose name matches `term` (clinic search — QA #14). */
+  searchClinics(term: string): Promise<Clinic[]>;
+  /** A single clinic by id for the Clinic Detail screen (QA #14), or null. */
+  getClinic(id: string): Promise<Clinic | null>;
 }
 
 /** Doctor search / profile / reviews (PDF flows 05–06). */

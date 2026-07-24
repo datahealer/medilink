@@ -550,6 +550,18 @@ export const ar: Messages = {
     favourites: "المفضّلة",
     noFavouritesTitle: "لا يوجد أطباء مفضّلون بعد",
     noFavouritesBody: "اضغط على القلب لدى طبيب لحفظه هنا.",
+    doctorsTab: "الأطباء",
+    clinicsTab: "العيادات",
+    clinicPlaceholder: "ابحث عن العيادات",
+    noClinicsTitle: "لا توجد عيادات",
+    noClinicsBody: "جرّب اسم عيادة مختلفًا.",
+  },
+  clinic: {
+    title: "العيادة",
+    loadError: "تعذّر تحميل هذه العيادة.",
+    doctors: "الأطباء",
+    noDoctorsTitle: "لا يوجد أطباء",
+    noDoctorsBody: "لا يوجد أطباء متاحون للحجز في هذه العيادة بعد.",
   },
   filters: {
     title: "عوامل التصفية",

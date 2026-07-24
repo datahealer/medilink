@@ -331,6 +331,8 @@ export interface Clinic {
 /** Filters bottom sheet (PDF p18). */
 export interface DoctorSearchParams {
   query?: string;
+  /** Restrict to one clinic's doctors (clinic detail — QA #14). */
+  facilityId?: string;
   specialty?: string;
   gender?: Gender | "any";
   maxFee?: number;

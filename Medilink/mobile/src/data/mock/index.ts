@@ -264,6 +264,15 @@ const discoveryRepo: DiscoveryRepository = {
   async nearbyClinics() {
     return delay(mapClinics.map((c) => ({ ...c })), 350);
   },
+  async searchClinics(term) {
+    const q = term.trim().toLowerCase();
+    const matches = q ? mapClinics.filter((c) => c.name.toLowerCase().includes(q)) : mapClinics;
+    return delay(matches.map((c) => ({ ...c })), 350);
+  },
+  async getClinic(id) {
+    const found = mapClinics.find((c) => c.id === id) ?? null;
+    return delay(found ? { ...found } : null, 300);
+  },
 };
 
 const doctorRepo: DoctorRepository = {

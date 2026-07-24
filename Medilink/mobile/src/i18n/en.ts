@@ -551,6 +551,18 @@ export const en = {
     favourites: "Favourites",
     noFavouritesTitle: "No favourite doctors yet",
     noFavouritesBody: "Tap the heart on a doctor to save them here.",
+    doctorsTab: "Doctors",
+    clinicsTab: "Clinics",
+    clinicPlaceholder: "Search clinics",
+    noClinicsTitle: "No clinics found",
+    noClinicsBody: "Try a different clinic name.",
+  },
+  clinic: {
+    title: "Clinic",
+    loadError: "Couldn't load this clinic.",
+    doctors: "Doctors",
+    noDoctorsTitle: "No doctors listed",
+    noDoctorsBody: "This clinic has no bookable doctors yet.",
   },
   filters: {
     title: "Filters",
