@@ -9,9 +9,11 @@ import {
   Avatar,
   Button,
   Chip,
+  DateField,
   ErrorState,
   Icon,
   LoadingState,
+  PhoneField,
   Screen,
   Text,
   TextField,
@@ -28,6 +30,7 @@ import {
 } from "@/hooks/queries/usePatient";
 import {
   CIVIL_NUMBER_LENGTH,
+  extractOmanLocalPhone,
   isValidCivilNumber,
   isValidDob,
   isValidName,
@@ -64,12 +67,15 @@ export default function EditProfileScreen() {
     patient?.blood_group && patient.blood_group !== "unknown" ? patient.blood_group : undefined
   );
   const [address, setAddress] = useState(patient?.address ?? "");
-  const [emergency, setEmergency] = useState(patient?.emergency_contact ?? "");
+  // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
+  const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const nameError = isValidName(fullName) ? undefined : t("validation.nameMin");
   const dobError = isValidDob(dob) ? undefined : t("validation.dob");
   const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
+  // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
+  const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
   const [allergies, setAllergies] = useState<string[]>(history.data?.allergies ?? []);
   const [newAllergy, setNewAllergy] = useState("");
 
@@ -129,7 +135,7 @@ export default function EditProfileScreen() {
 
   const onSave = () => {
     // Block save on any invalid field; each shows its error inline.
-    if (civilError || nameError || dobError || phoneError) return;
+    if (civilError || nameError || dobError || phoneError || emergencyError) return;
     update.mutate(
       {
         full_name: fullName.trim(),
@@ -212,13 +218,12 @@ export default function EditProfileScreen() {
         ))}
       </View>
 
-      {/* Date of birth (validated free-text: YYYY-MM-DD, not in the future) */}
-      <TextField
+      {/* Date of birth — native picker, capped at today (QA #1); stored as YYYY-MM-DD */}
+      <DateField
         label={t("profile.dob")}
         value={dob}
-        onChangeText={setDob}
+        onChange={setDob}
         placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
         error={dobError}
         containerStyle={{ marginBottom: spacing.md }}
       />
@@ -290,11 +295,13 @@ export default function EditProfileScreen() {
         placeholder={t("profile.addressPlaceholder")}
         containerStyle={{ marginBottom: spacing.md }}
       />
-      <TextField
+      {/* Emergency contact — phone number only (QA #3): numeric, +968, validated */}
+      <PhoneField
         label={t("profile.emergencyContact")}
         value={emergency}
         onChangeText={setEmergency}
         placeholder={t("profile.emergencyPlaceholder")}
+        error={emergencyError}
       />
     </Screen>
   );

@@ -3,18 +3,20 @@ import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { BloodGroup, Gender } from "@/data/types";
 
-import { AppHeader, Button, Chip, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Button, Chip, DateField, PhoneField, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useProfile, useUpdateProfile } from "@/hooks/queries/usePatient";
-import { CIVIL_NUMBER_LENGTH, isValidCivilNumber } from "@/utils/validation";
+import { CIVIL_NUMBER_LENGTH, extractOmanLocalPhone, isValidCivilNumber, isValidOmanPhone } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
   { value: "female", key: "genderFemale" },
   { value: "other", key: "genderOther" },
 ];
+
+const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -44,11 +46,14 @@ export default function SetupScreen() {
     patient?.blood_group && patient.blood_group !== "unknown" ? patient.blood_group : undefined
   );
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
-  const [emergency, setEmergency] = useState(patient?.emergency_contact ?? "");
+  // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
+  const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
 
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const dobValid = DOB_RE.test(dob.trim());
-  const canFinish = !!fullName.trim() && dobValid && !!gender && !civilError;
+  // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
+  const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
+  const canFinish = !!fullName.trim() && dobValid && !!gender && !civilError && !emergencyError;
 
   const onFinish = () => {
     if (!canFinish) return;
@@ -98,12 +103,12 @@ export default function SetupScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <TextField
+      {/* Date of birth — native picker, capped at today (QA #1); stored as YYYY-MM-DD */}
+      <DateField
         label={t("profile.dob")}
         value={dob}
-        onChangeText={setDob}
+        onChange={setDob}
         placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
         error={dob.trim() && !dobValid ? t("validation.required") : undefined}
         containerStyle={{ marginBottom: spacing.md }}
       />
@@ -122,15 +127,20 @@ export default function SetupScreen() {
         ))}
       </View>
 
-      <TextField
-        label={t("profile.bloodGroup")}
-        value={bloodGroup ?? ""}
-        onChangeText={(v) => setBloodGroup((v.trim() || undefined) as BloodGroup | undefined)}
-        placeholder="O+"
-        autoCapitalize="characters"
-        maxLength={3}
-        containerStyle={{ marginBottom: spacing.md }}
-      />
+      {/* Blood group — enum chips (no free-text; prevents invalid values like "XY") — QA #2 */}
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+        {t("profile.bloodGroup").toUpperCase()}
+      </Text>
+      <View style={[styles.chips, { marginBottom: spacing.md, flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        {BLOOD_GROUPS.map((bg) => (
+          <Chip
+            key={bg}
+            label={bg}
+            selected={bloodGroup === bg}
+            onPress={() => setBloodGroup(bloodGroup === bg ? undefined : bg)}
+          />
+        ))}
+      </View>
 
       {/* Civil number — optional; identical rules to Edit Profile */}
       <TextField
@@ -153,11 +163,13 @@ export default function SetupScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <TextField
+      {/* Emergency contact — phone number only (QA #3): numeric, +968, validated */}
+      <PhoneField
         label={t("profile.emergencyContact")}
         value={emergency}
         onChangeText={setEmergency}
         placeholder={t("profile.emergencyPlaceholder")}
+        error={emergencyError}
       />
     </Screen>
   );

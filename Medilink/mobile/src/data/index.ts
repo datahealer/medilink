@@ -49,6 +49,8 @@ const hybridRepositories: Repositories = {
     featuredClinics: realRepositories.discovery.featuredClinics,
     recentDoctors: realRepositories.discovery.recentDoctors,
     nearbyClinics: realRepositories.discovery.nearbyClinics,
+    searchClinics: realRepositories.discovery.searchClinics,
+    getClinic: realRepositories.discovery.getClinic,
   },
   // Document Vault: real (patient_documents + patient-docs bucket).
   document: realRepositories.document,

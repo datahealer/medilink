@@ -331,12 +331,16 @@ export interface Clinic {
 /** Filters bottom sheet (PDF p18). */
 export interface DoctorSearchParams {
   query?: string;
+  /** Restrict to one clinic's doctors (clinic detail — QA #14). */
+  facilityId?: string;
   specialty?: string;
   gender?: Gender | "any";
   maxFee?: number;
   minRating?: number;
   availableToday?: boolean;
   topRated?: boolean;
+  /** Max rows to fetch from the top of the ranked list (pagination — QA #13). */
+  limit?: number;
 }
 
 // ---- reviews (PDF p20) ------------------------------------------------------

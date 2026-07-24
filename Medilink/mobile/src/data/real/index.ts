@@ -563,6 +563,14 @@ const discoveryRepo: DiscoveryRepository = {
     const rows = (await api.facilities.listFacilities(supabase, { limit: 6 })) as unknown as FacilityRowLoose[];
     return rows.map(mapFacilityToClinic);
   },
+  async searchClinics(term) {
+    const rows = (await api.facilities.searchFacilities(supabase, { term, limit: 20 })) as unknown as FacilityRowLoose[];
+    return rows.map(mapFacilityToClinic);
+  },
+  async getClinic(id) {
+    const row = (await api.facilities.getFacility(supabase, id)) as unknown as FacilityRowLoose | null;
+    return row ? mapFacilityToClinic(row) : null;
+  },
   async nearbyClinics(geo) {
     // Reuses the existing get_nearby_facilities RPC (via shared api.facilities), which
     // now also returns latitude/longitude for map pins. Drops any row without geo.
@@ -680,6 +688,8 @@ const doctorRepo: DoctorRepository = {
     const rows = (await api.doctors.searchDoctors(supabase, {
       specialty: params.specialty,
       term: params.query,
+      facilityId: params.facilityId, // clinic detail: this clinic's doctors (QA #14)
+      limit: params.limit, // pagination: undefined → shared default (20); "Load more" raises it (QA #13)
     })) as unknown as DoctorRowLoose[];
     let list = rows.map(mapDoctorRow);
     // BP-1: slot-based "available today" — one set-based backend call, then flag.

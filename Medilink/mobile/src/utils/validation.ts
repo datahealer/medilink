@@ -27,6 +27,18 @@ export const isValidOmanPhone = (value: string): boolean => {
   return v === "" || OMAN_PHONE.test(v);
 };
 
+/**
+ * Best-effort extraction of an 8-digit Oman local number from a possibly-legacy
+ * emergency-contact string like "Name · +968 9111 1111" (QA #3 backward-compat).
+ * Strips non-digits, drops a leading 968 country code, and keeps the last 8 digits.
+ * Returns "" when no plausible number is present (so the field shows empty, not junk).
+ */
+export const extractOmanLocalPhone = (value: string): string => {
+  let digits = (value || "").replace(/\D/g, "");
+  if (digits.startsWith("968") && digits.length > 8) digits = digits.slice(3);
+  return digits.length >= 8 ? digits.slice(-8) : "";
+};
+
 /** Date of birth: empty allowed OR a real calendar date in YYYY-MM-DD, not in the future. */
 export const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const isValidDob = (value: string): boolean => {
