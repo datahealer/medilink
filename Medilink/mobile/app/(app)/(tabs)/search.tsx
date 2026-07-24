@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { Chip, DoctorCard, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
+import { Button, Chip, DoctorCard, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -24,6 +24,14 @@ export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const { requireAuth } = useGuestGate(); // F4: guests can browse, but Book → wall
 
+  // Pagination (QA #13): grow the fetch window from the top of the ranked list.
+  const PAGE = 20;
+  const [limit, setLimit] = useState(PAGE);
+  // Reset to the first page whenever the search/filters change.
+  useEffect(() => {
+    setLimit(PAGE);
+  }, [query, filters.specialty, filters.gender, filters.maxFee, filters.minRating, filters.availableToday, filters.topRated]);
+
   const doctors = useDoctors({
     query,
     specialty: filters.specialty,
@@ -32,9 +40,14 @@ export default function SearchScreen() {
     minRating: filters.minRating,
     availableToday: filters.availableToday,
     topRated: filters.topRated,
+    limit,
   });
 
   const count = doctors.data?.length ?? 0;
+  // A full window came back → more likely exist. (When client-side filters trim a
+  // page below `limit` the button hides — acceptable; global paging under those
+  // filters needs server-side filtering, tracked as a backend follow-up.)
+  const canLoadMore = count >= limit;
   const filterBadge = activeFilterCount(filters);
   const { refreshing, onRefresh } = useRefresh(() => doctors.refetch());
 
@@ -115,7 +128,18 @@ export default function SearchScreen() {
           <EmptyState title={t("search.noResultsTitle")} body={t("search.noResultsBody")} />
         </View>
       ) : (
-        (doctors.data ?? []).map(card)
+        <>
+          {(doctors.data ?? []).map(card)}
+          {canLoadMore ? (
+            <Button
+              label={t("search.loadMore")}
+              variant="ghost"
+              loading={doctors.isFetching}
+              onPress={() => setLimit((l) => l + PAGE)}
+              style={{ marginTop: spacing.sm }}
+            />
+          ) : null}
+        </>
       )}
     </Screen>
   );

@@ -680,6 +680,7 @@ const doctorRepo: DoctorRepository = {
     const rows = (await api.doctors.searchDoctors(supabase, {
       specialty: params.specialty,
       term: params.query,
+      limit: params.limit, // pagination: undefined → shared default (20); "Load more" raises it (QA #13)
     })) as unknown as DoctorRowLoose[];
     let list = rows.map(mapDoctorRow);
     // BP-1: slot-based "available today" — one set-based backend call, then flag.

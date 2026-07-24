@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
 import type { DoctorSearchParams, NewReviewSubmission } from "@/data/types";
@@ -15,6 +15,9 @@ export function useDoctors(params: DoctorSearchParams = {}) {
   return useQuery({
     queryKey: doctorKeys.search(params),
     queryFn: () => repositories.doctor.search(params),
+    // Keep the current results visible while a larger "Load more" window fetches
+    // (the query key changes with `limit`), avoiding a full loading flash (QA #13).
+    placeholderData: keepPreviousData,
   });
 }
 

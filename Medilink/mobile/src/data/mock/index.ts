@@ -279,7 +279,9 @@ const doctorRepo: DoctorRepository = {
       return true;
     });
     if (params.topRated) filtered.sort((a, b) => b.rating - a.rating);
-    return delay(filtered.map((d) => ({ ...d })), 400);
+    // Pagination (QA #13): honour the fetch window so "Load more" mirrors real mode.
+    const limited = params.limit != null ? filtered.slice(0, params.limit) : filtered;
+    return delay(limited.map((d) => ({ ...d })), 400);
   },
   async get(id) {
     const found = allDoctors.find((d) => d.id === id) ?? null;

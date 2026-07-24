@@ -546,6 +546,7 @@ export const ar: Messages = {
     noResultsTitle: "لا يوجد أطباء",
     noResultsBody: "جرّب تعديل البحث أو عوامل التصفية.",
     loadError: "تعذّر تحميل الأطباء.",
+    loadMore: "تحميل المزيد",
   },
   filters: {
     title: "عوامل التصفية",

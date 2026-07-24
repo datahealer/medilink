@@ -547,6 +547,7 @@ export const en = {
     noResultsTitle: "No doctors found",
     noResultsBody: "Try adjusting your search or filters.",
     loadError: "Couldn't load doctors.",
+    loadMore: "Load more",
   },
   filters: {
     title: "Filters",

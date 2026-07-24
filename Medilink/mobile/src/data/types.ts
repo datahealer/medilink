@@ -337,6 +337,8 @@ export interface DoctorSearchParams {
   minRating?: number;
   availableToday?: boolean;
   topRated?: boolean;
+  /** Max rows to fetch from the top of the ranked list (pagination — QA #13). */
+  limit?: number;
 }
 
 // ---- reviews (PDF p20) ------------------------------------------------------
