@@ -34,6 +34,35 @@ export async function listFacilities(db: DB, opts: FacilityList = {}) {
   return data ?? [];
 }
 
+export interface FacilitySearch {
+  /** Case-insensitive substring match on the facility name. */
+  term: string;
+  limit?: number;
+}
+
+/**
+ * Active + verified facilities (with ≥1 doctor) whose name matches `term`
+ * case-insensitively (QA #14). RLS-safe client query — no new RPC needed.
+ */
+export async function searchFacilities(db: DB, opts: FacilitySearch) {
+  const term = opts.term.trim();
+  let query = db
+    .from("facilities")
+    .select(LIST_SELECT)
+    .eq("status", "active")
+    .eq("is_verified", true)
+    .order("rating", { ascending: false, nullsFirst: false });
+
+  if (term) query = query.ilike("name", `%${term}%`);
+
+  const limit = opts.limit ?? 20;
+  query = query.range(0, limit - 1);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getFacility(db: DB, id: string) {
   const { data, error } = await db
     .from("facilities")

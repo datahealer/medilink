@@ -68,6 +68,11 @@ function toMessageKey(err: unknown): MessageKey {
   if (msg.includes("network") || msg.includes("failed to fetch")) return "errors.network";
   if (status === 429 || msg.includes("too many") || msg.includes("rate limit")) return "errors.otpTooMany";
   if (msg.includes("already registered") || msg.includes("already been registered")) return "errors.emailInUse";
+  // Supabase GoTrue returns 422 "New password should be different from the old password."
+  // when a reset re-uses the current password (QA #5) — surface a clear message, not the
+  // generic "unknown" fallthrough below.
+  if (msg.includes("should be different") || msg.includes("same password") || msg.includes("same as the old"))
+    return "errors.samePassword";
   // Supabase returns "Token has expired or is invalid" for a bad/expired email OTP.
   if (msg.includes("expired")) return "errors.otpExpired";
   if (msg.includes("token") || msg.includes("otp")) return "errors.otpInvalid";

@@ -6,6 +6,7 @@ import {
   AppHeader,
   Button,
   Chip,
+  DateField,
   ErrorState,
   LoadingState,
   Screen,
@@ -16,6 +17,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
+import { isValidDob } from "@/utils/validation";
 import {
   useFamily,
   useRemoveFamilyMember,
@@ -85,10 +87,17 @@ export default function EditFamilyMemberScreen() {
     );
   }
 
+  // DOB is optional here; validate only when provided (QA #1).
+  const dobError = dob.trim() && !isValidDob(dob) ? t("validation.dob") : undefined;
+
   const onSave = () => {
     setError(null);
     if (fullName.trim().length < 2) {
       setError(t("validation.nameMin"));
+      return;
+    }
+    if (dobError) {
+      setError(dobError);
       return;
     }
     update.mutate(
@@ -130,7 +139,7 @@ export default function EditFamilyMemberScreen() {
       contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}
       footer={
         <View style={{ gap: spacing.sm }}>
-          <Button label={t("common.saveChanges")} loading={update.isPending} onPress={onSave} />
+          <Button label={t("common.saveChanges")} loading={update.isPending} disabled={!!dobError} onPress={onSave} />
           <Button label={t("common.remove")} variant="destructive" loading={remove.isPending} onPress={onRemove} />
         </View>
       }
@@ -151,12 +160,13 @@ export default function EditFamilyMemberScreen() {
         ))}
       </View>
 
-      <TextField
+      {/* Date of birth — optional; native picker capped at today (QA #1) */}
+      <DateField
         label={t("family.dob")}
         value={dob}
-        onChangeText={setDob}
+        onChange={setDob}
         placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
+        error={dobError}
         containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
 

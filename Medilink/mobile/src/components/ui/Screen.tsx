@@ -89,7 +89,11 @@ export function Screen({
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.select({ ios: "padding", android: undefined })}
+        // iOS: padding (works). Android was `undefined` → the KAV did nothing and the
+        // keyboard overlapped footer controls (QA #17); "height" activates avoidance
+        // there. (For SDK 54 edge-to-edge Android, a fuller fix is react-native-keyboard-
+        // controller — a native dep + rebuild, deferred as a native/deploy item.)
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {inner}
         {footer ? <View style={[styles.footer, padStyle]}>{footer}</View> : null}

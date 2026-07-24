@@ -22,7 +22,12 @@ export async function searchDoctors(db: DB, q: DoctorSearch = {}) {
 
   if (q.facilityId) query = query.eq("facility_id", q.facilityId);
   if (q.branchId) query = query.eq("branch_id", q.branchId);
-  if (q.specialty) query = query.eq("specialty", q.specialty);
+  // `doctors.specialty` is uncurated freetext, so an exact case-sensitive `.eq`
+  // silently returns nothing when the stored value differs only by case/whitespace
+  // from the catalog label the UI sends (QA #8). Match case-insensitively on the
+  // trimmed value (no `%` wildcards → still a whole-string match, so "Surgery" does
+  // not over-match "Neurosurgery"). Proper fix = a `specialty_id` FK (backend, tracked).
+  if (q.specialty) query = query.ilike("specialty", q.specialty.trim());
   if (q.term) query = query.ilike("full_name", `%${q.term}%`);
 
   const limit = q.limit ?? 20;

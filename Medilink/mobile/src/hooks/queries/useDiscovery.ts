@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
 
@@ -13,6 +13,8 @@ export const discoveryKeys = {
   featuredClinics: ["discovery", "featured-clinics"] as const,
   nearbyClinics: (lat: number, lng: number, radiusM: number) =>
     ["discovery", "nearby-clinics", lat, lng, radiusM] as const,
+  searchClinics: (term: string) => ["discovery", "search-clinics", term] as const,
+  clinic: (id: string) => ["discovery", "clinic", id] as const,
 };
 
 export function useSpecialties() {
@@ -34,6 +36,25 @@ export function useFeaturedClinics() {
   return useQuery({
     queryKey: discoveryKeys.featuredClinics,
     queryFn: () => repositories.discovery.featuredClinics(),
+  });
+}
+
+/** Verified clinics whose name matches `term` (clinic search — QA #14). */
+export function useSearchClinics(term: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: discoveryKeys.searchClinics(term),
+    queryFn: () => repositories.discovery.searchClinics(term),
+    enabled: options?.enabled ?? true,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** A single clinic for the Clinic Detail screen (QA #14). */
+export function useClinic(id: string) {
+  return useQuery({
+    queryKey: discoveryKeys.clinic(id),
+    queryFn: () => repositories.discovery.getClinic(id),
+    enabled: !!id,
   });
 }
 
