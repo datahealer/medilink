@@ -767,6 +767,8 @@ export const ar: Messages = {
     loadError: "تعذّر تحميل التوصيات.",
     needSymptomsTitle: "لا توجد أعراض بعد",
     needSymptomsBody: "صف أعراضك في مساعد مي لعرض الأطباء الموصى بهم.",
+    noMatchesTitle: "لم يتم العثور على أطباء مطابقين",
+    noMatchesBody: "تعذّر العثور على أطباء لهذه الأعراض حالياً. حاول إعادة صياغتها أو تعديلها.",
   },
   aiInsights: {
     // AI Insights & Risk (design p27)

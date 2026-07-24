@@ -84,7 +84,9 @@ export default function AiRecommendationsScreen() {
           </Text>
 
           {doctors.length === 0 ? (
-            <EmptyState title={t("aiRecommend.needSymptomsTitle")} body={t("aiRecommend.loadError")} />
+            // Symptoms WERE provided (we're past the `!entered` branch) but the AI
+            // returned no doctors — this is "no matches", not "no symptoms" (QA #18).
+            <EmptyState title={t("aiRecommend.noMatchesTitle")} body={t("aiRecommend.noMatchesBody")} />
           ) : (
             doctors.map((m) => {
               const isOpen = openWhy === m.id;

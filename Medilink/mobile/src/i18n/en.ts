@@ -768,6 +768,8 @@ export const en = {
     loadError: "Couldn't load recommendations.",
     needSymptomsTitle: "No symptoms yet",
     needSymptomsBody: "Describe your symptoms in the Me Assistant to see recommended doctors.",
+    noMatchesTitle: "No matching doctors found",
+    noMatchesBody: "We couldn't find doctors for those symptoms right now. Try rephrasing or adjusting them.",
   },
   aiInsights: {
     // AI Insights & Risk (design p27)
