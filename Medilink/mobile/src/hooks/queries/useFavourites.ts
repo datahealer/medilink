@@ -38,6 +38,10 @@ export function useToggleFavourite() {
     onSuccess: (next, target) => {
       qc.setQueryData(favouriteKeys.is(target.targetType, target.targetId), next);
       qc.invalidateQueries({ queryKey: ["favourites", "list"] });
+      // Keep the search "Favourites" tab in sync when a doctor is (un)favourited (QA follow-up).
+      if (target.targetType === "doctor") {
+        qc.invalidateQueries({ queryKey: ["doctors", "favourites"] });
+      }
     },
   });
 }
