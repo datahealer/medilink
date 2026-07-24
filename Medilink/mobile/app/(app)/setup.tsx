@@ -16,6 +16,8 @@ const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOthe
   { value: "other", key: "genderOther" },
 ];
 
+const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
 const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -122,15 +124,20 @@ export default function SetupScreen() {
         ))}
       </View>
 
-      <TextField
-        label={t("profile.bloodGroup")}
-        value={bloodGroup ?? ""}
-        onChangeText={(v) => setBloodGroup((v.trim() || undefined) as BloodGroup | undefined)}
-        placeholder="O+"
-        autoCapitalize="characters"
-        maxLength={3}
-        containerStyle={{ marginBottom: spacing.md }}
-      />
+      {/* Blood group — enum chips (no free-text; prevents invalid values like "XY") — QA #2 */}
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+        {t("profile.bloodGroup").toUpperCase()}
+      </Text>
+      <View style={[styles.chips, { marginBottom: spacing.md, flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        {BLOOD_GROUPS.map((bg) => (
+          <Chip
+            key={bg}
+            label={bg}
+            selected={bloodGroup === bg}
+            onPress={() => setBloodGroup(bloodGroup === bg ? undefined : bg)}
+          />
+        ))}
+      </View>
 
       {/* Civil number — optional; identical rules to Edit Profile */}
       <TextField
