@@ -30,6 +30,7 @@ import {
 } from "@/hooks/queries/usePatient";
 import {
   CIVIL_NUMBER_LENGTH,
+  extractOmanLocalPhone,
   isValidCivilNumber,
   isValidDob,
   isValidName,
@@ -66,7 +67,8 @@ export default function EditProfileScreen() {
     patient?.blood_group && patient.blood_group !== "unknown" ? patient.blood_group : undefined
   );
   const [address, setAddress] = useState(patient?.address ?? "");
-  const [emergency, setEmergency] = useState(patient?.emergency_contact ?? "");
+  // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
+  const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const nameError = isValidName(fullName) ? undefined : t("validation.nameMin");

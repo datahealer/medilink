@@ -8,7 +8,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useProfile, useUpdateProfile } from "@/hooks/queries/usePatient";
-import { CIVIL_NUMBER_LENGTH, isValidCivilNumber, isValidOmanPhone } from "@/utils/validation";
+import { CIVIL_NUMBER_LENGTH, extractOmanLocalPhone, isValidCivilNumber, isValidOmanPhone } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
@@ -46,7 +46,8 @@ export default function SetupScreen() {
     patient?.blood_group && patient.blood_group !== "unknown" ? patient.blood_group : undefined
   );
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
-  const [emergency, setEmergency] = useState(patient?.emergency_contact ?? "");
+  // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
+  const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
 
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const dobValid = DOB_RE.test(dob.trim());
