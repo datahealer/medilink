@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { AppHeader, Button, Chip, MeMark, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Button, Chip, DateField, MeMark, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
+import { isValidDob } from "@/utils/validation";
 import { useAddFamilyMember, useFamily } from "@/hooks/queries/useFamily";
 import type { FamilyRelation, Gender } from "@/data/types";
 
@@ -42,6 +43,8 @@ export default function AddFamilyMemberScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const atLimit = (family.data?.length ?? 0) >= MAX_MEMBERS;
+  // DOB is optional here; validate only when provided (QA #1).
+  const dobError = dob.trim() && !isValidDob(dob) ? t("validation.dob") : undefined;
 
   const onAdd = () => {
     setError(null);
@@ -51,6 +54,10 @@ export default function AddFamilyMemberScreen() {
     }
     if (!relation) {
       setError(t("validation.required"));
+      return;
+    }
+    if (dobError) {
+      setError(dobError);
       return;
     }
     add.mutate(
@@ -70,7 +77,7 @@ export default function AddFamilyMemberScreen() {
       scroll
       padded
       contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}
-      footer={<Button label={t("common.add")} loading={add.isPending} disabled={atLimit} onPress={onAdd} />}
+      footer={<Button label={t("common.add")} loading={add.isPending} disabled={atLimit || !!dobError} onPress={onAdd} />}
     >
       <AppHeader title={t("family.addTitle")} />
 
@@ -105,12 +112,13 @@ export default function AddFamilyMemberScreen() {
         ))}
       </View>
 
-      <TextField
+      {/* Date of birth — optional; native picker capped at today (QA #1) */}
+      <DateField
         label={t("family.dob")}
         value={dob}
-        onChangeText={setDob}
+        onChange={setDob}
         placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
+        error={dobError}
         containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
 

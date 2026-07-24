@@ -9,6 +9,7 @@ import {
   Avatar,
   Button,
   Chip,
+  DateField,
   ErrorState,
   Icon,
   LoadingState,
@@ -212,13 +213,12 @@ export default function EditProfileScreen() {
         ))}
       </View>
 
-      {/* Date of birth (validated free-text: YYYY-MM-DD, not in the future) */}
-      <TextField
+      {/* Date of birth — native picker, capped at today (QA #1); stored as YYYY-MM-DD */}
+      <DateField
         label={t("profile.dob")}
         value={dob}
-        onChangeText={setDob}
+        onChange={setDob}
         placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
         error={dobError}
         containerStyle={{ marginBottom: spacing.md }}
       />

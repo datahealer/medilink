@@ -3,7 +3,7 @@ import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { BloodGroup, Gender } from "@/data/types";
 
-import { AppHeader, Button, Chip, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Button, Chip, DateField, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -100,12 +100,12 @@ export default function SetupScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <TextField
+      {/* Date of birth — native picker, capped at today (QA #1); stored as YYYY-MM-DD */}
+      <DateField
         label={t("profile.dob")}
         value={dob}
-        onChangeText={setDob}
+        onChange={setDob}
         placeholder={t("profile.dobPlaceholder")}
-        autoCapitalize="none"
         error={dob.trim() && !dobValid ? t("validation.required") : undefined}
         containerStyle={{ marginBottom: spacing.md }}
       />

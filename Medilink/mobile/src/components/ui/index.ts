@@ -30,6 +30,7 @@ export { SummaryCard } from "./SummaryCard";
 export type { SummaryRow } from "./SummaryCard";
 export { FamilyMemberCard } from "./FamilyMemberCard";
 export { TextField } from "./TextField";
+export { DateField } from "./DateField";
 export { PasswordField } from "./PasswordField";
 export { PhoneField } from "./PhoneField";
 export { Screen } from "./Screen";
