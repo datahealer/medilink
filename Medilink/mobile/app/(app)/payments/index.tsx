@@ -1,12 +1,15 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Card, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { usePayments } from "@/hooks/queries/usePatient";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { Payment } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
 import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
@@ -18,12 +21,13 @@ export default function PaymentsScreen() {
   const { t, num } = useI18n();
 
   const query = usePayments();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const payments = query.data ?? [];
   const money = (n: number | null | undefined) => `OMR ${num((n ?? 0).toFixed(3))}`;
 
   const subtitle = (p: Payment) => {
     const a = p.appointment;
-    return [a?.doctor?.specialty, formatApptDate(a?.slot_date?.slice(0, 10), t, num) || a?.slot_date]
+    return [specialtyLabel(a?.doctor?.specialty, a?.doctor?.specialty ?? "", t), formatApptDate(a?.slot_date?.slice(0, 10), t, num) || a?.slot_date]
       .filter(Boolean)
       .join(" · ");
   };
@@ -33,6 +37,7 @@ export default function PaymentsScreen() {
       scroll
       padded
       edges={["top", "left", "right", "bottom"]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
     >
       <AppHeader title={t("payments.title")} showBack />
@@ -52,13 +57,13 @@ export default function PaymentsScreen() {
               <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                 <View style={styles.flex}>
                   <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>
-                    {p.appointment?.doctor?.full_name || "—"}
+                    {localizedName(p.appointment?.doctor?.full_name || "—", p.appointment?.doctor?.full_name_ar, p.appointment?.doctor?.full_name_ar_status, isRTL)}
                   </Text>
                   <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
                     {subtitle(p)}
                   </Text>
                 </View>
-                <View style={[styles.right, isRTL ? { alignItems: "flex-start" } : { alignItems: "flex-end" }]}>
+                <View style={isRTL ? { alignItems: "flex-start", marginEnd: 12 } : { alignItems: "flex-end", marginStart: 12 }}>
                   <Text variant="title">{money(p.amount)}</Text>
                   <View style={[styles.pill, { backgroundColor: tone.bg, marginTop: 4 }]}>
                     <Text variant="caption" weight="700" style={{ color: tone.fg }}>{payStatusLabel(p.status, t)}</Text>
@@ -76,6 +81,5 @@ export default function PaymentsScreen() {
 const styles = StyleSheet.create({
   row: { alignItems: "center", justifyContent: "space-between" },
   flex: { flex: 1 },
-  right: { marginStart: 12 },
   pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
 });

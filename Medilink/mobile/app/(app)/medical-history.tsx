@@ -39,7 +39,7 @@ function TagEditor({
   onChange: (next: string[]) => void;
   placeholder: string;
 }) {
-  const { spacing, colors, radii } = useTheme();
+  const { spacing, colors, radii, isRTL } = useTheme();
   const [draft, setDraft] = useState("");
 
   const add = () => {
@@ -73,7 +73,7 @@ function TagEditor({
         }
       />
       {items.length ? (
-        <View style={styles.chips}>
+        <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {items.map((it) => (
             <Chip key={it} label={it} onRemove={() => onChange(items.filter((x) => x !== it))} />
           ))}
@@ -84,7 +84,7 @@ function TagEditor({
 }
 
 export default function MedicalHistoryScreen() {
-  const { spacing } = useTheme();
+  const { spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
 
@@ -159,7 +159,7 @@ export default function MedicalHistoryScreen() {
       <TagEditor label={t("medical.surgeries")} items={surgeries} onChange={setSurgeries} placeholder={t("medical.addPlaceholder")} />
 
       <Text variant="label" color="textMuted" style={{ marginTop: spacing.xs, marginBottom: 8 }}>{t("medical.smoking")}</Text>
-      <View style={styles.chips}>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {SMOKING.map((s) => (
           <Chip key={s.value} label={t(`medical.${s.key}`)} selected={smoking === s.value} onPress={() => setSmoking(s.value)} />
         ))}

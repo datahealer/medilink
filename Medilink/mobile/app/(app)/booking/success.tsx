@@ -7,10 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useBookingStore } from "@/stores/bookingStore";
-
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
+import { consultationTotal } from "@medilink/shared/mobile";
 
 /** Booking step (success) — Appointment Success (PDF p21). */
 export default function BookingSuccessScreen() {
@@ -26,7 +23,7 @@ export default function BookingSuccessScreen() {
   const patientName = useBookingStore((s) => s.patientName);
   const fee = useBookingStore((s) => s.fee);
 
-  const total = confirmed?.total ?? round3(fee * 1.05);
+  const total = confirmed?.total ?? consultationTotal(fee).total;
   const bookingId = confirmed?.id ?? "—";
   const when = `${dateLabel}${slot ? ` · ${slot}` : ""}`;
 

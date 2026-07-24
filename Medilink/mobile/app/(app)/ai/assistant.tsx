@@ -7,54 +7,25 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 
-type BubbleProps = { text: string; from: "assistant" | "user" };
-
-/** AI Symptom Checker chat (design p26) — static transcript with mock bubbles. */
+/**
+ * AI Symptom Checker (design p26). The patient describes their symptoms; on submit we
+ * carry the real text to the AI Recommendations screen, which calls the live
+ * POST /api/ai/suggest-doctor endpoint. (A full multi-turn chat is a future
+ * enhancement — this screen intentionally forwards the typed symptoms, never a
+ * scripted transcript.)
+ */
 export default function AiAssistantScreen() {
   const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t } = useI18n();
   const [draft, setDraft] = useState("");
 
-  const Bubble = ({ text, from }: BubbleProps) => {
-    const isAssistant = from === "assistant";
-    return (
-      <View
-        style={[
-          styles.bubbleRow,
-          {
-            flexDirection: isRTL ? "row-reverse" : "row",
-            justifyContent: isAssistant ? "flex-start" : "flex-end",
-            marginBottom: spacing.sm,
-          },
-        ]}
-      >
-        {isAssistant ? (
-          <View style={[styles.avatarDot, { backgroundColor: colors.primaryMuted, marginEnd: spacing.xs }]}>
-            <MeMark height={16} color={colors.primary} />
-          </View>
-        ) : null}
-        <View
-          style={[
-            styles.bubble,
-            {
-              backgroundColor: isAssistant ? colors.surfaceAlt : colors.primary,
-              borderRadius: radii.lg,
-              borderStartStartRadius: isAssistant ? radii.sm : radii.lg,
-              borderEndEndRadius: isAssistant ? radii.lg : radii.sm,
-            },
-          ]}
-        >
-          <Text
-            variant="body"
-            color={isAssistant ? "text" : "textOnPrimary"}
-            align={isRTL ? "right" : "left"}
-          >
-            {text}
-          </Text>
-        </View>
-      </View>
-    );
+  const trimmed = draft.trim();
+  const canSubmit = trimmed.length > 0;
+
+  const submit = () => {
+    if (!canSubmit) return;
+    router.push(`/ai/recommendations?symptoms=${encodeURIComponent(trimmed)}`);
   };
 
   return (
@@ -69,18 +40,23 @@ export default function AiAssistantScreen() {
             value={draft}
             onChangeText={setDraft}
             placeholder={t("aiAssistant.inputPlaceholder")}
+            onSubmitEditing={submit}
+            returnKeyType="search"
             trailing={
-              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => undefined}>
-                <Icon name="chevron" color="primary" />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("aiAssistant.seeRecommendations")}
+                accessibilityState={{ disabled: !canSubmit }}
+                hitSlop={8}
+                disabled={!canSubmit}
+                onPress={submit}
+                style={{ opacity: canSubmit ? 1 : 0.35 }}
+              >
+                <Icon name="chevron" color="primary" direction={isRTL ? "left" : "right"} />
               </Pressable>
             }
           />
-          <Button
-            label={t("aiAssistant.seeRecommendations")}
-            onPress={() =>
-              router.push(`/ai/recommendations?symptoms=${encodeURIComponent(t("aiAssistant.sampleUser"))}`)
-            }
-          />
+          <Button label={t("aiAssistant.seeRecommendations")} onPress={submit} disabled={!canSubmit} />
         </View>
       }
     >
@@ -90,21 +66,57 @@ export default function AiAssistantScreen() {
         right={<MeMark height={16} color={colors.primary} />}
       />
 
-      <Bubble from="assistant" text={t("aiAssistant.greeting", { name: "Aisha" })} />
-      <Bubble from="user" text={t("aiAssistant.sampleUser")} />
-      <Bubble from="assistant" text={t("aiAssistant.followUp")} />
-
+      {/* Assistant intro (static UI copy, not a scripted conversation). */}
       <View
         style={[
-          styles.chipRow,
-          { flexDirection: isRTL ? "row-reverse" : "row", marginTop: spacing.xs },
+          styles.bubbleRow,
+          { flexDirection: isRTL ? "row-reverse" : "row", marginBottom: spacing.md },
         ]}
       >
-        {[t("aiAssistant.quickYes"), t("aiAssistant.quickNo"), t("aiAssistant.quickSometimes")].map(
-          (label) => (
-            <Chip key={label} label={label} onPress={() => undefined} />
-          ),
-        )}
+        <View
+          style={[
+            styles.avatarDot,
+            { backgroundColor: colors.primaryMuted, ...(isRTL ? { marginStart: spacing.xs } : { marginEnd: spacing.xs }) },
+          ]}
+        >
+          <MeMark height={16} color={colors.primary} />
+        </View>
+        <View
+          style={[
+            styles.bubble,
+            {
+              backgroundColor: colors.surfaceAlt,
+              borderRadius: radii.lg,
+              borderStartStartRadius: radii.sm,
+            },
+          ]}
+        >
+          <Text variant="body" align={isRTL ? "right" : "left"}>
+            {t("aiAssistant.intro")}
+          </Text>
+        </View>
+      </View>
+
+      {/* Real example chips — tapping fills the input with the sample symptoms. */}
+      <View style={{ marginBottom: spacing.md }}>
+        <Text
+          variant="caption"
+          color="textMuted"
+          align={isRTL ? "right" : "left"}
+          style={{ marginBottom: spacing.sm }}
+        >
+          {t("aiAssistant.examplesLabel")}
+        </Text>
+        <View style={[styles.chipRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          {[
+            t("aiAssistant.example1"),
+            t("aiAssistant.example2"),
+            t("aiAssistant.example3"),
+            t("aiAssistant.example4"),
+          ].map((ex) => (
+            <Chip key={ex} label={ex} onPress={() => setDraft(ex)} />
+          ))}
+        </View>
       </View>
 
       <View
@@ -115,7 +127,6 @@ export default function AiAssistantScreen() {
             backgroundColor: colors.surfaceAlt,
             borderRadius: radii.md,
             padding: spacing.md,
-            marginTop: spacing.md,
           },
         ]}
       >
@@ -124,7 +135,7 @@ export default function AiAssistantScreen() {
           variant="caption"
           color="textMuted"
           align={isRTL ? "right" : "left"}
-          style={{ flex: 1, marginStart: spacing.sm }}
+          style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}
         >
           {t("aiAssistant.disclaimer")}
         </Text>

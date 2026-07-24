@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { AppCard, AppHeader, Avatar, Button, Card, EmptyState, ErrorState, LoadingState, MeMark, Screen, Text } from "@/components/ui";
+import { AppCard, AppHeader, Avatar, Button, Card, EmptyState, ErrorState, LoadingState, MeMark, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { useSuggestedDoctors } from "@/hooks/queries/useAi";
 import type { AiSuggestedDoctor } from "@/data/types";
 
@@ -19,9 +20,18 @@ export default function AiRecommendationsScreen() {
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
   const { symptoms: rawSymptoms } = useLocalSearchParams<{ symptoms?: string }>();
-  const symptoms = String(rawSymptoms ?? "");
+  const paramSymptoms = String(rawSymptoms ?? "").trim();
 
-  const query = useSuggestedDoctors(symptoms);
+  // Symptoms usually arrive from the Symptom Checker; when this screen is opened
+  // directly from the Me Hub (no param) the patient enters them inline here.
+  const [entered, setEntered] = useState(paramSymptoms);
+  const [draft, setDraft] = useState("");
+  const draftTrimmed = draft.trim();
+  const submitDraft = () => {
+    if (draftTrimmed) setEntered(draftTrimmed);
+  };
+
+  const query = useSuggestedDoctors(entered);
   const [openWhy, setOpenWhy] = useState<string | null>(null);
 
   const metaLine = (m: AiSuggestedDoctor) =>
@@ -43,8 +53,19 @@ export default function AiRecommendationsScreen() {
     >
       <AppHeader title={t("aiRecommend.title")} showBack right={<MeMark height={16} color={colors.primary} />} />
 
-      {!symptoms ? (
-        <EmptyState title={t("aiRecommend.needSymptomsTitle")} body={t("aiRecommend.needSymptomsBody")} />
+      {!entered ? (
+        <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+          <Text variant="title" align={isRTL ? "right" : "left"}>{t("aiRecommend.needSymptomsTitle")}</Text>
+          <Text variant="body" color="textMuted" align={isRTL ? "right" : "left"}>{t("aiRecommend.needSymptomsBody")}</Text>
+          <TextField
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t("aiAssistant.inputPlaceholder")}
+            onSubmitEditing={submitDraft}
+            returnKeyType="search"
+          />
+          <Button label={t("aiAssistant.seeRecommendations")} onPress={submitDraft} disabled={!draftTrimmed} />
+        </View>
       ) : query.isLoading ? (
         <LoadingState />
       ) : query.isError ? (
@@ -74,7 +95,7 @@ export default function AiRecommendationsScreen() {
                     <View style={[styles.flex, isRTL ? { marginEnd: spacing.md } : { marginStart: spacing.md }]}>
                       <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{m.full_name}</Text>
                       {m.specialty ? (
-                        <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{m.specialty}</Text>
+                        <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{specialtyLabel(m.specialty, m.specialty, t)}</Text>
                       ) : null}
                       {metaLine(m) ? (
                         <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"} style={{ marginTop: 2 }}>{metaLine(m)}</Text>

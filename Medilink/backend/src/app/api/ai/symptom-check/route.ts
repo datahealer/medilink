@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
+import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { createHash } from "crypto";
 
 // Vercel: this route makes a structured call plus a streamed (SSE) Groq completion;
 // raise the function timeout above the low default so streaming can complete.
@@ -13,6 +15,10 @@ let _groq: Groq | null = null;
 function groqClient(): Groq {
   if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   return _groq;
+}
+
+function hashSymptoms(symptoms: string) {
+  return createHash("sha256").update(symptoms.trim().toLowerCase()).digest("hex");
 }
 
 const STRUCTURED_SYSTEM = `You are a clinical triage assistant. Given the patient's described symptoms, respond ONLY with valid JSON:
@@ -67,6 +73,15 @@ Rules:
 
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate — every AI route requires a signed-in user (mirrors ai/suggest-doctor).
+    const supabase = await createApiSupabaseClient(req);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { symptoms, patient_age, patient_gender } = body as {
       symptoms: string;
@@ -76,6 +91,22 @@ export async function POST(req: NextRequest) {
 
     if (!symptoms || typeof symptoms !== "string" || !symptoms.trim()) {
       return NextResponse.json({ success: false, error: "Symptoms are required" }, { status: 400 });
+    }
+
+    // Rate limit — 5 symptom checks per user per hour (mirrors ai/suggest-doctor).
+    const serviceSupabase = createServiceSupabase();
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count } = await serviceSupabase
+      .from("ai_request_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("feature", "symptom_check")
+      .gte("created_at", oneHourAgo);
+    if ((count ?? 0) >= 5) {
+      return NextResponse.json(
+        { success: false, error: "Rate limit exceeded. You can make 5 AI requests per hour." },
+        { status: 429 }
+      );
     }
 
     const patientContext = [
@@ -121,14 +152,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 2: Log anonymized query (no user_id — per spec)
-    const supabase = createServiceSupabase();
-    await supabase.from("symptom_check_logs").insert({
+    // Step 2: Log the anonymized query (symptom_check_logs stays user-agnostic per spec)
+    // and record the request against the per-user rate-limit ledger. Only medical
+    // queries that reach this point count toward the hourly limit.
+    await serviceSupabase.from("symptom_check_logs").insert({
       symptoms: symptoms.substring(0, 500), // cap length
       urgency: meta.urgency_level,
       conditions: meta.conditions ?? [],
       patient_age: patient_age ?? null,
       patient_gender: patient_gender ?? null,
+    });
+    await serviceSupabase.from("ai_request_logs").insert({
+      user_id: user.id,
+      feature: "symptom_check",
+      prompt_hash: hashSymptoms(symptoms),
     });
 
     // Step 3: Streaming call for detailed explanation

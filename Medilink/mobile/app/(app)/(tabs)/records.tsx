@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppCard, AppHeader, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { useDocuments } from "@/hooks/queries/useRecords";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { DocumentType, PatientDoc } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
 
@@ -19,6 +20,7 @@ const CATEGORIES: { type: DocumentType; labelKey: MessageKey; icon: IconName; ro
   { type: "report", labelKey: "records.catLabReports", icon: "lab", route: "/records/labs" },
   { type: "imaging", labelKey: "records.catImaging", icon: "records", route: null },
   { type: "other", labelKey: "records.catVaccinations", icon: "security", route: null },
+  { type: "invoice", labelKey: "records.catInvoices", icon: "payment", route: null },
 ];
 
 function extLabel(fileType: string): string {
@@ -40,8 +42,10 @@ export default function RecordsScreen() {
   const rowDir = isRTL ? "row-reverse" : "row";
 
   const query = useDocuments();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const docs: PatientDoc[] = useMemo(() => query.data ?? [], [query.data]);
   const [filter, setFilter] = useState<DocumentType | null>(null);
+  const [q, setQ] = useState("");
 
   const countByType = useMemo(() => {
     const m: Record<string, number> = {};
@@ -49,7 +53,9 @@ export default function RecordsScreen() {
     return m;
   }, [docs]);
 
-  const listed = filter ? docs.filter((d) => d.type === filter) : docs;
+  const base = filter ? docs.filter((d) => d.type === filter) : docs;
+  const needle = q.trim().toLowerCase();
+  const listed = needle ? base.filter((d) => d.name.toLowerCase().includes(needle)) : base;
 
   const docMeta = (d: PatientDoc) =>
     [extLabel(d.file_type), sizeLabel(d.size_bytes, num), formatApptDate(d.uploaded_at?.slice(0, 10) ?? null, t, num)]
@@ -95,6 +101,7 @@ export default function RecordsScreen() {
       padded
       edges={["top", "left", "right"]}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
     >
       <AppHeader
         title={t("records.vaultTitle")}
@@ -111,7 +118,7 @@ export default function RecordsScreen() {
         }
       />
 
-      {/* Search field (decorative in this pass — matches design p28). */}
+      {/* Search field — filters the documents list by name (design p28). */}
       <View
         style={[
           styles.search,
@@ -119,9 +126,21 @@ export default function RecordsScreen() {
         ]}
       >
         <Icon name="search" size={20} color="textMuted" />
-        <Text variant="body" color="textMuted" style={isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }}>
-          {t("records.searchPlaceholder")}
-        </Text>
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          placeholder={t("records.searchPlaceholder")}
+          placeholderTextColor={colors.textMuted}
+          style={[
+            styles.searchInput,
+            { color: colors.text },
+            isRTL ? { marginEnd: spacing.sm, textAlign: "right" } : { marginStart: spacing.sm, textAlign: "left" },
+          ]}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel={t("records.searchPlaceholder")}
+        />
       </View>
 
       {/* 2-column category grid (live counts; tap to filter the list). */}
@@ -156,6 +175,7 @@ export default function RecordsScreen() {
 
 const styles = StyleSheet.create({
   search: { minHeight: 48, alignItems: "center", borderWidth: 1 },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
   grid: { flexWrap: "wrap", justifyContent: "space-between" },
   gridCard: { width: "48%", marginBottom: 16, alignItems: "flex-start" },
   tile: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },

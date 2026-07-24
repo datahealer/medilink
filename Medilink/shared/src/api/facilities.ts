@@ -2,10 +2,10 @@
 import type { DB } from "./client";
 
 const LIST_SELECT =
-  "id, name, type, address, services, rating, review_count, is_verified, cover_photo_url, phone, doctors!inner(id)";
+  "id, name, name_ar, name_ar_status, type, address, services, rating, review_count, is_verified, cover_photo_url, phone, doctors!inner(id)";
 
 const DETAIL_SELECT =
-  "id, name, type, custom_type, description, address, phone, email, website, logo_url, cover_photo_url, working_hours, services, accepted_insurances, rating, review_count, status, is_verified, location";
+  "id, name, name_ar, name_ar_status, type, custom_type, description, address, phone, email, website, logo_url, cover_photo_url, working_hours, services, accepted_insurances, rating, review_count, status, is_verified, location";
 
 export interface FacilityList {
   /** Filter to facilities offering this service (array contains). */

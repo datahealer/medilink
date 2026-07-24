@@ -51,10 +51,10 @@ serve(async (req) => {
         .from("in_app_notifications")
         .insert({
           user_id: patientProfile.user_id,
-          type: "waitlist_offer",
+          type: "info",
           title: "A slot is available for you",
           body: `A slot has opened up for ${entry.preferred_date}. You have 15 minutes to claim it.`,
-          data: { waitlist_id, offered_slot: entry.offered_slot },
+          data: { waitlist_id, offered_slot: entry.offered_slot, kind: "appointment" },
           is_read: false,
         });
 

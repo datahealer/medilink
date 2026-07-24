@@ -5,13 +5,15 @@
  * reads go directly to Supabase via the shared `@medilink/shared` `api.*` modules.
  * This is only the boundary the UI consumes.
  */
-import { api } from "@medilink/shared/mobile";
+import { api, feeForType } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/services/api";
 import { env } from "@/config/env";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
+import { classifyNotification } from "@/utils/notifications";
+import { mimeFromName } from "@/utils/mime";
 import type {
   AiRepository,
   AppointmentRepository,
@@ -42,7 +44,6 @@ import type {
   Gender,
   MedicalHistory,
   NotificationItem,
-  NotificationKind,
   NotificationPrefs,
   PatientDoc,
   PatientProfile,
@@ -69,12 +70,15 @@ function errText(e: unknown): string {
 const authRepo: AuthRepository = {
   signIn: (input) => authService.signIn(input),
   signUp: (input) => authService.signUp(input),
-  sendOtp: (phone) => authService.sendOtp(phone),
-  verifyOtp: (code, phone) => authService.verifyOtp(code, phone),
+  sendOtp: (email) => authService.sendOtp(email),
+  verifyOtp: (code, email) => authService.verifyOtp(code, email),
+  sendLoginOtp: (email) => authService.sendLoginOtp(email),
+  verifyLoginOtp: (code, email) => authService.verifyLoginOtp(code, email),
   requestPasswordReset: (id) => authService.requestPasswordReset(id),
   resetPassword: (pw) => authService.resetPassword(pw),
   googleSignIn: () => authService.googleSignIn(),
   signOut: () => authService.signOut(),
+  deleteAccount: () => authService.deleteAccount(),
   async restoreSession() {
     const session = await api.auth.getSession(supabase);
     return session?.user ? { id: session.user.id, email: session.user.email ?? null } : null;
@@ -91,7 +95,14 @@ const authRepo: AuthRepository = {
 function toDomainProfile(p: Awaited<ReturnType<typeof api.profile.getMyProfile>>): PatientProfile {
   return {
     account: p.account
-      ? { id: p.account.id, full_name: p.account.full_name ?? null, phone: p.account.phone ?? null, email: null }
+      ? {
+          id: p.account.id,
+          full_name: p.account.full_name ?? null,
+          full_name_ar: p.account.full_name_ar ?? null,
+          full_name_ar_status: p.account.full_name_ar_status ?? null,
+          phone: p.account.phone ?? null,
+          email: null,
+        }
       : null,
     patient: p.patient
       ? {
@@ -102,6 +113,7 @@ function toDomainProfile(p: Awaited<ReturnType<typeof api.profile.getMyProfile>>
           address: asText(p.patient.address) || null,
           emergency_contact: asText(p.patient.emergency_contact) || null,
           profile_photo_url: p.patient.profile_photo_url ?? null,
+          civil_number: p.patient.civil_number ?? null,
         }
       : null,
   };
@@ -220,21 +232,14 @@ interface ApptRow {
   payment_status: string | null;
   reason_for_visit: string | null;
   notes: string | null;
-  doctor: { full_name: string | null; specialty?: string | null; fees?: unknown } | null;
-  facility: { name: string | null; address?: string | null } | null;
+  doctor: { full_name: string | null; specialty?: string | null; fees?: unknown; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+  facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
   family_member: { full_name: string | null } | null;
   payments?: ApptPaymentRow[] | null;
 }
 
-/** Consultation fee for this appointment's type from the doctor's fees JSONB. */
-function feeForType(fees: unknown, type: string | null): number {
-  if (fees && typeof fees === "object") {
-    const f = fees as Record<string, unknown>;
-    const v = (type === "online" ? f.online : f.in_person) ?? f.in_person ?? f.online;
-    return typeof v === "number" ? v : Number(v) || 0;
-  }
-  return Number(fees) || 0;
-}
+// feeForType (consultation fee for an appointment type) is the shared helper
+// imported above — the single source of truth reused by the backend checkout (BP-4).
 
 function mapAppointment(r: ApptRow): Appointment {
   const pay = Array.isArray(r.payments) ? r.payments[0] : null;
@@ -251,8 +256,8 @@ function mapAppointment(r: ApptRow): Appointment {
     reason_for_visit: r.reason_for_visit ?? null,
     notes: r.notes ?? null,
     fee_omr: r.doctor ? feeForType(r.doctor.fees, r.type) : null,
-    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null, specialty: r.doctor.specialty ?? null } : null,
-    facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null } : null,
+    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null, specialty: r.doctor.specialty ?? null, full_name_ar: r.doctor.full_name_ar ?? null, full_name_ar_status: r.doctor.full_name_ar_status ?? null } : null,
+    facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null, name_ar: r.facility.name_ar ?? null, name_ar_status: r.facility.name_ar_status ?? null } : null,
     for_family_member: r.family_member ? { full_name: r.family_member.full_name ?? null } : null,
     payment: pay ? { amount: pay.amount ?? null, currency: pay.currency ?? null, status: pay.status ?? null } : null,
   };
@@ -286,8 +291,8 @@ interface PaymentRow {
     slot_date: string | null;
     slot_start: string | null;
     type: string | null;
-    doctor: { full_name: string | null; specialty?: string | null; fees?: unknown } | null;
-    facility: { name: string | null; address?: string | null } | null;
+    doctor: { full_name: string | null; specialty?: string | null; fees?: unknown; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+    facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
   } | null;
 }
 
@@ -308,8 +313,8 @@ function mapPayment(r: PaymentRow): Payment {
           reference_number: a.reference_number ?? null,
           slot_date: a.slot_date ?? null,
           slot_start: a.slot_start ?? null,
-          doctor: a.doctor ? { full_name: a.doctor.full_name ?? null, specialty: a.doctor.specialty ?? null } : null,
-          facility: a.facility ? { name: a.facility.name ?? null } : null,
+          doctor: a.doctor ? { full_name: a.doctor.full_name ?? null, specialty: a.doctor.specialty ?? null, full_name_ar: a.doctor.full_name_ar ?? null, full_name_ar_status: a.doctor.full_name_ar_status ?? null } : null,
+          facility: a.facility ? { name: a.facility.name ?? null, name_ar: a.facility.name_ar ?? null, name_ar_status: a.facility.name_ar_status ?? null } : null,
           fee_omr: a.doctor ? feeForType(a.doctor.fees, a.type) : null,
         }
       : null,
@@ -329,12 +334,14 @@ const paymentRepo: PaymentRepository = {
     const row = (await api.payments.getPaymentByAppointment(supabase, appointmentId)) as unknown as PaymentRow | null;
     return row ? mapPayment(row) : null;
   },
-  async createCheckout({ appointmentId, amount }) {
+  async createCheckout({ appointmentId }) {
     // Privileged op: the Thawani secret lives server-side, so this goes through the
-    // MediLink backend route (Bearer = the Supabase access token). Returns a hosted checkout URL.
+    // MediLink backend route (Bearer = the Supabase access token). Returns a hosted
+    // checkout URL. BP-4: the amount is derived server-side from the doctor's fee —
+    // the client no longer sends it (price-manipulation fix).
     const res = await apiFetch<{ checkoutUrl?: string }>("/api/payments/checkout", {
       method: "POST",
-      body: JSON.stringify({ appointment_id: appointmentId, amount }),
+      body: JSON.stringify({ appointment_id: appointmentId }),
     });
     return { checkoutUrl: res?.checkoutUrl ?? null };
   },
@@ -388,6 +395,7 @@ const appointmentRepo: AppointmentRepository = {
       slotStart: input.slotStart,
       type: input.type,
       forFamilyMemberId,
+      reason: input.reason ?? null,
     };
     if (__DEV__) console.warn("[booking] book_appointment_atomic payload", payload);
 
@@ -419,6 +427,22 @@ const appointmentRepo: AppointmentRepository = {
     // cancel_appointment_safe returns { success: false, error } on business failures.
     const r = (res ?? {}) as Record<string, unknown>;
     if (r.success === false) throw new Error(String(r.error ?? "CANCEL_FAILED"));
+  },
+  async releaseHold(id) {
+    // BP-3: void a still-pending, unpaid reservation (frees the slot). release_unpaid_hold
+    // returns { success: false, error } for anything it declines (e.g. already paid) —
+    // that is non-fatal here (the TTL sweeper is the backstop), so we don't throw.
+    let res: unknown;
+    try {
+      res = await api.appointments.releaseUnpaidHold(supabase, id);
+    } catch (e) {
+      if (__DEV__) console.warn("[booking] releaseUnpaidHold threw", e);
+      return;
+    }
+    if (__DEV__) {
+      const r = (res ?? {}) as Record<string, unknown>;
+      if (r.success === false) console.warn("[booking] releaseUnpaidHold declined", r.error);
+    }
   },
   async reschedule(id, slot) {
     let res: unknown;
@@ -458,6 +482,8 @@ const appointmentRepo: AppointmentRepository = {
 interface FacilityRowLoose {
   id: string;
   name: string | null;
+  name_ar?: string | null;
+  name_ar_status?: string | null;
   type: string | null;
   address: unknown;
   rating: number | null;
@@ -465,10 +491,37 @@ interface FacilityRowLoose {
   doctors?: { id: string }[] | null;
 }
 
+/** Loose shape of a row from api.facilities.nearbyFacilities (get_nearby_facilities RPC). */
+interface NearbyFacilityRow {
+  id: string;
+  name: string | null;
+  type: string | null;
+  address: unknown;
+  rating: number | null;
+  distance_km: number | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+function mapNearbyToClinic(f: NearbyFacilityRow): Clinic {
+  return {
+    id: f.id,
+    name: f.name ?? "",
+    area: asText(f.address) || "",
+    category: f.type ?? undefined,
+    rating: f.rating ?? 0,
+    distance_km: f.distance_km ?? undefined,
+    latitude: f.latitude ?? null,
+    longitude: f.longitude ?? null,
+  };
+}
+
 function mapFacilityToClinic(f: FacilityRowLoose): Clinic {
   return {
     id: f.id,
     name: f.name ?? "",
+    name_ar: f.name_ar ?? null,
+    name_ar_status: f.name_ar_status ?? null,
     area: asText(f.address) || "",
     category: f.type ?? undefined,
     doctors_count: Array.isArray(f.doctors) ? f.doctors.length : undefined,
@@ -510,6 +563,16 @@ const discoveryRepo: DiscoveryRepository = {
     const rows = (await api.facilities.listFacilities(supabase, { limit: 6 })) as unknown as FacilityRowLoose[];
     return rows.map(mapFacilityToClinic);
   },
+  async nearbyClinics(geo) {
+    // Reuses the existing get_nearby_facilities RPC (via shared api.facilities), which
+    // now also returns latitude/longitude for map pins. Drops any row without geo.
+    const rows = (await api.facilities.nearbyFacilities(supabase, {
+      lat: geo.lat,
+      lng: geo.lng,
+      radiusM: geo.radiusM ?? 50000,
+    })) as unknown as NearbyFacilityRow[];
+    return rows.map(mapNearbyToClinic).filter((c) => c.latitude != null && c.longitude != null);
+  },
 };
 
 // ---- doctors ----------------------------------------------------------------
@@ -522,6 +585,8 @@ const discoveryRepo: DiscoveryRepository = {
 interface DoctorRowLoose {
   id: string;
   full_name: string | null;
+  full_name_ar?: string | null;
+  full_name_ar_status?: string | null;
   specialty: string | null;
   years_experience: number | null;
   // doctors.fees is JSONB { in_person, online } (not a scalar).
@@ -531,7 +596,7 @@ interface DoctorRowLoose {
   facility_id: string | null;
   branch_id: string | null;
   status: string | null;
-  facilities?: { name: string | null } | { name: string | null }[] | null;
+  facilities?: FacilityNameRef | FacilityNameRef[] | null;
   // detail-only (getDoctor selects doctors.*) — present best-effort:
   gender?: string | null;
   languages?: string[] | null;
@@ -541,9 +606,22 @@ interface DoctorRowLoose {
   reviews_count?: number | null;
 }
 
+/** Embedded facility name reference on a doctor row (obj or single-element array). */
+interface FacilityNameRef {
+  name: string | null;
+  name_ar?: string | null;
+  name_ar_status?: string | null;
+}
+
+/** Read a field off the embedded facility (tolerates object or single-element array). */
+function facilityField(f: DoctorRowLoose["facilities"], key: keyof FacilityNameRef): string | null {
+  if (!f) return null;
+  const row = Array.isArray(f) ? f[0] : f;
+  return (row?.[key] as string | null | undefined) ?? null;
+}
+
 function facilityName(f: DoctorRowLoose["facilities"]): string {
-  if (!f) return "";
-  return Array.isArray(f) ? f[0]?.name ?? "" : f.name ?? "";
+  return facilityField(f, "name") ?? "";
 }
 
 /** doctors.fees is JSONB `{ in_person, online }`; tolerate a scalar too. */
@@ -557,17 +635,29 @@ function feeOf(fees: unknown): number {
   return Number(fees) || 0;
 }
 
+/** Local-date YYYY-MM-DD for "today" (BP-1 availability; timezone handling is R5). */
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function mapDoctorRow(r: DoctorRowLoose): Doctor {
   return {
     id: r.id,
     full_name: r.full_name ?? "",
+    full_name_ar: r.full_name_ar ?? null,
+    full_name_ar_status: r.full_name_ar_status ?? null,
     specialty: r.specialty ?? "",
     facility: facilityName(r.facilities),
+    facility_ar: facilityField(r.facilities, "name_ar"),
+    facility_ar_status: facilityField(r.facilities, "name_ar_status"),
     facility_id: r.facility_id ?? undefined,
     rating: r.avg_rating ?? 0,
     fee_omr: feeOf(r.fees),
-    // `status === "available"` is the backend's live-now flag; null → unknown.
-    available_today: r.status == null ? undefined : r.status === "available",
+    // BP-1: availability is slot-based, set by the repository via
+    // `doctors_available_today` (not the runtime `doctors.status`). Left `undefined`
+    // here and populated by doctorRepo.search/get.
+    available_today: undefined,
     experience_years: r.years_experience ?? undefined,
   };
 }
@@ -579,9 +669,9 @@ function mapDoctorDetail(r: DoctorRowLoose): Doctor {
     languages: Array.isArray(r.languages) ? r.languages : undefined,
     about: asText(r.about ?? r.bio ?? null) || undefined,
     reviews: r.review_count ?? r.reviews_count ?? undefined,
-    // slots_today intentionally omitted: real availability comes from
-    // api.appointments.getAvailableSlots(doctorId, date) when the slots batch
-    // is wired. Until then the schedule screen falls back to DEFAULT_SLOTS.
+    // slots_today intentionally omitted: the schedule/reschedule screens read live
+    // availability from the backend `get_available_slots` RPC (via getSlots →
+    // api.appointments.getAvailableSlots) — the single source of truth (R3).
   };
 }
 
@@ -592,10 +682,25 @@ const doctorRepo: DoctorRepository = {
       term: params.query,
     })) as unknown as DoctorRowLoose[];
     let list = rows.map(mapDoctorRow);
+    // BP-1: slot-based "available today" — one set-based backend call, then flag.
+    // Best-effort ONLY: doctors_available_today reads public.appointments, which an
+    // anonymous (guest) session has no grant on, so the RPC can fail for guests. A
+    // failure here must NOT blank the whole doctor list (that was the guest "no data"
+    // bug) — we simply skip the availability badge/filter and still return the list.
+    let availabilityKnown = false;
+    try {
+      const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+      list = list.map((d) => ({ ...d, available_today: availableIds.has(d.id) }));
+      availabilityKnown = true;
+    } catch (e) {
+      if (__DEV__) console.warn("[discovery] doctors_available_today unavailable; showing list without the 'today' badge", e);
+    }
     // Filters the backend list query does not apply are honoured client-side.
     if (params.maxFee != null) list = list.filter((d) => d.fee_omr <= params.maxFee!);
     if (params.minRating != null) list = list.filter((d) => d.rating >= params.minRating!);
-    if (params.availableToday) list = list.filter((d) => d.available_today);
+    // Only apply the "available today" filter when availability actually resolved —
+    // otherwise an unavailable RPC would filter every doctor out.
+    if (params.availableToday && availabilityKnown) list = list.filter((d) => d.available_today);
     // `gender` has no column in the list select, so it cannot be filtered here;
     // `topRated` is already satisfied by the backend's avg_rating ordering.
     return list;
@@ -603,7 +708,17 @@ const doctorRepo: DoctorRepository = {
   async get(id) {
     const { doctor } = await api.doctors.getDoctor(supabase, id);
     if (!doctor) return null;
-    return mapDoctorDetail(doctor as unknown as DoctorRowLoose);
+    const detail = mapDoctorDetail(doctor as unknown as DoctorRowLoose);
+    // BP-1: slot-based availability for the detail "available today" pill. Best-effort
+    // (see search): a guest session may not execute the RPC, so a failure just leaves
+    // the pill off rather than failing the whole doctor profile.
+    try {
+      const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+      return { ...detail, available_today: availableIds.has(id) };
+    } catch (e) {
+      if (__DEV__) console.warn("[discovery] doctors_available_today unavailable for doctor detail", e);
+      return detail;
+    }
   },
   async reviews(id) {
     // Reuses the shared public-review read (query + distribution live in
@@ -641,17 +756,7 @@ interface NotificationRowLoose {
   body: string | null;
   is_read: boolean | null;
   created_at: string | null;
-}
-
-/** Backend `type` strings are mapped onto the UI's notification kinds. */
-function mapNotificationKind(type: string | null): NotificationKind {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("appointment") || t.includes("reminder") || t.includes("booking") || t.includes("check")) return "appointment";
-  if (t.includes("payment") || t.includes("invoice") || t.includes("refund")) return "payment";
-  if (t.includes("lab") || t.includes("result")) return "lab";
-  if (t.includes("prescription") || t.includes("medication")) return "prescription";
-  if (t.includes("assistant") || t.includes("insight") || t.includes("ai")) return "assistant";
-  return "facility";
+  data: Record<string, unknown> | null;
 }
 
 /** Compact relative label (e.g. "3h", "2d") matching the design. */
@@ -677,14 +782,16 @@ function isToday(iso: string | null): boolean {
 }
 
 function mapNotification(r: NotificationRowLoose): NotificationItem {
+  const appointmentId = typeof r.data?.appointment_id === "string" ? r.data.appointment_id : null;
   return {
     id: r.id,
-    kind: mapNotificationKind(r.type),
+    kind: classifyNotification(r.type, r.data),
     title: r.title ?? "",
     body: r.body ?? "",
     time: relativeTime(r.created_at),
     group: isToday(r.created_at) ? "today" : "earlier",
     unread: !r.is_read,
+    appointmentId,
   };
 }
 
@@ -830,16 +937,20 @@ const documentRepo: DocumentRepository = {
         .replace(/[^a-z0-9]/g, "") || "jpg";
     const path = `${auth.user.id}/${Date.now()}.${ext}`;
     const body = await fetch(input.asset.uri).then((r) => r.arrayBuffer());
-    const contentType = input.asset.mimeType ?? "image/jpeg";
+    const contentType = input.asset.mimeType ?? mimeFromName(input.asset.name);
     const { error: upErr } = await supabase.storage
       .from("patient-docs")
       .upload(path, body, { contentType, upsert: false });
     if (upErr) throw upErr;
     const row = (await api.records.addDocument(supabase, {
       name: input.name,
-      type: input.type,
+      // 'invoice' is added by migration 20260721000001; the generated DB types won't
+      // include it until `npm run db:types` runs post-push, so bridge with a cast to the
+      // exact expected union (safe at runtime once the enum value exists).
+      type: input.type as Parameters<typeof api.records.addDocument>[1]["type"],
       file_url: path,
       file_type: contentType,
+      linked_appointment_id: input.linkedAppointmentId ?? null,
     })) as unknown as DocRowLoose;
     return mapDoc(row);
   },
@@ -859,7 +970,7 @@ interface RxRowLoose {
   instructions: string | null;
   pdf_url: string | null;
   issued_at: string | null;
-  doctors?: { full_name: string | null; specialty: string | null } | null;
+  doctors?: { full_name: string | null; specialty: string | null; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
   appointments?: { slot_date: string | null; type?: string | null } | null;
 }
 
@@ -881,7 +992,7 @@ function mapPrescription(r: RxRowLoose): Prescription {
     medications,
     instructions: r.instructions ?? null,
     pdf_url: r.pdf_url ?? null,
-    doctor: r.doctors ? { full_name: r.doctors.full_name ?? null, specialty: r.doctors.specialty ?? null } : null,
+    doctor: r.doctors ? { full_name: r.doctors.full_name ?? null, specialty: r.doctors.specialty ?? null, full_name_ar: r.doctors.full_name_ar ?? null, full_name_ar_status: r.doctors.full_name_ar_status ?? null } : null,
     appointment: r.appointments ? { slot_date: r.appointments.slot_date ?? null, type: r.appointments.type ?? null } : null,
   };
 }

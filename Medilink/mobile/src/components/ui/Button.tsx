@@ -42,7 +42,7 @@ export function Button({
   accessibilityLabel,
   style,
 }: ButtonProps) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, isRTL } = useTheme();
   const isDisabled = disabled || loading;
 
   const bg: Record<ButtonVariant, string> = {
@@ -85,8 +85,8 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variant === "primary" || variant === "destructive" ? colors.textOnPrimary : colors.primary} />
       ) : (
-        <View style={styles.content}>
-          {leading ? <View style={styles.leading}>{leading}</View> : null}
+        <View style={[styles.content, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          {leading ? <View style={isRTL ? { marginStart: 8 } : { marginEnd: 8 }}>{leading}</View> : null}
           <Text variant="title" color={fg[variant]} align="center">
             {label}
           </Text>
@@ -104,6 +104,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  content: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  leading: { marginEnd: 8 },
+  content: { alignItems: "center", justifyContent: "center" },
 });

@@ -21,7 +21,7 @@ export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneF
   { dialCode = "+968", ...rest },
   ref
 ) {
-  const { colors } = useTheme();
+  const { colors, isRTL } = useTheme();
   return (
     <TextField
       ref={ref}
@@ -30,7 +30,17 @@ export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneF
       textContentType="telephoneNumber"
       maxLength={8}
       leading={
-        <View style={[styles.prefix, { borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.prefix,
+            { borderColor: colors.border },
+            // The TextField flips its adornment side in RTL, so the prefix's separator
+            // border + spacing must move to the other edge (native layout stays LTR).
+            isRTL
+              ? { paddingStart: 10, marginStart: 6, borderStartWidth: StyleSheet.hairlineWidth * 2 }
+              : { paddingEnd: 10, marginEnd: 6, borderEndWidth: StyleSheet.hairlineWidth * 2 },
+          ]}
+        >
           {/* Latin digits, force LTR so "+968" never reverses in an Arabic UI. */}
           <Text variant="title" color="textMuted" style={{ writingDirection: "ltr" }}>
             {dialCode}
@@ -44,9 +54,6 @@ export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneF
 
 const styles = StyleSheet.create({
   prefix: {
-    paddingEnd: 10,
-    marginEnd: 6,
-    borderEndWidth: StyleSheet.hairlineWidth * 2,
     justifyContent: "center",
   },
 });

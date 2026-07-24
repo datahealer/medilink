@@ -8,6 +8,37 @@ type T = (key: MessageKey) => string;
 // Oman mobile numbers are 8 digits (the +968 country code is shown separately).
 const OMAN_PHONE = /^[0-9]{8}$/;
 
+// Oman civil number (national ID) — 8 digits. Optional field: empty is allowed;
+// a non-empty value must match. Length is centralised here (plan F2 assumes 8).
+export const CIVIL_NUMBER_LENGTH = 8;
+export const CIVIL_NUMBER_RE = /^[0-9]{8}$/;
+/** True when the value is empty (optional) OR a valid 8-digit civil number. */
+export const isValidCivilNumber = (value: string): boolean => {
+  const v = value.trim();
+  return v === "" || CIVIL_NUMBER_RE.test(v);
+};
+
+/** Full name: required, at least 2 characters (mirrors signUpSchema). */
+export const isValidName = (value: string): boolean => value.trim().length >= 2;
+
+/** Empty allowed (optional) OR a valid Oman 8-digit local number. */
+export const isValidOmanPhone = (value: string): boolean => {
+  const v = value.trim();
+  return v === "" || OMAN_PHONE.test(v);
+};
+
+/** Date of birth: empty allowed OR a real calendar date in YYYY-MM-DD, not in the future. */
+export const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
+export const isValidDob = (value: string): boolean => {
+  const v = value.trim();
+  if (v === "") return true;
+  if (!DOB_RE.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return false;
+  if (d.toISOString().slice(0, 10) !== v) return false; // rejects 2026-02-31 etc.
+  return d.getTime() <= Date.now();
+};
+
 const email = (t: T) =>
   z.string().min(1, t("validation.required")).email(t("validation.email"));
 

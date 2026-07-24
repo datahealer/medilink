@@ -6,10 +6,13 @@ import { AppCard, AppHeader, Button, EmptyState, ErrorState, Icon, LoadingState,
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { usePrescription, usePrescriptionShareLink, usePrescriptionPdfUrl } from "@/hooks/queries/usePrescriptions";
 import { useProfile } from "@/hooks/queries/usePatient";
 import type { PrescriptionMed } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
+import { shareRemoteFile } from "@/utils/shareFile";
 
 /**
  * Medication Details — verified e-Prescription (design p31). Real prescription data.
@@ -47,7 +50,12 @@ export default function MedicationDetailsScreen() {
     setBusy("share");
     try {
       const url = await pdf.mutateAsync(id);
-      await Share.share({ message: url, url });
+      // Share the actual PDF file (downloaded from the signed URL), not a link.
+      await shareRemoteFile(url, {
+        filename: "prescription.pdf",
+        mimeType: "application/pdf",
+        dialogTitle: t("prescriptions.share"),
+      });
     } catch {
       Alert.alert(t("prescriptions.pdfUnavailable"));
     } finally {
@@ -80,9 +88,11 @@ export default function MedicationDetailsScreen() {
     );
   }
 
-  const doctorName = rx.doctor?.full_name || "—";
-  const subline = [rx.doctor?.specialty, formatApptDate(rx.issued_at?.slice(0, 10) ?? null, t, num)].filter(Boolean).join(" · ");
-  const patientName = profile.data?.account?.full_name || t("appointments.you");
+  const doctorName = localizedName(rx.doctor?.full_name || "—", rx.doctor?.full_name_ar, rx.doctor?.full_name_ar_status, isRTL);
+  const subline = [specialtyLabel(rx.doctor?.specialty, rx.doctor?.specialty ?? "", t), formatApptDate(rx.issued_at?.slice(0, 10) ?? null, t, num)].filter(Boolean).join(" · ");
+  const patientName = profile.data?.account?.full_name
+    ? localizedName(profile.data.account.full_name, profile.data.account.full_name_ar, profile.data.account.full_name_ar_status, isRTL)
+    : t("appointments.you");
   const hasPdf = !!rx.pdf_url;
 
   const dosageLine = (m: PrescriptionMed) => [m.dosage, m.frequency].filter(Boolean).join(" · ");
@@ -103,7 +113,7 @@ export default function MedicationDetailsScreen() {
               onPress={onSharePdf}
               disabled={!hasPdf}
               loading={busy === "share"}
-              style={[styles.footerBtn, { marginEnd: spacing.sm }]}
+              style={[styles.footerBtn, isRTL ? { marginStart: spacing.sm } : { marginEnd: spacing.sm }]}
             />
             <Button
               label={t("prescriptions.sendToPharmacy")}
@@ -126,7 +136,7 @@ export default function MedicationDetailsScreen() {
           <MeMark height={18} color={colors.primary} />
           <View style={[styles.pill, { backgroundColor: colors.successSurface, borderRadius: radii.pill, flexDirection: rowDir }]}>
             <Icon name="done-circle" size={14} color="success" filled />
-            <Text variant="caption" color="success" style={{ marginStart: 4 }}>{t("prescriptions.verified")}</Text>
+            <Text variant="caption" color="success" style={isRTL ? { marginEnd: 4 } : { marginStart: 4 }}>{t("prescriptions.verified")}</Text>
           </View>
         </View>
 
@@ -150,13 +160,13 @@ export default function MedicationDetailsScreen() {
             {dosageLine(m) ? (
               <View style={[styles.kvRow, { flexDirection: rowDir, marginTop: spacing.sm }]}>
                 <Text variant="label" color="textMuted">{t("prescriptions.dosageLabel")}</Text>
-                <Text variant="body" align={isRTL ? "left" : "right"} style={styles.kvValue}>{dosageLine(m)}</Text>
+                <Text variant="body" align={isRTL ? "left" : "right"} style={[styles.kvValue, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>{dosageLine(m)}</Text>
               </View>
             ) : null}
             {m.duration ? (
               <View style={[styles.kvRow, { flexDirection: rowDir, marginTop: spacing.sm }]}>
                 <Text variant="label" color="textMuted">{t("prescriptions.durationLabel")}</Text>
-                <Text variant="body" align={isRTL ? "left" : "right"} style={styles.kvValue}>{num(m.duration)}</Text>
+                <Text variant="body" align={isRTL ? "left" : "right"} style={[styles.kvValue, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>{num(m.duration)}</Text>
               </View>
             ) : null}
             {m.notes ? (
@@ -186,7 +196,7 @@ const styles = StyleSheet.create({
   pill: { alignItems: "center", paddingHorizontal: 10, paddingVertical: 3 },
   divider: { height: StyleSheet.hairlineWidth },
   kvRow: { alignItems: "center", justifyContent: "space-between" },
-  kvValue: { flex: 1, marginStart: 12 },
+  kvValue: { flex: 1 },
   signature: { fontStyle: "italic", marginTop: 4 },
   footer: { alignItems: "center" },
   footerBtn: { flex: 1 },

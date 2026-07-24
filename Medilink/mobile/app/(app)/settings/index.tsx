@@ -6,8 +6,9 @@ import { Avatar, Button, Card, Icon, Screen, StaticTabBar, Text } from "@/compon
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useSignOut } from "@/hooks/queries/useAuth";
+import { useSignOut, useDeleteAccount } from "@/hooks/queries/useAuth";
 import { useProfile } from "@/hooks/queries/usePatient";
+import { localizedName } from "@/utils/localizedName";
 
 /**
  * Settings (PDF p34): account hub for preferences, privacy and data controls.
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
 
   const profile = useProfile();
   const signOut = useSignOut();
+  const deleteAccount = useDeleteAccount();
 
   const account = profile.data?.account;
 
@@ -36,6 +38,28 @@ export default function SettingsScreen() {
         text: t("settings.signOut"),
         style: "destructive",
         onPress: () => signOut.mutate(undefined, { onSettled: () => router.replace("/auth/sign-in") }),
+      },
+    ]);
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(t("settings.deleteConfirmTitle"), t("settings.deleteConfirmBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("settings.deleteConfirmCta"),
+        style: "destructive",
+        onPress: () =>
+          deleteAccount.mutate(undefined, {
+            onSuccess: (res) => {
+              if (res.ok) {
+                router.replace("/auth/sign-in");
+                Alert.alert(t("settings.deleteScheduled"));
+              } else {
+                Alert.alert(t(res.messageKey ?? "settings.deleteFailed"));
+              }
+            },
+            onError: () => Alert.alert(t("settings.deleteFailed")),
+          }),
       },
     ]);
   };
@@ -73,7 +97,7 @@ export default function SettingsScreen() {
         <View style={[styles.account, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Avatar name={account?.full_name} uri={profile.data?.patient?.profile_photo_url} size={48} />
           <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-            <Text variant="title" numberOfLines={1}>{account?.full_name ?? "—"}</Text>
+            <Text variant="title" numberOfLines={1}>{localizedName(account?.full_name ?? "—", account?.full_name_ar, account?.full_name_ar_status, isRTL)}</Text>
             <Text variant="caption" color="textMuted" numberOfLines={1}>
               {account?.email ?? "—"}
             </Text>
@@ -88,11 +112,6 @@ export default function SettingsScreen() {
       {row(t("settings.notifications"), null, () => router.push("/settings/notifications"))}
       {row(t("settings.medicalHistory"), null, () => router.push("/medical-history"))}
 
-      {/* Account & data */}
-      <Text variant="label" color="textMuted" style={styles.section}>{t("settings.accountData")}</Text>
-      {row(t("settings.privacy"), null, () => Alert.alert(t("settings.privacy"), t("settings.privacyComingSoon")))}
-      {row(t("settings.exportData"), null, () => Alert.alert(t("settings.exportData"), t("settings.exportComingSoon")))}
-
       {/* Sign out / delete */}
       <View style={[styles.actions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={{ flex: 1 }}>
@@ -102,7 +121,8 @@ export default function SettingsScreen() {
           <Button
             label={t("settings.deleteAccount")}
             variant="destructive"
-            onPress={() => Alert.alert(t("settings.deleteAccount"), t("settings.deleteComingSoon"))}
+            loading={deleteAccount.isPending}
+            onPress={onDeleteAccount}
           />
         </View>
       </View>

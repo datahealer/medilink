@@ -1,110 +1,134 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, View, type DimensionValue } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Alert, Linking, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import MapView, { Marker, PROVIDER_DEFAULT, type Region } from "react-native-maps";
 
-import { Avatar, Card, Icon, LoadingState, Screen, Text } from "@/components/ui";
+import { Avatar, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
-import { useDoctors } from "@/hooks/queries/useDoctors";
+import { localizedName } from "@/utils/localizedName";
+import { useNearbyClinics } from "@/hooks/queries/useDiscovery";
+import type { Clinic } from "@/data/types";
 
-// Fixed pin positions (no maps SDK installed — this is a branded static map surface;
-// a real map provider is wired when the discovery backend lands).
-const PIN_POS = [
-  { top: "18%", left: "22%" },
-  { top: "44%", left: "60%" },
-  { top: "66%", left: "32%" },
-] as const;
+// Default map centre — Muscat (MediLink is an Oman product; the RPC is a proximity
+// search, so we anchor to a sensible origin). Real device-location centring can be
+// layered on later with expo-location without changing this screen's data flow.
+const MUSCAT = { lat: 23.588, lng: 58.3829 };
+const DEFAULT_REGION: Region = {
+  latitude: MUSCAT.lat,
+  longitude: MUSCAT.lng,
+  latitudeDelta: 0.35,
+  longitudeDelta: 0.35,
+};
 
-type Box = { top: DimensionValue; left: DimensionValue; width: DimensionValue; height: DimensionValue };
-const MAP_BLOCKS: Box[] = [
-  { top: "8%", left: "6%", width: "34%", height: "26%" },
-  { top: "12%", left: "62%", width: "30%", height: "20%" },
-  { top: "54%", left: "10%", width: "26%", height: "30%" },
-  { top: "58%", left: "58%", width: "34%", height: "26%" },
-];
-
-/** Map View (PDF p19): nearby clinics with fee pins + a bottom doctor card. */
+/** Map View (PDF p19): real map with nearby-clinic markers + a bottom clinic card. */
 export default function MapViewScreen() {
-  const { colors, spacing, radii, isRTL } = useTheme();
+  const { colors, spacing, isRTL } = useTheme();
   const { t, num } = useI18n();
-  const doctors = useDoctors({});
-  const pins = (doctors.data ?? []).slice(0, 3);
-  const [selected, setSelected] = useState(0);
-  const active = pins[selected];
+  const query = useNearbyClinics({ lat: MUSCAT.lat, lng: MUSCAT.lng });
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const clinics = useMemo(() => {
+    const all = query.data ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (c) => c.name.toLowerCase().includes(q) || (c.area ?? "").toLowerCase().includes(q)
+    );
+  }, [query.data, search]);
+
+  const active: Clinic | undefined = clinics.find((c) => c.id === selectedId) ?? clinics[0];
+
+  const openDirections = (c: Clinic) => {
+    if (c.latitude == null || c.longitude == null) return;
+    const url = `https://www.google.com/maps/search/?api=1&query=${c.latitude},${c.longitude}`;
+    Linking.openURL(url).catch(() => Alert.alert(t("map.loadError")));
+  };
 
   return (
     <Screen scroll={false} padded={false} edges={["top", "left", "right", "bottom"]}>
       {/* Search header */}
-      <View style={[styles.header, { paddingHorizontal: spacing.lg }]}>
+      <View style={[styles.header, { paddingHorizontal: spacing.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")}>
           <Icon name="chevron" direction={isRTL ? "right" : "left"} size={26} tint={colors.text} strokeWidth={2.2} />
         </Pressable>
-        <View style={[styles.searchPill, { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radii.md, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Icon name="search" size={18} tint={colors.textMuted} />
-          <Text variant="body" color="textMuted" style={isRTL ? { marginEnd: 8 } : { marginStart: 8 }}>{t("map.title")}</Text>
+        <View style={styles.searchWrap}>
+          <TextField
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t("map.searchPlaceholder")}
+            returnKeyType="search"
+            leading={<Icon name="search" size={18} tint={colors.textMuted} />}
+          />
         </View>
       </View>
 
-      {/* Map surface — styled stand-in (no maps SDK): soft "blocks" + roads suggest a
-          city map, with price pins and a haloed user marker, matching PDF p19. */}
-      <View style={[styles.map, { backgroundColor: colors.surfaceAlt }]}>
-        {/* soft map blocks (parks/zones) */}
-        {MAP_BLOCKS.map((b, i) => (
-          <View key={`b${i}`} style={[styles.block, b, { backgroundColor: colors.surface, borderColor: colors.border }]} />
-        ))}
-        {/* faint roads */}
-        {[0.32, 0.66].map((p) => (
-          <View key={`h${p}`} style={[styles.gridLine, { top: `${p * 100}%`, left: 0, right: 0, height: 6, backgroundColor: colors.background, opacity: 0.7 }]} />
-        ))}
-        {[0.46].map((p) => (
-          <View key={`v${p}`} style={[styles.gridLine, { left: `${p * 100}%`, top: 0, bottom: 0, width: 6, backgroundColor: colors.background, opacity: 0.7 }]} />
-        ))}
+      {/* Real map surface */}
+      <View style={styles.map}>
+        <MapView
+          provider={PROVIDER_DEFAULT}
+          style={StyleSheet.absoluteFill}
+          initialRegion={DEFAULT_REGION}
+        >
+          {clinics.map((c) =>
+            c.latitude != null && c.longitude != null ? (
+              <Marker
+                key={c.id}
+                coordinate={{ latitude: c.latitude, longitude: c.longitude }}
+                title={localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}
+                description={c.area}
+                onPress={() => setSelectedId(c.id)}
+              />
+            ) : null
+          )}
+        </MapView>
 
-        {/* user location (pulse halo + dot) */}
-        <View style={styles.userWrap}>
-          <View style={[styles.userHalo, { backgroundColor: colors.info, opacity: 0.18 }]} />
-          <View style={[styles.userDot, { backgroundColor: colors.info, borderColor: colors.surface }]} />
-        </View>
-
-        {doctors.isLoading ? (
-          <View style={StyleSheet.absoluteFill}><LoadingState /></View>
-        ) : (
-          pins.map((d, i) => (
-            <Pressable
-              key={d.id}
-              onPress={() => setSelected(i)}
-              style={[
-                styles.pin,
-                PIN_POS[i],
-                { backgroundColor: i === selected ? colors.primary : colors.surface, borderColor: colors.primary, borderRadius: radii.pill },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`${d.full_name} OMR ${d.fee_omr}`}
-            >
-              <Text variant="caption" color={i === selected ? "textOnPrimary" : "primary"}>{num(`OMR ${d.fee_omr}`)}</Text>
-              {/* pointer tail */}
-              <View style={[styles.pinTail, { backgroundColor: i === selected ? colors.primary : colors.surface, borderColor: colors.primary }]} />
-            </Pressable>
-          ))
-        )}
+        {query.isLoading ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <LoadingState />
+          </View>
+        ) : query.isError ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <ErrorState message={t("map.loadError")} onRetry={() => query.refetch()} />
+          </View>
+        ) : clinics.length === 0 ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <EmptyState title={t("map.emptyTitle")} body={t("map.emptyBody")} />
+          </View>
+        ) : null}
       </View>
 
-      {/* Bottom doctor card */}
+      {/* Bottom clinic card */}
       {active ? (
-        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md }}>
-          <Card onPress={() => router.push(`/doctors/${active.id}`)}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md, paddingTop: spacing.sm }}>
+          <Card onPress={() => openDirections(active)}>
             <View style={[styles.cardRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <Avatar name={active.full_name} size={44} />
+              <Avatar name={active.name} size={44} />
               <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
-                <Text variant="title" numberOfLines={1}>{active.full_name}</Text>
+                <Text variant="title" numberOfLines={1}>
+                  {localizedName(active.name, active.name_ar, active.name_ar_status, isRTL)}
+                </Text>
                 <Text variant="caption" color="textMuted" numberOfLines={1}>
-                  {`${active.facility} · ${t("map.openNow")}`}
+                  {active.area}
                 </Text>
                 <Text variant="caption" color="textMuted">
-                  {num(`★ ${active.rating}   OMR ${active.fee_omr}${active.distance_km != null ? ` · ${active.distance_km} km` : ""}`)}
+                  {num(
+                    [
+                      `★ ${active.rating}`,
+                      active.distance_km != null ? `${active.distance_km} km` : null,
+                    ]
+                      .filter(Boolean)
+                      .join("   ·   ")
+                  )}
                 </Text>
               </View>
-              <Icon name="chevron" direction={isRTL ? "left" : "right"} size={20} tint={colors.textMuted} />
+              <View style={[styles.directions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <Icon name="map" size={16} tint={colors.primary} />
+                <Text variant="caption" color="primary" style={isRTL ? { marginEnd: 4 } : { marginStart: 4 }}>
+                  {t("map.directions")}
+                </Text>
+              </View>
             </View>
           </Card>
         </View>
@@ -114,15 +138,10 @@ export default function MapViewScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 8, paddingBottom: 12 },
-  searchPill: { flex: 1, alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, borderWidth: StyleSheet.hairlineWidth * 2, minHeight: 48 },
+  header: { alignItems: "center", gap: 12, paddingTop: 8, paddingBottom: 12 },
+  searchWrap: { flex: 1 },
   map: { flex: 1, overflow: "hidden" },
-  gridLine: { position: "absolute" },
-  block: { position: "absolute", borderRadius: 14, borderWidth: StyleSheet.hairlineWidth * 2, opacity: 0.7 },
-  userWrap: { position: "absolute", top: "50%", left: "48%", alignItems: "center", justifyContent: "center" },
-  userHalo: { position: "absolute", width: 44, height: 44, borderRadius: 22 },
-  userDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 3 },
-  pin: { position: "absolute", paddingHorizontal: 10, paddingVertical: 5, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: "center" },
-  pinTail: { position: "absolute", bottom: -4, width: 8, height: 8, transform: [{ rotate: "45deg" }], borderRightWidth: StyleSheet.hairlineWidth * 2, borderBottomWidth: StyleSheet.hairlineWidth * 2 },
+  overlay: { alignItems: "center", justifyContent: "center" },
   cardRow: { alignItems: "center" },
+  directions: { alignItems: "center" },
 });

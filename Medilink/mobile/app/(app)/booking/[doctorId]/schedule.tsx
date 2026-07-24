@@ -15,14 +15,17 @@ import {
   Text,
 } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
+import { localizedName } from "@/utils/localizedName";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { useDoctor, useMapClinics } from "@/hooks/queries/useDoctors";
+import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useAvailableSlots } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
+import { BOOKING_WINDOW_DAYS } from "@medilink/shared/mobile";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
-const DAY_COUNT = 5;
+// BP-2: render exactly the booking window (today + N-1). Single source of truth.
+const DAY_COUNT = BOOKING_WINDOW_DAYS;
 
 function initialsOf(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean);
@@ -39,7 +42,6 @@ export default function ScheduleScreen() {
   const id = String(doctorId ?? "");
 
   const doctor = useDoctor(id);
-  const clinics = useMapClinics();
   const start = useBookingStore((s) => s.start);
   const setSchedule = useBookingStore((s) => s.setSchedule);
 
@@ -61,7 +63,24 @@ export default function ScheduleScreen() {
     return { days: items, dateLabels: labels };
   }, [t, num]);
 
-  const clinicList = useMemo(() => clinics.data ?? [], [clinics.data]);
+  // The booking clinic is the doctor's OWN facility. Previously this list came from a
+  // hardcoded mock (`useMapClinics`) unrelated to the selected doctor, so the clinic
+  // shown never matched the facilityId actually booked. Sourcing it from the doctor makes
+  // the displayed clinic and the booked facility a single source of truth (fixes the
+  // "wrong clinic" bug). Kept as a (single-item) selectable list to preserve the UI and
+  // leave room for future per-branch selection.
+  const clinicList = useMemo(() => {
+    const d = doctor.data;
+    if (!d?.facility_id) return [];
+    return [
+      {
+        id: d.facility_id,
+        name: d.facility,
+        name_ar: d.facility_ar ?? null,
+        name_ar_status: d.facility_ar_status ?? null,
+      },
+    ];
+  }, [doctor.data]);
 
   const [clinicId, setClinicId] = useState<string | undefined>(undefined);
   const [dateId, setDateId] = useState<string>(days[0]?.id ?? "");
@@ -85,8 +104,17 @@ export default function ScheduleScreen() {
   useEffect(() => {
     const d = doctor.data;
     if (!d) return;
-    start({ doctorId: id, doctorName: d.full_name, specialty: d.specialty, facility: d.facility, initials: initialsOf(d.full_name), fee: d.fee_omr });
-  }, [doctor.data, id, start]);
+    // Capture the display name in the active locale (verified Arabic when RTL, else
+    // English — F1 §1a). Initials stay from the English name for stability.
+    start({
+      doctorId: id,
+      doctorName: localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL),
+      specialty: d.specialty,
+      facility: localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL),
+      initials: initialsOf(d.full_name),
+      fee: d.fee_omr,
+    });
+  }, [doctor.data, id, start, isRTL]);
 
   const canContinue = !!clinicId && !!dateId && !!slot;
 
@@ -94,13 +122,14 @@ export default function ScheduleScreen() {
     const clinic = clinicList.find((c) => c.id === clinicId);
     const picked = availableSlots.find((s) => s.label === slot);
     if (!clinic || !picked || !doctor.data) return;
-    const meta = `${num(`${clinic.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`;
+    const meta = t("booking.inPerson");
     setSchedule({
       clinicId: clinic.id,
-      clinicName: clinic.name,
+      clinicName: localizedName(clinic.name, clinic.name_ar, clinic.name_ar_status, isRTL),
       clinicMeta: meta,
-      // Real bookings target the doctor's facility; fall back to the clinic id (mock mode).
-      facilityId: doctor.data.facility_id || clinic.id,
+      // clinic.id IS the doctor's facility_id (the clinic list is derived from the doctor),
+      // so the displayed clinic and the booked facility are guaranteed consistent.
+      facilityId: clinic.id,
       dateId,
       dateLabel: dateLabels[dateId] ?? "",
       slot: picked.label,
@@ -148,8 +177,8 @@ export default function ScheduleScreen() {
             style={[styles.clinic, { borderRadius: radii.lg, backgroundColor: colors.surface, borderColor: sel ? colors.primary : colors.border, borderWidth: sel ? 2 : 1, flexDirection: isRTL ? "row-reverse" : "row" }]}
           >
             <View style={styles.flex}>
-              <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{c.name}</Text>
-              <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{`${num(`${c.distance_km ?? 0} km`)} · ${t("booking.inPerson")}`}</Text>
+              <Text variant="title" numberOfLines={1} align={isRTL ? "right" : "left"}>{localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}</Text>
+              <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{t("booking.inPerson")}</Text>
             </View>
             <View style={[styles.radio, { borderColor: sel ? colors.primary : colors.border }, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
               {sel ? <View style={[styles.radioDot, { backgroundColor: colors.primary }]} /> : null}

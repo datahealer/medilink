@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 
 import { repositories } from "@/data";
+import { getRememberSession } from "@/lib/authPersistence";
 import { useAuthStore } from "@/stores/authStore";
 
 /**
@@ -15,14 +16,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    repositories.auth
-      .restoreSession()
-      .then((user) => {
+    // This effect runs once per cold JS launch (not on warm background→foreground
+    // resumes, which don't remount). So it is the right place to honour "remember
+    // me": if the last sign-in opted out, drop the persisted session on launch.
+    (async () => {
+      try {
+        const remember = await getRememberSession();
+        if (!remember) {
+          await repositories.auth.signOut().catch(() => {});
+          if (active) setSession(null);
+          return;
+        }
+        const user = await repositories.auth.restoreSession();
         if (active) setSession(user);
-      })
-      .catch(() => {
+      } catch {
         if (active) setSession(null);
-      });
+      }
+    })();
 
     const unsubscribe = repositories.auth.subscribe((user) => {
       if (active) setSession(user);

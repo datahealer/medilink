@@ -60,7 +60,7 @@ serve(async (req) => {
           type: "info",
           title: "Lab Result Ready",
           body: `Your ${result.test_name} result has been uploaded and is ready to view.`,
-          data: { lab_result_id: result.id },
+          data: { lab_result_id: result.id, kind: "lab" },
         });
 
       if (pNotifErr) {

@@ -64,6 +64,42 @@ async function buildRecap(service: Service, appointmentId: string) {
 }
 
 /**
+ * Generate the invoice PDF for a paid payment if it doesn't already have one. Mirrors
+ * the webhook's invoice step so the return-from-checkout `verify` path is
+ * self-sufficient — the webhook may not have arrived yet, and cannot reach a local/LAN
+ * backend at all. Idempotent (skips when invoice_url is already set) and non-fatal: a
+ * failure here must never block payment confirmation; the invoice can still be filed
+ * later when the invoice detail screen is opened.
+ */
+async function ensureInvoice(service: Service, paymentId: string) {
+  const { data: p } = await service
+    .from("payments")
+    .select("invoice_url")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (p?.invoice_url) return;
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-invoice`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ payment_id: paymentId }),
+      }
+    );
+    if (!res.ok) {
+      const detail = await res.json().catch(() => null);
+      console.error("verify: invoice generation failed", detail);
+    }
+  } catch (err) {
+    console.error("verify: invoice generation error", err instanceof Error ? err.message : err);
+  }
+}
+
+/**
  * Verify a payment on return from Thawani's hosted checkout.
  *
  * The webhook is the production source of truth, but it cannot reach a local/LAN
@@ -102,6 +138,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!payment) return NextResponse.json({ status: "none", payment: null });
+
+    let paidNow = payment.status === "paid";
 
     // Gated on payment.status !== "paid" — if the webhook already finalized this
     // payment, this whole block (including the notification below) is skipped, so
@@ -142,8 +180,13 @@ export async function POST(req: NextRequest) {
         if (!notifResult.success) {
           console.error("❌ Patient payment notification failed:", notifResult.error);
         }
+        paidNow = true;
       }
     }
+
+    // Ensure the invoice exists once the payment is paid, so the app can auto-file it
+    // into the Document Vault on return (idempotent; safe if the webhook already made it).
+    if (paidNow) await ensureInvoice(service, payment.id);
 
     const recap = await buildRecap(service, appointment_id);
     return NextResponse.json({ status: recap?.status ?? payment.status ?? "pending", payment: recap });

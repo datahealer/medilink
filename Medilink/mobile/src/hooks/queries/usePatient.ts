@@ -11,10 +11,11 @@ export const patientKeys = {
 };
 
 /** Current user's profile: { account, patient } (domain model). */
-export function useProfile() {
+export function useProfile(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: patientKeys.profile,
     queryFn: () => repositories.patient.getProfile(),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -47,10 +48,11 @@ export function useUpsertMedicalHistory() {
 }
 
 /** Upcoming appointments for the dashboard "next visit" card (read-only). */
-export function useUpcomingAppointments() {
+export function useUpcomingAppointments(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: patientKeys.appointmentsUpcoming,
     queryFn: () => repositories.appointment.listUpcoming(),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -100,7 +102,21 @@ export function usePaymentByAppointment(appointmentId: string) {
 /** Create a Thawani hosted-checkout session for an appointment (returns the URL). */
 export function useCreateCheckout() {
   return useMutation({
-    mutationFn: (input: { appointmentId: string; amount: number }) => repositories.payment.createCheckout(input),
+    mutationFn: (input: { appointmentId: string }) => repositories.payment.createCheckout(input),
+  });
+}
+
+/**
+ * BP-3 — release a still-pending, unpaid reservation (payment cancel/abandon or a
+ * checkout-creation rollback). Frees the held slot; refreshes appointment + slot views.
+ */
+export function useReleaseHold() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appointmentId: string) => repositories.appointment.releaseHold(appointmentId),
+    onSuccess: () => {
+      invalidateAppointments(qc);
+    },
   });
 }
 

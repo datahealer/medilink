@@ -19,6 +19,7 @@ import { useI18n } from "@/i18n";
 import { useFamily } from "@/hooks/queries/useFamily";
 import { useProfile } from "@/hooks/queries/usePatient";
 import { usePatientStore } from "@/stores/patientStore";
+import { localizedName } from "@/utils/localizedName";
 
 export default function PatientSwitcherScreen() {
   const { spacing, colors, isRTL } = useTheme();
@@ -30,7 +31,9 @@ export default function PatientSwitcherScreen() {
   const activeId = usePatientStore((s) => s.activePatientId);
   const setActive = usePatientStore((s) => s.setActivePatient);
 
-  const youName = profile.data?.account?.full_name ?? t("switcher.you");
+  const youName = profile.data?.account?.full_name
+    ? localizedName(profile.data.account.full_name, profile.data.account.full_name_ar, profile.data.account.full_name_ar_status, isRTL)
+    : t("switcher.you");
   // Selection: null = the primary account holder ("You").
   const [selected, setSelected] = useState<string | null>(activeId);
 

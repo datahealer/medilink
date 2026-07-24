@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import { Pressable, StyleSheet, Switch, View } from "react-native";
 
 import { AppHeader, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
@@ -28,8 +28,9 @@ export default function AppearanceScreen() {
   const setLargerText = useThemeStore((s) => s.setLargerText);
 
   const onToggleRTL = (on: boolean) => {
-    const restart = changeLocale(on ? "ar" : "en");
-    if (restart) Alert.alert(t("common.restartTitle"), t("common.restartBody"));
+    // Runtime RTL: toggling EN ↔ AR flips the language and layout direction instantly
+    // via the `isRTL` context re-render — no restart, no native forceRTL.
+    changeLocale(on ? "ar" : "en");
   };
 
   // Mini mock surfaces for the theme tiles.

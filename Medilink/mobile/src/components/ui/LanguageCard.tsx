@@ -19,7 +19,7 @@ export interface LanguageCardProps {
 
 /** Selectable language option (Language selection screen). */
 export function LanguageCard({ code, label, hint, selected, onPress, labelRTL }: LanguageCardProps) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, isRTL } = useTheme();
 
   return (
     <Pressable
@@ -34,6 +34,7 @@ export function LanguageCard({ code, label, hint, selected, onPress, labelRTL }:
           backgroundColor: colors.surface,
           borderColor: selected ? colors.primary : colors.border,
           borderWidth: selected ? 2 : StyleSheet.hairlineWidth * 2,
+          flexDirection: isRTL ? "row-reverse" : "row",
         },
       ]}
     >
@@ -60,7 +61,6 @@ export function LanguageCard({ code, label, hint, selected, onPress, labelRTL }:
 const styles = StyleSheet.create({
   card: {
     minHeight: HIT_TARGET + 16,
-    flexDirection: "row",
     alignItems: "center",
     padding: 14,
     gap: 14,

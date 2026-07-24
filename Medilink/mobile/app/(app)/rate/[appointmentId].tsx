@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { AppHeader, Avatar, Button, Card, Checkbox, Chip, Icon, Screen, Text, TextField } from "@/components/ui";
+import { AppHeader, Avatar, Button, Card, Checkbox, Chip, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n, type MessageKey } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
+import { localizedName } from "@/utils/localizedName";
 import { useAppointment } from "@/hooks/queries/usePatient";
 import { useSubmitReview } from "@/hooks/queries/useDoctors";
 import { formatApptDate } from "@/utils/appointments";
@@ -37,8 +39,8 @@ export default function DoctorRatingScreen() {
   const [anonymous, setAnonymous] = useState(false);
 
   const doctorId = appt.data?.doctor_id ?? null;
-  const doctorName = appt.data?.doctor?.full_name || "—";
-  const doctorSub = [appt.data?.doctor?.specialty, formatApptDate(appt.data?.slot_date ?? null, t, num)]
+  const doctorName = localizedName(appt.data?.doctor?.full_name || "—", appt.data?.doctor?.full_name_ar, appt.data?.doctor?.full_name_ar_status, isRTL);
+  const doctorSub = [specialtyLabel(appt.data?.doctor?.specialty, appt.data?.doctor?.specialty ?? "", t), formatApptDate(appt.data?.slot_date ?? null, t, num)]
     .filter(Boolean)
     .join(" · ");
 
@@ -70,6 +72,33 @@ export default function DoctorRatingScreen() {
   };
 
   const canSubmit = rating > 0 && !!doctorId;
+
+  // The screen depends on the appointment (for the doctor to rate) — surface
+  // loading/error/empty instead of silently rendering an un-submittable form.
+  if (appt.isLoading) {
+    return (
+      <Screen padded>
+        <AppHeader showBack title={t("rating.title")} />
+        <LoadingState />
+      </Screen>
+    );
+  }
+  if (appt.isError) {
+    return (
+      <Screen padded>
+        <AppHeader showBack title={t("rating.title")} />
+        <ErrorState message={t("appointments.loadError")} onRetry={() => appt.refetch()} />
+      </Screen>
+    );
+  }
+  if (!appt.data) {
+    return (
+      <Screen padded>
+        <AppHeader showBack title={t("rating.title")} />
+        <EmptyState title={t("appointments.notFoundTitle")} body={t("appointments.notFoundBody")} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen

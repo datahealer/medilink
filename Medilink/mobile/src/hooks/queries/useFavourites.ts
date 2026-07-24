@@ -17,11 +17,16 @@ export function useFavourites(kind?: FavouriteTargetKind) {
   });
 }
 
-export function useIsFavourite(target: { targetId: string; targetType: FavouriteTargetKind }) {
+export function useIsFavourite(
+  target: { targetId: string; targetType: FavouriteTargetKind },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: favouriteKeys.is(target.targetType, target.targetId),
     queryFn: () => repositories.favourite.isFavourite(target),
-    enabled: !!target.targetId,
+    // Favourites are auth-only; callers pass `enabled: !isGuest` so a guest viewing a
+    // public doctor profile never fires the (failing) authenticated query.
+    enabled: !!target.targetId && (options?.enabled ?? true),
   });
 }
 

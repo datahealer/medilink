@@ -50,3 +50,29 @@ export function useDeleteDocument() {
     onSuccess: () => qc.invalidateQueries({ queryKey: documentKeys.list }),
   });
 }
+
+/**
+ * File a paid invoice PDF into the Document Vault (type "invoice"), idempotently: it
+ * first checks the vault for a document with the same name and skips the upload if it's
+ * already there, so re-opening the invoice never creates duplicates. Downloads the PDF
+ * from its (public) invoice URL and re-stores it in the private patient-docs bucket so
+ * the vault's signed-URL view/download/share works like any other document.
+ */
+export function useSaveInvoiceToVault() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { invoiceUrl: string; name: string; appointmentId?: string | null }) => {
+      const existing = await repositories.document.list();
+      if (existing.some((d) => d.type === "invoice" && d.name === input.name)) return null;
+      return repositories.document.upload({
+        name: input.name,
+        type: "invoice",
+        asset: { uri: input.invoiceUrl, name: `${input.name}.pdf`, mimeType: "application/pdf" },
+        linkedAppointmentId: input.appointmentId ?? null,
+      });
+    },
+    onSuccess: (res) => {
+      if (res) qc.invalidateQueries({ queryKey: documentKeys.list });
+    },
+  });
+}

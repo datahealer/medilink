@@ -26,12 +26,21 @@ import {
   useUploadProfilePhoto,
   useUpsertMedicalHistory,
 } from "@/hooks/queries/usePatient";
+import {
+  CIVIL_NUMBER_LENGTH,
+  isValidCivilNumber,
+  isValidDob,
+  isValidName,
+  isValidOmanPhone,
+} from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
   { value: "female", key: "genderFemale" },
   { value: "other", key: "genderOther" },
 ];
+
+const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function EditProfileScreen() {
   const { spacing, colors, isRTL } = useTheme();
@@ -56,10 +65,18 @@ export default function EditProfileScreen() {
   );
   const [address, setAddress] = useState(patient?.address ?? "");
   const [emergency, setEmergency] = useState(patient?.emergency_contact ?? "");
+  const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
+  const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
+  const nameError = isValidName(fullName) ? undefined : t("validation.nameMin");
+  const dobError = isValidDob(dob) ? undefined : t("validation.dob");
+  const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
   const [allergies, setAllergies] = useState<string[]>(history.data?.allergies ?? []);
   const [newAllergy, setNewAllergy] = useState("");
 
-  if (profile.isLoading) {
+  // Wait for medical history too: the `allergies` state seeds from `history.data`
+  // (once, on first render), so rendering the form before it loads would seed an
+  // empty list and a save could wipe existing allergies.
+  if (profile.isLoading || history.isLoading) {
     return (
       <Screen padded>
         <AppHeader title={t("profile.editTitle")} />
@@ -111,6 +128,8 @@ export default function EditProfileScreen() {
   };
 
   const onSave = () => {
+    // Block save on any invalid field; each shows its error inline.
+    if (civilError || nameError || dobError || phoneError) return;
     update.mutate(
       {
         full_name: fullName.trim(),
@@ -120,17 +139,27 @@ export default function EditProfileScreen() {
         blood_group: bloodGroup ?? "unknown",
         address: address.trim() || null,
         emergency_contact: emergency.trim() || null,
+        civil_number: civilNumber.trim() || null,
       },
       {
         onSuccess: () => {
+          // Only persist allergies when medical history actually loaded — otherwise the
+          // (empty) local state would overwrite existing allergies.
+          if (!history.isSuccess) {
+            Alert.alert(t("profile.saved"));
+            router.back();
+            return;
+          }
           // Persist allergies (PDF p15 edits them inline) alongside the profile.
+          // Report success only after the allergy save actually succeeds.
           upsertHistory.mutate(
             { allergies },
             {
-              onSettled: () => {
+              onSuccess: () => {
                 Alert.alert(t("profile.saved"));
                 router.back();
               },
+              onError: () => Alert.alert(t("errors.saveFailed")),
             }
           );
         },
@@ -164,36 +193,55 @@ export default function EditProfileScreen() {
         value={fullName}
         onChangeText={setFullName}
         autoComplete="name"
+        error={nameError}
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      {/* Blood group + DOB side-by-side fields (PDF Edit Profile artboard) */}
-      <View style={[styles.fieldRow, { flexDirection: isRTL ? "row-reverse" : "row", marginBottom: spacing.md }]}>
-        <View style={styles.fieldCol}>
-          <TextField
-            label={t("profile.bloodGroup")}
-            value={bloodGroup ?? ""}
-            onChangeText={(v) => setBloodGroup((v.trim() || undefined) as BloodGroup | undefined)}
-            placeholder="O+"
-            autoCapitalize="characters"
-            maxLength={3}
+      {/* Blood group — enum chips (no free-text; prevents invalid values) */}
+      <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+        {t("profile.bloodGroup").toUpperCase()}
+      </Text>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row", marginBottom: spacing.md }]}>
+        {BLOOD_GROUPS.map((bg) => (
+          <Chip
+            key={bg}
+            label={bg}
+            selected={bloodGroup === bg}
+            onPress={() => setBloodGroup(bloodGroup === bg ? undefined : bg)}
           />
-        </View>
-        <View style={styles.fieldCol}>
-          <TextField
-            label={t("profile.dob")}
-            value={dob}
-            onChangeText={setDob}
-            placeholder={t("profile.dobPlaceholder")}
-            autoCapitalize="none"
-          />
-        </View>
+        ))}
       </View>
+
+      {/* Date of birth (validated free-text: YYYY-MM-DD, not in the future) */}
+      <TextField
+        label={t("profile.dob")}
+        value={dob}
+        onChangeText={setDob}
+        placeholder={t("profile.dobPlaceholder")}
+        autoCapitalize="none"
+        error={dobError}
+        containerStyle={{ marginBottom: spacing.md }}
+      />
+
+      {/* Civil number (optional; 8 digits) — F2 */}
+      <TextField
+        label={t("profile.civilNumber")}
+        value={civilNumber}
+        // Clamp length in JS (not via native `maxLength`): a controlled TextInput whose
+        // value sits exactly at `maxLength` hits a React Native reconciliation bug where
+        // edits to the final character (delete/replace) get reverted. Slicing here keeps
+        // the field fully JS-controlled so every digit stays editable. (F2)
+        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, "").slice(0, CIVIL_NUMBER_LENGTH))}
+        keyboardType="number-pad"
+        placeholder={t("profile.civilNumberPlaceholder")}
+        error={civilError}
+        containerStyle={{ marginBottom: spacing.md }}
+      />
 
       {/* Allergies — removable chips + add (PDF p15) */}
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.allergies").toUpperCase()}</Text>
       {allergies.length ? (
-        <View style={[styles.chips, { marginBottom: 8 }]}>
+        <View style={[styles.chips, { marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {allergies.map((a) => (
             <Chip key={a} label={a} onRemove={() => setAllergies(allergies.filter((x) => x !== a))} />
           ))}
@@ -216,7 +264,7 @@ export default function EditProfileScreen() {
 
       {/* Additional profile fields (kept for completeness; surface on Profile p15) */}
       <Text variant="label" color="textMuted" style={{ marginBottom: 8, letterSpacing: 0.5 }}>{t("profile.gender").toUpperCase()}</Text>
-      <View style={styles.chips}>
+      <View style={[styles.chips, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {GENDERS.map((g) => (
           <Chip
             key={g.value}
@@ -232,6 +280,7 @@ export default function EditProfileScreen() {
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
+        error={phoneError}
         containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
       <TextField
@@ -254,6 +303,4 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   photo: { alignItems: "center", marginBottom: 16 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  fieldRow: { gap: 12 },
-  fieldCol: { flex: 1 },
 });

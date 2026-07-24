@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Card, EmptyState, ErrorState, Icon, type IconName, LoadingState, MeMark, Screen, StaticTabBar, Text } from "@/components/ui";
@@ -7,6 +7,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useNotifications, useMarkAllNotificationsRead } from "@/hooks/queries/useNotifications";
+import { useRefresh } from "@/hooks/useRefresh";
+import { routeForNotification } from "@/utils/notifications";
 import type { NotificationItem, NotificationKind } from "@/data/types";
 
 const ICON: Record<NotificationKind, IconName> = {
@@ -16,6 +18,7 @@ const ICON: Record<NotificationKind, IconName> = {
   lab: "lab",
   prescription: "medication",
   facility: "location",
+  general: "alerts",
 };
 
 /** PDF: each item has a rounded-square icon container with a varied tint. */
@@ -27,19 +30,7 @@ const TINT: Record<NotificationKind, Tint> = {
   lab: "blue",
   prescription: "lavender",
   facility: "blue",
-};
-
-// Notifications currently carry no target id (in_app_notifications.data is not surfaced by the
-// list mapping), so each kind opens its list/index screen rather than a specific record. This
-// keeps navigation correct for real data; deep-linking to a specific appointment/invoice can be
-// added once the notification payload carries the related id.
-const ROUTE: Record<NotificationKind, string> = {
-  assistant: "/ai/insights",
-  appointment: "/appointments",
-  payment: "/payments",
-  lab: "/records/labs",
-  prescription: "/records/prescriptions",
-  facility: "/notifications/messages",
+  general: "lavender",
 };
 
 /** Notification Center (PDF p31): grouped feed of reminders, payments, lab alerts. */
@@ -50,6 +41,7 @@ export default function NotificationsScreen() {
   const notifications = useNotifications();
   const markAll = useMarkAllNotificationsRead();
   const [allRead, setAllRead] = useState(false);
+  const { refreshing, onRefresh } = useRefresh(() => notifications.refetch());
 
   const onMarkAll = () => {
     setAllRead(true); // optimistic
@@ -63,8 +55,14 @@ export default function NotificationsScreen() {
   const tintBg = (t: Tint) =>
     t === "blue" ? colors.accent2 : t === "mint" ? (scheme === "dark" ? "rgba(95,207,155,0.20)" : "#D7F0E2") : colors.accent;
 
+  const openNotification = (n: NotificationItem) => {
+    const target = routeForNotification(n.kind, n.appointmentId);
+    // Already on the notifications screen → general announcements are a no-op.
+    if (target && target !== "/notifications") router.push(target as never);
+  };
+
   const row = (n: NotificationItem) => (
-    <Card key={n.id} onPress={() => router.push(ROUTE[n.kind] as never)} style={{ marginBottom: spacing.sm }}>
+    <Card key={n.id} onPress={() => openNotification(n)} style={{ marginBottom: spacing.sm }}>
       <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {n.kind === "assistant" ? (
           <View style={[styles.iconWrap, { backgroundColor: colors.accent }]}>
@@ -82,7 +80,7 @@ export default function NotificationsScreen() {
           </View>
           <Text variant="caption" color="textMuted" numberOfLines={2}>{n.body}</Text>
         </View>
-        {n.unread && !allRead ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}
+        {n.unread && !allRead ? <View style={[styles.dot, { backgroundColor: colors.primary }, isRTL ? { marginEnd: 6 } : { marginStart: 6 }]} /> : null}
       </View>
     </Card>
   );
@@ -93,6 +91,7 @@ export default function NotificationsScreen() {
       padded
       edges={["top", "left", "right"]}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.md }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       footer={<View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}><StaticTabBar active="home" /></View>}
     >
       <AppHeader
@@ -139,6 +138,6 @@ const styles = StyleSheet.create({
   row: { alignItems: "flex-start" },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   titleRow: { alignItems: "center", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginStart: 6, marginTop: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   group: { marginTop: 12, marginBottom: 8 },
 });

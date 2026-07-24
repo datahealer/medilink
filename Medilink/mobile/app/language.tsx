@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { BackButton, Button, LanguageCard, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 import { useLocale } from "@/hooks/useLocale";
+import { useAuthStore } from "@/stores/authStore";
 import type { Locale } from "@/stores/localeStore";
 
 /**
- * Language selection. Persists the choice. Switching between EN ↔ AR flips layout
- * direction, which RN only fully applies after a reload — so we confirm a restart.
+ * Language selection. Persists the choice. Switching EN ↔ AR updates the language AND
+ * layout direction instantly (runtime RTL) — no restart needed.
  */
 export default function LanguageScreen() {
   const { spacing, isRTL } = useTheme();
@@ -18,25 +19,32 @@ export default function LanguageScreen() {
   const { locale } = useLocale();
   const { changeLocale } = useLocale();
   const [selected, setSelected] = useState<Locale>(locale);
+  // This screen serves two flows: pre-auth onboarding (continue → sign-in) and an
+  // already-signed-in user changing language from Settings. An authed user must be
+  // returned to the app with their session intact — never routed to sign-in.
+  const isAuthed = useAuthStore((s) => s.status === "authed");
 
-  const proceed = () => router.replace("/auth/sign-in");
+  const proceed = () => {
+    if (!isAuthed) {
+      router.replace("/auth/sign-in");
+      return;
+    }
+    // Authed (came from Settings): go back to where we came from, keeping the session.
+    if (router.canGoBack()) router.back();
+    else router.replace("/dashboard");
+  };
 
   const onContinue = () => {
-    const restartNeeded = changeLocale(selected);
-    if (restartNeeded) {
-      // Direction changed (EN ↔ AR). Prompt — RTL only fully applies after reload.
-      Alert.alert(t("common.restartTitle"), t("common.restartBody"), [
-        { text: t("common.restartLater"), style: "cancel", onPress: proceed },
-        { text: t("common.restartNow"), onPress: proceed },
-      ]);
-    } else {
-      proceed();
-    }
+    // Runtime RTL: persisting the locale switches language AND layout direction
+    // immediately (every screen re-renders from the new `isRTL`), so we just save and
+    // continue — no restart dialog, no forced native RTL.
+    changeLocale(selected);
+    proceed();
   };
 
   return (
     <Screen scroll padded dismissKeyboardOnTap={false}>
-      <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+      <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }, isRTL ? { marginEnd: -8 } : { marginStart: -8 }]}>
         <BackButton />
       </View>
 
@@ -70,5 +78,5 @@ export default function LanguageScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: 8, marginStart: -8 },
+  header: { marginBottom: 8 },
 });

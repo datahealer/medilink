@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 
 import { AppHeader, Button, Chip, Icon, Screen, Text } from "@/components/ui";
 import type { IconName } from "@/components/ui";
@@ -10,6 +11,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { useUploadDocument } from "@/hooks/queries/useRecords";
+import { mimeFromName } from "@/utils/mime";
 import type { DocumentType, PhotoAsset } from "@/data/types";
 
 interface UploadChoice {
@@ -47,7 +49,7 @@ export default function UploadDocumentScreen() {
   const toAsset = (a: ImagePicker.ImagePickerAsset): PhotoAsset => ({
     uri: a.uri,
     name: a.fileName ?? undefined,
-    mimeType: a.mimeType ?? "image/jpeg",
+    mimeType: a.mimeType ?? mimeFromName(a.fileName ?? a.uri),
   });
 
   const pick = async (choice: "file" | "scan") => {
@@ -58,10 +60,21 @@ export default function UploadDocumentScreen() {
       const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
       if (!res.canceled && res.assets[0]) setAsset(toAsset(res.assets[0]));
     } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return Alert.alert(t("upload.permissionTitle"), t("upload.libraryPermission"));
-      const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
-      if (!res.canceled && res.assets[0]) setAsset(toAsset(res.assets[0]));
+      // Documents (PDF) + images. The document picker needs no runtime permission and
+      // preserves the real name/MIME; MIME falls back via the shared mimeFromName().
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (!res.canceled && res.assets?.[0]) {
+        const a = res.assets[0];
+        setAsset({
+          uri: a.uri,
+          name: a.name ?? undefined,
+          mimeType: a.mimeType ?? mimeFromName(a.name ?? a.uri),
+        });
+      }
     }
   };
 
@@ -143,7 +156,7 @@ export default function UploadDocumentScreen() {
         ]}
       >
         <Text variant="label" color="textMuted">{t("upload.fileLabel")}</Text>
-        <Text variant="body" align={isRTL ? "left" : "right"} numberOfLines={1} style={styles.fileValue}>
+        <Text variant="body" align={isRTL ? "left" : "right"} numberOfLines={1} style={[styles.fileValue, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
           {asset ? asset.name ?? t("upload.fileSelected") : t("upload.noFile")}
         </Text>
       </View>
@@ -157,5 +170,5 @@ const styles = StyleSheet.create({
   choiceTile: { width: 56, height: 56, alignItems: "center", justifyContent: "center" },
   chips: { flexWrap: "wrap", gap: 8 },
   fileRow: { alignItems: "center", justifyContent: "space-between", borderWidth: 1 },
-  fileValue: { flex: 1, marginStart: 12 },
+  fileValue: { flex: 1 },
 });

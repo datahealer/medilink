@@ -17,9 +17,12 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useAppointment, useAvailableSlots, useRescheduleAppointment } from "@/hooks/queries/usePatient";
+import { BOOKING_WINDOW_DAYS } from "@medilink/shared/mobile";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
-const DAY_COUNT = 5;
+// Reschedule uses the same booking window as new bookings (single source of truth);
+// the availability RPC clamps slots to this window server-side (BP-2).
+const DAY_COUNT = BOOKING_WINDOW_DAYS;
 
 function errMsg(e: unknown): string {
   if (e instanceof Error) return e.message;

@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { CtaButton, HeroBackground, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
+import { useAuthStore } from "@/stores/authStore";
 
 /**
  * Welcome (PDF artboard): a tall violet hero card carrying two soft orbs with the
@@ -14,6 +15,15 @@ import { useI18n } from "@/i18n";
 export default function WelcomeScreen() {
   const { colors, radii, spacing, isRTL } = useTheme();
   const { t } = useI18n();
+  const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
+
+  const onGuest = () => {
+    // Enter guest browsing and land on the discovery dashboard (guest home). The (app)
+    // gate allows only the guest allow-list; protected routes show the in-place
+    // sign-in wall and restricted actions show the per-action sign-in prompt (F4).
+    continueAsGuest();
+    router.replace("/dashboard");
+  };
 
   return (
     <Screen scroll padded dismissKeyboardOnTap={false}>
@@ -52,6 +62,18 @@ export default function WelcomeScreen() {
           {t("welcome.haveAccount")}
         </Text>
       </Pressable>
+
+      {/* Continue as guest — browse discovery without an account (F4). */}
+      <Pressable
+        onPress={onGuest}
+        accessibilityRole="button"
+        accessibilityLabel={t("guest.continueAsGuest")}
+        style={({ pressed }) => [styles.guest, { marginTop: spacing.sm, opacity: pressed ? 0.7 : 1 }]}
+      >
+        <Text variant="body" color="textMuted" align="center">
+          {t("guest.continueAsGuest")}
+        </Text>
+      </Pressable>
     </Screen>
   );
 }
@@ -69,4 +91,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
   },
+  guest: { minHeight: 44, alignItems: "center", justifyContent: "center", paddingVertical: 10 },
 });

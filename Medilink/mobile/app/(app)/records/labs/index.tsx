@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -17,6 +17,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useLabResults } from "@/hooks/queries/useLabs";
+import { useRefresh } from "@/hooks/useRefresh";
 import { formatDayMonth } from "@/utils/appointments";
 
 type LabTab = "all" | "normal" | "flagged";
@@ -29,6 +30,7 @@ export default function LabReportsScreen() {
   const [active, setActive] = useState<LabTab>("all");
 
   const query = useLabResults();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const results = query.data ?? [];
 
   const filtered = results.filter((r) => {
@@ -44,6 +46,7 @@ export default function LabReportsScreen() {
       scroll
       padded
       edges={["top", "left", "right"]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       contentStyle={{
         maxWidth: contentMaxWidth,
         width: "100%",

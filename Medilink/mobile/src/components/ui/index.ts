@@ -41,6 +41,7 @@ export { ProgressDots } from "./ProgressDots";
 export { ThemeToggle } from "./ThemeToggle";
 export { Checkbox } from "./Checkbox";
 export { BackButton } from "./BackButton";
+export { GuestWall } from "./GuestWall";
 export { Card } from "./Card";
 export { Avatar } from "./Avatar";
 export { Chip } from "./Chip";
@@ -51,6 +52,8 @@ export { SegmentedTabs, type SegmentedTab } from "./SegmentedTabs";
 export { HeroAppointmentCard } from "./HeroAppointmentCard";
 export { AppointmentCompactCard } from "./AppointmentCompactCard";
 export { LoadingState, ErrorState, EmptyState } from "./StateView";
+export { TrendChart } from "./TrendChart";
+export type { TrendPoint } from "./TrendChart";
 
 export type { ButtonVariant } from "./Button";
 export type { TextFieldProps } from "./TextField";

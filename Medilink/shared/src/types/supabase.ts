@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -360,6 +360,7 @@ export type Database = {
           follow_up_of: string | null
           for_family_member_id: string | null
           google_event_id: string | null
+          hold_expires_at: string | null
           id: string
           is_emergency: boolean
           needs_queue_sync: boolean
@@ -400,6 +401,7 @@ export type Database = {
           follow_up_of?: string | null
           for_family_member_id?: string | null
           google_event_id?: string | null
+          hold_expires_at?: string | null
           id?: string
           is_emergency?: boolean
           needs_queue_sync?: boolean
@@ -440,6 +442,7 @@ export type Database = {
           follow_up_of?: string | null
           for_family_member_id?: string | null
           google_event_id?: string | null
+          hold_expires_at?: string | null
           id?: string
           is_emergency?: boolean
           needs_queue_sync?: boolean
@@ -1028,6 +1031,8 @@ export type Database = {
           facility_id: string | null
           fees: Json | null
           full_name: string
+          full_name_ar: string | null
+          full_name_ar_status: string | null
           id: string
           is_active: boolean
           languages: string[] | null
@@ -1050,6 +1055,8 @@ export type Database = {
           facility_id?: string | null
           fees?: Json | null
           full_name: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           is_active?: boolean
           languages?: string[] | null
@@ -1072,6 +1079,8 @@ export type Database = {
           facility_id?: string | null
           fees?: Json | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           is_active?: boolean
           languages?: string[] | null
@@ -1135,22 +1144,31 @@ export type Database = {
         Row: {
           accepted_insurances: string[]
           address: Json
+          area: string | null
+          building_number: string | null
+          city: string | null
+          country: string | null
           cover_photo_url: string | null
           created_at: string
           custom_type: string | null
           description: string | null
           email: string | null
+          formatted_address: string | null
+          geocoded_at: string | null
           id: string
           is_verified: boolean
           location: unknown
           logo_url: string | null
           max_admins: number | null
           name: string
+          name_ar: string | null
+          name_ar_status: string | null
           phone: string | null
           rating: number
           review_count: number
           services: string[]
           status: string
+          street: string | null
           type: Database["public"]["Enums"]["facility_type"]
           updated_at: string
           website: string | null
@@ -1159,22 +1177,31 @@ export type Database = {
         Insert: {
           accepted_insurances?: string[]
           address?: Json
+          area?: string | null
+          building_number?: string | null
+          city?: string | null
+          country?: string | null
           cover_photo_url?: string | null
           created_at?: string
           custom_type?: string | null
           description?: string | null
           email?: string | null
+          formatted_address?: string | null
+          geocoded_at?: string | null
           id?: string
           is_verified?: boolean
           location?: unknown
           logo_url?: string | null
           max_admins?: number | null
           name: string
+          name_ar?: string | null
+          name_ar_status?: string | null
           phone?: string | null
           rating?: number
           review_count?: number
           services?: string[]
           status?: string
+          street?: string | null
           type?: Database["public"]["Enums"]["facility_type"]
           updated_at?: string
           website?: string | null
@@ -1183,22 +1210,31 @@ export type Database = {
         Update: {
           accepted_insurances?: string[]
           address?: Json
+          area?: string | null
+          building_number?: string | null
+          city?: string | null
+          country?: string | null
           cover_photo_url?: string | null
           created_at?: string
           custom_type?: string | null
           description?: string | null
           email?: string | null
+          formatted_address?: string | null
+          geocoded_at?: string | null
           id?: string
           is_verified?: boolean
           location?: unknown
           logo_url?: string | null
           max_admins?: number | null
           name?: string
+          name_ar?: string | null
+          name_ar_status?: string | null
           phone?: string | null
           rating?: number
           review_count?: number
           services?: string[]
           status?: string
+          street?: string | null
           type?: Database["public"]["Enums"]["facility_type"]
           updated_at?: string
           website?: string | null
@@ -1414,6 +1450,7 @@ export type Database = {
           allow_online_booking: boolean
           allow_telemedicine: boolean
           avg_consultation_minutes: number
+          booking_window_days: number
           buffer_minutes_between_appts: number
           cancellation_cutoff_hours: number
           currency: string
@@ -1431,6 +1468,7 @@ export type Database = {
           allow_online_booking?: boolean
           allow_telemedicine?: boolean
           avg_consultation_minutes?: number
+          booking_window_days?: number
           buffer_minutes_between_appts?: number
           cancellation_cutoff_hours?: number
           currency?: string
@@ -1448,6 +1486,7 @@ export type Database = {
           allow_online_booking?: boolean
           allow_telemedicine?: boolean
           avg_consultation_minutes?: number
+          booking_window_days?: number
           buffer_minutes_between_appts?: number
           cancellation_cutoff_hours?: number
           currency?: string
@@ -2590,6 +2629,7 @@ export type Database = {
         Row: {
           address: Json | null
           blood_group: Database["public"]["Enums"]["blood_group_type"]
+          civil_number: string | null
           created_at: string
           date_of_birth: string | null
           emergency_contact: Json | null
@@ -2602,6 +2642,7 @@ export type Database = {
         Insert: {
           address?: Json | null
           blood_group?: Database["public"]["Enums"]["blood_group_type"]
+          civil_number?: string | null
           created_at?: string
           date_of_birth?: string | null
           emergency_contact?: Json | null
@@ -2614,6 +2655,7 @@ export type Database = {
         Update: {
           address?: Json | null
           blood_group?: Database["public"]["Enums"]["blood_group_type"]
+          civil_number?: string | null
           created_at?: string
           date_of_birth?: string | null
           emergency_contact?: Json | null
@@ -2921,6 +2963,8 @@ export type Database = {
           export_request_count: number
           facility_id: string | null
           full_name: string
+          full_name_ar: string | null
+          full_name_ar_status: string | null
           id: string
           language: string
           last_export_at: string | null
@@ -2947,6 +2991,8 @@ export type Database = {
           export_request_count?: number
           facility_id?: string | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id: string
           language?: string
           last_export_at?: string | null
@@ -2973,6 +3019,8 @@ export type Database = {
           export_request_count?: number
           facility_id?: string | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           language?: string
           last_export_at?: string | null
@@ -4124,6 +4172,7 @@ export type Database = {
           p_for_family_member_id?: string
           p_is_emergency?: boolean
           p_patient_id: string
+          p_reason?: string
           p_slot_date: string
           p_slot_start: string
           p_type?: string
@@ -4266,6 +4315,12 @@ export type Database = {
         }
       }
       disablelongtransactions: { Args: never; Returns: string }
+      doctors_available_today: {
+        Args: { p_date: string }
+        Returns: {
+          doctor_id: string
+        }[]
+      }
       dropgeometrycolumn:
         | {
             Args: {
@@ -4312,6 +4367,18 @@ export type Database = {
       }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
       expire_waitlist_entries: { Args: never; Returns: undefined }
+      fail_appointment_refund: {
+        Args: { p_gateway_response: Json; p_refund_id: string }
+        Returns: undefined
+      }
+      finalize_appointment_refund: {
+        Args: {
+          p_gateway_ref: string
+          p_gateway_response: Json
+          p_refund_id: string
+        }
+        Returns: undefined
+      }
       generate_payouts: { Args: never; Returns: undefined }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
@@ -4505,6 +4572,8 @@ export type Database = {
           distance_km: number
           id: string
           is_verified: boolean
+          latitude: number
+          longitude: number
           name: string
           phone: string
           rating: number
@@ -4645,22 +4714,31 @@ export type Database = {
         Returns: {
           accepted_insurances: string[]
           address: Json
+          area: string | null
+          building_number: string | null
+          city: string | null
+          country: string | null
           cover_photo_url: string | null
           created_at: string
           custom_type: string | null
           description: string | null
           email: string | null
+          formatted_address: string | null
+          geocoded_at: string | null
           id: string
           is_verified: boolean
           location: unknown
           logo_url: string | null
           max_admins: number | null
           name: string
+          name_ar: string | null
+          name_ar_status: string | null
           phone: string | null
           rating: number
           review_count: number
           services: string[]
           status: string
+          street: string | null
           type: Database["public"]["Enums"]["facility_type"]
           updated_at: string
           website: string | null
@@ -4715,6 +4793,11 @@ export type Database = {
       postgis_wagyu_version: { Args: never; Returns: string }
       purge_deleted_accounts: { Args: never; Returns: undefined }
       rebook_appointment: { Args: { p_original_id: string }; Returns: Json }
+      release_unpaid_hold: { Args: { p_appointment_id: string }; Returns: Json }
+      request_appointment_refund: {
+        Args: { p_payment_id: string }
+        Returns: Json
+      }
       reschedule_appointment: {
         Args: {
           p_id: string
@@ -4751,6 +4834,15 @@ export type Database = {
       revoke_nonce: {
         Args: { p_id: string; p_reason?: string }
         Returns: boolean
+      }
+      set_facility_geocode: {
+        Args: {
+          p_facility_id: string
+          p_formatted?: string
+          p_lat: number
+          p_lng: number
+        }
+        Returns: undefined
       }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
@@ -5546,6 +5638,7 @@ export type Database = {
         | "imaging"
         | "insurance"
         | "other"
+        | "invoice"
       facility_type:
         | "clinic"
         | "hospital"
@@ -5862,6 +5955,7 @@ export const Constants = {
         "imaging",
         "insurance",
         "other",
+        "invoice",
       ],
       facility_type: [
         "clinic",

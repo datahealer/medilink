@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Share, StyleSheet, View } from "react-native";
+import { Alert, RefreshControl, Share, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Button, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text } from "@/components/ui";
@@ -7,8 +7,10 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePrescriptions, usePrescriptionShareLink } from "@/hooks/queries/usePrescriptions";
+import { useRefresh } from "@/hooks/useRefresh";
 import type { Prescription } from "@/data/types";
 import { formatApptDate } from "@/utils/appointments";
+import { localizedName } from "@/utils/localizedName";
 
 /**
  * Prescriptions list (design p30). Active/Previous tabs + the Active badge are hidden:
@@ -22,6 +24,7 @@ export default function PrescriptionsScreen() {
   const rowDir = isRTL ? "row-reverse" : "row";
 
   const query = usePrescriptions();
+  const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const items: Prescription[] = query.data ?? [];
   const share = usePrescriptionShareLink();
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -34,7 +37,12 @@ export default function PrescriptionsScreen() {
   const dosageOf = (p: Prescription) =>
     [p.medications[0]?.dosage, p.medications[0]?.frequency].filter(Boolean).join(" · ");
   const subtitleOf = (p: Prescription) =>
-    [p.doctor?.full_name, formatApptDate(p.issued_at?.slice(0, 10) ?? null, t, num)].filter(Boolean).join(" · ");
+    [
+      localizedName(p.doctor?.full_name ?? "", p.doctor?.full_name_ar, p.doctor?.full_name_ar_status, isRTL),
+      formatApptDate(p.issued_at?.slice(0, 10) ?? null, t, num),
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   const onShare = async (id: string) => {
     setSharingId(id);
@@ -53,7 +61,7 @@ export default function PrescriptionsScreen() {
     return (
       <Card key={p.id} onPress={() => router.push(`/records/prescriptions/${p.id}`)} style={{ marginBottom: spacing.md }}>
         <View style={[styles.headRow, { flexDirection: rowDir }]}>
-          <View style={[styles.tile, { backgroundColor: colors.accent2, borderRadius: radii.md, marginEnd: spacing.md }]}>
+          <View style={[styles.tile, { backgroundColor: colors.accent2, borderRadius: radii.md, ...(isRTL ? { marginStart: spacing.md } : { marginEnd: spacing.md }) }]}>
             <Icon name="medication" color="primary" />
           </View>
           <View style={styles.headText}>
@@ -74,14 +82,6 @@ export default function PrescriptionsScreen() {
             loading={sharingId === p.id}
             leading={<Icon name="share" size={18} color="primary" />}
             onPress={() => onShare(p.id)}
-            style={[styles.action, { marginEnd: spacing.sm }]}
-          />
-          <Button
-            label={t("prescriptions.setReminder")}
-            variant="outline"
-            fullWidth={false}
-            leading={<Icon name="alerts" size={18} color="primary" />}
-            onPress={() => Alert.alert(t("prescriptions.setReminder"), t("prescriptions.reminderSoon"))}
             style={styles.action}
           />
         </View>
@@ -94,6 +94,7 @@ export default function PrescriptionsScreen() {
       scroll
       padded
       edges={["top", "left", "right"]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}
     >
       <AppHeader title={t("prescriptions.title")} showBack />

@@ -1,5 +1,5 @@
-import React from "react";
-import { Alert, Linking, Share, StyleSheet, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Alert, Linking, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import { AppCard, AppHeader, Button, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
@@ -7,8 +7,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePayment } from "@/hooks/queries/usePatient";
+import { useSaveInvoiceToVault } from "@/hooks/queries/useRecords";
 import { formatApptDate } from "@/utils/appointments";
-import { payCategory, payStatusLabel, payTone, round3 } from "@/utils/payments";
+import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
+import { consultationTotal, round3 } from "@medilink/shared/mobile";
+import { shareRemoteFile } from "@/utils/shareFile";
 
 /**
  * Invoice & Receipt (design p23) — branded breakdown (fee, VAT, total), the card
@@ -24,6 +27,22 @@ export default function InvoiceScreen() {
   const query = usePayment(id);
   const payment = query.data;
   const money = (n: number) => `OMR ${num(n.toFixed(3))}`;
+
+  // Auto-file the invoice into the Document Vault the first time it's viewed. Idempotent
+  // (the hook skips if a same-named invoice doc already exists), so re-opening never
+  // duplicates. Non-blocking: failures don't affect the invoice view.
+  const { mutate: saveInvoice } = useSaveInvoiceToVault();
+  const savedRef = useRef(false);
+  useEffect(() => {
+    const inv = payment?.invoiceUrl;
+    if (!inv || savedRef.current) return;
+    savedRef.current = true;
+    saveInvoice({
+      invoiceUrl: inv,
+      name: `Invoice ${payment?.reference || id.slice(0, 8)}`,
+      appointmentId: payment?.appointment?.id ?? null,
+    });
+  }, [payment?.invoiceUrl, payment?.reference, payment?.appointment?.id, id, saveInvoice]);
 
   if (query.isLoading) {
     return (
@@ -51,7 +70,9 @@ export default function InvoiceScreen() {
   }
 
   const a = payment.appointment;
-  const total = payment.amount ?? (a?.fee_omr != null ? round3(a.fee_omr * 1.05) : 0);
+  // Prefer the server-charged amount (payment.amount); otherwise fall back to the
+  // shared fee+VAT calc so the displayed total matches the backend exactly (BP-4).
+  const total = payment.amount ?? (a?.fee_omr != null ? consultationTotal(a.fee_omr).total : 0);
   const fee = a?.fee_omr ?? round3(total / 1.05);
   const vat = round3(total - fee);
   const tone = payTone(colors, payCategory(payment.status));
@@ -64,7 +85,12 @@ export default function InvoiceScreen() {
   };
   const onShare = () => {
     if (!invoiceUrl) return;
-    Share.share({ message: invoiceUrl, url: invoiceUrl }).catch(() => {});
+    // Share the actual invoice PDF (downloaded from the URL), not a link.
+    void shareRemoteFile(invoiceUrl, {
+      filename: "invoice.pdf",
+      mimeType: "application/pdf",
+      dialogTitle: t("payments.share"),
+    });
   };
 
   const Row = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (

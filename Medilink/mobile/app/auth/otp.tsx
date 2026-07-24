@@ -7,17 +7,22 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { authService } from "@/services/authService";
+import { repositories } from "@/data";
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 24;
 
 export default function OtpScreen() {
-  const { spacing } = useTheme();
+  const { spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
-  const { target, phone } = useLocalSearchParams<{ target?: string; phone?: string }>();
-  // Prefer the display target; fall back to the raw phone, then a generic phrase.
-  const shownTarget = (target || phone || "").trim();
+  const { target, email, flow } = useLocalSearchParams<{ target?: string; email?: string; flow?: string }>();
+  // `flow=recovery` = password-reset OTP; `flow=login` = passwordless email login
+  // (F5); default is signup confirmation.
+  const isRecovery = flow === "recovery";
+  const isLogin = flow === "login";
+  // Prefer the display target; fall back to the email, then a generic phrase.
+  const shownTarget = (target || email || "").trim();
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,11 +43,16 @@ export default function OtpScreen() {
       return;
     }
     setLoading(true);
-    const res = await authService.verifyOtp(code, phone);
+    // Login goes through the repository (mock-mode aware); signup/recovery keep the
+    // existing authService path.
+    const res = isLogin
+      ? await repositories.auth.verifyLoginOtp(code, email ?? "")
+      : await authService.verifyOtp(code, email, isRecovery ? "recovery" : "signup");
     setLoading(false);
     if (res.ok) {
-      // Phone verified — the user is already signed in → go to the dashboard.
-      router.replace("/dashboard");
+      // Login / Signup: session established → dashboard.
+      // Recovery: a recovery session is now active → set the new password.
+      router.replace(isRecovery ? "/auth/reset-password" : "/dashboard");
     } else {
       setFormError(t(res.messageKey ?? "errors.unknown"));
     }
@@ -51,7 +61,13 @@ export default function OtpScreen() {
   const resend = async () => {
     if (secondsLeft > 0) return;
     setFormError(null);
-    const res = await authService.sendOtp(phone);
+    // Recovery re-issues the reset email; login re-sends the email login code;
+    // signup re-sends the confirmation OTP.
+    const res = isRecovery
+      ? await authService.requestPasswordReset(email ?? "")
+      : isLogin
+        ? await repositories.auth.sendLoginOtp(email ?? "")
+        : await authService.sendOtp(email);
     if (!res.ok) setFormError(t(res.messageKey ?? "errors.unknown"));
     setSecondsLeft(RESEND_SECONDS);
     setCode("");
@@ -62,8 +78,9 @@ export default function OtpScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
-        <BackButton />
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
+        {/* OTP is always pushed, but keep an explicit fallback so back is never a no-op. */}
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/auth/sign-in"))} />
       </View>
 
       <Text variant="h1">{t("otp.title")}</Text>

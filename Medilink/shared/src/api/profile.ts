@@ -35,6 +35,7 @@ export interface ProfilePatch {
   address?: Update<"patient_profiles">["address"];
   emergency_contact?: Update<"patient_profiles">["emergency_contact"];
   profile_photo_url?: Update<"patient_profiles">["profile_photo_url"];
+  civil_number?: Update<"patient_profiles">["civil_number"];
 }
 
 /** Update either/both halves; only provided fields are written. */
@@ -54,6 +55,7 @@ export async function updateMyProfile(db: DB, patch: ProfilePatch): Promise<MyPr
     patientPatch.emergency_contact = patch.emergency_contact;
   if (patch.profile_photo_url !== undefined)
     patientPatch.profile_photo_url = patch.profile_photo_url;
+  if (patch.civil_number !== undefined) patientPatch.civil_number = patch.civil_number;
 
   if (Object.keys(accountPatch).length > 0) {
     const { error } = await db.from("profiles").update(accountPatch).eq("id", userId);

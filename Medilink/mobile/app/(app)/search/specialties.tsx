@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { AppScreen, Icon, LoadingState, SpecialtyTile, StaticTabBar, Text, TextField } from "@/components/ui";
+import { AppScreen, EmptyState, ErrorState, Icon, LoadingState, SpecialtyTile, StaticTabBar, Text, TextField } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
@@ -24,7 +24,10 @@ export default function SpecialtiesScreen() {
   const [q, setQ] = useState("");
   const specialties = useSpecialties();
 
-  const items = (specialties.data ?? []).filter((s) => s.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const needle = q.trim().toLowerCase();
+  const items = (specialties.data ?? []).filter(
+    (s) => s.name.toLowerCase().includes(needle) || specialtyLabel(s.id, s.name, t).toLowerCase().includes(needle)
+  );
   const colWidth = isTablet ? "25%" : "33.333%";
 
   const open = (name: string) => {
@@ -56,6 +59,10 @@ export default function SpecialtiesScreen() {
 
       {specialties.isLoading ? (
         <LoadingState />
+      ) : specialties.isError ? (
+        <ErrorState message={t("specialties.loadError")} onRetry={() => specialties.refetch()} />
+      ) : items.length === 0 ? (
+        <EmptyState title={t("specialties.emptyTitle")} body={t("specialties.emptyBody")} />
       ) : (
         <View style={[styles.grid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {items.map((s) => (

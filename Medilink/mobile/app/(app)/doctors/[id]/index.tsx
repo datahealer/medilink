@@ -8,6 +8,8 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useIsFavourite, useToggleFavourite } from "@/hooks/queries/useFavourites";
+import { localizedName } from "@/utils/localizedName";
+import { useGuestGate } from "@/hooks/useGuestGate";
 
 /** Doctor Details (PDF p19): credentials, stats, slots, book bar. */
 export default function DoctorDetailsScreen() {
@@ -19,7 +21,10 @@ export default function DoctorDetailsScreen() {
   const doctorId = String(id ?? "");
   const doctor = useDoctor(doctorId);
   const favTarget = { targetId: doctorId, targetType: "doctor" as const };
-  const isFav = useIsFavourite(favTarget);
+  // F4: booking and favouriting are patient actions — gate them behind the wall
+  // for guests (viewing the profile itself is allow-listed).
+  const { isGuest, requireAuth } = useGuestGate();
+  const isFav = useIsFavourite(favTarget, { enabled: !isGuest });
   const toggleFav = useToggleFavourite();
   const fav = isFav.data ?? false;
   const [slot, setSlot] = useState<string | undefined>(undefined);
@@ -57,7 +62,7 @@ export default function DoctorDetailsScreen() {
             <Text variant="title">{`OMR ${d.fee_omr}`}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Button label={t("doctor.book")} onPress={() => router.push(`/booking/${d.id}/schedule`)} />
+            <Button label={t("doctor.book")} onPress={() => requireAuth(() => router.push(`/booking/${d.id}/schedule`))} />
           </View>
         </View>
       }
@@ -66,7 +71,7 @@ export default function DoctorDetailsScreen() {
         title=""
         right={
           <Pressable
-            onPress={() => toggleFav.mutate(favTarget)}
+            onPress={() => requireAuth(() => toggleFav.mutate(favTarget))}
             disabled={isFav.isLoading || toggleFav.isPending}
             hitSlop={10}
             accessibilityRole="button"
@@ -81,9 +86,9 @@ export default function DoctorDetailsScreen() {
       {/* Hero — violet orb detail header */}
       <DoctorCard
         variant="detail"
-        name={d.full_name}
+        name={localizedName(d.full_name, d.full_name_ar, d.full_name_ar_status, isRTL)}
         specialty={d.specialty}
-        facility={d.facility}
+        facility={localizedName(d.facility, d.facility_ar, d.facility_ar_status, isRTL)}
         initials={(d.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase()}
         availableTodayLabel={d.available_today ? t("doctor.availableToday") : undefined}
       />

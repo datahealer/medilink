@@ -2,6 +2,8 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { AppCard } from "./AppCard";
 import { Avatar } from "./Avatar";
 import { Text } from "./Text";
@@ -30,6 +32,8 @@ export function RecentlyVisitedCard({
   onPress,
 }: RecentlyVisitedCardProps) {
   const { colors, isRTL } = useTheme();
+  const { t } = useI18n();
+  const specialtyText = specialtyLabel(specialty, specialty, t);
   return (
     <AppCard variant="recentDoctor" onPress={onPress} accessibilityLabel={name}>
       <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -39,14 +43,14 @@ export function RecentlyVisitedCard({
             <Text variant="label" weight="700" numberOfLines={1} style={styles.name} align={isRTL ? "right" : "left"}>
               {name}
             </Text>
-            <View style={[styles.pill, { backgroundColor: colors.accent }]}>
+            <View style={[styles.pill, { backgroundColor: colors.accent }, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}>
               <Text variant="caption" weight="600" style={{ color: colors.primary }} numberOfLines={1}>
                 {visitedLabel}
               </Text>
             </View>
           </View>
           <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
-            {`${specialty} · ${facility}`}
+            {`${specialtyText} · ${facility}`}
           </Text>
           {metaText ? (
             <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>
@@ -64,5 +68,5 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   titleRow: { alignItems: "center" },
   name: { flex: 1, flexShrink: 1 },
-  pill: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginStart: 8 },
+  pill: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
 });

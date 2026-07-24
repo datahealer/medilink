@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Image, Linking, Share, StyleSheet, View } from "react-native";
+import { Alert, Image, Linking, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { AppHeader, Button, EmptyState, ErrorState, Icon, LoadingState, Screen, SummaryCard, Text } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useDocument, useDocumentSignedUrl, useDeleteDocument } from "@/hooks/queries/useRecords";
 import { formatApptDate } from "@/utils/appointments";
+import { shareRemoteFile } from "@/utils/shareFile";
 
 function extLabel(fileType: string): string {
   if (/pdf/i.test(fileType)) return "PDF";
@@ -23,7 +24,7 @@ function sizeLabel(bytes: number | null | undefined, num: (s: string) => string)
 
 /** Document Preview (design p29) — signed-URL preview + metadata, share/download, delete. */
 export default function DocumentPreviewScreen() {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isRTL } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const { t, num } = useI18n();
   const { id: rawId } = useLocalSearchParams<{ id?: string }>();
@@ -40,7 +41,14 @@ export default function DocumentPreviewScreen() {
     if (url.data) Linking.openURL(url.data).catch(() => Alert.alert(t("docPreview.loadError")));
   };
   const onShare = () => {
-    if (url.data) Share.share({ message: url.data, url: url.data }).catch(() => {});
+    // Share the actual file (downloaded from the signed URL), not a link.
+    if (url.data) {
+      void shareRemoteFile(url.data, {
+        filename: doc?.name ?? "document",
+        mimeType: doc?.file_type,
+        dialogTitle: t("docPreview.share"),
+      });
+    }
   };
   const onDelete = () => {
     Alert.alert(t("docPreview.deleteTitle"), t("docPreview.deleteMessage"), [
@@ -96,7 +104,7 @@ export default function DocumentPreviewScreen() {
       contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.xxl }}
       footer={
         <View style={{ gap: spacing.sm }}>
-          <View style={styles.footer}>
+          <View style={[styles.footer, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Button
               variant="outline"
               label={t("docPreview.share")}

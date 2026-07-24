@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Switch, View } from "react-native";
+import { Alert, StyleSheet, Switch, View } from "react-native";
 
 import { AppCard, AppHeader, Chip, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
@@ -58,7 +58,12 @@ export default function NotificationPrefsScreen() {
                 </Text>
                 <Switch
                   value={p[c.key]}
-                  onValueChange={(v) => update.mutate({ [c.key]: v })}
+                  onValueChange={(v) => {
+                    // Ignore taps while a write is in flight (prevents a toggle race);
+                    // revert + notify on failure.
+                    if (update.isPending) return;
+                    update.mutate({ [c.key]: v }, { onError: () => Alert.alert(t("errors.saveFailed")) });
+                  }}
                   trackColor={{ true: colors.primaryMuted, false: colors.border }}
                   thumbColor="#FFFFFF"
                   ios_backgroundColor={colors.border}
@@ -76,7 +81,13 @@ export default function NotificationPrefsScreen() {
                 key={ch.key}
                 label={t(`notif.${ch.label}`)}
                 selected={p.channels[ch.key]}
-                onPress={() => update.mutate({ channels: { ...p.channels, [ch.key]: !p.channels[ch.key] } })}
+                onPress={() => {
+                  if (update.isPending) return;
+                  update.mutate(
+                    { channels: { ...p.channels, [ch.key]: !p.channels[ch.key] } },
+                    { onError: () => Alert.alert(t("errors.saveFailed")) }
+                  );
+                }}
               />
             ))}
           </View>

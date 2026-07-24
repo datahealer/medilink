@@ -3,6 +3,8 @@ import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useI18n } from "@/i18n";
+import { specialtyLabel } from "@/utils/specialties";
 import { AppCard } from "./AppCard";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
@@ -42,6 +44,9 @@ export function DoctorCard({
   onPress,
 }: DoctorCardProps) {
   const { colors, radii, scheme, isRTL } = useTheme();
+  const { t } = useI18n();
+  // Localize the doctor's specialty (freetext → catalog label; raw English fallback).
+  const specialtyText = specialtyLabel(specialty, specialty, t);
 
   // Doctor Details header — a tall surface card with faint orbs, a large gradient
   // avatar, dark/light name and a filled green availability pill (PDF artboard).
@@ -65,7 +70,7 @@ export function DoctorCard({
           </View>
           <View style={[styles.body, isRTL ? { marginEnd: 14 } : { marginStart: 14 }]}>
             <Text variant="h2" numberOfLines={2} color="text" align={isRTL ? "right" : "left"}>{name}</Text>
-            <Text variant="caption" color="textMuted" numberOfLines={2} align={isRTL ? "right" : "left"}>{`${specialty} · ${facility}`}</Text>
+            <Text variant="caption" color="textMuted" numberOfLines={2} align={isRTL ? "right" : "left"}>{`${specialtyText} · ${facility}`}</Text>
             {availableTodayLabel ? (
               <View style={[styles.availPill, { backgroundColor: pillBg, alignSelf: isRTL ? "flex-end" : "flex-start" }]}>
                 <Text variant="caption" weight="600" style={{ color: colors.success }}>{availableTodayLabel}</Text>
@@ -86,16 +91,16 @@ export function DoctorCard({
           <View style={[styles.titleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Text variant="title" numberOfLines={1} style={styles.name} align={isRTL ? "right" : "left"}>{name}</Text>
             {availableTodayLabel ? (
-              <View style={[styles.tag, { borderColor: colors.success }]}>
+              <View style={[styles.tag, { borderColor: colors.success }, isRTL ? { marginEnd: 6 } : { marginStart: 6 }]}>
                 <Text variant="caption" color="success" numberOfLines={1}>{availableTodayLabel}</Text>
               </View>
             ) : visitedLabel ? (
-              <View style={[styles.tag, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              <View style={[styles.tag, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, isRTL ? { marginEnd: 6 } : { marginStart: 6 }]}>
                 <Text variant="caption" color="textMuted">{visitedLabel}</Text>
               </View>
             ) : null}
           </View>
-          <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{`${specialty} · ${facility}`}</Text>
+          <Text variant="caption" color="textMuted" numberOfLines={1} align={isRTL ? "right" : "left"}>{`${specialtyText} · ${facility}`}</Text>
           {metaText ? <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{metaText}</Text> : null}
           {isSearch ? (
             <View style={[styles.actions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -114,7 +119,7 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   titleRow: { alignItems: "center" },
   name: { flex: 1, flexShrink: 1 },
-  tag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, marginStart: 6 },
+  tag: { flexShrink: 0, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1 },
   actions: { gap: 8, marginTop: 10 },
   flex: { flex: 1 },
   detailCard: { minHeight: 140, justifyContent: "center" },

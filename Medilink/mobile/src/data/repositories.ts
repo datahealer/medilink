@@ -45,12 +45,18 @@ import type {
 export interface AuthRepository {
   signIn(input: SignInInput): Promise<AuthResult>;
   signUp(input: SignUpInput): Promise<AuthResult>;
-  sendOtp(phone?: string): Promise<AuthResult>;
-  verifyOtp(code: string, phone?: string): Promise<AuthResult>;
+  sendOtp(email?: string): Promise<AuthResult>;
+  verifyOtp(code: string, email?: string): Promise<AuthResult>;
+  /** F5 — send a passwordless email login code (enumeration-safe). */
+  sendLoginOtp(email: string): Promise<AuthResult>;
+  /** F5 — verify the email login code; establishes the session on success. */
+  verifyLoginOtp(code: string, email: string): Promise<AuthResult>;
   requestPasswordReset(identifier: string): Promise<AuthResult>;
   resetPassword(password: string): Promise<AuthResult>;
   googleSignIn(): Promise<AuthResult>;
   signOut(): Promise<void>;
+  /** F57 — request account deletion (soft-delete + 30-day grace; records retained). */
+  deleteAccount(): Promise<AuthResult>;
   /** Restore a persisted session on launch. Resolves to the user, or null. */
   restoreSession(): Promise<SessionUser | null>;
   /** Subscribe to session changes; returns an unsubscribe fn. */
@@ -87,6 +93,12 @@ export interface AppointmentRepository {
   create(input: NewAppointment): Promise<BookedAppointment>;
   /** Cancel an appointment (atomic RPC; throws with the backend reason on failure). */
   cancel(id: string, reason?: string): Promise<void>;
+  /**
+   * BP-3 — release a still-pending, UNPAID reservation (void → free the slot).
+   * Used on payment cancel/abandon or a checkout-creation rollback; distinct from
+   * cancel() (which is for confirmed/paid bookings).
+   */
+  releaseHold(id: string): Promise<void>;
   /** Reschedule to a new slot (atomic RPC; throws with the backend reason on failure). */
   reschedule(id: string, slot: { date: string; start: string; end: string }): Promise<void>;
   /** Check in to a confirmed appointment (throws with the backend reason on failure). */
@@ -104,8 +116,10 @@ export interface PaymentRepository {
   /**
    * Create a Thawani hosted-checkout session for an appointment. Returns the URL
    * to open in the browser. `checkoutUrl` is null when no gateway is wired (mock).
+   * BP-4: the amount is derived SERVER-side from the doctor's fee — never sent by
+   * the client.
    */
-  createCheckout(input: { appointmentId: string; amount: number }): Promise<{ checkoutUrl: string | null }>;
+  createCheckout(input: { appointmentId: string }): Promise<{ checkoutUrl: string | null }>;
   /**
    * Verify a payment on return from Thawani (authoritative session-status check on
    * the backend). Finalizes paid → confirmed server-side and returns the latest status
@@ -119,6 +133,8 @@ export interface DiscoveryRepository {
   listSpecialties(): Promise<Specialty[]>;
   recentDoctors(): Promise<Doctor[]>;
   featuredClinics(): Promise<Clinic[]>;
+  /** Verified clinics near a point, with real coordinates, for the Map View (PDF p19). */
+  nearbyClinics(geo: { lat: number; lng: number; radiusM?: number }): Promise<Clinic[]>;
 }
 
 /** Doctor search / profile / reviews (PDF flows 05–06). */

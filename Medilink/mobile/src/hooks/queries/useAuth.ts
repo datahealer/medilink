@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 
-import { queryClient } from "@/providers/QueryProvider";
+import { queryClient, clearPersistedCache } from "@/providers/QueryProvider";
 import { repositories } from "@/data";
 import type { SignInInput, SignUpInput } from "@/data/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -56,6 +56,33 @@ export function useSignOut() {
     onSettled: () => {
       usePatientStore.getState().reset();
       queryClient.clear();
+      void clearPersistedCache(); // don't retain patient data at rest after logout
+    },
+  });
+}
+
+/**
+ * Request account deletion, then tear down the local session exactly like sign-out
+ * (drop the active patient + clear cached data) so the app returns to a clean signed-out
+ * state. The backend performs a soft-delete with a 30-day grace window; medical/legal
+ * records are retained and PII is anonymized by a scheduled job (F57 GDPR).
+ */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await repositories.auth.deleteAccount();
+      // The backend soft-delete does NOT revoke the current token, so end the local
+      // session ourselves once the request is accepted.
+      if (res.ok) await repositories.auth.signOut().catch(() => {});
+      return res;
+    },
+    onSettled: (res) => {
+      // Only tear down local state when deletion was actually accepted.
+      if (res?.ok) {
+        usePatientStore.getState().reset();
+        queryClient.clear();
+        void clearPersistedCache();
+      }
     },
   });
 }

@@ -57,13 +57,18 @@ export default function SignUpScreen() {
     });
     setLoading(false);
     if (res.ok) {
-      // Verify the phone next (matches the backend's post-signup OTP flow).
-      // `phone` carries the raw E.164 number for resend/verify; `target` is the display string.
+      // Email confirmations disabled → a session already exists, skip OTP.
+      if (res.verified) {
+        router.replace("/dashboard");
+        return;
+      }
+      // Confirm the email next: Supabase sent a 6-digit OTP to this address.
+      // `email` is used to verify/resend; `target` is the display string.
       router.push({
         pathname: "/auth/otp",
         params: {
-          target: `${DIAL_CODE} ${values.phone}`,
-          phone: `${DIAL_CODE}${values.phone}`,
+          target: values.email.trim(),
+          email: values.email.trim(),
         },
       });
     } else {
@@ -73,8 +78,10 @@ export default function SignUpScreen() {
 
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
-      <View style={{ marginBottom: 8, marginStart: -8 }}>
-        <BackButton />
+      <View style={{ marginBottom: 8, flexDirection: isRTL ? "row-reverse" : "row", ...(isRTL ? { marginEnd: -8 } : { marginStart: -8 }) }}>
+        {/* Explicit fallback: reached from the guest wall / sign-in via replace(), so
+            back must resolve to a real screen rather than no-op on an empty stack. */}
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/auth/sign-in"))} />
       </View>
 
       <Text variant="h1">{t("signUp.title")}</Text>
