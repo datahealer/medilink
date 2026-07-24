@@ -359,6 +359,7 @@ export const en = {
     otpTooMany: "Too many attempts. Request a new code.",
     googleNotConfigured: "Google sign-in is not configured yet.",
     recoverySession: "Open the reset link from your email to set a new password.",
+    samePassword: "New password cannot be the same as your previous password.",
     unknown: "Unexpected error. Please try again.",
     loadFailed: "Couldn't load this right now.",
     saveFailed: "Couldn't save your changes. Please try again.",
