@@ -1,34 +1,46 @@
 import { apiBaseUrl } from "./api";
 import { getAccessToken } from "@/lib/supabase";
 
+/** One turn of the symptom-checker conversation. */
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 /** Structured header the symptom-check SSE endpoint emits first (the `meta` event). */
 export interface SymptomCheckMeta {
+  /** "gathering" = the AI is still asking follow-up questions; "assessment" = final guidance. */
+  phase: "gathering" | "assessment";
   is_medical: boolean;
-  urgency_level: "self-care" | "see-doctor" | "emergency";
+  is_emergency: boolean;
+  urgency_level: "self-care" | "see-doctor" | "urgent-24h" | "emergency" | string;
   conditions: string[];
-  home_remedies: string[];
   recommended_action: string;
   disclaimer: string;
+  /** True once the AI has enough info and offers to recommend doctors. */
+  ask_recommend_doctors: boolean;
 }
 
 export interface SymptomStreamHandlers {
-  /** Structured triage header (urgency, conditions, remedies, disclaimer). */
+  /** Structured triage header (phase, urgency, conditions, disclaimer, CTA). */
   onMeta?: (meta: SymptomCheckMeta) => void;
-  /** Accumulated explanation text so far (called on each streamed chunk). */
+  /** Accumulated explanation/question text so far (called on each streamed chunk). */
   onText?: (fullText: string) => void;
   onDone?: () => void;
   onError?: (message: string) => void;
 }
 
 /**
- * Consume the existing streaming endpoint `POST /api/ai/symptom-check` (SSE) from React
- * Native. Uses XMLHttpRequest, which surfaces partial `responseText` at readyState 3 —
- * giving true token-by-token streaming where the platform supports it, and a complete
- * result at readyState 4 otherwise (graceful degradation). Parses `data: {json}` events
- * (`{type:'meta'}` + `{type:'text',content}` + `[DONE]`) and handles the JSON 400 that
- * the endpoint returns for non-medical input. Returns an `abort()` function.
+ * Consume the streaming endpoint `POST /api/ai/symptom-check` (SSE) as a CONVERSATION.
+ *
+ * The full chat history is sent with every turn (`{ messages: ChatTurn[] }`) so the AI never
+ * forgets earlier symptoms — exactly like ChatGPT. Uses XMLHttpRequest, which surfaces partial
+ * `responseText` at readyState 3 for true token-by-token streaming where the platform supports
+ * it, and a complete result at readyState 4 otherwise. Parses `data:` events
+ * (`{type:'meta'}` + `{type:'text',content}` + `{type:'error'}` + `[DONE]`) and handles the
+ * JSON error responses the endpoint returns for auth / validation failures. Returns `abort()`.
  */
-export function streamSymptomCheck(symptoms: string, handlers: SymptomStreamHandlers): () => void {
+export function streamSymptomChat(messages: ChatTurn[], handlers: SymptomStreamHandlers): () => void {
   const xhr = new XMLHttpRequest();
   let seen = 0; // index in responseText up to which complete lines were parsed
   let explanation = "";
@@ -44,7 +56,7 @@ export function streamSymptomCheck(symptoms: string, handlers: SymptomStreamHand
   const parseBuffer = () => {
     const text = xhr.responseText ?? "";
 
-    // Non-medical / error path returns JSON, not an SSE stream.
+    // Non-stream (auth / validation) errors come back as JSON, not SSE.
     const ct = (xhr.getResponseHeader?.("Content-Type") || "").toLowerCase();
     if (ct.includes("application/json")) {
       try {
@@ -71,12 +83,14 @@ export function streamSymptomCheck(symptoms: string, handlers: SymptomStreamHand
         continue;
       }
       try {
-        const evt = JSON.parse(payload) as { type?: string; content?: string } & Partial<SymptomCheckMeta>;
+        const evt = JSON.parse(payload) as { type?: string; content?: string; message?: string } & Partial<SymptomCheckMeta>;
         if (evt.type === "meta") {
           handlers.onMeta?.(evt as SymptomCheckMeta);
         } else if (evt.type === "text" && typeof evt.content === "string") {
           explanation += evt.content;
           handlers.onText?.(explanation);
+        } else if (evt.type === "error") {
+          finish(() => handlers.onError?.(evt.message || "The AI service had a problem. Please try again."));
         }
       } catch {
         /* line spanned a chunk boundary; it re-arrives complete next tick */
@@ -90,9 +104,6 @@ export function streamSymptomCheck(symptoms: string, handlers: SymptomStreamHand
       parseBuffer();
       if (!finished) {
         if (xhr.status === 401) {
-          // React Native's XHR doesn't always expose Content-Type, so the JSON branch in
-          // parseBuffer can miss the {"error":"Unauthorized"} body — surface auth failures
-          // explicitly rather than the generic "unavailable".
           finish(() => handlers.onError?.("Your session has expired. Please sign in again."));
         } else if (xhr.status >= 400) {
           finish(() => handlers.onError?.("The AI service is unavailable right now. Please try again."));
@@ -113,7 +124,7 @@ export function streamSymptomCheck(symptoms: string, handlers: SymptomStreamHand
       xhr.setRequestHeader("Accept", "text/event-stream");
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.timeout = 60_000;
-      xhr.send(JSON.stringify({ symptoms }));
+      xhr.send(JSON.stringify({ messages }));
     } catch {
       finish(() => handlers.onError?.("Couldn't start the request."));
     }

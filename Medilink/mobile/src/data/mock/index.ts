@@ -822,8 +822,8 @@ const aiRepo: AiRepository = {
       reasoning: "Chest tightness and breathlessness suggest seeing a Cardiologist today.",
       urgencyLevel: "see-doctor",
       doctors: [
-        { id: "doc-khalid", full_name: "Dr. Khalid Al Balushi", specialty: "Cardiologist", rating: 4.9, fee_omr: 25 },
-        { id: "doc-fatma", full_name: "Dr. Fatma Said", specialty: "Cardiologist", rating: 4.7, fee_omr: 22 },
+        { id: "doc-khalid", full_name: "Dr. Khalid Al Balushi", specialty: "Cardiologist", rating: 4.9, fee_omr: 25, clinic: "Muscat Heart Clinic" },
+        { id: "doc-fatma", full_name: "Dr. Fatma Said", specialty: "Cardiologist", rating: 4.7, fee_omr: 22, clinic: "Al Khuwair Medical Center" },
       ],
     });
   },

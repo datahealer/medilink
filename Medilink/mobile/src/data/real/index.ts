@@ -1108,6 +1108,7 @@ interface SuggestDocLoose {
   specialty: string | null;
   avg_rating: number | null;
   fees?: unknown;
+  clinic?: string | null;
 }
 
 /** The `data` payload of POST /api/ai/schedule-assist (all four `type` shapes union'd). */
@@ -1145,6 +1146,7 @@ const aiRepo: AiRepository = {
         specialty: doc.specialty ?? null,
         rating: doc.avg_rating != null ? Number(doc.avg_rating) : null,
         fee_omr: feeForType(doc.fees, "in_person") || null,
+        clinic: doc.clinic ?? null,
       })),
     };
   },

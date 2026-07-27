@@ -72,9 +72,12 @@ Rules:
       let doctors: Array<Record<string, unknown>> = [];
       if (specialties.length > 0) {
         const orFilter = specialties.map((s) => `specialty.ilike.${s}`).join(",");
+        // Join the doctor's facility so cards can show the clinic name. This is static
+        // relative to the 1-hour cache (unlike open slots, which is why availability is NOT
+        // embedded here — it's resolved live on the booking screen).
         const { data } = await supabase
           .from("doctors")
-          .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status")
+          .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status, facilities:facility_id ( name )")
           .or(orFilter)
           .order("avg_rating", { ascending: false, nullsFirst: false })
           .limit(10);
@@ -86,10 +89,16 @@ Rules:
         ai_reasoning: aiResult.ai_reasoning,
         urgency_level: aiResult.urgency_level,
         suggested_specialties: aiResult.suggested_specialties,
-        recommended_doctors: (doctors ?? []).map((doc) => ({
-          ...doc,
-          booking_url: `/dashboard/dashboardpages/patient/book?doctorId=${doc.id}`,
-        })),
+        recommended_doctors: (doctors ?? []).map((doc) => {
+          const facility = doc.facilities as { name?: string | null } | null;
+          const { facilities: _facilities, ...rest } = doc;
+          void _facilities;
+          return {
+            ...rest,
+            clinic: facility?.name ?? null,
+            booking_url: `/dashboard/dashboardpages/patient/book?doctorId=${doc.id}`,
+          };
+        }),
       };
     },
     [`suggest-doctor-${hash}`],

@@ -53,6 +53,9 @@ export { SegmentedTabs, type SegmentedTab } from "./SegmentedTabs";
 export { HeroAppointmentCard } from "./HeroAppointmentCard";
 export { AppointmentCompactCard } from "./AppointmentCompactCard";
 export { LoadingState, ErrorState, EmptyState } from "./StateView";
+export { Markdown } from "./Markdown";
+export { TypingIndicator } from "./TypingIndicator";
+export { UrgencyBadge } from "./UrgencyBadge";
 export { TrendChart } from "./TrendChart";
 export type { TrendPoint } from "./TrendChart";
 

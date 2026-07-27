@@ -257,6 +257,8 @@ export interface AiSuggestedDoctor {
   specialty: string | null;
   rating: number | null;
   fee_omr: number | null;
+  /** Clinic / facility name (from suggest-doctor's facility join), or null. */
+  clinic: string | null;
 }
 
 export interface AiDoctorSuggestion {
