@@ -794,6 +794,8 @@ export const en = {
     emergencyBanner: "These may be emergency symptoms. Seek immediate medical attention or call 999.",
     recommendPrompt: "Would you like me to recommend the most suitable doctors for your symptoms?",
     recommendDeclined: "No problem. I'm here whenever you'd like to continue — just describe any new symptoms.",
+    recommendDoctors: "Recommend Doctors",
+    continueChat: "Continue Chat",
     yes: "Yes",
     no: "No",
     doctorsLoading: "Finding the most suitable doctors…",

@@ -118,9 +118,10 @@ export default function AiSymptomCheckerScreen() {
       .catch(() => patch(docMsg.id, (m) => (m.role === "ai" && m.kind === "doctors" ? { ...m, status: "error" } : m)));
   };
 
-  const declineDoctors = (fromId: number) => {
+  // "Continue Chat" just dismisses the offer for this message; the conversation continues and
+  // the offer reappears on the next assessment. No bubble, no restart.
+  const continueChat = (fromId: number) => {
     patch(fromId, (m) => (m.role === "ai" && m.kind === "text" ? { ...m, recommendAnswered: true } : m));
-    setMessages((prev) => [...prev, { id: nextId(), role: "ai", kind: "text", text: t("aiAssistant.recommendDeclined"), ts: Date.now(), meta: null, status: "done", synthetic: true }]);
   };
 
   const copy = async (text: string) => {
@@ -317,9 +318,9 @@ export default function AiSymptomCheckerScreen() {
                 {isAssessment && m.meta?.ask_recommend_doctors && !m.recommendAnswered && m.status === "done" ? (
                   <View style={{ marginTop: spacing.sm }}>
                     <Text variant="body" align={isRTL ? "right" : "left"} style={{ marginBottom: spacing.xs }}>{t("aiAssistant.recommendPrompt")}</Text>
-                    <View style={[styles.chipRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                      <Chip label={t("aiAssistant.yes")} onPress={() => recommendDoctors(m.id)} />
-                      <Chip label={t("aiAssistant.no")} onPress={() => declineDoctors(m.id)} />
+                    <View style={[styles.ctaRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                      <Button label={t("aiAssistant.recommendDoctors")} onPress={() => recommendDoctors(m.id)} style={styles.flex} />
+                      <Button label={t("aiAssistant.continueChat")} variant="outline" onPress={() => continueChat(m.id)} style={[styles.flex, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]} />
                     </View>
                   </View>
                 ) : null}
@@ -363,6 +364,7 @@ const styles = StyleSheet.create({
   retry: { alignItems: "center", marginTop: 6 },
   emergency: { paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
   chipRow: { flexWrap: "wrap", gap: 8 },
+  ctaRow: { alignItems: "center" },
   docRow: { alignItems: "center" },
   inputRow: { alignItems: "center" },
 });

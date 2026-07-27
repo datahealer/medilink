@@ -793,6 +793,8 @@ export const ar: Messages = {
     emergencyBanner: "قد تكون هذه أعراضًا طارئة. اطلب رعاية طبية فورية أو اتصل بالرقم 999.",
     recommendPrompt: "هل تريد أن أوصي لك بأنسب الأطباء لأعراضك؟",
     recommendDeclined: "لا مشكلة. أنا هنا متى أردت المتابعة — فقط صِف أي أعراض جديدة.",
+    recommendDoctors: "أوصِ بأطباء",
+    continueChat: "متابعة المحادثة",
     yes: "نعم",
     no: "لا",
     doctorsLoading: "جارٍ البحث عن أنسب الأطباء…",

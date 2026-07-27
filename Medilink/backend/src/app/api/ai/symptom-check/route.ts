@@ -22,55 +22,50 @@ function hashText(text: string) {
   return createHash("sha256").update(text.trim().toLowerCase()).digest("hex");
 }
 
-// STAGE 1 — the "triage director": reads the WHOLE conversation and decides whether we still
-// need to ask questions (gathering) or have enough to give responsible guidance (assessment).
-const TRIAGE_DIRECTOR_SYSTEM = `You are a careful clinical triage assistant having a CONVERSATION with a patient. Read the ENTIRE conversation so far (every earlier symptom matters — never forget them) and decide the next step. Respond ONLY with valid JSON:
+// STAGE 1 — the "triage director": reads the WHOLE conversation and classifies it. It does
+// NOT decide whether to answer — the assistant ALWAYS answers with value. It only supplies the
+// deterministic signals the UI needs: is this medical, is it an emergency, and how urgent.
+const TRIAGE_DIRECTOR_SYSTEM = `You are a clinical triage classifier. Read the ENTIRE conversation (every symptom mentioned so far matters — never forget earlier ones) and respond ONLY with valid JSON:
 {
   "is_medical": true | false,
-  "phase": "gathering" | "assessment",
   "is_emergency": true | false,
-  "urgency_level": "self-care" | "see-doctor" | "urgent-24h" | "emergency",
-  "conditions": ["plain-language possible cause", "..."],
-  "recommended_action": "one short sentence describing what the patient should do next"
+  "urgency_level": "self-care" | "see-doctor" | "urgent-24h" | "emergency"
 }
 Rules:
-- is_medical: false ONLY if the conversation has no health content at all (gibberish / off-topic). Then set phase:"assessment", urgency_level:"self-care", conditions:[], and recommended_action must gently say you can only help with health symptoms.
-- phase "gathering": choose when you still need important clinical detail (location, onset/duration, severity, character, associated symptoms, or relevant history like pregnancy/diabetes) to give SAFE guidance. When the patient has given only a SINGLE, unqualified symptom (e.g. just "chest pain", "headache", "stomach ache") and has NOT yet mentioned any red-flag feature, prefer "gathering" and ask the key clarifying questions first — do not jump straight to emergency on an isolated symptom alone.
-- phase "assessment": choose when you already have enough for responsible guidance — OR the moment any emergency red flag appears (then assess IMMEDIATELY, do not keep asking).
-- is_emergency + urgency_level "emergency": set as soon as a red flag is present or clearly implied — chest pain radiating to arm/jaw/neck, chest pain WITH sweating / shortness of breath / nausea, stroke signs (face droop, arm weakness, speech difficulty), severe breathing difficulty, anaphylaxis, uncontrolled bleeding, or suicidal intent. When is_emergency is true, phase MUST be "assessment". Never downgrade an emergency to keep chatting.
-- urgency_level meaning: "self-care" = manage at home; "see-doctor" = get professional evaluation soon; "urgent-24h" = see a doctor within 24 hours; "emergency" = seek immediate emergency care.
-- conditions: 1–4 plain-language possible causes, ONLY when phase is "assessment" and is_medical is true; otherwise [].
+- is_medical: false ONLY if the conversation has no health content at all (gibberish / off-topic).
+- is_emergency + urgency_level "emergency": set as soon as a red flag is present or clearly implied — chest pain radiating to arm/jaw/neck, chest pain WITH sweating / shortness of breath / nausea, stroke signs (face droop, arm weakness, speech difficulty), severe breathing difficulty, anaphylaxis, uncontrolled bleeding, sudden vision loss, or suicidal intent.
+- Escalate urgency as the picture worsens or new concerning features appear: new/worsening BLURRED or DECLINING VISION → at least "urgent-24h"; a symptom persisting for WEEKS or clearly worsening → at least "see-doctor".
+- urgency_level meaning: "self-care" = manage at home; "see-doctor" = professional evaluation soon; "urgent-24h" = within 24 hours; "emergency" = immediate emergency care.
 - Base every decision on the FULL conversation, not just the last message.`;
 
-// STAGE 2 prompts — generate the human-facing streamed text for the chosen phase.
-const GATHERING_SYSTEM = `You are a warm, concise medical assistant gathering information in a chat. Based on the WHOLE conversation, ask ONLY the 1–4 MOST useful follow-up questions to clarify the patient's symptoms.
-- Start with a brief acknowledgement (e.g. "Thank you." or "Understood.").
-- Then ask focused questions as a short bulleted list, each line starting with "• ".
-- Do NOT diagnose or give advice yet. Do NOT repeat anything the patient has already answered.
-- Keep it short, human, and in plain language.`;
+// STAGE 2 — the assistant ALWAYS answers with value in this exact structure. It never replies
+// with questions alone; a single optional follow-up question may come only at the very end.
+const CONSULTATION_SYSTEM = `You are MediLink's AI medical assistant in an ongoing chat with a patient — talk like a caring clinician on a messaging app, NOT like a questionnaire. After EVERY meaningful message you MUST provide value; NEVER reply with questions alone.
 
-const ASSESSMENT_SYSTEM = `You are a compassionate medical assistant explaining possible conditions to a patient in plain, easy-to-understand language, using everything shared in the conversation.
-Format your ENTIRE response as repeating point + description pairs:
+Use the ENTIRE conversation (all symptoms so far — never forget earlier ones). Reply in EXACTLY this structure, in warm, plain, non-technical language, using markdown headings:
 
-**What it could be**
-Brief explanation of the possible condition(s) in simple words.
+**What I understood**
+One short sentence restating what the patient has told you so far (include how long it's lasted and every symptom mentioned).
 
-**Why it happens**
-The likely cause in plain language.
+**Possible causes**
+• <Cause 1> — one short plain-language explanation
+• <Cause 2> — one short plain-language explanation
+• <Cause 3> — one short plain-language explanation
+(Give 2–4 causes, most relevant first.)
 
-**What you should do**
-Specific, actionable next steps.
+**Most likely**
+Say: "Based on the current information, the most likely cause is <X>." Then, on the next line: "This is not a diagnosis." If a NEW detail shifts the likelihood, say so explicitly (e.g. "The itching makes allergic conjunctivitis more likely.").
 
-**Home Remedies**
-Only include this section for mild/self-care symptoms. List 3–5 practical remedies. Skip entirely for serious or emergency conditions.
+**Recommendation**
+What the patient should do next. If symptoms have lasted weeks, are severe, or are worsening, recommend the appropriate specialist BY NAME (e.g. an ophthalmologist for eye problems). For emergencies, tell them to seek immediate/emergency care now.
 
-**When to seek help**
-Clear signs that mean the patient needs prompt or immediate medical attention.
+Then, ONLY if ONE specific missing detail would meaningfully change the assessment, add ONE short question on its own final line, starting with "One quick question: ". Ask AT MOST one, and skip it entirely if nothing important is missing.
 
 Rules:
-- Always put the bold **Heading** on its own line, followed by its description on the next line.
-- No bullet points, numbered lists, or long paragraphs — only the heading + description format.
-- Simple, empathetic language. No jargon.`;
+- NEVER send a message that is only questions — every reply must contain the four sections above.
+- Use ONLY the bold **Headings** + "• " bullets shown; no numbered lists, no long paragraphs.
+- Always re-incorporate every earlier symptom and update causes / most-likely / recommendation when the patient adds anything new.
+- Keep each part brief and easy to read.`;
 
 const NON_MEDICAL_SYSTEM = `You are a friendly medical assistant. The user has not described a health symptom. In 1–2 warm sentences, gently explain that you can only help with health symptoms, and invite them to describe what they're feeling physically. Do not diagnose anything.`;
 
@@ -138,7 +133,7 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join(", ");
 
-    // ── STAGE 1: triage director decides gathering vs assessment (structured JSON) ──
+    // ── STAGE 1: triage classifier (structured JSON) — signals only, never gates the answer ──
     const directorMessages = [
       { role: "system" as const, content: TRIAGE_DIRECTOR_SYSTEM + (patientContext ? `\n\nKnown patient context: ${patientContext}.` : "") },
       ...conversation,
@@ -152,45 +147,32 @@ export async function POST(req: NextRequest) {
 
     const director = JSON.parse(structured.choices[0].message.content ?? "{}") as {
       is_medical?: boolean;
-      phase?: "gathering" | "assessment";
       is_emergency?: boolean;
       urgency_level?: string;
-      conditions?: string[];
-      recommended_action?: string;
     };
 
     const isMedical = director.is_medical !== false;
     const isEmergency = !!director.is_emergency;
-    // Emergencies must be assessed immediately, never left in "gathering".
-    const phase: "gathering" | "assessment" = !isMedical
-      ? "assessment"
-      : isEmergency
-        ? "assessment"
-        : director.phase === "assessment"
-          ? "assessment"
-          : "gathering";
     const urgencyLevel = isMedical ? (director.urgency_level ?? "see-doctor") : "self-care";
+    // The assistant ALWAYS gives a full assessment for any medical message (never a
+    // questions-only "gathering" reply), so a medical turn always carries the urgency badge,
+    // disclaimer, and the "Recommend Doctors / Continue Chat" offer.
+    const phase = "assessment" as const;
 
-    // The structured meta the client renders (badge, conditions, CTA). `ask_recommend_doctors`
-    // is true only once we've reached a real assessment for a medical issue.
     const meta = {
       type: "meta" as const,
       phase,
       is_medical: isMedical,
       is_emergency: isEmergency,
       urgency_level: urgencyLevel,
-      conditions: phase === "assessment" && isMedical ? (director.conditions ?? []) : [],
-      recommended_action: director.recommended_action ?? "",
+      conditions: [] as string[], // possible causes now live inline in the consultation text
+      recommended_action: "",
       disclaimer: DISCLAIMER,
-      ask_recommend_doctors: phase === "assessment" && isMedical,
+      ask_recommend_doctors: isMedical,
     };
 
-    // ── STAGE 2: stream the human-facing text for the chosen phase ──
-    const systemForPhase = !isMedical
-      ? NON_MEDICAL_SYSTEM
-      : phase === "gathering"
-        ? GATHERING_SYSTEM
-        : ASSESSMENT_SYSTEM;
+    // ── STAGE 2: stream the always-structured consultation (or a gentle non-medical redirect) ──
+    const systemForPhase = isMedical ? CONSULTATION_SYSTEM : NON_MEDICAL_SYSTEM;
 
     const stream = await groqClient().chat.completions.create({
       model: GROQ_MODEL,
@@ -199,21 +181,21 @@ export async function POST(req: NextRequest) {
         ...conversation,
       ],
       stream: true,
-      temperature: phase === "assessment" ? 0.4 : 0.3,
+      temperature: 0.4,
     });
 
-    // Logging: count every turn toward the rate limit; only record a completed check to
-    // symptom_check_logs when we actually produced an assessment.
+    // Logging: count every turn toward the rate limit; record a symptom-check row for every
+    // medical turn (each one is a full assessment now).
     await serviceSupabase.from("ai_request_logs").insert({
       user_id: user.id,
       feature: "symptom_check",
       prompt_hash: hashText(conversation[conversation.length - 1].content),
     });
-    if (phase === "assessment" && isMedical) {
+    if (isMedical) {
       await serviceSupabase.from("symptom_check_logs").insert({
         symptoms: conversation.filter((m) => m.role === "user").map((m) => m.content).join(" | ").substring(0, 500),
         urgency: urgencyLevel,
-        conditions: meta.conditions,
+        conditions: [],
         patient_age: patient_age ?? null,
         patient_gender: patient_gender ?? null,
       });
