@@ -622,6 +622,10 @@ const paymentRepo: PaymentRepository = {
     const found = payments.find((p) => p.appointment?.id === appointmentId);
     return delay({ status: "paid", payment: found ? { ...found, status: "paid" } : null }, 300);
   },
+  async regenerateInvoice() {
+    // Mock has no backend worker; seeded payments already carry an invoiceUrl.
+    return delay({ invoiceUrl: null, status: "queued" }, 300);
+  },
 };
 
 const documentRepo: DocumentRepository = (() => {

@@ -4,6 +4,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
+import { ensureInvoice } from "@/lib/payments/ensureInvoice";
 
 type Service = ReturnType<typeof createServiceSupabase>;
 
@@ -61,42 +62,6 @@ async function buildRecap(service: Service, appointmentId: string) {
         }
       : null,
   };
-}
-
-/**
- * Generate the invoice PDF for a paid payment if it doesn't already have one. Mirrors
- * the webhook's invoice step so the return-from-checkout `verify` path is
- * self-sufficient — the webhook may not have arrived yet, and cannot reach a local/LAN
- * backend at all. Idempotent (skips when invoice_url is already set) and non-fatal: a
- * failure here must never block payment confirmation; the invoice can still be filed
- * later when the invoice detail screen is opened.
- */
-async function ensureInvoice(service: Service, paymentId: string) {
-  const { data: p } = await service
-    .from("payments")
-    .select("invoice_url")
-    .eq("id", paymentId)
-    .maybeSingle();
-  if (p?.invoice_url) return;
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-invoice`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ payment_id: paymentId }),
-      }
-    );
-    if (!res.ok) {
-      const detail = await res.json().catch(() => null);
-      console.error("verify: invoice generation failed", detail);
-    }
-  } catch (err) {
-    console.error("verify: invoice generation error", err instanceof Error ? err.message : err);
-  }
 }
 
 /**
@@ -186,7 +151,7 @@ export async function POST(req: NextRequest) {
 
     // Ensure the invoice exists once the payment is paid, so the app can auto-file it
     // into the Document Vault on return (idempotent; safe if the webhook already made it).
-    if (paidNow) await ensureInvoice(service, payment.id);
+    if (paidNow) await ensureInvoice(payment.id, "verify");
 
     const recap = await buildRecap(service, appointment_id);
     return NextResponse.json({ status: recap?.status ?? payment.status ?? "pending", payment: recap });
