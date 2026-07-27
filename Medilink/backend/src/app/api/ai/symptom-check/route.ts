@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { GROQ_MODEL, describeAiError, exposeAiDetail, groqClient } from "@/lib/ai/groq";
 import { createHash } from "crypto";
 
 // Vercel: this route makes a structured call plus a streamed (SSE) Groq completion;
 // raise the function timeout above the low default so streaming can complete.
 export const maxDuration = 60;
-
-// Lazy init: `next build` imports route modules for page-data collection, and the Groq
-// SDK throws on an empty key at construction. Creating the client on first request keeps
-// the build working without GROQ_API_KEY present, while runtime behavior is unchanged.
-let _groq: Groq | null = null;
-function groqClient(): Groq {
-  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return _groq;
-}
 
 function hashSymptoms(symptoms: string) {
   return createHash("sha256").update(symptoms.trim().toLowerCase()).digest("hex");
@@ -122,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     // Step 1: Quick structured call for urgency + conditions
     const structured = await groqClient().chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: GROQ_MODEL,
       messages: [
         { role: "system", content: STRUCTURED_SYSTEM },
         { role: "user", content: userMessage },
@@ -170,7 +161,7 @@ export async function POST(req: NextRequest) {
 
     // Step 3: Streaming call for detailed explanation
     const stream = await groqClient().chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: GROQ_MODEL,
       messages: [
         { role: "system", content: EXPLANATION_SYSTEM },
         {
@@ -220,17 +211,11 @@ Please explain what these conditions are, what might be causing the symptoms, an
       },
     });
   } catch (err: unknown) {
-    console.error("Symptom check error:", err);
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
-      return NextResponse.json(
-        { success: false, error: "AI rate limit reached. Please try again in a moment." },
-        { status: 429 }
-      );
-    }
+    const info = describeAiError(err);
+    console.error(`Symptom check error [${info.code}]:`, info.detail, err);
     return NextResponse.json(
-      { success: false, error: "Something went wrong. Please try again." },
-      { status: 500 }
+      { success: false, error: info.clientMessage, ...(exposeAiDetail() ? { code: info.code, detail: info.detail } : {}) },
+      { status: info.httpStatus }
     );
   }
 }

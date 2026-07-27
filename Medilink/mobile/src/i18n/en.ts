@@ -13,6 +13,7 @@ export const en = {
     getStarted: "Get Started",
     cancel: "Cancel",
     loading: "Loading…",
+    sessionExpired: "Your session has expired. Please sign in again.",
     save: "Save",
     saveChanges: "Save changes",
     edit: "Edit",

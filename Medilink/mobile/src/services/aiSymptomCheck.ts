@@ -88,10 +88,17 @@ export function streamSymptomCheck(symptoms: string, handlers: SymptomStreamHand
     if (xhr.readyState >= 3) parseBuffer();
     if (xhr.readyState === 4) {
       parseBuffer();
-      if (xhr.status >= 400 && !finished) {
-        finish(() => handlers.onError?.("The AI service is unavailable right now. Please try again."));
-      } else {
-        finish(() => handlers.onDone?.());
+      if (!finished) {
+        if (xhr.status === 401) {
+          // React Native's XHR doesn't always expose Content-Type, so the JSON branch in
+          // parseBuffer can miss the {"error":"Unauthorized"} body — surface auth failures
+          // explicitly rather than the generic "unavailable".
+          finish(() => handlers.onError?.("Your session has expired. Please sign in again."));
+        } else if (xhr.status >= 400) {
+          finish(() => handlers.onError?.("The AI service is unavailable right now. Please try again."));
+        } else {
+          finish(() => handlers.onDone?.());
+        }
       }
     }
   };

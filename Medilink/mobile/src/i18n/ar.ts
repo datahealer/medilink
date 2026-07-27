@@ -14,6 +14,7 @@ export const ar: Messages = {
     getStarted: "ابدأ الآن",
     cancel: "إلغاء",
     loading: "جارٍ التحميل…",
+    sessionExpired: "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
     save: "حفظ",
     saveChanges: "حفظ التغييرات",
     edit: "تعديل",

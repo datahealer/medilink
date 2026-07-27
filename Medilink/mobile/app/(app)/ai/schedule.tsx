@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { useScheduleAssist } from "@/hooks/queries/useAi";
+import { ApiError } from "@/services/api";
 import type { AiScheduleDoctorResult, AiScheduleEntities, AiScheduleTurn } from "@/data/types";
 
 type Bubble =
@@ -102,8 +103,9 @@ export default function AiScheduleScreen() {
             { role: "assistant" as const, content: assistantText },
           ].slice(-8); // keep the last few turns for context, bounded
         },
-        onError: () => {
-          setMessages((m) => [...m, { id: nextId(), role: "assistant", kind: "text", text: t("aiSchedule.error") }]);
+        onError: (err) => {
+          const text = err instanceof ApiError && err.status === 401 ? t("common.sessionExpired") : t("aiSchedule.error");
+          setMessages((m) => [...m, { id: nextId(), role: "assistant", kind: "text", text }]);
         },
       }
     );

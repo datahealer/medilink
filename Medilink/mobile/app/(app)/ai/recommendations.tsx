@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { useSuggestedDoctors } from "@/hooks/queries/useAi";
+import { ApiError } from "@/services/api";
 import type { AiSuggestedDoctor } from "@/data/types";
 
 /**
@@ -69,7 +70,10 @@ export default function AiRecommendationsScreen() {
       ) : query.isLoading ? (
         <LoadingState />
       ) : query.isError ? (
-        <ErrorState message={t("aiRecommend.loadError")} onRetry={() => query.refetch()} />
+        <ErrorState
+          message={query.error instanceof ApiError && query.error.status === 401 ? t("common.sessionExpired") : t("aiRecommend.loadError")}
+          onRetry={() => query.refetch()}
+        />
       ) : (
         <>
           {reasoning ? (

@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-import Groq from "groq-sdk";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { GROQ_MODEL, describeAiError, exposeAiDetail, groqClient } from "@/lib/ai/groq";
 import { createHash } from "crypto";
 
 // Vercel: raise the function timeout above the low default to cover the AI call.
 export const maxDuration = 30;
-
-// Lazy init: `next build` imports route modules for page-data collection, and the Groq
-// SDK throws on an empty key at construction. Creating the client on first request keeps
-// the build working without GROQ_API_KEY present, while runtime behavior is unchanged.
-let _groq: Groq | null = null;
-function groqClient(): Groq {
-  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return _groq;
-}
 
 type AIResult = {
   is_medical: boolean;
@@ -57,7 +48,7 @@ Rules:
 - Return ONLY valid JSON: { "is_medical": boolean, "ai_reasoning": string, "urgency_level": "low"|"medium"|"high"|"emergency", "suggested_specialties": string[] }`;
 
       const completion = await groqClient().chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: symptoms },
@@ -160,23 +151,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (err: unknown) {
-    console.error("AI suggest-doctor error:", err);
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
-      return NextResponse.json(
-        { success: false, error: "AI rate limit reached. Please try again in a moment." },
-        { status: 429 }
-      );
-    }
-    if (message.includes("503") || message.toLowerCase().includes("service unavailable")) {
-      return NextResponse.json(
-        { success: false, error: "AI service temporarily unavailable. Please try again." },
-        { status: 503 }
-      );
-    }
+    const info = describeAiError(err);
+    console.error(`AI suggest-doctor error [${info.code}]:`, info.detail, err);
     return NextResponse.json(
-      { success: false, error: "Something went wrong. Please try again." },
-      { status: 500 }
+      { success: false, error: info.clientMessage, ...(exposeAiDetail() ? { code: info.code, detail: info.detail } : {}) },
+      { status: info.httpStatus }
     );
   }
 }
