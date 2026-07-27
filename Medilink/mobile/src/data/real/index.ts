@@ -355,6 +355,14 @@ const paymentRepo: PaymentRepository = {
     });
     return { status: res?.status ?? "pending", payment: res?.payment ?? null };
   },
+  async regenerateInvoice(paymentId) {
+    // Idempotent server-side: returns the existing invoice or triggers the worker.
+    const res = await apiFetch<{ status?: string; invoice_url?: string }>(
+      `/api/payments/${paymentId}/invoice/regenerate`,
+      { method: "POST" },
+    );
+    return { invoiceUrl: res?.invoice_url ?? null, status: res?.status ?? "queued" };
+  },
 };
 
 const appointmentRepo: AppointmentRepository = {

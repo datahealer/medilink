@@ -224,6 +224,8 @@ export const en = {
     downloadPdf: "Download PDF",
     share: "Share",
     invoiceUnavailable: "The PDF invoice isn't available yet.",
+    generateInvoice: "Generate invoice",
+    invoiceQueued: "Invoice is being generated. Please check back in a moment.",
   },
   welcome: {
     title: "Welcome to MediLink",

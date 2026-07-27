@@ -126,6 +126,13 @@ export interface PaymentRepository {
    * plus a service-role recap (so confirmation doesn't depend on the patient RLS read).
    */
   verify(appointmentId: string): Promise<{ status: string; payment?: Payment | null }>;
+  /**
+   * Manually (re)generate the invoice for a paid payment whose invoice never
+   * generated (transient edge-fn/storage failure). Idempotent server-side: returns the
+   * existing invoice if present, else triggers the worker. `invoiceUrl` is null when the
+   * invoice is still being generated (status 'queued'/'in_progress') — poll again.
+   */
+  regenerateInvoice(paymentId: string): Promise<{ invoiceUrl: string | null; status: string }>;
 }
 
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */

@@ -223,6 +223,8 @@ export const ar: Messages = {
     downloadPdf: "تنزيل PDF",
     share: "مشاركة",
     invoiceUnavailable: "فاتورة PDF غير متوفرة بعد.",
+    generateInvoice: "إنشاء الفاتورة",
+    invoiceQueued: "يتم إنشاء الفاتورة الآن. يرجى المحاولة بعد قليل.",
   },
   welcome: {
     title: "مرحبًا بك في ميديلينك",
