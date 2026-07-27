@@ -39,6 +39,12 @@ function resolveBaseUrl(): string {
   return base;
 }
 
+/** The resolved backend origin (Android-emulator aware). Used by streaming clients
+ *  that can't go through `apiFetch` (e.g. the SSE symptom-check endpoint). */
+export function apiBaseUrl(): string {
+  return resolveBaseUrl();
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   init: RequestInit = {}

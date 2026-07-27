@@ -26,6 +26,8 @@ import type {
 } from "../repositories";
 import type {
   AiDoctorSuggestion,
+  AiScheduleInput,
+  AiScheduleResponse,
   AiVisitSummary,
   Appointment,
   Clinic,
@@ -830,6 +832,53 @@ const aiRepo: AiRepository = {
       summary: "Routine cardiac review. BP 128/82. Continue current medication. Follow-up in 6 weeks. No red-flag symptoms reported.",
       date: "2026-05-02",
       doctorName: "Dr. Khalid Al Balushi",
+    });
+  },
+  async scheduleAssist(input: AiScheduleInput): Promise<AiScheduleResponse> {
+    // Deterministic mock conversation: ask for a doctor type if none is implied yet,
+    // otherwise return a couple of bookable slots. Enough to exercise the chat UI offline.
+    const q = input.query.toLowerCase();
+    const hasDoctor = /cardio|derma|physician|pediatric|dentist|ortho|eye|skin|heart|tooth|child/.test(q) ||
+      !!input.pendingEntities?.doctor_type;
+    if (!hasDoctor) {
+      return delay({
+        kind: "message",
+        message: "What type of doctor do you need? For example: Cardiologist, Dermatologist, or General Physician.",
+        entities: { doctor_type: null, date_phrase: null, time_preference: "any" },
+      });
+    }
+    return delay({
+      kind: "results",
+      entities: { doctor_type: "Cardiologist", date_phrase: null, time_preference: "any" },
+      results: [
+        {
+          doctorId: "doc-khalid",
+          doctorName: "Dr. Khalid Al Balushi",
+          specialty: "Cardiologist",
+          rating: 4.9,
+          feeOmr: 25,
+          slotDate: "2026-07-28",
+          slots: [
+            { start: "09:00", end: "09:30" },
+            { start: "10:00", end: "10:30" },
+            { start: "11:30", end: "12:00" },
+          ],
+          timeFallback: false,
+        },
+        {
+          doctorId: "doc-fatma",
+          doctorName: "Dr. Fatma Said",
+          specialty: "Cardiologist",
+          rating: 4.7,
+          feeOmr: 22,
+          slotDate: "2026-07-28",
+          slots: [
+            { start: "14:00", end: "14:30" },
+            { start: "15:30", end: "16:00" },
+          ],
+          timeFallback: false,
+        },
+      ],
     });
   },
 };

@@ -60,7 +60,8 @@ cd frontend && npm run typecheck
 **No automated test suite exists yet** (no jest config, no `*.test.*` files, in any workspace).
 `docs/TESTING_GUIDE.md` documents manual smoke tests (curl/Postman against `:3001/api/*`, and
 `shared/src/api/*` calls from a scratch script) — use it to verify backend changes by hand.
-Set `MOCK_AI=true` to smoke-test AI routes without real Gemini/Groq keys.
+AI routes have **no mock/stub mode** — they always call the real provider (Groq), so a valid
+`GROQ_API_KEY` is required to smoke-test them (a missing key yields a graceful 5xx, never fake data).
 
 Full env var reference with PUBLIC/SECRET tags: `.env.example` at the repo root. Full bring-up
 sequence and a troubleshooting table (peer conflicts, Metro alias caching, RLS denials, etc.):

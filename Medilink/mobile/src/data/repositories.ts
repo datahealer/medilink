@@ -4,6 +4,8 @@
  */
 import type {
   AiDoctorSuggestion,
+  AiScheduleInput,
+  AiScheduleResponse,
   AiVisitSummary,
   Appointment,
   AppointmentTab,
@@ -230,6 +232,8 @@ export interface AiRepository {
   suggestDoctors(symptoms: string): Promise<AiDoctorSuggestion>;
   /** The patient's most recent AI-generated visit summary, or null. */
   latestVisitSummary(): Promise<AiVisitSummary | null>;
+  /** One turn of the conversational scheduling assistant (POST /api/ai/schedule-assist). */
+  scheduleAssist(input: AiScheduleInput): Promise<AiScheduleResponse>;
 }
 
 export interface Repositories {

@@ -35,26 +35,6 @@ function getAIAndDoctors(symptoms: string) {
     async () => {
       const supabase = createServiceSupabase();
 
-      // MOCK mode — skip AI, return real available doctors
-      if (process.env.MOCK_AI === "true") {
-        const { data: mockDoctors } = await supabase
-          .from("doctors")
-          .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status")
-          .eq("status", "available")
-          .eq("is_active", true)
-          .limit(6);
-        return {
-          is_medical: true,
-          ai_reasoning: "Mock: based on symptoms, evaluation recommended.",
-          urgency_level: "medium" as const,
-          suggested_specialties: ["General Medicine"],
-          recommended_doctors: (mockDoctors ?? []).map((doc) => ({
-            ...doc,
-            booking_url: `/dashboard/dashboardpages/patient/book?doctorId=${doc.id}`,
-          })),
-        };
-      }
-
       // Step 1: Fetch real specialty names from DB so AI picks exact values
       const { data: specialtyRows } = await supabase
         .from("doctors")
@@ -90,12 +70,25 @@ Rules:
         completion.choices[0].message.content ?? "{}"
       );
 
-      // Step 3: Query doctors by exact specialty match — no status filter, all doctors are bookable
-      const { data: doctors } = await supabase
-        .from("doctors")
-        .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status")
-        .in("specialty", aiResult.suggested_specialties)
-        .limit(6);
+      // Step 3: Match doctors across ALL suggested specialties, CASE-INSENSITIVELY
+      // (the freetext `doctors.specialty` column varies in casing/whitespace vs. the
+      // AI's output), and RANK by rating — never filter by `status` (all doctors are
+      // bookable; availability, if needed, is a ranking signal, not a filter).
+      const specialties = (aiResult.suggested_specialties ?? [])
+        .map((s) => (typeof s === "string" ? s.trim() : ""))
+        .filter((s) => s.length > 0 && !s.includes(",")); // commas break the PostgREST or() grammar
+
+      let doctors: Array<Record<string, unknown>> = [];
+      if (specialties.length > 0) {
+        const orFilter = specialties.map((s) => `specialty.ilike.${s}`).join(",");
+        const { data } = await supabase
+          .from("doctors")
+          .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status")
+          .or(orFilter)
+          .order("avg_rating", { ascending: false, nullsFirst: false })
+          .limit(10);
+        doctors = data ?? [];
+      }
 
       return {
         is_medical: aiResult.is_medical !== false,

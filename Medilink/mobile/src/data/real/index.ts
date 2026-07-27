@@ -33,6 +33,9 @@ import type {
   Repositories,
 } from "../repositories";
 import type {
+  AiScheduleDoctorResult,
+  AiScheduleInput,
+  AiScheduleResponse,
   Appointment,
   BloodGroup,
   Clinic,
@@ -1107,6 +1110,25 @@ interface SuggestDocLoose {
   fees?: unknown;
 }
 
+/** The `data` payload of POST /api/ai/schedule-assist (all four `type` shapes union'd). */
+interface ScheduleAssistData {
+  type?: "results" | "no_results" | "clarifying_question" | "info";
+  message?: string;
+  question?: string;
+  results?: {
+    doctor: { id: string; full_name: string; specialty: string | null; avg_rating: number | null; fees: number | null };
+    available_slots: { slot_start: string; slot_end: string }[];
+    slot_date: string;
+    booking_url: string;
+    time_fallback: boolean;
+  }[];
+  next_available?: string | null;
+  next_available_doctor?: string | null;
+  next_available_url?: string | null;
+  extracted_entities?: Record<string, unknown>;
+  extracted_intent?: Record<string, unknown>;
+}
+
 const aiRepo: AiRepository = {
   async suggestDoctors(symptoms) {
     const res = await apiFetch<{
@@ -1143,6 +1165,56 @@ const aiRepo: AiRepository = {
     const row = data as { patient_summary?: string | null; slot_date?: string | null; doctors?: { full_name: string | null } | null } | null;
     if (!row || !row.patient_summary) return null;
     return { summary: row.patient_summary, date: row.slot_date ?? null, doctorName: row.doctors?.full_name ?? null };
+  },
+  async scheduleAssist(input: AiScheduleInput): Promise<AiScheduleResponse> {
+    const res = await apiFetch<{ success?: boolean; data?: ScheduleAssistData }>(
+      "/api/ai/schedule-assist",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: input.query,
+          client_date: input.clientDate,
+          history: input.history,
+          pending_entities: input.pendingEntities ?? {},
+        }),
+      }
+    );
+    const d = res?.data;
+    const entities = (d?.extracted_entities ?? d?.extracted_intent ?? {}) as AiScheduleResponse["entities"];
+
+    if (d?.type === "results") {
+      const results: AiScheduleDoctorResult[] = (d.results ?? []).map((r) => ({
+        doctorId: r.doctor.id,
+        doctorName: r.doctor.full_name,
+        specialty: r.doctor.specialty ?? "",
+        rating: r.doctor.avg_rating != null ? Number(r.doctor.avg_rating) : null,
+        feeOmr: r.doctor.fees != null ? Number(r.doctor.fees) : null,
+        slotDate: r.slot_date,
+        slots: (r.available_slots ?? []).map((s) => ({ start: s.slot_start, end: s.slot_end })),
+        timeFallback: !!r.time_fallback,
+      }));
+      return { kind: "results", results, entities };
+    }
+
+    if (d?.type === "no_results") {
+      // Recover the doctor id from the web booking URL so mobile can deep-link into booking.
+      const nextId = d.next_available_url?.match(/doctorId=([0-9a-f-]+)/i)?.[1] ?? null;
+      return {
+        kind: "no_results",
+        message: d.message ?? "No available slots were found.",
+        nextAvailable: d.next_available
+          ? { date: d.next_available, doctorName: d.next_available_doctor ?? null, doctorId: nextId }
+          : null,
+        entities,
+      };
+    }
+
+    // clarifying_question | info | anything else → a conversational message.
+    return {
+      kind: "message",
+      message: d?.question ?? d?.message ?? "Could you rephrase that?",
+      entities,
+    };
   },
 };
 

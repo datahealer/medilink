@@ -272,6 +272,64 @@ export interface AiVisitSummary {
   doctorName: string | null;
 }
 
+// ---- AI scheduling assistant (F-41, PDF p26) --------------------------------
+
+/** Conversational entity memory round-tripped between turns (mirrors the backend). */
+export interface AiScheduleEntities {
+  doctor_type?: string | null;
+  date_phrase?: string | null;
+  time_preference?: string;
+}
+
+/** One turn of the schedule-assist conversation sent back for context. */
+export interface AiScheduleTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiScheduleSlot {
+  /** "HH:MM" local start/end as returned by get_available_slots. */
+  start: string;
+  end: string;
+}
+
+/** A bookable doctor + concrete open slots on a specific date. */
+export interface AiScheduleDoctorResult {
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  rating: number | null;
+  feeOmr: number | null;
+  slotDate: string;
+  slots: AiScheduleSlot[];
+  /** True when preferred time-of-day had none, so any-time slots are shown instead. */
+  timeFallback: boolean;
+}
+
+/** Input for a single scheduling turn. */
+export interface AiScheduleInput {
+  query: string;
+  /** Patient-local date "YYYY-MM-DD" so relative phrases resolve without server UTC drift. */
+  clientDate: string;
+  history: AiScheduleTurn[];
+  pendingEntities?: AiScheduleEntities;
+}
+
+/**
+ * Normalized schedule-assist reply. The backend's four `data.type` shapes collapse to
+ * three UI intents: a conversational message (clarify/info), booking results, or no results
+ * (optionally with the next available date). `entities` is fed back on the next turn.
+ */
+export type AiScheduleResponse =
+  | { kind: "message"; message: string; entities: AiScheduleEntities }
+  | { kind: "results"; results: AiScheduleDoctorResult[]; entities: AiScheduleEntities }
+  | {
+      kind: "no_results";
+      message: string;
+      nextAvailable: { date: string; doctorName: string | null; doctorId: string | null } | null;
+      entities: AiScheduleEntities;
+    };
+
 // ---- discovery (dashboard recents/featured + Batch-2 doctor search) ----------
 
 export interface Specialty {
