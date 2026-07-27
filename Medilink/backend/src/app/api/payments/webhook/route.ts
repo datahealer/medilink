@@ -4,6 +4,7 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
 import { logAudit } from "@/lib/audit/logAudit";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
+import { ensureInvoice } from "@/lib/payments/ensureInvoice";
 
 // Vercel: the webhook runs a sequential chain (gateway verify → invoice edge fn →
 // email → notifications); give it headroom above the low default timeout.
@@ -287,50 +288,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ✅ GENERATE INVOICE — idempotent worker; NON-FATAL by design.
+    // Never return an error to Thawani on invoice failure: the atomic paid-claim above
+    // short-circuits every webhook re-delivery, so a 500 here would strand the invoice
+    // permanently. Failures are recorded (invoice_status='failed') and the recovery
+    // sweeper (retry-invoices) regenerates them automatically.
     let invoiceUrl = payment.invoice_url;
     let invoiceNumber = payment.invoice_number || payment.id;
-
-    // ✅ GENERATE INVOICE
     if (!hasInvoice) {
-      console.log("🧾 Generating invoice...");
-
-      let invoiceData: any = null;
-      try {
-        const invoiceRes = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-invoice`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              payment_id: payment.id,
-            }),
-          }
-        );
-
-        invoiceData = await invoiceRes.json().catch(() => null);
-        console.log("🔥 Invoice Response:", invoiceData);
-
-        if (!invoiceRes.ok) {
-          console.error("❌ Invoice generation failed:", invoiceData);
-          return NextResponse.json(
-            { error: "Invoice generation failed", details: invoiceData },
-            { status: 500 }
-          );
-        }
-      } catch (fetchErr: any) {
-        console.error("❌ Edge function fetch failed:", fetchErr.message);
-        return NextResponse.json(
-          { error: "Invoice generation failed", details: fetchErr.message },
-          { status: 500 }
-        );
+      const inv = await ensureInvoice(payment.id, "webhook");
+      if (inv.url) {
+        invoiceUrl = inv.url;
+        invoiceNumber = inv.invoiceNumber || payment.id;
+        console.log("✅ Invoice generated:", invoiceNumber);
+      } else {
+        console.warn("⚠️ Invoice not ready; recovery sweeper will retry:", inv.outcome);
       }
-
-      invoiceUrl = invoiceData?.url;
-      invoiceNumber = invoiceData?.invoice_number || payment.id;
-      console.log("✅ Invoice generated:", invoiceNumber);
     }
 
     // Fetch patient email from auth.users (profiles table may not store email)

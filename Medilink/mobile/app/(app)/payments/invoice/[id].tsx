@@ -6,7 +6,7 @@ import { AppCard, AppHeader, Button, EmptyState, ErrorState, LoadingState, Scree
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
-import { usePayment } from "@/hooks/queries/usePatient";
+import { usePayment, useRegenerateInvoice } from "@/hooks/queries/usePatient";
 import { useSaveInvoiceToVault } from "@/hooks/queries/useRecords";
 import { formatApptDate } from "@/utils/appointments";
 import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
@@ -25,6 +25,7 @@ export default function InvoiceScreen() {
   const id = String(rawId ?? "");
 
   const query = usePayment(id);
+  const regen = useRegenerateInvoice(id);
   const payment = query.data;
   const money = (n: number) => `OMR ${num(n.toFixed(3))}`;
 
@@ -111,7 +112,25 @@ export default function InvoiceScreen() {
           <Button label={t("payments.downloadPdf")} onPress={onDownload} disabled={!invoiceUrl} />
           <Button variant="outline" label={t("payments.share")} onPress={onShare} disabled={!invoiceUrl} />
           {!invoiceUrl ? (
-            <Text variant="caption" color="textMuted" align="center">{t("payments.invoiceUnavailable")}</Text>
+            <>
+              {/* Manual recovery: (re)generate a missing invoice for a paid payment (idempotent). */}
+              {payment.status === "paid" ? (
+                <Button
+                  variant="outline"
+                  label={t("payments.generateInvoice")}
+                  loading={regen.isPending}
+                  onPress={() =>
+                    regen.mutate(undefined, {
+                      onSuccess: (r) => {
+                        if (!r.invoiceUrl) Alert.alert(t("payments.invoiceQueued"));
+                      },
+                      onError: () => Alert.alert(t("payments.loadError")),
+                    })
+                  }
+                />
+              ) : null}
+              <Text variant="caption" color="textMuted" align="center">{t("payments.invoiceUnavailable")}</Text>
+            </>
           ) : null}
         </View>
       }

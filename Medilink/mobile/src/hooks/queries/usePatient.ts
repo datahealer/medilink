@@ -90,6 +90,17 @@ export function usePayment(id: string) {
   });
 }
 
+/** Manually (re)generate a missing invoice, then refresh the payment detail (QA recovery). */
+export function useRegenerateInvoice(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => repositories.payment.regenerateInvoice(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments", "detail", id] });
+    },
+  });
+}
+
 /** The payment for an appointment (Payment Confirmation after returning from checkout). */
 export function usePaymentByAppointment(appointmentId: string) {
   return useQuery({
