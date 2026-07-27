@@ -360,7 +360,6 @@ const styles = StyleSheet.create({
   userBubble: { maxWidth: "82%" },
   ts: { marginTop: 3, opacity: 0.8 },
   actions: { alignItems: "center", gap: 14, marginTop: 4 },
-  actionBtn: { padding: 2 },
   retry: { alignItems: "center", marginTop: 6 },
   emergency: { paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
   chipRow: { flexWrap: "wrap", gap: 8 },
