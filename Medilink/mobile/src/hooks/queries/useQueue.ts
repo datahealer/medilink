@@ -4,35 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
 import { QueueUnavailableError } from "@/data/types";
-import type { QueueAcknowledgeKind, QueueStatus, QueueUnavailableReason } from "@/data/types";
+import type { QueueAcknowledgeKind } from "@/data/types";
+import { pollInterval, shouldRetryQueue } from "./queuePolling";
 
 export const queueKeys = {
   status: (appointmentId: string) => ["queue", "status", appointmentId] as const,
 };
-
-/**
- * Adaptive poll interval (ms). The correctness floor: realtime is an optimisation
- * that can silently die (socket drop, background, proxy), so the screen must stay
- * fresh without it. Tightens as the patient nears the front.
- *
- * Stops entirely once done — a terminal state never changes again.
- */
-function pollInterval(status: QueueStatus | undefined): number | false {
-  if (!status) return 30_000;
-  if (status.phase === "done") return false;
-  if (status.phase === "called") return 10_000;
-  if (status.peopleAhead <= 2) return 10_000;
-  if (status.peopleAhead <= 5) return 30_000;
-  return 60_000;
-}
-
-/** Reasons that are a legitimate terminal answer, not a transient failure. */
-const NON_RETRYABLE: QueueUnavailableReason[] = [
-  "not_in_queue",
-  "not_checked_in",
-  "forbidden",
-  "unauthorized",
-];
 
 /**
  * Live queue state for one appointment.
@@ -53,12 +30,8 @@ export function useQueueStatus(appointmentId: string | undefined, options?: { en
     refetchInterval: (query) => pollInterval(query.state.data),
     // Poll only in the foreground; backgrounded apps are served by push instead.
     refetchIntervalInBackground: false,
-    retry: (count, error) => {
-      if (error instanceof QueueUnavailableError && NON_RETRYABLE.includes(error.reason)) {
-        return false;
-      }
-      return count < 2;
-    },
+    retry: (count, error) =>
+      shouldRetryQueue(count, error instanceof QueueUnavailableError ? error.reason : undefined),
   });
 }
 

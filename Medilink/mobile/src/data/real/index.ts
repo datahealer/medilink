@@ -38,6 +38,7 @@ import type {
   QueueEnvelope,
   QueueStatusPayload,
 } from "@medilink/shared/mobile";
+import { mapQueueStatus, queueReasonFrom } from "../queueMapping";
 import type {
   AiScheduleDoctorResult,
   AiScheduleInput,
@@ -58,7 +59,6 @@ import type {
   PatientProfile,
   Payment,
   Prescription,
-  QueueStatus,
   QueueUnavailableReason,
   SmokingStatus,
 } from "../types";
@@ -505,71 +505,17 @@ const appointmentRepo: AppointmentRepository = {
 // rather than in the message. `queueReason()` recovers it; without this every
 // declined read would surface as "[object Object]".
 
-/** Map an apiFetch failure onto the contract's reason code. */
+/**
+ * Map an apiFetch failure onto the contract's reason code. The `instanceof` check
+ * stays here (where ApiError lives); the code→reason policy is the pure, unit-tested
+ * `queueReasonFrom` in ../queueMapping.
+ */
 function queueReason(e: unknown): QueueUnavailableReason {
   if (e instanceof ApiError) {
     const body = e.body as { error?: { code?: string } } | null;
-    const code = body?.error?.code;
-    if (
-      code === "not_in_queue" ||
-      code === "not_checked_in" ||
-      code === "forbidden" ||
-      code === "server_error"
-    ) {
-      return code;
-    }
-    if (code === "unauthorized" || code === "unauthenticated") return "unauthorized";
-    // Transport failure before any HTTP status — apiFetch signals this as status 0.
-    if (e.status === 0) return "offline";
-    if (e.status === 401) return "unauthorized";
-    if (e.status === 403) return "forbidden";
-    if (e.status === 404) return "not_in_queue";
+    return queueReasonFrom(e.status, body?.error?.code);
   }
   return "server_error";
-}
-
-/** Contract payload → domain model. Pure renaming; no queue arithmetic. */
-function mapQueueStatus(p: QueueStatusPayload): QueueStatus {
-  return {
-    queueItemId: p.queue_item_id,
-    position: p.position,
-    peopleAhead: p.people_ahead,
-    nowServingPosition: p.now_serving_position ?? null,
-    status: p.queue_status,
-    // Server flags are authoritative and mutually exclusive; `waiting` is the
-    // fallback so an unrecognised future status still renders a sane screen.
-    phase: p.is_called ? "called" : p.is_done ? "done" : "waiting",
-    isCheckedIn: p.is_checked_in,
-    checkedInAt: p.checked_in_at,
-    calledAt: p.called_at,
-    doneAt: p.done_at,
-    acknowledgedAt: p.acknowledged_at,
-    acknowledgedKind: p.acknowledged_kind,
-    isWalkin: p.is_walkin,
-    isOnline: p.is_online,
-    estimatedWaitMinutes: p.estimated_wait_minutes,
-    avgConsultationMinutes: p.avg_consultation_minutes,
-    appointment: {
-      id: p.appointment.id,
-      referenceNumber: p.appointment.reference_number,
-      slotDate: p.appointment.slot_date,
-      slotStart: p.appointment.slot_start,
-      slotEnd: p.appointment.slot_end,
-      status: p.appointment.status,
-      type: p.appointment.type,
-    },
-    doctor: p.doctor
-      ? {
-          id: p.doctor.id,
-          fullName: p.doctor.full_name,
-          specialty: p.doctor.specialty,
-          status: p.doctor.status,
-          statusUpdatedAt: p.doctor.status_updated_at,
-        }
-      : null,
-    facility: { id: p.facility.id, name: p.facility.name },
-    serverTime: p.server_time,
-  };
 }
 
 const queueRepo: QueueRepository = {
