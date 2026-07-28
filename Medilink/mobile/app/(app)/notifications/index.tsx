@@ -14,6 +14,7 @@ import type { NotificationItem, NotificationKind } from "@/data/types";
 const ICON: Record<NotificationKind, IconName> = {
   assistant: "ai",
   appointment: "calendar",
+  queue: "calendar",
   payment: "payment",
   lab: "lab",
   prescription: "medication",
@@ -26,6 +27,7 @@ type Tint = "lavender" | "blue" | "mint";
 const TINT: Record<NotificationKind, Tint> = {
   assistant: "lavender",
   appointment: "lavender",
+  queue: "mint",
   payment: "mint",
   lab: "blue",
   prescription: "lavender",

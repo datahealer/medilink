@@ -4,10 +4,18 @@ const path = require("path");
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "..");
 const config = getDefaultConfig(projectRoot);
-// Merge (don't replace) Expo's default watchFolders so we keep its monorepo
-// defaults AND watch the workspace root for the shared package.
+// Watch ONLY the workspace paths Metro needs to bundle the app: the `shared`
+// package source + the hoisted root `node_modules`. Do NOT watch `workspaceRoot`
+// itself — that pulled `backend/.next` and `frontend/.next` (volatile Next.js build
+// output) into Metro's file watcher, which on Windows (no Watchman) registers a
+// per-directory fs.watch and crashes when Next.js rotates `.next/static/development`:
+//   ENOENT: no such file or directory, watch '...\backend\.next\static\development'
 config.watchFolders = Array.from(
-  new Set([...(config.watchFolders ?? []), workspaceRoot])
+  new Set([
+    ...(config.watchFolders ?? []),
+    path.resolve(workspaceRoot, "shared"),
+    path.resolve(workspaceRoot, "node_modules"),
+  ])
 );
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),

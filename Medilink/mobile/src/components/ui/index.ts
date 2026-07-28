@@ -58,6 +58,9 @@ export { TypingIndicator } from "./TypingIndicator";
 export { UrgencyBadge } from "./UrgencyBadge";
 export { TrendChart } from "./TrendChart";
 export type { TrendPoint } from "./TrendChart";
+export { QueuePositionRing } from "./QueuePositionRing";
+export { QueueTimeline } from "./QueueTimeline";
+export type { QueueStep } from "./QueueTimeline";
 
 export type { ButtonVariant } from "./Button";
 export type { TextFieldProps } from "./TextField";

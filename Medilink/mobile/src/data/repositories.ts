@@ -38,6 +38,8 @@ import type {
   Prescription,
   PrescriptionShareLink,
   ProfilePatch,
+  QueueAcknowledgeKind,
+  QueueStatus,
   SessionUser,
   SignInInput,
   SignUpInput,
@@ -105,6 +107,33 @@ export interface AppointmentRepository {
   reschedule(id: string, slot: { date: string; start: string; end: string }): Promise<void>;
   /** Check in to a confirmed appointment (throws with the backend reason on failure). */
   checkIn(id: string): Promise<void>;
+}
+
+/**
+ * Live queue (patient side only).
+ *
+ * HAMS owns the queue state machine, position arithmetic, ETA, ordering and every
+ * status transition — see docs/QUEUE_BACKEND_FOR_MEDILINK.md §6. This repository
+ * is a read + acknowledge surface and MUST NOT gain any queue calculation.
+ */
+export interface QueueRepository {
+  /**
+   * Live queue state for an appointment (`GET /api/patients/me/queue-status`).
+   * Throws `QueueUnavailableError` with the contract's reason code when the
+   * patient isn't queued, isn't checked in, or isn't the owner.
+   */
+  getStatus(appointmentId: string): Promise<QueueStatus>;
+  /**
+   * Confirm a call (`POST /api/patients/me/queue-status/acknowledge`).
+   * Never applied optimistically — the caller re-reads status afterwards.
+   */
+  acknowledge(input: { appointmentId: string; kind: QueueAcknowledgeKind }): Promise<void>;
+  /**
+   * Subscribe to the patient's own queue row. Invalidation signal ONLY — the
+   * callback must trigger a `getStatus` refetch, never compute anything.
+   * Returns an unsubscribe function.
+   */
+  subscribe(appointmentId: string, onChange: () => void): () => void;
 }
 
 /** Payments — read side (Thawani checkout is hosted; cards are never stored by us). */
@@ -242,6 +271,7 @@ export interface Repositories {
   medicalHistory: MedicalHistoryRepository;
   family: FamilyRepository;
   appointment: AppointmentRepository;
+  queue: QueueRepository;
   payment: PaymentRepository;
   discovery: DiscoveryRepository;
   doctor: DoctorRepository;

@@ -74,7 +74,8 @@ export default function DashboardScreen() {
         text: t("appointments.confirmCheckIn"),
         onPress: () =>
           checkIn.mutate(apptId, {
-            onSuccess: () => Alert.alert(t("appointments.checkedInDone")),
+            // Land on the Live Queue — that's where position/ETA are authoritative.
+            onSuccess: () => router.push(`/appointments/${apptId}/queue`),
             onError: (e) => Alert.alert(t("appointments.actionFailed"), e instanceof Error ? e.message : String(e)),
           }),
       },
@@ -169,9 +170,14 @@ export default function DashboardScreen() {
               doctorName={localizedName(next.doctor?.full_name ?? "—", next.doctor?.full_name_ar, next.doctor?.full_name_ar_status, isRTL)}
               subtitle={[localizedName(next.facility?.name ?? "", next.facility?.name_ar, next.facility?.name_ar_status, isRTL), next.slot_start].filter(Boolean).join(" · ")}
               initials={initialsOf(next.doctor?.full_name)}
-              primaryLabel={t("dashboard.checkIn")}
+              // Once checked in, the useful action is the live queue, not check-in.
+              primaryLabel={next.status === "checked_in" ? t("appointments.viewQueue") : t("dashboard.checkIn")}
               secondaryLabel={t("dashboard.reschedule")}
-              onPrimary={() => onCheckIn(next.id)}
+              onPrimary={() =>
+                next.status === "checked_in"
+                  ? router.push(`/appointments/${next.id}/queue`)
+                  : onCheckIn(next.id)
+              }
               onSecondary={() => router.push(`/appointments/${next.id}/reschedule`)}
               isRTL={isRTL}
             />

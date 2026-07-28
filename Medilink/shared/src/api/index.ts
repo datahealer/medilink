@@ -14,6 +14,7 @@ export * as labs from "./labs";
 export * as prescriptions from "./prescriptions";
 export * as notifications from "./notifications";
 export * as reviews from "./reviews";
+export * as queue from "./queue";
 
 export type { DB } from "./client";
 export { getCurrentUserId, getMyPatientProfileId } from "./client";

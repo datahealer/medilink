@@ -8,7 +8,7 @@
 import { api, feeForType } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
-import { apiFetch } from "@/services/api";
+import { apiFetch, ApiError } from "@/services/api";
 import { env } from "@/config/env";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
@@ -29,9 +29,15 @@ import type {
   PatientRepository,
   PaymentRepository,
   PrescriptionRepository,
+  QueueRepository,
   ReviewRepository,
   Repositories,
 } from "../repositories";
+import type {
+  QueueAcknowledgePayload,
+  QueueEnvelope,
+  QueueStatusPayload,
+} from "@medilink/shared/mobile";
 import type {
   AiScheduleDoctorResult,
   AiScheduleInput,
@@ -52,8 +58,12 @@ import type {
   PatientProfile,
   Payment,
   Prescription,
+  QueueStatus,
+  QueueUnavailableReason,
   SmokingStatus,
 } from "../types";
+// Value import (class, not a type) — thrown by the queue repository.
+import { QueueUnavailableError } from "../types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -481,6 +491,128 @@ const appointmentRepo: AppointmentRepository = {
     } catch (e) {
       throw new Error(errText(e));
     }
+  },
+};
+
+// ---- queue ------------------------------------------------------------------
+// Patient-side live queue. HAMS owns every calculation; this is a transport
+// adapter over the two contract endpoints plus the shared realtime helper.
+// See docs/QUEUE_BACKEND_FOR_MEDILINK.md §2.
+//
+// NOTE ON ERROR MAPPING: the queue routes answer with
+// `{ success:false, error:{ code, message } }`, but `apiFetch` only knows how to
+// lift a top-level string `error`, so the useful code arrives on `ApiError.body`
+// rather than in the message. `queueReason()` recovers it; without this every
+// declined read would surface as "[object Object]".
+
+/** Map an apiFetch failure onto the contract's reason code. */
+function queueReason(e: unknown): QueueUnavailableReason {
+  if (e instanceof ApiError) {
+    const body = e.body as { error?: { code?: string } } | null;
+    const code = body?.error?.code;
+    if (
+      code === "not_in_queue" ||
+      code === "not_checked_in" ||
+      code === "forbidden" ||
+      code === "server_error"
+    ) {
+      return code;
+    }
+    if (code === "unauthorized" || code === "unauthenticated") return "unauthorized";
+    // Transport failure before any HTTP status — apiFetch signals this as status 0.
+    if (e.status === 0) return "offline";
+    if (e.status === 401) return "unauthorized";
+    if (e.status === 403) return "forbidden";
+    if (e.status === 404) return "not_in_queue";
+  }
+  return "server_error";
+}
+
+/** Contract payload → domain model. Pure renaming; no queue arithmetic. */
+function mapQueueStatus(p: QueueStatusPayload): QueueStatus {
+  return {
+    queueItemId: p.queue_item_id,
+    position: p.position,
+    peopleAhead: p.people_ahead,
+    nowServingPosition: p.now_serving_position ?? null,
+    status: p.queue_status,
+    // Server flags are authoritative and mutually exclusive; `waiting` is the
+    // fallback so an unrecognised future status still renders a sane screen.
+    phase: p.is_called ? "called" : p.is_done ? "done" : "waiting",
+    isCheckedIn: p.is_checked_in,
+    checkedInAt: p.checked_in_at,
+    calledAt: p.called_at,
+    doneAt: p.done_at,
+    acknowledgedAt: p.acknowledged_at,
+    acknowledgedKind: p.acknowledged_kind,
+    isWalkin: p.is_walkin,
+    isOnline: p.is_online,
+    estimatedWaitMinutes: p.estimated_wait_minutes,
+    avgConsultationMinutes: p.avg_consultation_minutes,
+    appointment: {
+      id: p.appointment.id,
+      referenceNumber: p.appointment.reference_number,
+      slotDate: p.appointment.slot_date,
+      slotStart: p.appointment.slot_start,
+      slotEnd: p.appointment.slot_end,
+      status: p.appointment.status,
+      type: p.appointment.type,
+    },
+    doctor: p.doctor
+      ? {
+          id: p.doctor.id,
+          fullName: p.doctor.full_name,
+          specialty: p.doctor.specialty,
+          status: p.doctor.status,
+          statusUpdatedAt: p.doctor.status_updated_at,
+        }
+      : null,
+    facility: { id: p.facility.id, name: p.facility.name },
+    serverTime: p.server_time,
+  };
+}
+
+const queueRepo: QueueRepository = {
+  async getStatus(appointmentId) {
+    let res: QueueEnvelope<QueueStatusPayload>;
+    try {
+      res = await apiFetch<QueueEnvelope<QueueStatusPayload>>(
+        `/api/patients/me/queue-status?appointment_id=${encodeURIComponent(appointmentId)}`
+      );
+    } catch (e) {
+      throw new QueueUnavailableError(queueReason(e), errText(e));
+    }
+    // A 200 with success:false shouldn't happen per the contract, but treat the
+    // envelope as authoritative rather than trusting the status code alone.
+    if (!res.success) {
+      throw new QueueUnavailableError(
+        (res.error.code as QueueUnavailableReason) ?? "server_error",
+        res.error.message
+      );
+    }
+    return mapQueueStatus(res.data);
+  },
+
+  async acknowledge({ appointmentId, kind }) {
+    let res: QueueEnvelope<QueueAcknowledgePayload>;
+    try {
+      res = await apiFetch<QueueEnvelope<QueueAcknowledgePayload>>(
+        "/api/patients/me/queue-status/acknowledge",
+        { method: "POST", body: JSON.stringify({ appointment_id: appointmentId, kind }) }
+      );
+    } catch (e) {
+      throw new QueueUnavailableError(queueReason(e), errText(e));
+    }
+    if (!res.success) {
+      throw new QueueUnavailableError(
+        (res.error.code as QueueUnavailableReason) ?? "server_error",
+        res.error.message
+      );
+    }
+  },
+
+  subscribe(appointmentId, onChange) {
+    return api.queue.subscribeToMyQueue(supabase, appointmentId, onChange);
   },
 };
 
@@ -1226,6 +1358,7 @@ export const realRepositories: Repositories = {
   medicalHistory: medicalHistoryRepo,
   family: familyRepo,
   appointment: appointmentRepo,
+  queue: queueRepo,
   payment: paymentRepo,
   discovery: discoveryRepo,
   doctor: doctorRepo,
