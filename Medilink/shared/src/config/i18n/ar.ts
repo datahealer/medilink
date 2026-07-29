@@ -1025,4 +1025,42 @@ export const messages = {
       familyMembers: "3",
     },
   },
+  // Arabic specialty catalog labels, keyed by `specialties.slug`. Mirrors
+  // en.ts `specialtyNames`; missing keys fall back to English then the DB name.
+  specialtyNames: {
+    general: "عام",
+    pathology: "علم الأمراض",
+    radiology: "الأشعة",
+    cardiology: "أمراض القلب",
+    dermatology: "الأمراض الجلدية",
+    pediatrics: "طب الأطفال",
+    physio: "العلاج الطبيعي",
+    skincare: "العناية بالبشرة",
+    dentist: "طب الأسنان",
+  },
+  facilityTypes: {
+    clinic: "عيادة",
+    hospital: "مستشفى",
+    lab: "مختبر",
+    radiology: "مركز أشعة",
+    pharmacy: "صيدلية",
+    dental: "عيادة أسنان",
+    optical: "مركز بصريات",
+    physiotherapy: "علاج طبيعي",
+    mental_health: "الصحة النفسية",
+    other: "منشأة",
+  },
+  gender: {
+    male: "ذكر",
+    female: "أنثى",
+    other: "آخر",
+    prefer_not_to_say: "أفضل عدم الإفصاح",
+  },
+  familyRelation: {
+    spouse: "الزوج/الزوجة",
+    child: "ابن/ابنة",
+    parent: "أحد الوالدين",
+    sibling: "أخ/أخت",
+    other: "آخر",
+  },
 } as const;

@@ -3,19 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -H 0.0.0.0 -p 3001",
+    "dev:local": "next dev -p 3001",
     "build": "next build",
-    "start": "next start -p 3001",
+    "start": "next start -H 0.0.0.0 -p 3001",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@medilink/shared": "*",
+    "@scalar/nextjs-api-reference": "^0.11.5",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.2",
     "bcryptjs": "^2.4.3",
     "chrono-node": "^2.9.0",
+    "clsx": "^2.1.1",
     "googleapis": "^171.4.0",
     "groq-sdk": "^1.1.2",
     "next": "^15.5.14",
@@ -24,7 +27,12 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sharp": "^0.34.5",
-    "stripe": "^22.0.1"
+    "stripe": "^22.0.1",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^3.23.8"
+  },
+  "optionalDependencies": {
+    "@img/sharp-linux-x64": "0.34.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

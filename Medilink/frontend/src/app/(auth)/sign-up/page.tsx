@@ -8,6 +8,7 @@ import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { postSignupDestination } from "@/lib/onboarding";
 import { useI18n } from "@/i18n/I18nProvider";
 
 function SignUpForm() {
@@ -63,15 +64,17 @@ function SignUpForm() {
         return;
       }
 
-      // When email confirmations are DISABLED (this project's configuration —
-      // see supabase config `enable_confirmations = false`; backend also creates
-      // users with email_confirm:true), signUp returns an active session and NO
-      // email is sent. Go straight to the dashboard — the /otp step does not apply.
-      // Only route to /otp when confirmations are enabled (session is null and a
-      // verification email was actually dispatched).
+      // The hosted project has email confirmations ENABLED, and the "Confirm signup"
+      // template delivers a 6-digit OTP (uses {{ .Token }}, not {{ .ConfirmationURL }}).
+      // So signUp() sends an OTP email and returns NO session -> route to /otp, where
+      // verifyOtp({ type: "signup" }) exchanges the code for a session.
+      // If a given environment DISABLES confirmations instead, signUp() returns an
+      // active session and no email is sent -> skip /otp and go straight to dashboard.
       if (data.session) {
         router.refresh(); // let middleware / SSR pick up the new session cookie
-        router.push(next);
+        // Brand-new account with an immediate session -> route first-time patients
+        // through the setup wizard once (same rule as the /otp path).
+        router.push(await postSignupDestination(supabase));
         return;
       }
       router.push(`/otp?email=${encodeURIComponent(form.email)}&next=${encodeURIComponent(next)}`);

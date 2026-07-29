@@ -1043,4 +1043,44 @@ export const messages = {
       familyMembers: "3",
     },
   },
+  // Curated specialty catalog labels, keyed by `specialties.slug` (see
+  // migration 20260701000002_specialties.sql). English mirrors the DB `name`;
+  // Arabic is provided in ar.ts. Consumed by the Find-Doctors specialty chips.
+  specialtyNames: {
+    general: "General",
+    pathology: "Pathology",
+    radiology: "Radiology",
+    cardiology: "Cardiology",
+    dermatology: "Dermatology",
+    pediatrics: "Pediatrics",
+    physio: "Physio",
+    skincare: "Skincare",
+    dentist: "Dentist",
+  },
+  // Fixed backend-enum labels rendered to patients. Keyed by the DB enum value.
+  facilityTypes: {
+    clinic: "Clinic",
+    hospital: "Hospital",
+    lab: "Laboratory",
+    radiology: "Radiology Centre",
+    pharmacy: "Pharmacy",
+    dental: "Dental Clinic",
+    optical: "Optical Centre",
+    physiotherapy: "Physiotherapy",
+    mental_health: "Mental Health",
+    other: "Facility",
+  },
+  gender: {
+    male: "Male",
+    female: "Female",
+    other: "Other",
+    prefer_not_to_say: "Prefer not to say",
+  },
+  familyRelation: {
+    spouse: "Spouse",
+    child: "Child",
+    parent: "Parent",
+    sibling: "Sibling",
+    other: "Other",
+  },
 } as const;

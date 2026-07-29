@@ -42,6 +42,65 @@ export async function listMyReviews(db: DB): Promise<ReviewWithTarget[]> {
   }));
 }
 
+/** A single publicly-visible review row (reviewer identity is never exposed). */
+export interface DoctorReviewItem {
+  id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+}
+
+/** Aggregate + list for a doctor's public reviews. */
+export interface DoctorReviews {
+  summary: {
+    average: number;
+    total: number;
+    distribution: { stars: number; count: number }[];
+  };
+  reviews: DoctorReviewItem[];
+}
+
+/**
+ * Public read of a doctor's visible reviews (RLS: `reviews_public_read`) plus the
+ * authoritative aggregate on the doctor row. Reviewer names are NOT exposed to
+ * patients (no field + profiles RLS) — callers should render as "verified patient".
+ * Shared by web and mobile so the query + distribution logic lives in one place.
+ */
+export async function listDoctorReviews(
+  db: DB,
+  doctorId: string,
+  limit = 100
+): Promise<DoctorReviews> {
+  const [{ data: doc }, { data: rows, error }] = await Promise.all([
+    db.from("doctors").select("avg_rating, review_count").eq("id", doctorId).maybeSingle(),
+    db
+      .from("reviews")
+      .select("id, rating, review_text, created_at")
+      .eq("target_type", "doctor")
+      .eq("target_id", doctorId)
+      .eq("is_visible", true)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+  ]);
+  if (error) throw error;
+
+  const list = (rows ?? []) as DoctorReviewItem[];
+  const distribution = [5, 4, 3, 2, 1].map((stars) => ({
+    stars,
+    count: list.filter((r) => Math.round(r.rating) === stars).length,
+  }));
+  const docRow = doc as { avg_rating?: number | string | null; review_count?: number | null } | null;
+  const average =
+    docRow?.avg_rating != null
+      ? Number(docRow.avg_rating)
+      : list.length
+      ? list.reduce((sum, r) => sum + r.rating, 0) / list.length
+      : 0;
+  const total = docRow?.review_count != null ? Number(docRow.review_count) : list.length;
+
+  return { summary: { average, total, distribution }, reviews: list };
+}
+
 export interface NewReview {
   targetType: Enums["review_target"];
   targetId: string;

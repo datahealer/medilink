@@ -2,10 +2,10 @@
 import type { DB } from "./client";
 
 const LIST_SELECT =
-  "id, name, type, address, services, rating, review_count, is_verified, cover_photo_url, phone, doctors!inner(id)";
+  "id, name, name_ar, name_ar_status, type, address, services, rating, review_count, is_verified, cover_photo_url, phone, doctors!inner(id)";
 
 const DETAIL_SELECT =
-  "id, name, type, custom_type, description, address, phone, email, website, logo_url, cover_photo_url, working_hours, services, accepted_insurances, rating, review_count, status, is_verified, location";
+  "id, name, name_ar, name_ar_status, type, custom_type, description, address, phone, email, website, logo_url, cover_photo_url, working_hours, services, accepted_insurances, rating, review_count, status, is_verified, location";
 
 export interface FacilityList {
   /** Filter to facilities offering this service (array contains). */
@@ -28,6 +28,35 @@ export async function listFacilities(db: DB, opts: FacilityList = {}) {
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
   query = query.range(offset, offset + limit - 1);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+export interface FacilitySearch {
+  /** Case-insensitive substring match on the facility name. */
+  term: string;
+  limit?: number;
+}
+
+/**
+ * Active + verified facilities (with ≥1 doctor) whose name matches `term`
+ * case-insensitively (QA #14). RLS-safe client query — no new RPC needed.
+ */
+export async function searchFacilities(db: DB, opts: FacilitySearch) {
+  const term = opts.term.trim();
+  let query = db
+    .from("facilities")
+    .select(LIST_SELECT)
+    .eq("status", "active")
+    .eq("is_verified", true)
+    .order("rating", { ascending: false, nullsFirst: false });
+
+  if (term) query = query.ilike("name", `%${term}%`);
+
+  const limit = opts.limit ?? 20;
+  query = query.range(0, limit - 1);
 
   const { data, error } = await query;
   if (error) throw error;

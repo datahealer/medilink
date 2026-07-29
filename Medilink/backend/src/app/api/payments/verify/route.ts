@@ -4,6 +4,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
+import { ensureInvoice } from "@/lib/payments/ensureInvoice";
 
 type Service = ReturnType<typeof createServiceSupabase>;
 
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
 
     if (!payment) return NextResponse.json({ status: "none", payment: null });
 
+    let paidNow = payment.status === "paid";
+
     // Gated on payment.status !== "paid" — if the webhook already finalized this
     // payment, this whole block (including the notification below) is skipped, so
     // a patient never gets notified twice regardless of which path runs first.
@@ -144,8 +147,13 @@ export async function POST(req: NextRequest) {
         if (!notifResult.success) {
           console.error("❌ Patient payment notification failed:", notifResult.error);
         }
+        paidNow = true;
       }
     }
+
+    // Ensure the invoice exists once the payment is paid, so the app can auto-file it
+    // into the Document Vault on return (idempotent; safe if the webhook already made it).
+    if (paidNow) await ensureInvoice(payment.id, "verify");
 
     const recap = await buildRecap(service, appointment_id);
     return NextResponse.json({ status: recap?.status ?? payment.status ?? "pending", payment: recap });

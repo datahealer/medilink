@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
 import * as chrono from "chrono-node";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { GROQ_MODEL, describeAiError, exposeAiDetail, groqClient } from "@/lib/ai/groq";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Vercel: raise the function timeout above the low default to cover the AI call.
+export const maxDuration = 30;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -162,8 +163,8 @@ Rules (apply in order):
 7. CRITICAL for date_phrase: copy the EXACT words the user said — do NOT convert to a day name, do NOT convert to YYYY-MM-DD, do NOT do any date arithmetic. "day after tomorrow" → date_phrase: "day after tomorrow" (never "Monday" or a date). "next week" → "next week". "after 2 weeks" → "after 2 weeks".
 IMPORTANT: If the current user message contains absolutely NO date, time, day name, or relative time expression → always set date_phrase: null and needs_clarification: true regardless of any other context or conversation history.`;
 
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+    const completion = await groqClient().chat.completions.create({
+      model: GROQ_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         ...history,
@@ -204,8 +205,8 @@ IMPORTANT: If the current user message contains absolutely NO date, time, day na
       // Mini LLM call for health-adjacent queries (warm, natural response)
       let reply = "I'm here to help you book doctor appointments. What type of doctor do you need, and when would you like to visit?";
       try {
-        const followUp = await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
+        const followUp = await groqClient().chat.completions.create({
+          model: GROQ_MODEL,
           messages: [
             {
               role: "system",
@@ -471,17 +472,11 @@ If the user asks something outside scheduling, respond warmly in 1-2 sentences a
       },
     });
   } catch (err: unknown) {
-    console.error("schedule-assist error:", err);
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
-      return NextResponse.json(
-        { success: false, error: "AI rate limit reached. Please try again in a moment." },
-        { status: 429 }
-      );
-    }
+    const info = describeAiError(err);
+    console.error(`schedule-assist error [${info.code}]:`, info.detail, err);
     return NextResponse.json(
-      { success: false, error: "Something went wrong. Please try again." },
-      { status: 500 }
+      { success: false, error: info.clientMessage, ...(exposeAiDetail() ? { code: info.code, detail: info.detail } : {}) },
+      { status: info.httpStatus }
     );
   }
 }

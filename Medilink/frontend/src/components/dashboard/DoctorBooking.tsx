@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@medilink/shared";
+import { api, i18n } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { env } from "@/lib/env";
 
@@ -155,6 +155,13 @@ export function BookingModal({
   const d = { name: doctor.name, hospital: doctor.hospital };
   const selectedTime = selectedSlot?.t ?? null;
 
+  // Localize the family_relation enum via the shared catalog; fall back to raw.
+  const relLabel = (rel: string) => {
+    const key = `familyRelation.${rel}` as Parameters<typeof i18n.translate>[1];
+    const label = i18n.translate(isAr ? "ar" : "en", key);
+    return label === key ? rel : label;
+  };
+
   // Real family members (replaces the old demo list) for the "Booking for" chips.
   useEffect(() => {
     let active = true;
@@ -247,7 +254,9 @@ export function BookingModal({
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ appointment_id: res.appointment_id, amount: doctor.fee }),
+          // BP-4: the amount is derived server-side from the doctor's fee + VAT.
+          // The client no longer sends it (previously sent fee without VAT).
+          body: JSON.stringify({ appointment_id: res.appointment_id }),
         });
         const j = await r.json().catch(() => null);
         if (r.ok && j?.checkoutUrl) {
@@ -399,7 +408,7 @@ export function BookingModal({
                       {m.initials}
                     </div>
                     <span>{m.name.split(" ")[0]}</span>
-                    <span className="opacity-50 font-normal">· {m.relation}</span>
+                    <span className="opacity-50 font-normal">· {relLabel(m.relation)}</span>
                   </button>
                 ))}
               </div>

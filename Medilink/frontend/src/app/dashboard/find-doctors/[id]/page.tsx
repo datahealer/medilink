@@ -6,8 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useAuth } from "@/context/AuthContext";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { specialtyLabel } from "@/lib/specialties";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
+import { FavouriteButton } from "@/components/dashboard/FavouriteButton";
+import { api } from "@medilink/shared";
 
 /* ─── Shared data ────────────────────────────────────────────────────── */
 const PROFILE_GRADS = [
@@ -27,49 +28,11 @@ type RealDoctorRow = {
   status: string | null;
   avg_rating: number | null;
   review_count: number | null;
+  facility_id: string | null;
+  facilities: { name?: string } | null;
 };
 
-/* ─── Weekly availability (doctor_availability.slots → "Sun - Thu · 9:00 AM - 5:00 PM") ── */
-type AvailabilityRow = { day_of_week: number; slots: { start?: string }[] | null };
-type DayRange = { start: string; end: string };
-
-const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const DAYS_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-
-/** "08:30:00" / "08:30" → "8:30 AM" */
-function formatHour(hhmm: string) {
-  const [hh = "0", mm = "00"] = hhmm.split(":");
-  let h = parseInt(hh, 10);
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12; if (h === 0) h = 12;
-  return `${h}:${mm} ${ampm}`;
-}
-
-/** Reduces each day's list of individual bookable slots down to its earliest–latest hour range. */
-function buildWeeklyHours(rows: AvailabilityRow[]): (DayRange | null)[] {
-  const byDay: (DayRange | null)[] = Array(7).fill(null);
-  for (const row of rows) {
-    const starts = (row.slots ?? [])
-      .map(s => (typeof s.start === "string" ? s.start.slice(0, 5) : ""))
-      .filter(Boolean)
-      .sort();
-    if (starts.length === 0) continue;
-    byDay[row.day_of_week] = { start: starts[0]!, end: starts[starts.length - 1]! };
-  }
-  return byDay;
-}
-
-/** One row per day of the week, in order — hours if the doctor has slots that day, else "Closed". */
-function listWeeklyHours(byDay: (DayRange | null)[], isAr: boolean) {
-  const dayNames = isAr ? DAYS_AR : DAYS_EN;
-  return byDay.map((range, i) => ({
-    label: dayNames[i]!,
-    hours: range ? `${formatHour(range.start)} – ${formatHour(range.end)}` : (isAr ? "مغلق" : "Closed"),
-    open: Boolean(range),
-  }));
-}
-
-function realToView(row: RealDoctorRow, isAr: boolean, index: number, bookable: boolean): ViewDoctor {
+function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDoctor {
   const initials = row.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "DR";
   const fees = row.fees as { in_person?: number; online?: number } | null;
   const qualifications = row.qualifications ?? [];
@@ -78,16 +41,14 @@ function realToView(row: RealDoctorRow, isAr: boolean, index: number, bookable: 
     id: row.id,
     initials,
     grad: PROFILE_GRADS[index % PROFILE_GRADS.length]!,
-    specialty: row.specialty ? specialtyLabel(row.specialty, isAr) : (isAr ? "طب عام" : "General Medicine"),
+    specialty: row.specialty ?? (isAr ? "طب عام" : "General Medicine"),
     bio: row.bio?.trim() || (isAr ? "لا تتوفر نبذة تعريفية لهذا الطبيب بعد." : "No biography available for this doctor yet."),
     fee: fees?.in_person ?? fees?.online ?? 0,
     rating: row.avg_rating ?? 0,
     reviews: row.review_count ?? 0,
-    // Bookable when the doctor has a weekly schedule configured at all — not the
-    // live 15-min presence flag (`doctors.status`), which has no writer in the app.
-    available: bookable,
+    available: row.status === "available",
     name: row.full_name,
-    hospital: isAr ? "شبكة ميدلينك" : "MediLink Network",
+    hospital: row.facilities?.name?.trim() || (isAr ? "شبكة ميدلينك" : "MediLink Network"),
     type: isAr ? "في العيادة" : "In-clinic",
     education: qualifications.length ? qualifications.join(", ") : (isAr ? "غير محدد" : "Not specified"),
     experience: row.years_experience
@@ -99,13 +60,10 @@ function realToView(row: RealDoctorRow, isAr: boolean, index: number, bookable: 
 }
 
 /* ─── Review types ───────────────────────────────────────────────────── */
+// Reviews are read from the shared API (api.reviews.listDoctorReviews) under the
+// public-read RLS policy; reviewer identity is never exposed, so `initials` is a
+// generic verified marker rather than a fabricated name.
 type Review = { initials: string; rating: number; en: string; ar: string; own?: boolean };
-
-const SEED_REVIEWS: Review[] = [
-  { initials: "SM", rating: 5, en: "Very professional and thorough. Explained everything clearly.", ar: "محترف جداً وشامل. شرح كل شيء بوضوح." },
-  { initials: "LK", rating: 5, en: "Short waiting time and the doctor was very attentive.", ar: "وقت انتظار قصير والطبيب كان منتبهاً جداً." },
-  { initials: "RN", rating: 4, en: "Accurate diagnosis and great follow-up. Highly recommend.", ar: "تشخيص دقيق ومتابعة ممتازة. أنصح به بشدة." },
-];
 
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function DoctorProfilePage() {
@@ -119,43 +77,92 @@ export default function DoctorProfilePage() {
   const [realDoctor, setRealDoctor] = useState<RealDoctorRow | null>(null);
   const [loadingReal, setLoadingReal] = useState(true);
   const [realNotFound, setRealNotFound] = useState(false);
-  const [weeklyHours, setWeeklyHours] = useState<(DayRange | null)[]>(Array(7).fill(null));
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = createBrowserSupabaseClient();
-      const [{ data }, { data: availability }] = await Promise.all([
-        supabase
-          .from("doctors")
-          .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count")
-          .eq("id", rawId)
-          .eq("is_active", true)
-          .maybeSingle(),
-        supabase
-          .from("doctor_availability")
-          .select("day_of_week, slots")
-          .eq("doctor_id", rawId),
-      ]);
+      const { data } = await supabase
+        .from("doctors")
+        .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count, facility_id, facilities(name)")
+        .eq("id", rawId)
+        .eq("is_active", true)
+        .maybeSingle();
       if (cancelled) return;
-      if (data) setRealDoctor(data as RealDoctorRow);
+      if (data) setRealDoctor(data as unknown as RealDoctorRow);
       else setRealNotFound(true);
-      setWeeklyHours(buildWeeklyHours((availability ?? []) as AvailabilityRow[]));
       setLoadingReal(false);
     })();
     return () => { cancelled = true; };
   }, [rawId]);
 
-  const hoursRows = listWeeklyHours(weeklyHours, ar);
-  const hasAnyAvailability = hoursRows.some(r => r.open);
-  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0, hasAnyAvailability) : null;
+  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0) : null;
 
-  const [reviews, setReviews]     = useState<Review[]>(SEED_REVIEWS);
+  const [reviews, setReviews]     = useState<Review[]>([]);
   const [hoverStar, setHoverStar] = useState(0);
   const [selStar, setSelStar]     = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [showBooking, setShowBooking] = useState(false);
+
+  // Days of the week the doctor has bookable slots (doctor_availability).
+  const [availDays, setAvailDays] = useState<Set<number>>(new Set());
+
+  /**
+   * Gate booking behind auth. A signed-out visitor is sent to sign-in with a `next`
+   * back to this profile rather than being shown a modal that cannot submit — same
+   * rule as the symptom-checker's "Book" action.
+   */
+  function handleBookClick() {
+    if (!doctor?.available) return;
+    if (!user) {
+      router.push(`/sign-in?next=${encodeURIComponent(`/dashboard/find-doctors/${rawId}`)}`);
+      return;
+    }
+    setShowBooking(true);
+  }
+
+  useEffect(() => {
+    if (!rawId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { data } = await supabase
+          .from("doctor_availability")
+          .select("day_of_week, slots")
+          .eq("doctor_id", rawId);
+        if (cancelled) return;
+        const days = new Set<number>();
+        for (const row of (data ?? []) as { day_of_week: number; slots: unknown[] | null }[]) {
+          if (Array.isArray(row.slots) && row.slots.length > 0) days.add(row.day_of_week);
+        }
+        setAvailDays(days);
+      } catch {
+        if (!cancelled) setAvailDays(new Set());
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rawId]);
+
+  // Load the doctor's public reviews via the shared API (RLS public-read).
+  useEffect(() => {
+    if (!rawId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { reviews: rows } = await api.reviews.listDoctorReviews(supabase, rawId);
+        if (cancelled) return;
+        setReviews(rows.map(r => ({ initials: "✓", rating: r.rating, en: r.review_text ?? "", ar: r.review_text ?? "" })));
+      } catch {
+        if (!cancelled) setReviews([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rawId]);
 
   if (loadingReal) {
     return (
@@ -179,22 +186,31 @@ export default function DoctorProfilePage() {
     );
   }
 
-  function handleBookClick() {
-    if (!doctor?.available) return;
-    if (!user) {
-      router.push(`/sign-in?next=${encodeURIComponent(`/dashboard/find-doctors/${rawId}`)}`);
-      return;
+  async function submitReview() {
+    if (!selStar || !reviewText.trim() || submitting) return;
+    setSubmitting(true);
+    setReviewError(null);
+    const text = reviewText.trim();
+    try {
+      const supabase = createBrowserSupabaseClient();
+      await api.reviews.createReview(supabase, {
+        targetType: "doctor",
+        targetId: rawId,
+        rating: selStar,
+        reviewText: text,
+      });
+      // Optimistically show the patient's own review (public visibility may be
+      // gated by moderation, so it might not appear in the public read yet).
+      setReviews(prev => [{ initials: "✓", rating: selStar, en: text, ar: text, own: true }, ...prev]);
+      setSelStar(0);
+      setReviewText("");
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 4000);
+    } catch {
+      setReviewError(ar ? "تعذّر إرسال التقييم. حاول مرة أخرى." : "Could not submit your review. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setShowBooking(true);
-  }
-
-  function submitReview() {
-    if (!selStar || !reviewText.trim()) return;
-    setReviews(prev => [{ initials: "ME", rating: selStar, en: reviewText, ar: reviewText, own: true }, ...prev]);
-    setSelStar(0);
-    setReviewText("");
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
   }
 
   const ratingLabel = ["", ar ? "ضعيف" : "Poor", ar ? "مقبول" : "Fair", ar ? "جيد" : "Good", ar ? "جيد جداً" : "Very good", ar ? "ممتاز" : "Excellent"];
@@ -203,8 +219,8 @@ export default function DoctorProfilePage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7] pb-28">
 
       {/* ── Back bar ── */}
-      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-4 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4">
+      <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 sticky top-0 z-10">
+        <div className={`max-w-6xl mx-auto flex items-center justify-between gap-3 ${ar ? "flex-row-reverse" : ""}`}>
           <Link
             href="/dashboard/find-doctors"
             className={`inline-flex items-center gap-1.5 text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline ${ar ? "flex-row-reverse" : ""}`}
@@ -214,12 +230,13 @@ export default function DoctorProfilePage() {
             </svg>
             {ar ? "العودة إلى قائمة الأطباء" : "Back to Find Doctors"}
           </Link>
+          <FavouriteButton targetId={rawId} targetType="doctor" />
         </div>
       </div>
 
       {/* ── Hero ── */}
-      <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto">
           <div className={`flex items-start gap-5 mb-6 ${ar ? "flex-row-reverse" : ""}`}>
             <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black flex-shrink-0 bg-gradient-to-br ${doctor.grad} text-[#2E1A47]`}>
               {doctor.initials}
@@ -250,8 +267,22 @@ export default function DoctorProfilePage() {
       </section>
 
       {/* ── Body ── */}
-      <div className="px-4 py-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+
+        {/* Clinic — links to the facility page listing all its doctors */}
+        {realDoctor?.facility_id && (
+          <Link href={`/dashboard/clinics/${realDoctor.facility_id}`}
+            className={`flex items-center justify-between gap-3 bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-5 hover:shadow-md hover:border-[#46255f]/40 dark:hover:border-[#DFC8E7]/40 transition-all no-underline ${ar ? "flex-row-reverse" : ""}`}>
+            <div className={`flex items-center gap-3 min-w-0 ${ar ? "flex-row-reverse text-right" : ""}`}>
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 bg-gradient-to-br from-[#d5e8f5] to-[#ede0f8]">🏥</div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-0.5">{ar ? "العيادة" : "Clinic"}</p>
+                <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{doctor.hospital}</p>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-[#46255f] dark:text-[#DFC8E7]/70 flex-shrink-0">{ar ? "عرض ←" : "View →"}</span>
+          </Link>
+        )}
 
         {/* About */}
         <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
@@ -262,7 +293,7 @@ export default function DoctorProfilePage() {
         </section>
 
         {/* Details grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <section className="grid grid-cols-2 gap-3">
           {[
             { icon: "🎓", en: "Education",  ar: "التعليم",  val: doctor.education },
             { icon: "⏱",  en: "Experience", ar: "الخبرة",   val: doctor.experience },
@@ -277,20 +308,35 @@ export default function DoctorProfilePage() {
           ))}
         </section>
 
-        {/* Availability */}
-        {hasAnyAvailability && (
+        {/* Weekly availability (doctor_availability) */}
+        {availDays.size > 0 && (
           <section className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6">
-            <p className={`text-[10px] font-black  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4 ${ar ? "text-right" : ""}`}>
-              {ar ? "أوقات التوفر" : "Availability"}
+            <p className={`text-[10px] font-black uppercase tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-4 ${ar ? "text-right" : ""}`}>
+              {ar ? "التوفر الأسبوعي" : "Weekly Availability"}
             </p>
-            <div className="space-y-2">
-              {hoursRows.map(r => (
-                <div key={r.label} className={`flex items-center justify-between text-sm ${ar ? "flex-row-reverse" : ""}`}>
-                  <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{r.label}</span>
-                  <span className={r.open ? "text-[#2E1A47]/60 dark:text-[#DFC8E7]/60" : "text-[#2E1A47]/30 dark:text-[#DFC8E7]/30"}>{r.hours}</span>
-                </div>
-              ))}
+            <div className={`flex gap-2 flex-wrap ${ar ? "flex-row-reverse" : ""}`}>
+              {(ar
+                ? ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
+                : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+              ).map((label, day) => {
+                const on = availDays.has(day);
+                return (
+                  <span
+                    key={day}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
+                      on
+                        ? "border-transparent bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+                        : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/25 dark:text-[#DFC8E7]/25 line-through"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
             </div>
+            <p className={`text-xs text-[#2E1A47]/45 dark:text-[#DFC8E7]/45 mt-3 ${ar ? "text-right" : ""}`}>
+              {ar ? "اختر «احجز موعداً» لعرض الأوقات المتاحة." : "Tap “Book Appointment” to see available times."}
+            </p>
           </section>
         )}
 
@@ -378,21 +424,26 @@ export default function DoctorProfilePage() {
             className={`w-full text-sm text-[#2E1A47] dark:text-[#DFC8E7] bg-[#f9f4fa] dark:bg-[#0d0820] border border-[#e7dcee] dark:border-[#3a2560] rounded-xl px-4 py-3 outline-none focus:border-[#46255f]/60 dark:focus:border-[#DFC8E7]/40 transition-all resize-none placeholder-[#2E1A47]/30 dark:placeholder-[#DFC8E7]/30 mb-4 ${ar ? "text-right" : ""}`}
           />
 
+          {reviewError && (
+            <p className={`text-sm font-semibold text-red-600 dark:text-red-400 mb-3 ${ar ? "text-right" : ""}`}>
+              {reviewError}
+            </p>
+          )}
+
           <button
-            disabled={!selStar || !reviewText.trim()}
+            disabled={!selStar || !reviewText.trim() || submitting}
             onClick={submitReview}
             className="w-full py-3 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
           >
-            {ar ? "إرسال التقييم" : "Submit Review"}
+            {submitting ? (ar ? "جارٍ الإرسال..." : "Submitting...") : (ar ? "إرسال التقييم" : "Submit Review")}
           </button>
         </section>
       </div>
-      </div>
 
       {/* ── Sticky Book button ── */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white dark:bg-[#0d0820] border-t border-[#e7dcee] dark:border-[#2a1840] z-20">
-        <div className="max-w-6xl mx-auto px-4">
+      <div className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white dark:bg-[#0d0820] border-t border-[#e7dcee] dark:border-[#2a1840] z-20">
+        <div className="max-w-6xl mx-auto">
           <button
             onClick={handleBookClick}
             disabled={!doctor.available}

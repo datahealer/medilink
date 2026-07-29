@@ -1,0 +1,1318 @@
+/**
+ * REAL repositories — back the UI with the MediLink backend + Supabase
+ * (`EXPO_PUBLIC_DATA_MODE=staging|production`). Privileged ops (auth, payments) go
+ * to `@medilink/backend` over HTTPS via `apiFetch` (EXPO_PUBLIC_API_URL); RLS-safe
+ * reads go directly to Supabase via the shared `@medilink/shared` `api.*` modules.
+ * This is only the boundary the UI consumes.
+ */
+import { api, feeForType } from "@medilink/shared/mobile";
+
+import { supabase } from "@/lib/supabase";
+import { apiFetch, ApiError } from "@/services/api";
+import { env } from "@/config/env";
+import { authService } from "@/services/authService";
+import { asText } from "@/utils/text";
+import { classifyNotification } from "@/utils/notifications";
+import { mimeFromName } from "@/utils/mime";
+import type {
+  AiRepository,
+  AppointmentRepository,
+  AuthRepository,
+  DiscoveryRepository,
+  DocumentRepository,
+  DoctorRepository,
+  FamilyRepository,
+  FavouriteRepository,
+  MedicalHistoryRepository,
+  LabRepository,
+  NotificationRepository,
+  PatientRepository,
+  PaymentRepository,
+  PrescriptionRepository,
+  QueueRepository,
+  ReviewRepository,
+  Repositories,
+} from "../repositories";
+import type {
+  QueueAcknowledgePayload,
+  QueueEnvelope,
+  QueueStatusPayload,
+} from "@medilink/shared/mobile";
+import { mapQueueStatus, queueReasonFrom } from "../queueMapping";
+import type {
+  AiScheduleDoctorResult,
+  AiScheduleInput,
+  AiScheduleResponse,
+  Appointment,
+  BloodGroup,
+  Clinic,
+  Doctor,
+  DocumentType,
+  FamilyMember,
+  FamilyRelation,
+  FavouriteItem,
+  Gender,
+  MedicalHistory,
+  NotificationItem,
+  NotificationPrefs,
+  PatientDoc,
+  PatientProfile,
+  Payment,
+  Prescription,
+  QueueUnavailableReason,
+  SmokingStatus,
+} from "../types";
+// Value import (class, not a type) — thrown by the queue repository.
+import { QueueUnavailableError } from "../types";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Best-effort message from an unknown throwable (Error | PostgrestError | string). */
+function errText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    const parts = [o.message, o.details, o.hint, o.code].filter(Boolean).map(String);
+    return parts.length ? parts.join(" · ") : JSON.stringify(o);
+  }
+  return String(e);
+}
+
+// ---- auth -------------------------------------------------------------------
+
+const authRepo: AuthRepository = {
+  signIn: (input) => authService.signIn(input),
+  signUp: (input) => authService.signUp(input),
+  sendOtp: (email) => authService.sendOtp(email),
+  verifyOtp: (code, email) => authService.verifyOtp(code, email),
+  sendLoginOtp: (email) => authService.sendLoginOtp(email),
+  verifyLoginOtp: (code, email) => authService.verifyLoginOtp(code, email),
+  requestPasswordReset: (id) => authService.requestPasswordReset(id),
+  resetPassword: (pw) => authService.resetPassword(pw),
+  googleSignIn: () => authService.googleSignIn(),
+  signOut: () => authService.signOut(),
+  deleteAccount: () => authService.deleteAccount(),
+  async restoreSession() {
+    const session = await api.auth.getSession(supabase);
+    return session?.user ? { id: session.user.id, email: session.user.email ?? null } : null;
+  },
+  subscribe(onChange) {
+    return api.auth.onAuthStateChange(supabase, (session) =>
+      onChange(session?.user ? { id: session.user.id, email: session.user.email ?? null } : null)
+    );
+  },
+};
+
+// ---- patient ----------------------------------------------------------------
+
+function toDomainProfile(p: Awaited<ReturnType<typeof api.profile.getMyProfile>>): PatientProfile {
+  return {
+    account: p.account
+      ? {
+          id: p.account.id,
+          full_name: p.account.full_name ?? null,
+          full_name_ar: p.account.full_name_ar ?? null,
+          full_name_ar_status: p.account.full_name_ar_status ?? null,
+          phone: p.account.phone ?? null,
+          email: null,
+        }
+      : null,
+    patient: p.patient
+      ? {
+          id: p.patient.id,
+          date_of_birth: p.patient.date_of_birth ?? null,
+          gender: (p.patient.gender as Gender) ?? null,
+          blood_group: (p.patient.blood_group as BloodGroup) ?? "unknown",
+          address: asText(p.patient.address) || null,
+          emergency_contact: asText(p.patient.emergency_contact) || null,
+          profile_photo_url: p.patient.profile_photo_url ?? null,
+          civil_number: p.patient.civil_number ?? null,
+        }
+      : null,
+  };
+}
+
+const patientRepo: PatientRepository = {
+  async getProfile() {
+    return toDomainProfile(await api.profile.getMyProfile(supabase));
+  },
+  async updateProfile(patch) {
+    return toDomainProfile(await api.profile.updateMyProfile(supabase, patch));
+  },
+  async uploadProfilePhoto(asset) {
+    // Supabase-direct (consistent with every other real feature) — the previous
+    // path went through the backend REST server (apiFetch + EXPO_PUBLIC_API_URL),
+    // the only feature that did, so an unreachable/unset API host failed only
+    // here. Upload to the same `account_image` bucket/path the web app uses,
+    // then persist the public URL onto patient_profiles via the profile update.
+    const { data: auth, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !auth.user) throw authErr ?? new Error("Not authenticated");
+    const ext =
+      (asset.name?.split(".").pop() || asset.mimeType?.split("/").pop() || "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "") || "jpg";
+    // The account_image bucket's storage policy casts the object's filename stem
+    // to uuid and checks it against auth.uid(), so the filename MUST be the auth
+    // user's UUID — a Date.now() timestamp here produced the runtime error
+    // `invalid input syntax for type uuid: "1782453774429"`. upsert overwrites the
+    // user's single avatar; cache-busting lives in a ?v= query param (not the path).
+    const path = `patient-profiles/${auth.user.id}/${auth.user.id}.${ext}`;
+    const body = await fetch(asset.uri).then((r) => r.arrayBuffer());
+    const { error: uploadErr } = await supabase.storage
+      .from("account_image")
+      .upload(path, body, { contentType: asset.mimeType ?? "image/jpeg", upsert: true });
+    if (uploadErr) throw uploadErr;
+    const { data: pub } = supabase.storage.from("account_image").getPublicUrl(path);
+    const url = `${pub.publicUrl}?v=${Date.now()}`;
+    // Persist so the new avatar survives reload (Dashboard / Profile read this).
+    await api.profile.updateMyProfile(supabase, { profile_photo_url: url });
+    return { profile_photo_url: url };
+  },
+};
+
+// ---- medical history --------------------------------------------------------
+
+const medicalHistoryRepo: MedicalHistoryRepository = {
+  async get() {
+    const h = await api.records.getMedicalHistory(supabase);
+    if (!h) return null;
+    return {
+      allergies: h.allergies ?? [],
+      conditions: h.conditions ?? [],
+      medications: h.medications ?? [],
+      surgeries: h.surgeries ?? [],
+      smoking_status: (h.smoking_status as SmokingStatus) ?? "unknown",
+      notes: h.notes ?? null,
+    } satisfies MedicalHistory;
+  },
+  async upsert(patch) {
+    const h = await api.records.upsertMedicalHistory(supabase, patch);
+    return {
+      allergies: h.allergies ?? [],
+      conditions: h.conditions ?? [],
+      medications: h.medications ?? [],
+      surgeries: h.surgeries ?? [],
+      smoking_status: (h.smoking_status as SmokingStatus) ?? "unknown",
+      notes: h.notes ?? null,
+    } satisfies MedicalHistory;
+  },
+};
+
+// ---- family -----------------------------------------------------------------
+
+function toDomainMember(m: Awaited<ReturnType<typeof api.family.listFamily>>[number]): FamilyMember {
+  return {
+    id: m.id,
+    full_name: m.full_name,
+    relation: m.relation as FamilyRelation,
+    date_of_birth: m.date_of_birth ?? null,
+    gender: (m.gender as Gender) ?? null,
+  };
+}
+
+const familyRepo: FamilyRepository = {
+  async list() {
+    return (await api.family.listFamily(supabase)).map(toDomainMember);
+  },
+  async add(member) {
+    return toDomainMember(await api.family.addFamilyMember(supabase, member));
+  },
+  async update(id, patch) {
+    return toDomainMember(await api.family.updateFamilyMember(supabase, id, patch));
+  },
+  async remove(id) {
+    await api.family.deleteFamilyMember(supabase, id);
+  },
+};
+
+// ---- appointments -----------------------------------------------------------
+
+interface ApptPaymentRow {
+  amount: number | null;
+  currency: string | null;
+  status: string | null;
+}
+
+interface ApptRow {
+  id: string;
+  reference_number: string | null;
+  doctor_id: string | null;
+  slot_date: string | null;
+  slot_start: string | null;
+  slot_end: string | null;
+  type: string | null;
+  status: string | null;
+  payment_status: string | null;
+  reason_for_visit: string | null;
+  notes: string | null;
+  doctor: { full_name: string | null; specialty?: string | null; fees?: unknown; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+  facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
+  family_member: { full_name: string | null } | null;
+  payments?: ApptPaymentRow[] | null;
+}
+
+// feeForType (consultation fee for an appointment type) is the shared helper
+// imported above — the single source of truth reused by the backend checkout (BP-4).
+
+function mapAppointment(r: ApptRow): Appointment {
+  const pay = Array.isArray(r.payments) ? r.payments[0] : null;
+  return {
+    id: r.id,
+    reference_number: r.reference_number ?? null,
+    doctor_id: r.doctor_id ?? null,
+    slot_date: r.slot_date ?? null,
+    slot_start: r.slot_start ?? null,
+    slot_end: r.slot_end ?? null,
+    type: (r.type as Appointment["type"]) ?? null,
+    status: r.status ?? null,
+    payment_status: r.payment_status ?? null,
+    reason_for_visit: r.reason_for_visit ?? null,
+    notes: r.notes ?? null,
+    fee_omr: r.doctor ? feeForType(r.doctor.fees, r.type) : null,
+    doctor: r.doctor ? { full_name: r.doctor.full_name ?? null, specialty: r.doctor.specialty ?? null, full_name_ar: r.doctor.full_name_ar ?? null, full_name_ar_status: r.doctor.full_name_ar_status ?? null } : null,
+    facility: r.facility ? { name: r.facility.name ?? null, address: r.facility.address ?? null, name_ar: r.facility.name_ar ?? null, name_ar_status: r.facility.name_ar_status ?? null } : null,
+    for_family_member: r.family_member ? { full_name: r.family_member.full_name ?? null } : null,
+    payment: pay ? { amount: pay.amount ?? null, currency: pay.currency ?? null, status: pay.status ?? null } : null,
+  };
+}
+
+/** "14:30" / "14:30:00" → "2:30 PM" for display (raw start is kept for the RPC). */
+function to12h(hhmm: string): string {
+  const [hStr, mStr = "00"] = hhmm.split(":");
+  let h = Number(hStr);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${mStr.slice(0, 2)} ${ampm}`;
+}
+
+// ---- payments (read side) ---------------------------------------------------
+
+interface PaymentRow {
+  id: string;
+  amount: number | null;
+  currency: string | null;
+  status: string | null;
+  payment_method: string | null;
+  gateway: string | null;
+  gateway_ref: string | null;
+  invoice_url: string | null;
+  created_at: string | null;
+  appointment: {
+    id: string;
+    patient_id: string | null;
+    reference_number: string | null;
+    slot_date: string | null;
+    slot_start: string | null;
+    type: string | null;
+    doctor: { full_name: string | null; specialty?: string | null; fees?: unknown; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+    facility: { name: string | null; address?: string | null; name_ar?: string | null; name_ar_status?: string | null } | null;
+  } | null;
+}
+
+function mapPayment(r: PaymentRow): Payment {
+  const a = r.appointment;
+  return {
+    id: r.id,
+    amount: r.amount ?? null,
+    currency: r.currency ?? null,
+    status: r.status ?? null,
+    reference: r.gateway_ref ?? r.id ?? null,
+    method: r.payment_method ?? r.gateway ?? null,
+    invoiceUrl: r.invoice_url ?? null,
+    createdAt: r.created_at ?? null,
+    appointment: a
+      ? {
+          id: a.id,
+          reference_number: a.reference_number ?? null,
+          slot_date: a.slot_date ?? null,
+          slot_start: a.slot_start ?? null,
+          doctor: a.doctor ? { full_name: a.doctor.full_name ?? null, specialty: a.doctor.specialty ?? null, full_name_ar: a.doctor.full_name_ar ?? null, full_name_ar_status: a.doctor.full_name_ar_status ?? null } : null,
+          facility: a.facility ? { name: a.facility.name ?? null, name_ar: a.facility.name_ar ?? null, name_ar_status: a.facility.name_ar_status ?? null } : null,
+          fee_omr: a.doctor ? feeForType(a.doctor.fees, a.type) : null,
+        }
+      : null,
+  };
+}
+
+const paymentRepo: PaymentRepository = {
+  async list() {
+    const rows = (await api.payments.listMyPayments(supabase)) as unknown as PaymentRow[];
+    return rows.map(mapPayment);
+  },
+  async get(id) {
+    const row = (await api.payments.getPayment(supabase, id)) as unknown as PaymentRow | null;
+    return row ? mapPayment(row) : null;
+  },
+  async getByAppointment(appointmentId) {
+    const row = (await api.payments.getPaymentByAppointment(supabase, appointmentId)) as unknown as PaymentRow | null;
+    return row ? mapPayment(row) : null;
+  },
+  async createCheckout({ appointmentId }) {
+    // Privileged op: the Thawani secret lives server-side, so this goes through the
+    // MediLink backend route (Bearer = the Supabase access token). Returns a hosted
+    // checkout URL. BP-4: the amount is derived server-side from the doctor's fee —
+    // the client no longer sends it (price-manipulation fix).
+    const res = await apiFetch<{ checkoutUrl?: string }>("/api/payments/checkout", {
+      method: "POST",
+      body: JSON.stringify({ appointment_id: appointmentId }),
+    });
+    return { checkoutUrl: res?.checkoutUrl ?? null };
+  },
+  async verify(appointmentId) {
+    // On return from Thawani, ask the backend to confirm against the Thawani session
+    // (the webhook can't reach a local backend). Finalizes paid → confirmed server-side
+    // and returns a service-role recap (RLS-independent) for the confirmation screen.
+    const res = await apiFetch<{ status?: string; payment?: Payment | null }>("/api/payments/verify", {
+      method: "POST",
+      body: JSON.stringify({ appointment_id: appointmentId }),
+    });
+    return { status: res?.status ?? "pending", payment: res?.payment ?? null };
+  },
+  async regenerateInvoice(paymentId) {
+    // Idempotent server-side: returns the existing invoice or triggers the worker.
+    const res = await apiFetch<{ status?: string; invoice_url?: string }>(
+      `/api/payments/${paymentId}/invoice/regenerate`,
+      { method: "POST" },
+    );
+    return { invoiceUrl: res?.invoice_url ?? null, status: res?.status ?? "queued" };
+  },
+};
+
+const appointmentRepo: AppointmentRepository = {
+  async listUpcoming() {
+    const rows = (await api.appointments.listMyAppointments(supabase, "upcoming")) as unknown as ApptRow[];
+    return rows.map(mapAppointment);
+  },
+  async list(tab) {
+    const rows = (await api.appointments.listMyAppointments(supabase, tab)) as unknown as ApptRow[];
+    return rows.map(mapAppointment);
+  },
+  async get(id) {
+    const row = (await api.appointments.getAppointment(supabase, id)) as unknown as ApptRow | null;
+    return row ? mapAppointment(row) : null;
+  },
+  async getSlots(params) {
+    const slots = await api.appointments.getAvailableSlots(supabase, params);
+    return slots
+      .map((s) => ({
+        start: typeof s.start === "string" ? s.start.slice(0, 5) : "",
+        end: typeof s.end === "string" ? s.end.slice(0, 5) : undefined,
+      }))
+      .filter((s) => s.start !== "")
+      .map((s) => ({ start: s.start, end: s.end, label: to12h(s.start) }));
+  },
+  async create(input) {
+    // Boundary guard: the RPC's UUID columns reject any non-UUID id (e.g. a stale
+    // mock "mock-100"). Drop a malformed family id rather than fail the booking.
+    const fam = input.forFamilyMemberId ?? undefined;
+    const forFamilyMemberId = fam && UUID_RE.test(fam) ? fam : undefined;
+    if (__DEV__ && fam && !forFamilyMemberId) {
+      console.warn("[booking] dropping non-UUID forFamilyMemberId", fam);
+    }
+    const payload = {
+      doctorId: input.doctorId,
+      facilityId: input.facilityId,
+      slotDate: input.slotDate,
+      slotStart: input.slotStart,
+      type: input.type,
+      forFamilyMemberId,
+      reason: input.reason ?? null,
+    };
+    if (__DEV__) console.warn("[booking] book_appointment_atomic payload", payload);
+
+    let res: unknown;
+    try {
+      res = await api.appointments.bookAppointment(supabase, payload);
+    } catch (e) {
+      // Transport / Postgres error (the RPC raised, or RLS/grant denied it).
+      if (__DEV__) console.warn("[booking] RPC threw", e);
+      throw new Error(errText(e));
+    }
+    if (__DEV__) console.warn("[booking] book_appointment_atomic result", res);
+
+    // book_appointment_atomic does NOT throw on business failures — it returns
+    // { success: false, error: <CODE|SQLERRM> }. Honour that and surface the code.
+    const r = (res ?? {}) as Record<string, unknown>;
+    if (r.success === false) throw new Error(String(r.error ?? "BOOKING_FAILED"));
+    const id = String(r.appointment_id ?? r.id ?? "");
+    if (!id) throw new Error("Booking did not return an appointment id");
+    return { id, reference: (r.reference_number ?? r.reference ?? null) as string | null };
+  },
+  async cancel(id, reason) {
+    let res: unknown;
+    try {
+      res = await api.appointments.cancelAppointment(supabase, id, { reason });
+    } catch (e) {
+      throw new Error(errText(e));
+    }
+    // cancel_appointment_safe returns { success: false, error } on business failures.
+    const r = (res ?? {}) as Record<string, unknown>;
+    if (r.success === false) throw new Error(String(r.error ?? "CANCEL_FAILED"));
+  },
+  async releaseHold(id) {
+    // BP-3: void a still-pending, unpaid reservation (frees the slot). release_unpaid_hold
+    // returns { success: false, error } for anything it declines (e.g. already paid) —
+    // that is non-fatal here (the TTL sweeper is the backstop), so we don't throw.
+    let res: unknown;
+    try {
+      res = await api.appointments.releaseUnpaidHold(supabase, id);
+    } catch (e) {
+      if (__DEV__) console.warn("[booking] releaseUnpaidHold threw", e);
+      return;
+    }
+    if (__DEV__) {
+      const r = (res ?? {}) as Record<string, unknown>;
+      if (r.success === false) console.warn("[booking] releaseUnpaidHold declined", r.error);
+    }
+  },
+  async reschedule(id, slot) {
+    let res: unknown;
+    try {
+      res = await api.appointments.rescheduleAppointment(supabase, id, {
+        date: slot.date,
+        start: slot.start,
+        end: slot.end,
+      });
+    } catch (e) {
+      throw new Error(errText(e));
+    }
+    const r = (res ?? {}) as Record<string, unknown>;
+    if (r.success === false) throw new Error(String(r.error ?? "RESCHEDULE_FAILED"));
+  },
+  async checkIn(id) {
+    // checkin_and_enqueue needs the patient's name/phone; pull them from the profile.
+    const profile = await api.profile.getMyProfile(supabase);
+    try {
+      await api.appointments.checkInAppointment(supabase, {
+        appointmentId: id,
+        patientName: profile.account?.full_name ?? "",
+        patientPhone: profile.account?.phone ?? "",
+      });
+    } catch (e) {
+      throw new Error(errText(e));
+    }
+  },
+};
+
+// ---- queue ------------------------------------------------------------------
+// Patient-side live queue. HAMS owns every calculation; this is a transport
+// adapter over the two contract endpoints plus the shared realtime helper.
+// See docs/QUEUE_BACKEND_FOR_MEDILINK.md §2.
+//
+// NOTE ON ERROR MAPPING: the queue routes answer with
+// `{ success:false, error:{ code, message } }`, but `apiFetch` only knows how to
+// lift a top-level string `error`, so the useful code arrives on `ApiError.body`
+// rather than in the message. `queueReason()` recovers it; without this every
+// declined read would surface as "[object Object]".
+
+/**
+ * Map an apiFetch failure onto the contract's reason code. The `instanceof` check
+ * stays here (where ApiError lives); the code→reason policy is the pure, unit-tested
+ * `queueReasonFrom` in ../queueMapping.
+ */
+function queueReason(e: unknown): QueueUnavailableReason {
+  if (e instanceof ApiError) {
+    const body = e.body as { error?: { code?: string } } | null;
+    return queueReasonFrom(e.status, body?.error?.code);
+  }
+  return "server_error";
+}
+
+const queueRepo: QueueRepository = {
+  async getStatus(appointmentId) {
+    let res: QueueEnvelope<QueueStatusPayload>;
+    try {
+      res = await apiFetch<QueueEnvelope<QueueStatusPayload>>(
+        `/api/patients/me/queue-status?appointment_id=${encodeURIComponent(appointmentId)}`
+      );
+    } catch (e) {
+      throw new QueueUnavailableError(queueReason(e), errText(e));
+    }
+    // A 200 with success:false shouldn't happen per the contract, but treat the
+    // envelope as authoritative rather than trusting the status code alone.
+    if (!res.success) {
+      throw new QueueUnavailableError(
+        (res.error.code as QueueUnavailableReason) ?? "server_error",
+        res.error.message
+      );
+    }
+    return mapQueueStatus(res.data);
+  },
+
+  async acknowledge({ appointmentId, kind }) {
+    let res: QueueEnvelope<QueueAcknowledgePayload>;
+    try {
+      res = await apiFetch<QueueEnvelope<QueueAcknowledgePayload>>(
+        "/api/patients/me/queue-status/acknowledge",
+        { method: "POST", body: JSON.stringify({ appointment_id: appointmentId, kind }) }
+      );
+    } catch (e) {
+      throw new QueueUnavailableError(queueReason(e), errText(e));
+    }
+    if (!res.success) {
+      throw new QueueUnavailableError(
+        (res.error.code as QueueUnavailableReason) ?? "server_error",
+        res.error.message
+      );
+    }
+  },
+
+  subscribe(appointmentId, onChange) {
+    return api.queue.subscribeToMyQueue(supabase, appointmentId, onChange);
+  },
+};
+
+// ---- discovery --------------------------------------------------------------
+// Dashboard discovery. Featured clinics + recently-visited doctors are wired to
+// the real backend; specialties has no backend list source yet (only a search
+// filter) so it stays mock via the hybrid composition.
+
+/** Loose shape of a row from api.facilities.listFacilities. */
+interface FacilityRowLoose {
+  id: string;
+  name: string | null;
+  name_ar?: string | null;
+  name_ar_status?: string | null;
+  type: string | null;
+  address: unknown;
+  rating: number | null;
+  review_count: number | null;
+  doctors?: { id: string }[] | null;
+}
+
+/** Loose shape of a row from api.facilities.nearbyFacilities (get_nearby_facilities RPC). */
+interface NearbyFacilityRow {
+  id: string;
+  name: string | null;
+  type: string | null;
+  address: unknown;
+  rating: number | null;
+  distance_km: number | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+function mapNearbyToClinic(f: NearbyFacilityRow): Clinic {
+  return {
+    id: f.id,
+    name: f.name ?? "",
+    area: asText(f.address) || "",
+    category: f.type ?? undefined,
+    rating: f.rating ?? 0,
+    distance_km: f.distance_km ?? undefined,
+    latitude: f.latitude ?? null,
+    longitude: f.longitude ?? null,
+  };
+}
+
+function mapFacilityToClinic(f: FacilityRowLoose): Clinic {
+  return {
+    id: f.id,
+    name: f.name ?? "",
+    name_ar: f.name_ar ?? null,
+    name_ar_status: f.name_ar_status ?? null,
+    area: asText(f.address) || "",
+    category: f.type ?? undefined,
+    doctors_count: Array.isArray(f.doctors) ? f.doctors.length : undefined,
+    rating: f.rating ?? 0,
+    featured: true,
+  };
+}
+
+const RECENT_DOCTORS_LIMIT = 5;
+
+const discoveryRepo: DiscoveryRepository = {
+  async listSpecialties() {
+    const rows = await api.specialties.listSpecialties(supabase);
+    return rows.map((s) => ({ id: s.id, name: s.name, icon: s.icon ?? undefined }));
+  },
+  async recentDoctors() {
+    // Derived from the patient's past appointments (newest first) — there is no
+    // dedicated "recently visited" endpoint. Hydrate up to N unique doctors so
+    // the cards carry specialty / rating / fee.
+    const past = (await api.appointments.listMyAppointments(supabase, "past")) as unknown as ApptRow[];
+    const ids: string[] = [];
+    const seen = new Set<string>();
+    for (const a of past) {
+      const id = (a.doctor as { id?: string } | null)?.id;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+      if (ids.length >= RECENT_DOCTORS_LIMIT) break;
+    }
+    const docs = await Promise.all(ids.map((id) => api.doctors.getDoctor(supabase, id)));
+    return docs
+      .map((d): Doctor | null =>
+        d.doctor ? { ...mapDoctorRow(d.doctor as unknown as DoctorRowLoose), visited: true } : null
+      )
+      .filter((d): d is Doctor => d != null);
+  },
+  async featuredClinics() {
+    const rows = (await api.facilities.listFacilities(supabase, { limit: 6 })) as unknown as FacilityRowLoose[];
+    return rows.map(mapFacilityToClinic);
+  },
+  async searchClinics(term) {
+    const rows = (await api.facilities.searchFacilities(supabase, { term, limit: 20 })) as unknown as FacilityRowLoose[];
+    return rows.map(mapFacilityToClinic);
+  },
+  async getClinic(id) {
+    const row = (await api.facilities.getFacility(supabase, id)) as unknown as FacilityRowLoose | null;
+    return row ? mapFacilityToClinic(row) : null;
+  },
+  async nearbyClinics(geo) {
+    // Reuses the existing get_nearby_facilities RPC (via shared api.facilities), which
+    // now also returns latitude/longitude for map pins. Drops any row without geo.
+    const rows = (await api.facilities.nearbyFacilities(supabase, {
+      lat: geo.lat,
+      lng: geo.lng,
+      radiusM: geo.radiusM ?? 50000,
+    })) as unknown as NearbyFacilityRow[];
+    return rows.map(mapNearbyToClinic).filter((c) => c.latitude != null && c.longitude != null);
+  },
+};
+
+// ---- doctors ----------------------------------------------------------------
+// Search + details are wired to the real backend (api.doctors.*). The mapper is
+// defensive: backend columns are nullable, and `facilities` may arrive as an
+// object or a single-element array depending on the join. Reviews + map pins
+// have no confirmed endpoint yet, so they stay mock via the hybrid composition.
+
+/** Loose shape of a row from api.doctors.searchDoctors / getDoctor.doctor. */
+interface DoctorRowLoose {
+  id: string;
+  full_name: string | null;
+  full_name_ar?: string | null;
+  full_name_ar_status?: string | null;
+  specialty: string | null;
+  years_experience: number | null;
+  // doctors.fees is JSONB { in_person, online } (not a scalar).
+  fees: unknown;
+  avg_rating: number | null;
+  profile_photo_url: string | null;
+  facility_id: string | null;
+  branch_id: string | null;
+  status: string | null;
+  facilities?: FacilityNameRef | FacilityNameRef[] | null;
+  // detail-only (getDoctor selects doctors.*) — present best-effort:
+  gender?: string | null;
+  languages?: string[] | null;
+  about?: string | null;
+  bio?: string | null;
+  review_count?: number | null;
+  reviews_count?: number | null;
+}
+
+/** Embedded facility name reference on a doctor row (obj or single-element array). */
+interface FacilityNameRef {
+  name: string | null;
+  name_ar?: string | null;
+  name_ar_status?: string | null;
+}
+
+/** Read a field off the embedded facility (tolerates object or single-element array). */
+function facilityField(f: DoctorRowLoose["facilities"], key: keyof FacilityNameRef): string | null {
+  if (!f) return null;
+  const row = Array.isArray(f) ? f[0] : f;
+  return (row?.[key] as string | null | undefined) ?? null;
+}
+
+function facilityName(f: DoctorRowLoose["facilities"]): string {
+  return facilityField(f, "name") ?? "";
+}
+
+/** doctors.fees is JSONB `{ in_person, online }`; tolerate a scalar too. */
+function feeOf(fees: unknown): number {
+  if (typeof fees === "number") return fees;
+  if (fees && typeof fees === "object") {
+    const f = fees as Record<string, unknown>;
+    const v = f.in_person ?? f.online;
+    return typeof v === "number" ? v : Number(v) || 0;
+  }
+  return Number(fees) || 0;
+}
+
+/** Local-date YYYY-MM-DD for "today" (BP-1 availability; timezone handling is R5). */
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function mapDoctorRow(r: DoctorRowLoose): Doctor {
+  return {
+    id: r.id,
+    full_name: r.full_name ?? "",
+    full_name_ar: r.full_name_ar ?? null,
+    full_name_ar_status: r.full_name_ar_status ?? null,
+    specialty: r.specialty ?? "",
+    facility: facilityName(r.facilities),
+    facility_ar: facilityField(r.facilities, "name_ar"),
+    facility_ar_status: facilityField(r.facilities, "name_ar_status"),
+    facility_id: r.facility_id ?? undefined,
+    rating: r.avg_rating ?? 0,
+    fee_omr: feeOf(r.fees),
+    // BP-1: availability is slot-based, set by the repository via
+    // `doctors_available_today` (not the runtime `doctors.status`). Left `undefined`
+    // here and populated by doctorRepo.search/get.
+    available_today: undefined,
+    experience_years: r.years_experience ?? undefined,
+  };
+}
+
+function mapDoctorDetail(r: DoctorRowLoose): Doctor {
+  return {
+    ...mapDoctorRow(r),
+    gender: (r.gender as Gender | null) ?? undefined,
+    languages: Array.isArray(r.languages) ? r.languages : undefined,
+    about: asText(r.about ?? r.bio ?? null) || undefined,
+    reviews: r.review_count ?? r.reviews_count ?? undefined,
+    // slots_today intentionally omitted: the schedule/reschedule screens read live
+    // availability from the backend `get_available_slots` RPC (via getSlots →
+    // api.appointments.getAvailableSlots) — the single source of truth (R3).
+  };
+}
+
+const doctorRepo: DoctorRepository = {
+  async search(params = {}) {
+    const rows = (await api.doctors.searchDoctors(supabase, {
+      specialty: params.specialty,
+      term: params.query,
+      facilityId: params.facilityId, // clinic detail: this clinic's doctors (QA #14)
+      limit: params.limit, // pagination: undefined → shared default (20); "Load more" raises it (QA #13)
+    })) as unknown as DoctorRowLoose[];
+    let list = rows.map(mapDoctorRow);
+    // BP-1: slot-based "available today" — one set-based backend call, then flag.
+    // Best-effort ONLY: doctors_available_today reads public.appointments, which an
+    // anonymous (guest) session has no grant on, so the RPC can fail for guests. A
+    // failure here must NOT blank the whole doctor list (that was the guest "no data"
+    // bug) — we simply skip the availability badge/filter and still return the list.
+    let availabilityKnown = false;
+    try {
+      const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+      list = list.map((d) => ({ ...d, available_today: availableIds.has(d.id) }));
+      availabilityKnown = true;
+    } catch (e) {
+      if (__DEV__) console.warn("[discovery] doctors_available_today unavailable; showing list without the 'today' badge", e);
+    }
+    // Filters the backend list query does not apply are honoured client-side.
+    if (params.maxFee != null) list = list.filter((d) => d.fee_omr <= params.maxFee!);
+    if (params.minRating != null) list = list.filter((d) => d.rating >= params.minRating!);
+    // Only apply the "available today" filter when availability actually resolved —
+    // otherwise an unavailable RPC would filter every doctor out.
+    if (params.availableToday && availabilityKnown) list = list.filter((d) => d.available_today);
+    // `gender` has no column in the list select, so it cannot be filtered here;
+    // `topRated` is already satisfied by the backend's avg_rating ordering.
+    return list;
+  },
+  async get(id) {
+    const { doctor } = await api.doctors.getDoctor(supabase, id);
+    if (!doctor) return null;
+    const detail = mapDoctorDetail(doctor as unknown as DoctorRowLoose);
+    // BP-1: slot-based availability for the detail "available today" pill. Best-effort
+    // (see search): a guest session may not execute the RPC, so a failure just leaves
+    // the pill off rather than failing the whole doctor profile.
+    try {
+      const availableIds = await api.doctors.listDoctorsAvailableToday(supabase, todayISO());
+      return { ...detail, available_today: availableIds.has(id) };
+    } catch (e) {
+      if (__DEV__) console.warn("[discovery] doctors_available_today unavailable for doctor detail", e);
+      return detail;
+    }
+  },
+  async reviews(id) {
+    // Reuses the shared public-review read (query + distribution live in
+    // @medilink/shared api.reviews.listDoctorReviews). Reviewer names are not
+    // exposed to patients -> shown as "verified patient".
+    const { summary, reviews } = await api.reviews.listDoctorReviews(supabase, id);
+    return {
+      summary,
+      reviews: reviews.map((r) => ({
+        id: r.id,
+        author: "",
+        rating: r.rating,
+        comment: r.review_text ?? "",
+        date: r.created_at,
+        verified: true,
+      })),
+    };
+  },
+  async mapClinics() {
+    return [];
+  },
+};
+
+// ---- notifications ----------------------------------------------------------
+// List comes from in_app_notifications; preferences are the JSONB blob on
+// profiles.notification_prefs (there is NO notification_preferences table). The
+// blob carries channel flags (push/email/sms/whatsapp) at the top level; we
+// nest the app's category flags under `categories` and preserve any other keys.
+// Facility messages have no inbox endpoint yet and stay mock via the hybrid.
+
+interface NotificationRowLoose {
+  id: string;
+  type: string | null;
+  title: string | null;
+  body: string | null;
+  is_read: boolean | null;
+  created_at: string | null;
+  data: Record<string, unknown> | null;
+}
+
+/** Compact relative label (e.g. "3h", "2d") matching the design. */
+function relativeTime(iso: string | null): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const min = Math.floor((Date.now() - then) / 60000);
+  if (min < 1) return "now";
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d`;
+  return `${Math.floor(day / 7)}w`;
+}
+
+function isToday(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
+function mapNotification(r: NotificationRowLoose): NotificationItem {
+  const appointmentId = typeof r.data?.appointment_id === "string" ? r.data.appointment_id : null;
+  return {
+    id: r.id,
+    kind: classifyNotification(r.type, r.data),
+    title: r.title ?? "",
+    body: r.body ?? "",
+    time: relativeTime(r.created_at),
+    group: isToday(r.created_at) ? "today" : "earlier",
+    unread: !r.is_read,
+    appointmentId,
+  };
+}
+
+const PREF_DEFAULTS: NotificationPrefs = {
+  appointmentReminders: true,
+  paymentsInvoices: true,
+  labResults: true,
+  prescriptions: true,
+  facilityUpdates: true,
+  promotions: false,
+  channels: { push: true, email: true, sms: false },
+};
+
+interface PrefsRowLoose {
+  push: boolean | null;
+  email: boolean | null;
+  sms: boolean | null;
+  categories?: Record<string, boolean> | null;
+}
+
+function mapPrefs(row: PrefsRowLoose | null): NotificationPrefs {
+  const cats = (row?.categories ?? {}) as Record<string, boolean>;
+  return {
+    appointmentReminders: cats.appointmentReminders ?? PREF_DEFAULTS.appointmentReminders,
+    paymentsInvoices: cats.paymentsInvoices ?? PREF_DEFAULTS.paymentsInvoices,
+    labResults: cats.labResults ?? PREF_DEFAULTS.labResults,
+    prescriptions: cats.prescriptions ?? PREF_DEFAULTS.prescriptions,
+    facilityUpdates: cats.facilityUpdates ?? PREF_DEFAULTS.facilityUpdates,
+    promotions: cats.promotions ?? PREF_DEFAULTS.promotions,
+    channels: {
+      push: row?.push ?? PREF_DEFAULTS.channels.push,
+      email: row?.email ?? PREF_DEFAULTS.channels.email,
+      sms: row?.sms ?? PREF_DEFAULTS.channels.sms,
+    },
+  };
+}
+
+const notificationRepo: NotificationRepository = {
+  async list() {
+    const rows = (await api.notifications.listNotifications(supabase, { limit: 50 })) as unknown as NotificationRowLoose[];
+    return rows.map(mapNotification);
+  },
+  async facilityMessages() {
+    const rows = await api.notifications.listFacilityMessages(supabase);
+    return rows.map((r) => ({ id: r.id, source: r.source ?? "", preview: r.preview, time: r.time, unread: r.unread }));
+  },
+  async markFacilityMessagesRead(ids) {
+    await api.notifications.markFacilityMessagesRead(supabase, ids);
+  },
+  async getPreferences() {
+    return mapPrefs((await api.notifications.getPreferences(supabase)) as unknown as PrefsRowLoose | null);
+  },
+  async updatePreferences(patch) {
+    // Read the current JSONB so a single-field toggle never clobbers the rest of
+    // the categories / channel flags (and we preserve unknown keys like whatsapp).
+    const currentJson = ((await api.notifications.getPreferences(supabase)) ?? {}) as Record<string, unknown>;
+    const current = mapPrefs(currentJson as unknown as PrefsRowLoose);
+    const next: NotificationPrefs = {
+      ...current,
+      ...patch,
+      channels: { ...current.channels, ...(patch.channels ?? {}) },
+    };
+    const merged = {
+      ...currentJson,
+      push: next.channels.push,
+      email: next.channels.email,
+      sms: next.channels.sms,
+      categories: {
+        appointmentReminders: next.appointmentReminders,
+        paymentsInvoices: next.paymentsInvoices,
+        labResults: next.labResults,
+        prescriptions: next.prescriptions,
+        facilityUpdates: next.facilityUpdates,
+        promotions: next.promotions,
+      },
+    };
+    const saved = await api.notifications.updatePreferences(
+      supabase,
+      merged as Parameters<typeof api.notifications.updatePreferences>[1]
+    );
+    return mapPrefs(saved as unknown as PrefsRowLoose);
+  },
+  async markAllRead() {
+    await api.notifications.markAllRead(supabase);
+  },
+};
+
+// ---- document vault (PDF p28-29) --------------------------------------------
+
+interface DocRowLoose {
+  id: string;
+  name: string;
+  type: DocumentType;
+  file_url: string;
+  file_type: string;
+  file_size_bytes?: number | null;
+  uploaded_at: string | null;
+  appointment?: {
+    slot_date: string | null;
+    slot_start: string | null;
+    doctor?: { full_name: string | null } | null;
+  } | null;
+}
+
+function mapDoc(r: DocRowLoose): PatientDoc {
+  return {
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    file_url: r.file_url,
+    file_type: r.file_type,
+    size_bytes: r.file_size_bytes ?? null,
+    uploaded_at: r.uploaded_at ?? null,
+    linked_appointment: r.appointment
+      ? {
+          slot_date: r.appointment.slot_date ?? null,
+          slot_start: r.appointment.slot_start ?? null,
+          doctor: r.appointment.doctor ? { full_name: r.appointment.doctor.full_name ?? null } : null,
+        }
+      : null,
+  };
+}
+
+const documentRepo: DocumentRepository = {
+  async list() {
+    const rows = (await api.records.listDocuments(supabase)) as unknown as DocRowLoose[];
+    return rows.map(mapDoc);
+  },
+  async get(id) {
+    // No single-document endpoint; the list is small and RLS-scoped, so filter it.
+    const rows = (await api.records.listDocuments(supabase)) as unknown as DocRowLoose[];
+    const r = rows.find((x) => x.id === id);
+    return r ? mapDoc(r) : null;
+  },
+  async upload(input) {
+    // Upload the local file to the `patient-docs` bucket, then record the row
+    // (same fetch→arrayBuffer→storage.upload pattern as the profile photo).
+    const { data: auth, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !auth.user) throw authErr ?? new Error("Not authenticated");
+    const ext =
+      (input.asset.name?.split(".").pop() || input.asset.mimeType?.split("/").pop() || "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `${auth.user.id}/${Date.now()}.${ext}`;
+    const body = await fetch(input.asset.uri).then((r) => r.arrayBuffer());
+    const contentType = input.asset.mimeType ?? mimeFromName(input.asset.name);
+    const { error: upErr } = await supabase.storage
+      .from("patient-docs")
+      .upload(path, body, { contentType, upsert: false });
+    if (upErr) throw upErr;
+    const row = (await api.records.addDocument(supabase, {
+      name: input.name,
+      // 'invoice' is added by migration 20260721000001; the generated DB types won't
+      // include it until `npm run db:types` runs post-push, so bridge with a cast to the
+      // exact expected union (safe at runtime once the enum value exists).
+      type: input.type as Parameters<typeof api.records.addDocument>[1]["type"],
+      file_url: path,
+      file_type: contentType,
+      linked_appointment_id: input.linkedAppointmentId ?? null,
+    })) as unknown as DocRowLoose;
+    return mapDoc(row);
+  },
+  async remove(id) {
+    await api.records.deleteDocument(supabase, id);
+  },
+  async signedUrl(filePath) {
+    return api.records.getDocumentSignedUrl(supabase, filePath);
+  },
+};
+
+// ---- prescriptions (PDF p30-31) ---------------------------------------------
+
+interface RxRowLoose {
+  id: string;
+  medications: unknown;
+  instructions: string | null;
+  pdf_url: string | null;
+  issued_at: string | null;
+  doctors?: { full_name: string | null; specialty: string | null; full_name_ar?: string | null; full_name_ar_status?: string | null } | null;
+  appointments?: { slot_date: string | null; type?: string | null } | null;
+}
+
+function mapPrescription(r: RxRowLoose): Prescription {
+  const arr = Array.isArray(r.medications) ? r.medications : [];
+  const medications = arr.map((m) => {
+    const o = (m ?? {}) as Record<string, unknown>;
+    return {
+      name: String(o.name ?? ""),
+      dosage: (o.dosage as string | undefined) ?? null,
+      frequency: (o.frequency as string | undefined) ?? null,
+      duration: (o.duration as string | undefined) ?? null,
+      notes: (o.notes as string | undefined) ?? null,
+    };
+  });
+  return {
+    id: r.id,
+    issued_at: r.issued_at ?? null,
+    medications,
+    instructions: r.instructions ?? null,
+    pdf_url: r.pdf_url ?? null,
+    doctor: r.doctors ? { full_name: r.doctors.full_name ?? null, specialty: r.doctors.specialty ?? null, full_name_ar: r.doctors.full_name_ar ?? null, full_name_ar_status: r.doctors.full_name_ar_status ?? null } : null,
+    appointment: r.appointments ? { slot_date: r.appointments.slot_date ?? null, type: r.appointments.type ?? null } : null,
+  };
+}
+
+const prescriptionRepo: PrescriptionRepository = {
+  async list() {
+    const rows = (await api.prescriptions.listPrescriptions(supabase)) as unknown as RxRowLoose[];
+    return rows.map(mapPrescription);
+  },
+  async get(id) {
+    const r = (await api.prescriptions.getPrescription(supabase, id)) as unknown as RxRowLoose | null;
+    return r ? mapPrescription(r) : null;
+  },
+  async pdfUrl(id) {
+    // Patients cannot generate the PDF (doctor-only route); this reads the already-generated one.
+    const res = await apiFetch<{ signed_url?: string }>(`/api/prescriptions/${id}/download`);
+    if (!res?.signed_url) throw new Error("PDF not available");
+    return res.signed_url;
+  },
+  async shareLink(id) {
+    const res = await apiFetch<{ url?: string; expires_at?: string }>(`/api/prescriptions/${id}/share-link`);
+    const rel = res?.url ?? "";
+    const baseUrl = (env.API_URL || "").replace(/[/]+$/, "");
+    const url = !rel ? "" : rel.startsWith("http") ? rel : `${baseUrl}${rel.startsWith("/") ? "" : "/"}${rel}`;
+    return { url, expiresAt: res?.expires_at ?? null };
+  },
+};
+
+// ---- lab results (PDF p29-30) -----------------------------------------------
+// Shared api.labs.* already returns the exact list/detail/trend shapes the UI consumes
+// (structurally identical to the mobile Lab* types), so the repo is a thin pass-through.
+
+const labRepo: LabRepository = {
+  async list() {
+    return api.labs.listLabResults(supabase);
+  },
+  async get(id) {
+    return api.labs.getLabResult(supabase, id);
+  },
+  async trend(analyteCode, limit) {
+    return api.labs.getAnalyteTrend(supabase, analyteCode, limit);
+  },
+  async markViewed(id) {
+    await api.labs.markLabResultViewed(supabase, id);
+  },
+  async signedUrl(storagePath) {
+    return api.labs.getLabResultSignedUrl(supabase, storagePath);
+  },
+};
+
+const reviewRepo: ReviewRepository = {
+  async submit(input) {
+    // Fold selected aspects + the free-text comment into the single review_text field.
+    const text = [...(input.aspects ?? []), input.comment?.trim() || ""].filter(Boolean).join(" \u00b7 ");
+    await api.reviews.createReview(supabase, {
+      targetType: "doctor",
+      targetId: input.doctorId,
+      rating: input.rating,
+      reviewText: text,
+      appointmentId: input.appointmentId ?? null,
+    });
+  },
+};
+
+// ---- favourites (PDF p20) ---------------------------------------------------
+
+const favouriteRepo: FavouriteRepository = {
+  async list(kind) {
+    const rows = await api.favourites.listFavourites(supabase, kind);
+    return rows.map(
+      (r): FavouriteItem => ({
+        id: r.id,
+        targetId: r.target_id,
+        targetType: r.target_type as FavouriteItem["targetType"],
+        createdAt: r.created_at,
+      })
+    );
+  },
+  async isFavourite(target) {
+    return api.favourites.isFavourite(supabase, target);
+  },
+  async toggle(target) {
+    return api.favourites.toggleFavourite(supabase, target);
+  },
+};
+
+// ---- AI features (PDF p26-27) -----------------------------------------------
+
+interface SuggestDocLoose {
+  id: string;
+  full_name: string;
+  specialty: string | null;
+  avg_rating: number | null;
+  fees?: unknown;
+  clinic?: string | null;
+}
+
+/** The `data` payload of POST /api/ai/schedule-assist (all four `type` shapes union'd). */
+interface ScheduleAssistData {
+  type?: "results" | "no_results" | "clarifying_question" | "info";
+  message?: string;
+  question?: string;
+  results?: {
+    doctor: { id: string; full_name: string; specialty: string | null; avg_rating: number | null; fees: number | null };
+    available_slots: { slot_start: string; slot_end: string }[];
+    slot_date: string;
+    booking_url: string;
+    time_fallback: boolean;
+  }[];
+  next_available?: string | null;
+  next_available_doctor?: string | null;
+  next_available_url?: string | null;
+  extracted_entities?: Record<string, unknown>;
+  extracted_intent?: Record<string, unknown>;
+}
+
+const aiRepo: AiRepository = {
+  async suggestDoctors(symptoms) {
+    const res = await apiFetch<{
+      success?: boolean;
+      data?: { ai_reasoning?: string | null; urgency_level?: string | null; recommended_doctors?: SuggestDocLoose[] };
+    }>("/api/ai/suggest-doctor", { method: "POST", body: JSON.stringify({ symptoms }) });
+    const d = res?.data;
+    return {
+      reasoning: d?.ai_reasoning ?? null,
+      urgencyLevel: d?.urgency_level ?? null,
+      doctors: (d?.recommended_doctors ?? []).map((doc) => ({
+        id: doc.id,
+        full_name: doc.full_name,
+        specialty: doc.specialty ?? null,
+        rating: doc.avg_rating != null ? Number(doc.avg_rating) : null,
+        fee_omr: feeForType(doc.fees, "in_person") || null,
+        clinic: doc.clinic ?? null,
+      })),
+    };
+  },
+  async latestVisitSummary() {
+    // Read the patient's most recent AI visit summary (appointments.patient_summary,
+    // written by the generate-health-insights edge function).
+    const patientId = await api.getMyPatientProfileId(supabase);
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("patient_summary, slot_date, doctors:doctor_id ( full_name )")
+      .eq("patient_id", patientId)
+      .eq("ai_generated", true)
+      .not("patient_summary", "is", null)
+      .order("slot_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const row = data as { patient_summary?: string | null; slot_date?: string | null; doctors?: { full_name: string | null } | null } | null;
+    if (!row || !row.patient_summary) return null;
+    return { summary: row.patient_summary, date: row.slot_date ?? null, doctorName: row.doctors?.full_name ?? null };
+  },
+  async scheduleAssist(input: AiScheduleInput): Promise<AiScheduleResponse> {
+    const res = await apiFetch<{ success?: boolean; data?: ScheduleAssistData }>(
+      "/api/ai/schedule-assist",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: input.query,
+          client_date: input.clientDate,
+          history: input.history,
+          pending_entities: input.pendingEntities ?? {},
+        }),
+      }
+    );
+    const d = res?.data;
+    const entities = (d?.extracted_entities ?? d?.extracted_intent ?? {}) as AiScheduleResponse["entities"];
+
+    if (d?.type === "results") {
+      const results: AiScheduleDoctorResult[] = (d.results ?? []).map((r) => ({
+        doctorId: r.doctor.id,
+        doctorName: r.doctor.full_name,
+        specialty: r.doctor.specialty ?? "",
+        rating: r.doctor.avg_rating != null ? Number(r.doctor.avg_rating) : null,
+        feeOmr: r.doctor.fees != null ? Number(r.doctor.fees) : null,
+        slotDate: r.slot_date,
+        slots: (r.available_slots ?? []).map((s) => ({ start: s.slot_start, end: s.slot_end })),
+        timeFallback: !!r.time_fallback,
+      }));
+      return { kind: "results", results, entities };
+    }
+
+    if (d?.type === "no_results") {
+      // Recover the doctor id from the web booking URL so mobile can deep-link into booking.
+      const nextId = d.next_available_url?.match(/doctorId=([0-9a-f-]+)/i)?.[1] ?? null;
+      return {
+        kind: "no_results",
+        message: d.message ?? "No available slots were found.",
+        nextAvailable: d.next_available
+          ? { date: d.next_available, doctorName: d.next_available_doctor ?? null, doctorId: nextId }
+          : null,
+        entities,
+      };
+    }
+
+    // clarifying_question | info | anything else → a conversational message.
+    return {
+      kind: "message",
+      message: d?.question ?? d?.message ?? "Could you rephrase that?",
+      entities,
+    };
+  },
+};
+
+export const realRepositories: Repositories = {
+  auth: authRepo,
+  patient: patientRepo,
+  medicalHistory: medicalHistoryRepo,
+  family: familyRepo,
+  appointment: appointmentRepo,
+  queue: queueRepo,
+  payment: paymentRepo,
+  discovery: discoveryRepo,
+  doctor: doctorRepo,
+  notification: notificationRepo,
+  document: documentRepo,
+  prescription: prescriptionRepo,
+  lab: labRepo,
+  review: reviewRepo,
+  favourite: favouriteRepo,
+  ai: aiRepo,
+};

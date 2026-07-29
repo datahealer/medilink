@@ -1,0 +1,181 @@
+import React, { useEffect, useRef } from "react";
+import { Alert, Linking, StyleSheet, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+
+import { AppCard, AppHeader, Button, EmptyState, ErrorState, LoadingState, Screen, Text } from "@/components/ui";
+import { useTheme } from "@/hooks/useTheme";
+import { useResponsive } from "@/hooks/useResponsive";
+import { useI18n } from "@/i18n";
+import { usePayment, useRegenerateInvoice } from "@/hooks/queries/usePatient";
+import { useSaveInvoiceToVault } from "@/hooks/queries/useRecords";
+import { formatApptDate } from "@/utils/appointments";
+import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
+import { consultationTotal, round3 } from "@medilink/shared/mobile";
+import { shareRemoteFile } from "@/utils/shareFile";
+
+/**
+ * Invoice & Receipt (design p23) — branded breakdown (fee, VAT, total), the card
+ * used, and Download/Share of the PDF the webhook generated (payments.invoice_url).
+ */
+export default function InvoiceScreen() {
+  const { colors, spacing, radii, isRTL } = useTheme();
+  const { contentMaxWidth } = useResponsive();
+  const { t, num } = useI18n();
+  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const id = String(rawId ?? "");
+
+  const query = usePayment(id);
+  const regen = useRegenerateInvoice(id);
+  const payment = query.data;
+  const money = (n: number) => `OMR ${num(n.toFixed(3))}`;
+
+  // Auto-file the invoice into the Document Vault the first time it's viewed. Idempotent
+  // (the hook skips if a same-named invoice doc already exists), so re-opening never
+  // duplicates. Non-blocking: failures don't affect the invoice view.
+  const { mutate: saveInvoice } = useSaveInvoiceToVault();
+  const savedRef = useRef(false);
+  useEffect(() => {
+    const inv = payment?.invoiceUrl;
+    if (!inv || savedRef.current) return;
+    savedRef.current = true;
+    saveInvoice({
+      invoiceUrl: inv,
+      name: `Invoice ${payment?.reference || id.slice(0, 8)}`,
+      appointmentId: payment?.appointment?.id ?? null,
+    });
+  }, [payment?.invoiceUrl, payment?.reference, payment?.appointment?.id, id, saveInvoice]);
+
+  if (query.isLoading) {
+    return (
+      <Screen padded>
+        <AppHeader title={t("payments.invoiceTitle")} showBack />
+        <LoadingState />
+      </Screen>
+    );
+  }
+  if (query.isError) {
+    return (
+      <Screen padded>
+        <AppHeader title={t("payments.invoiceTitle")} showBack />
+        <ErrorState message={t("payments.loadError")} onRetry={() => query.refetch()} />
+      </Screen>
+    );
+  }
+  if (!payment) {
+    return (
+      <Screen padded>
+        <AppHeader title={t("payments.invoiceTitle")} showBack />
+        <EmptyState title={t("payments.notFoundTitle")} body={t("payments.notFoundBody")} />
+      </Screen>
+    );
+  }
+
+  const a = payment.appointment;
+  // Prefer the server-charged amount (payment.amount); otherwise fall back to the
+  // shared fee+VAT calc so the displayed total matches the backend exactly (BP-4).
+  const total = payment.amount ?? (a?.fee_omr != null ? consultationTotal(a.fee_omr).total : 0);
+  const fee = a?.fee_omr ?? round3(total / 1.05);
+  const vat = round3(total - fee);
+  const tone = payTone(colors, payCategory(payment.status));
+  const dateText = formatApptDate(payment.createdAt?.slice(0, 10), t, num);
+  const invoiceUrl = payment.invoiceUrl;
+
+  const onDownload = () => {
+    if (!invoiceUrl) return;
+    Linking.openURL(invoiceUrl).catch(() => Alert.alert(t("payments.loadError")));
+  };
+  const onShare = () => {
+    if (!invoiceUrl) return;
+    // Share the actual invoice PDF (downloaded from the URL), not a link.
+    void shareRemoteFile(invoiceUrl, {
+      filename: "invoice.pdf",
+      mimeType: "application/pdf",
+      dialogTitle: t("payments.share"),
+    });
+  };
+
+  const Row = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
+    <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+      <Text variant={strong ? "title" : "body"} color={strong ? "text" : "textMuted"}>{label}</Text>
+      <Text variant={strong ? "title" : "body"} align={isRTL ? "left" : "right"}>{value}</Text>
+    </View>
+  );
+
+  return (
+    <Screen
+      scroll
+      padded
+      edges={["top", "left", "right", "bottom"]}
+      contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }}
+      footer={
+        <View style={{ gap: spacing.sm }}>
+          <Button label={t("payments.downloadPdf")} onPress={onDownload} disabled={!invoiceUrl} />
+          <Button variant="outline" label={t("payments.share")} onPress={onShare} disabled={!invoiceUrl} />
+          {!invoiceUrl ? (
+            <>
+              {/* Manual recovery: (re)generate a missing invoice for a paid payment (idempotent). */}
+              {payment.status === "paid" ? (
+                <Button
+                  variant="outline"
+                  label={t("payments.generateInvoice")}
+                  loading={regen.isPending}
+                  onPress={() =>
+                    regen.mutate(undefined, {
+                      onSuccess: (r) => {
+                        if (!r.invoiceUrl) Alert.alert(t("payments.invoiceQueued"));
+                      },
+                      onError: () => Alert.alert(t("payments.loadError")),
+                    })
+                  }
+                />
+              ) : null}
+              <Text variant="caption" color="textMuted" align="center">{t("payments.invoiceUnavailable")}</Text>
+            </>
+          ) : null}
+        </View>
+      }
+    >
+      <AppHeader title={t("payments.invoiceTitle")} showBack />
+
+      <View style={{ height: spacing.sm }} />
+      <AppCard variant="detail">
+        {/* Branded header: status + invoice meta */}
+        <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <Text variant="title">{t("payments.invoiceTitle")}</Text>
+          <View style={[styles.pill, { backgroundColor: tone.bg }]}>
+            <Text variant="caption" weight="700" style={{ color: tone.fg, letterSpacing: 0.4 }}>
+              {payStatusLabel(payment.status, t).toUpperCase()}
+            </Text>
+          </View>
+        </View>
+        <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"} style={{ marginTop: 4 }}>
+          {t("payments.invoiceMeta", { ref: payment.reference || "—", date: dateText || "—" })}
+        </Text>
+
+        <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
+
+        <Row label={t("payments.consultationFee")} value={money(fee)} />
+        <View style={{ height: spacing.sm }} />
+        <Row label={t("payments.vat")} value={money(vat)} />
+        <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
+        <Row label={t("payments.totalPaid")} value={money(total)} strong />
+
+        <View style={[styles.paidBy, { backgroundColor: colors.surfaceAlt, borderRadius: radii.sm, marginTop: spacing.md }]}>
+          <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>
+            {payment.method
+              ? t("payments.paidByCard", { method: payment.method, ref: payment.reference || "—" })
+              : t("payments.paidBy", { ref: payment.reference || "—" })}
+          </Text>
+        </View>
+      </AppCard>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { alignItems: "center", justifyContent: "space-between" },
+  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  divider: { height: StyleSheet.hairlineWidth * 2 },
+  row: { alignItems: "center", justifyContent: "space-between" },
+  paidBy: { padding: 12 },
+});
