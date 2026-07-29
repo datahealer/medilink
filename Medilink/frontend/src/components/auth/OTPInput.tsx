@@ -51,13 +51,13 @@ export function OTPInput({ length = 6, value, onChange }: OTPInputProps) {
   const isActive = (i: number) => !isFilled(i) && (i === 0 || isFilled(i - 1));
 
   return (
-    <div className="flex gap-2.5 justify-center" dir="ltr">
+    <div className="flex gap-1.5 sm:gap-2.5 justify-center" dir="ltr">
       {digits.map((d, i) => (
         <input
           key={i}
           ref={(el) => { refs.current[i] = el; }}
           className={`
-            otp-input w-12 h-14 text-center text-xl font-bold rounded-[13px]
+            otp-input w-9 h-11 sm:w-12 sm:h-14 text-center text-base sm:text-xl font-bold rounded-[13px]
             border-2 outline-none transition-all
             text-[#2E1A47] dark:text-[#DFC8E7]
             bg-white dark:bg-[#1c1030]

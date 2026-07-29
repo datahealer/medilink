@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { specialtyLabel } from "@/lib/specialties";
 
 /** Muscat, Oman — used when geolocation is denied/unavailable so the map isn't empty. */
 const DEFAULT_CENTER: [number, number] = [23.588, 58.3829];
@@ -149,7 +150,7 @@ export default function NearbyDoctorsMap({ isAr }: { isAr: boolean }) {
           ${address ? `<p style="font-size:12px;color:#666;margin-bottom:4px">${escapeHtml(address)}</p>` : ""}
           <p style="font-size:12px;margin-bottom:6px">${f.distance_km} km · ★ ${f.rating.toFixed(1)}</p>
           ${docs
-            .map(doc => `<a href="/dashboard/find-doctors/${doc.id}" style="display:block;font-size:12px;color:#46255f;margin-bottom:2px">${escapeHtml(doc.full_name)}${doc.specialty ? " · " + escapeHtml(doc.specialty) : ""}</a>`)
+            .map(doc => `<a href="/dashboard/find-doctors/${doc.id}" style="display:block;font-size:12px;color:#46255f;margin-bottom:2px">${escapeHtml(doc.full_name)}${doc.specialty ? " · " + escapeHtml(specialtyLabel(doc.specialty, isAr)) : ""}</a>`)
             .join("")}
         </div>`;
       return L.marker([f.lat, f.lng], { icon: facilityIcon }).addTo(map).bindPopup(html);

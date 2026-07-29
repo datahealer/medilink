@@ -59,7 +59,7 @@ function Field({ label, arLabel, value, onChange, type = "text", options, placeh
   const ar = locale === "ar";
   return (
     <div className={ar ? "text-right" : ""}>
-      <label className="block text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 uppercase tracking-widest mb-1.5">
+      <label className="block text-xs font-bold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 tracking-widest mb-1.5">
         {ar ? arLabel : label}
       </label>
       {options ? (

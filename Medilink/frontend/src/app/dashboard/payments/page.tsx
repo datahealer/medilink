@@ -344,8 +344,8 @@ export default function PaymentsPage() {
       </div>
 
       {/* Hero */}
-      <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-3xl mx-auto">
+      <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest mb-2" style={{ color: "rgba(223,200,231,0.45)" }}>
             {ar ? "المدفوعات" : "My Payments"}
           </p>
@@ -372,8 +372,8 @@ export default function PaymentsPage() {
       </section>
 
       {/* Tabs */}
-      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-3">
-        <div className="max-w-3xl mx-auto flex gap-2">
+      <section className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-4 py-3">
+        <div className="max-w-6xl mx-auto flex gap-2">
           {TABS.map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap border transition-all ${activeTab === t.key ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] border-transparent" : "border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 hover:border-[#2E1A47]/30"}`}>
@@ -384,8 +384,8 @@ export default function PaymentsPage() {
       </section>
 
       {/* List */}
-      <section className="py-8 px-6">
-        <div className="max-w-3xl mx-auto">
+      <section className="py-8 px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-5">
             {ar ? `${filtered.length} معاملة` : `${filtered.length} transaction${filtered.length !== 1 ? "s" : ""}`}
           </p>

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/context/AuthContext";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 import { FavouriteButton } from "@/components/dashboard/FavouriteButton";
@@ -69,6 +70,8 @@ export default function DoctorProfilePage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const rawId = (params.id as string) ?? "";
 
   const [realDoctor, setRealDoctor] = useState<RealDoctorRow | null>(null);
@@ -106,6 +109,20 @@ export default function DoctorProfilePage() {
 
   // Days of the week the doctor has bookable slots (doctor_availability).
   const [availDays, setAvailDays] = useState<Set<number>>(new Set());
+
+  /**
+   * Gate booking behind auth. A signed-out visitor is sent to sign-in with a `next`
+   * back to this profile rather than being shown a modal that cannot submit — same
+   * rule as the symptom-checker's "Book" action.
+   */
+  function handleBookClick() {
+    if (!doctor?.available) return;
+    if (!user) {
+      router.push(`/sign-in?next=${encodeURIComponent(`/dashboard/find-doctors/${rawId}`)}`);
+      return;
+    }
+    setShowBooking(true);
+  }
 
   useEffect(() => {
     if (!rawId) return;
@@ -203,7 +220,7 @@ export default function DoctorProfilePage() {
 
       {/* ── Back bar ── */}
       <div className="bg-white dark:bg-[#0d0820] border-b border-[#e7dcee] dark:border-[#2a1840] px-6 py-4 sticky top-0 z-10">
-        <div className={`max-w-4xl mx-auto flex items-center justify-between gap-3 ${ar ? "flex-row-reverse" : ""}`}>
+        <div className={`max-w-6xl mx-auto flex items-center justify-between gap-3 ${ar ? "flex-row-reverse" : ""}`}>
           <Link
             href="/dashboard/find-doctors"
             className={`inline-flex items-center gap-1.5 text-sm font-semibold text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline ${ar ? "flex-row-reverse" : ""}`}
@@ -219,7 +236,7 @@ export default function DoctorProfilePage() {
 
       {/* ── Hero ── */}
       <section className="py-10 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className={`flex items-start gap-5 mb-6 ${ar ? "flex-row-reverse" : ""}`}>
             <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black flex-shrink-0 bg-gradient-to-br ${doctor.grad} text-[#2E1A47]`}>
               {doctor.initials}
@@ -250,7 +267,7 @@ export default function DoctorProfilePage() {
       </section>
 
       {/* ── Body ── */}
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
 
         {/* Clinic — links to the facility page listing all its doctors */}
         {realDoctor?.facility_id && (
@@ -426,9 +443,9 @@ export default function DoctorProfilePage() {
 
       {/* ── Sticky Book button ── */}
       <div className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white dark:bg-[#0d0820] border-t border-[#e7dcee] dark:border-[#2a1840] z-20">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <button
-            onClick={() => doctor.available && setShowBooking(true)}
+            onClick={handleBookClick}
             disabled={!doctor.available}
             className="w-full py-3.5 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
             style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}

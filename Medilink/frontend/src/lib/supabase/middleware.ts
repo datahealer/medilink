@@ -12,8 +12,18 @@ import { env } from "@/lib/env";
  * No staff/AAL2/role redirects — this app is patient-scope only.
  */
 
-// Routes that require a signed-in patient. Anything else is public.
-const PROTECTED_PREFIXES = ["/dashboard"];
+// Routes that require a signed-in patient. Anything else is public — including
+// the doctor/service browsing pages under /dashboard, so guests can look around
+// and only hit the gate when they try to book or view account-specific data.
+const PROTECTED_EXACT = ["/dashboard"];
+const PROTECTED_PREFIXES = [
+  "/dashboard/appointments",
+  "/dashboard/records",
+  "/dashboard/payments",
+  "/dashboard/profile",
+  "/dashboard/notifications",
+  "/dashboard/setup",
+];
 
 // Never gate these (avoids redirect loops / breaks static + auth flows).
 const PUBLIC_PREFIXES = [
@@ -46,7 +56,8 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PREFIXES.some((p) => path.startsWith(p));
-  const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p));
+  const isProtected =
+    PROTECTED_EXACT.includes(path) || PROTECTED_PREFIXES.some((p) => path.startsWith(p));
 
   if (!user && isProtected && !isPublic) {
     const url = request.nextUrl.clone();

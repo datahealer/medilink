@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
@@ -11,8 +11,9 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { postSignupDestination } from "@/lib/onboarding";
 import { useI18n } from "@/i18n/I18nProvider";
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const next = useSearchParams().get("next") || "/dashboard";
   const { locale } = useI18n();
   const ar = locale === "ar";
 
@@ -29,7 +30,7 @@ export default function SignUpPage() {
     const errs: typeof errors = {};
     if (!form.fullName.trim()) errs.fullName = ar ? "الاسم الكامل مطلوب" : "Full name is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = ar ? "بريد إلكتروني صحيح مطلوب" : "Valid email required";
-    if (form.password.length < 8) errs.password = ar ? "٨ أحرف على الأقل" : "At least 8 characters";
+    if (form.password.length < 8) errs.password = ar ? "8 أحرف على الأقل" : "At least 8 characters";
     if (!agreed) errs.terms = ar ? "يرجى قبول الشروط" : "Please accept the terms";
     return errs;
   };
@@ -76,7 +77,7 @@ export default function SignUpPage() {
         router.push(await postSignupDestination(supabase));
         return;
       }
-      router.push(`/otp?email=${encodeURIComponent(form.email)}`);
+      router.push(`/otp?email=${encodeURIComponent(form.email)}&next=${encodeURIComponent(next)}`);
     } catch {
       setSubmitError(ar ? "تعذر إنشاء الحساب. حاول مرة أخرى." : "Could not create account. Please try again.");
     } finally {
@@ -173,10 +174,18 @@ export default function SignUpPage() {
 
       <p className="mt-6 text-center text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
         {ar ? "لديك حساب بالفعل؟" : "Already have an account?"}{" "}
-        <Link href="/sign-in" className="font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline">
+        <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline">
           {ar ? "سجل الدخول" : "Sign in"}
         </Link>
       </p>
     </AuthCard>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpForm />
+    </Suspense>
   );
 }

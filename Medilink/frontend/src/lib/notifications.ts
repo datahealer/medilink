@@ -54,6 +54,6 @@ export function toNotifPreview(row: NotifRow): NotifPreview {
     unread: !row.is_read,
     dotColor: style.dotColor,
     en: { title, body, time: notifRelTime(row.created_at, false) },
-    ar: { title, body, time: notifRelTime(row.created_at, true) },
+    ar: { title: row.title_ar || title, body: row.body_ar || body, time: notifRelTime(row.created_at, true) },
   };
 }

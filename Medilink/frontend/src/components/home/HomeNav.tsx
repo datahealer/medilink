@@ -7,11 +7,11 @@ import { LangToggle } from "@/components/auth/LangToggle";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const NAV_LINKS = [
-  { href: "/",            en: "Home",        ar: "الرئيسية" },
-  { href: "/about",       en: "About",       ar: "من نحن"   },
-  { href: "/services",    en: "Services",    ar: "الخدمات"  },
-  { href: "/for-clinics", en: "For Clinics", ar: "للعيادات" },
-  { href: "/contact",     en: "Contact",     ar: "اتصل بنا" },
+  { href: "/",                        en: "Home",        ar: "الرئيسية" },
+  { href: "/about",                   en: "About",       ar: "من نحن"   },
+  { href: "/services",                en: "Services",    ar: "الخدمات"  },
+  { href: "/dashboard/find-doctors",  en: "Find Doctors", ar: "ابحث عن طبيب" },
+  { href: "/contact",                  en: "Contact",     ar: "اتصل بنا" },
 ];
 
 export function HomeNav() {
@@ -38,13 +38,7 @@ export function HomeNav() {
       <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3.5">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 no-underline group flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md transition-transform group-hover:scale-105 flex-shrink-0">
-            <img src="/logo/submark-light.svg" alt="Medilink" width={36} height={36}
-              className="w-full h-full object-cover dark:hidden" />
-            <img src="/logo/submark-dark-mode.svg" alt="Medilink" width={36} height={36}
-              className="w-full h-full object-cover hidden dark:block" />
-          </div>
+        <Link href="/" className="flex items-center no-underline group flex-shrink-0 transition-transform group-hover:scale-105">
           <img src="/logo/wordmark-violet.svg"   alt="Medilink" className="h-5 w-auto dark:hidden" />
           <img src="/logo/wordmark-lavender.svg" alt="Medilink" className="h-5 w-auto hidden dark:block" />
         </Link>

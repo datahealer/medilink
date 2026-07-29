@@ -1705,31 +1705,37 @@ export type Database = {
       in_app_notifications: {
         Row: {
           body: string
+          body_ar: string | null
           created_at: string
           data: Json
           id: string
           is_read: boolean
           title: string
+          title_ar: string | null
           type: Database["public"]["Enums"]["notification_type_enum"]
           user_id: string
         }
         Insert: {
           body: string
+          body_ar?: string | null
           created_at?: string
           data?: Json
           id?: string
           is_read?: boolean
           title: string
+          title_ar?: string | null
           type?: Database["public"]["Enums"]["notification_type_enum"]
           user_id: string
         }
         Update: {
           body?: string
+          body_ar?: string | null
           created_at?: string
           data?: Json
           id?: string
           is_read?: boolean
           title?: string
+          title_ar?: string | null
           type?: Database["public"]["Enums"]["notification_type_enum"]
           user_id?: string
         }

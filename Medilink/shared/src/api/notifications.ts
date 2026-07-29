@@ -5,7 +5,7 @@
 import type { DB, Row, Update } from "./client";
 import { getCurrentUserId, getMyPatientProfileId } from "./client";
 
-const SELECT = "id, type, title, body, is_read, created_at, data";
+const SELECT = "id, type, title, body, title_ar, body_ar, is_read, created_at, data";
 
 export async function listNotifications(
   db: DB,

@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
             },
           ],
           success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-success?appointment_id=${appointment_id}`,
-          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-cancel`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-cancel?appointment_id=${appointment_id}`,
         }),
       }
     );

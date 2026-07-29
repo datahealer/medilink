@@ -22,12 +22,12 @@ export function BrandPanel() {
 
   return (
     <aside
-      className="hidden sm:flex flex-col justify-between relative overflow-hidden"
+      className="hidden md:flex flex-col justify-between relative overflow-hidden"
       style={{
         background: "linear-gradient(150deg, #2E1A47, #46255f 70%)",
         color: "#fff",
         minHeight: "100dvh",
-        padding: "48px",
+        padding: "clamp(28px, 5vw, 48px)",
       }}
     >
       {/* bfield — brand medical-node pattern */}
@@ -63,7 +63,7 @@ export function BrandPanel() {
         <h1
           style={{
             fontFamily: "var(--font-serif), Georgia, serif",
-            fontSize: "54px",
+            fontSize: "clamp(32px, 6.5vw, 54px)",
             lineHeight: 1.02,
             fontWeight: 700,
             maxWidth: "9ch",

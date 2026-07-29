@@ -195,6 +195,10 @@ export async function POST(req: NextRequest) {
               body: attendeeName
                 ? `A new appointment for ${attendeeName} has been confirmed for ${apt.slot_date} at ${apt.slot_start?.substring(0, 5)}.`
                 : `A new appointment has been confirmed for ${apt.slot_date} at ${apt.slot_start?.substring(0, 5)}.`,
+              title_ar: "تم حجز موعد جديد",
+              body_ar: attendeeName
+                ? `تم تأكيد موعد جديد لـ ${attendeeName} بتاريخ ${apt.slot_date} الساعة ${apt.slot_start?.substring(0, 5)}.`
+                : `تم تأكيد موعد جديد بتاريخ ${apt.slot_date} الساعة ${apt.slot_start?.substring(0, 5)}.`,
               data: { appointment_id: payment.appointment_id },
             });
             if (drErr) console.error("❌ Doctor booking notif failed:", drErr.message);
@@ -222,6 +226,10 @@ export async function POST(req: NextRequest) {
                 body: attendeeName
                   ? `A new appointment for ${attendeeName} has been confirmed at your facility for ${apt?.slot_date}.`
                   : `A new appointment has been confirmed at your facility for ${apt?.slot_date}.`,
+                title_ar: "تم حجز موعد جديد",
+                body_ar: attendeeName
+                  ? `تم تأكيد موعد جديد لـ ${attendeeName} في منشأتك بتاريخ ${apt?.slot_date}.`
+                  : `تم تأكيد موعد جديد في منشأتك بتاريخ ${apt?.slot_date}.`,
                 data: { appointment_id: payment.appointment_id },
               }))
             );
@@ -344,6 +352,14 @@ export async function POST(req: NextRequest) {
             : (attendeeName
                 ? `Payment for ${attendeeName}'s appointment is confirmed. Invoice #${invoiceNumber} is ready.`
                 : `Your payment has been received and your appointment is confirmed. Invoice #${invoiceNumber} is ready.`),
+          titleAr: isEmergencyPayment ? "تم استلام الدفع — أنت الآن في قائمة الانتظار" : "تمت عملية الدفع بنجاح",
+          bodyAr: isEmergencyPayment
+            ? (attendeeName
+                ? `تم استلام الدفع لـ ${attendeeName}. تمت إضافته إلى قائمة الانتظار. الفاتورة رقم ${invoiceNumber} جاهزة.`
+                : `تم استلام الدفع. تمت إضافتك إلى قائمة الانتظار. الفاتورة رقم ${invoiceNumber} جاهزة.`)
+            : (attendeeName
+                ? `تم تأكيد الدفع لموعد ${attendeeName}. الفاتورة رقم ${invoiceNumber} جاهزة.`
+                : `تم استلام دفعتك وتأكيد موعدك. الفاتورة رقم ${invoiceNumber} جاهزة.`),
         });
         if (notifResult.success) console.log("✅ Patient notified: Payment Successful");
         else console.error("❌ Patient payment notif failed:", notifResult.error);
@@ -356,6 +372,8 @@ export async function POST(req: NextRequest) {
               type: "info" as const,
               title: "Payment Received",
               body: `Payment for Invoice #${invoiceNumber} has been received for an appointment at your facility.`,
+              title_ar: "تم استلام الدفع",
+              body_ar: `تم استلام دفعة الفاتورة رقم ${invoiceNumber} لموعد في منشأتك.`,
               data: { appointment_id: payment.appointment_id },
             }))
           );

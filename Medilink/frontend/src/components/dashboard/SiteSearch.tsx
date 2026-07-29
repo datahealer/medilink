@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ARTICLES } from "@/lib/data/articles";
+import { specialtyLabel } from "@/lib/specialties";
 
 type PageEntry = { en: string; ar: string; keywords: string[]; href: string; icon: string };
 
@@ -106,7 +107,7 @@ export function SiteSearch({
   }));
 
   const doctorResults: Result[] = doctors.map(d => ({
-    key: d.id, icon: "🩺", label: d.full_name, sub: d.specialty ?? undefined, href: `/dashboard/find-doctors/${d.id}`,
+    key: d.id, icon: "🩺", label: d.full_name, sub: d.specialty ? specialtyLabel(d.specialty, isAr) : undefined, href: `/dashboard/find-doctors/${d.id}`,
   }));
 
   const labResults: Result[] = q.length === 0 ? [] : LAB_TESTS_INDEX.filter(l =>
@@ -177,7 +178,7 @@ export function SiteSearch({
       </form>
 
       {open && q.length > 0 && (
-        <div className={`absolute top-full mt-1.5 w-full min-w-[280px] bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#2a1840] shadow-xl shadow-[#2E1A47]/10 z-50 overflow-hidden`}>
+        <div className={`absolute top-full mt-1.5 w-full sm:min-w-[280px] bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#2a1840] shadow-xl shadow-[#2E1A47]/10 z-50 overflow-hidden`}>
           {!hasResults && searching ? (
             <div className="px-4 py-6 text-center">
               <div className="w-4 h-4 mx-auto rounded-full border-2 border-[#46255f]/20 border-t-[#46255f] dark:border-[#DFC8E7]/20 dark:border-t-[#DFC8E7] animate-spin" />
@@ -222,7 +223,7 @@ function ResultGroup({
       </p>
       {items.map(item => (
         <button key={item.key} onClick={() => onSelect(item.href)}
-          className={`w-full flex items-center gap-2.5 px-4 py-2 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20 transition-colors ${isAr ? "flex-row-reverse text-right" : "text-left"}`}>
+          className={`w-full flex items-center gap-2.5 px-4 py-2 hover:bg-[#f9f4fa] dark:hover:bg-[#2E1A47]/20 transition-colors ${isAr ? "text-right" : "text-left"}`}>
           <span className="text-base flex-shrink-0">{item.icon}</span>
           <span className="flex-1 min-w-0">
             <span className="block text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{item.label}</span>

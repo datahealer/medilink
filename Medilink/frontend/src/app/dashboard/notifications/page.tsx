@@ -23,8 +23,8 @@ type Notif = {
 };
 
 // Visual presets keyed by UI type (preserves the original palette exactly).
-// Backend `in_app_notifications.type` is mapped onto these buckets; the backend
-// stores a single title/body (no Arabic column) so `ar` mirrors `en`.
+// Backend `in_app_notifications.type` is mapped onto these buckets; title_ar/body_ar
+// fall back to the English text for older rows or call sites not yet backfilled.
 const STYLE: Record<UIType, {
   icon: string; dotColor: string; bg: string; border: string;
   tagBg: string; tagColor: string; tagBorder: string; tagEn: string; tagAr: string;
@@ -75,7 +75,7 @@ function toNotif(r: NotifRow): Notif {
     dotColor: s.dotColor, bg: s.bg, border: s.border,
     tagBg: s.tagBg, tagColor: s.tagColor, tagBorder: s.tagBorder,
     en: { tag: s.tagEn, title, body, time: relTime(r.created_at, false) },
-    ar: { tag: s.tagAr, title, body, time: relTime(r.created_at, true) },
+    ar: { tag: s.tagAr, title: r.title_ar || title, body: r.body_ar || body, time: relTime(r.created_at, true) },
   };
 }
 

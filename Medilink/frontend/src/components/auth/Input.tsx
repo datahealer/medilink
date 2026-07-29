@@ -34,7 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               placeholder:text-[#2E1A47]/35 dark:placeholder:text-[#DFC8E7]/35
               focus:border-[#2E1A47] focus:ring-2 focus:ring-[#2E1A47]/15
               ${error ? "border-red-400" : "border-[#e7dcee] dark:border-[#3a2560]"}
-              ${showPasswordToggle ? "pr-11" : ""}
+              ${showPasswordToggle ? "pe-11" : ""}
               ${className}
             `}
             {...rest}

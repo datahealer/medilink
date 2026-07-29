@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/context/AuthContext";
 import { env } from "@/lib/env";
+import { specialtyLabel } from "@/lib/specialties";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
 type Urgency = "self-care" | "see-doctor" | "emergency";
@@ -28,7 +31,7 @@ function toViewDoctor(doc: Doctor, index: number, ar: boolean): ViewDoctor {
     id: doc.id,
     initials,
     grad: DOCTOR_GRADS[index % DOCTOR_GRADS.length]!,
-    specialty: doc.specialty ?? (ar ? "طب عام" : "General Medicine"),
+    specialty: doc.specialty ? specialtyLabel(doc.specialty, ar) : (ar ? "طب عام" : "General Medicine"),
     bio: "",
     fee: doc.fees?.in_person ?? doc.fees?.online ?? 0,
     rating: doc.avg_rating,
@@ -95,6 +98,8 @@ function ExplanationText({ text }: { text: string }) {
 export default function SymptomCheckerPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
+  const router = useRouter();
+  const { user } = useAuth();
 
   const [symptoms, setSymptoms] = useState("");
   const [age, setAge]           = useState("");
@@ -107,6 +112,14 @@ export default function SymptomCheckerPage() {
   const [booking, setBooking]       = useState<ViewDoctor | null>(null);
 
   const busy = status === "loading" || status === "streaming";
+
+  function handleBookClick(doc: Doctor, index: number) {
+    if (!user) {
+      router.push(`/sign-in?next=${encodeURIComponent("/dashboard/symptom-checker")}`);
+      return;
+    }
+    setBooking(toViewDoctor(doc, index, ar));
+  }
 
   async function runCheck() {
     if (!symptoms.trim() || busy) return;
@@ -180,7 +193,7 @@ export default function SymptomCheckerPage() {
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
 
       {/* Hero */}
-      <section className="py-12 px-6" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
+      <section className="py-12 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-6xl mx-auto">
           <div className={`flex items-center gap-4 ${ar ? "flex-row-reverse text-right" : ""}`}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
@@ -204,10 +217,11 @@ export default function SymptomCheckerPage() {
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-5">
+      <div className="px-4">
+      <div className="max-w-6xl mx-auto flex gap-2 flex-nowrap">
 
         {/* Input card */}
-        <div className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6 space-y-5">
+        <div className="flex-1 min-w-0 bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-6 space-y-5">
           <div className={ar ? "text-right" : ""}>
             <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-2">
               {ar ? "ما هي أعراضك؟" : "What are your symptoms?"}
@@ -223,7 +237,7 @@ export default function SymptomCheckerPage() {
           </div>
 
           {/* Examples */}
-          <div className={`flex flex-wrap gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+          <div className="flex flex-wrap gap-2">
             {EXAMPLES.map(ex => (
               <button key={ex.en} type="button" disabled={busy}
                 onClick={() => setSymptoms(ar ? ex.ar : ex.en)}
@@ -233,7 +247,7 @@ export default function SymptomCheckerPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className={ar ? "text-right" : ""}>
               <p className="text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-1.5">
                 {ar ? "العمر (اختياري)" : "Age (optional)"}
@@ -269,17 +283,17 @@ export default function SymptomCheckerPage() {
 
         {/* Error */}
         {status === "error" && error && (
-          <div className={`bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl p-5 text-sm font-medium text-rose-700 dark:text-rose-400 ${ar ? "text-right" : ""}`}>
+          <div className={`flex-1 min-w-0 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl p-5 text-sm font-medium text-rose-700 dark:text-rose-400 ${ar ? "text-right" : ""}`}>
             {error}
           </div>
         )}
 
         {/* Results */}
         {meta && (
-          <div className="space-y-5">
+          <div className="flex-1 min-w-0 space-y-5">
             {/* Urgency banner */}
             <div className={`rounded-2xl border p-5 ${URGENCY_STYLE[meta.urgency_level].bg} ${URGENCY_STYLE[meta.urgency_level].border}`}>
-              <div className={`flex items-center gap-3 ${ar ? "flex-row-reverse" : ""}`}>
+              <div className="flex items-center gap-3">
                 <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${URGENCY_STYLE[meta.urgency_level].dot} ${meta.urgency_level === "emergency" ? "animate-pulse" : ""}`} />
                 <p className={`text-sm font-bold ${URGENCY_STYLE[meta.urgency_level].text}`}>
                   {ar ? URGENCY_LABEL[meta.urgency_level].ar : URGENCY_LABEL[meta.urgency_level].en}
@@ -301,7 +315,7 @@ export default function SymptomCheckerPage() {
                 <p className={`text-xs font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40  tracking-widest mb-3 ${ar ? "text-right" : ""}`}>
                   {ar ? "الحالات المحتملة" : "Possible conditions"}
                 </p>
-                <div className={`flex flex-wrap gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                <div className="flex flex-wrap gap-2">
                   {meta.conditions.map(c => (
                     <span key={c} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#f0e8f8] dark:bg-[#2E1A47]/40 text-[#46255f] dark:text-[#DFC8E7]/80">
                       {c}
@@ -332,7 +346,7 @@ export default function SymptomCheckerPage() {
                 </p>
                 <ul className="space-y-2">
                   {meta.home_remedies.map(r => (
-                    <li key={r} className={`flex items-start gap-2 text-sm text-[#2E1A47]/75 dark:text-[#DFC8E7]/75 ${ar ? "flex-row-reverse text-right" : ""}`}>
+                    <li key={r} className={`flex items-start gap-2 text-sm text-[#2E1A47]/75 dark:text-[#DFC8E7]/75 ${ar ? "text-right" : ""}`}>
                       <span className="text-emerald-500 flex-shrink-0">✓</span>{r}
                     </li>
                   ))}
@@ -352,14 +366,14 @@ export default function SymptomCheckerPage() {
                     const fee = doc.fees?.in_person ?? doc.fees?.online;
                     return (
                       <div key={doc.id} className="rounded-xl border border-[#e7dcee] dark:border-[#3a2560] p-3">
-                        <div className={`flex items-center gap-3 ${ar ? "flex-row-reverse text-right" : ""}`}>
+                        <div className={`flex items-center gap-3 ${ar ? "text-right" : ""}`}>
                           <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-black text-[#2E1A47] flex-shrink-0 bg-gradient-to-br from-[#e8d5f0] to-[#d5e8f5]">
                             {initials}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{doc.full_name}</p>
-                            <p className="text-xs text-[#46255f] dark:text-[#DFC8E7]/70 font-semibold truncate">{doc.specialty}</p>
-                            <div className={`flex items-center gap-2 mt-0.5 ${ar ? "flex-row-reverse" : ""}`}>
+                            <p className="text-xs text-[#46255f] dark:text-[#DFC8E7]/70 font-semibold truncate">{specialtyLabel(doc.specialty, ar)}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
                               <span className="flex items-center gap-0.5 text-xs text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
                                 <span className="text-amber-400">★</span> {doc.avg_rating?.toFixed(1) ?? "—"}
                               </span>
@@ -374,12 +388,12 @@ export default function SymptomCheckerPage() {
                             </div>
                           </div>
                         </div>
-                        <div className={`mt-3 flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                        <div className="mt-3 flex gap-2">
                           <Link href={`/dashboard/find-doctors/${doc.id}`}
                             className="flex-1 text-center py-2 rounded-lg font-bold text-xs border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#46255f]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-all no-underline">
                             {ar ? "الملف الشخصي" : "View Profile"}
                           </Link>
-                          <button onClick={() => setBooking(toViewDoctor(doc, index, ar))}
+                          <button onClick={() => handleBookClick(doc, index)}
                             className="flex-1 py-2 rounded-lg font-bold text-xs text-[#2E1A47] transition-opacity hover:opacity-85"
                             style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
                             {ar ? "احجز" : "Book"}
@@ -398,7 +412,7 @@ export default function SymptomCheckerPage() {
             </p>
 
             {status === "done" && (
-              <div className={`flex gap-3 ${ar ? "flex-row-reverse" : ""}`}>
+              <div className="flex gap-3">
                 {meta.urgency_level !== "self-care" && !meta.recommended_doctors?.length && (
                   <Link href="/dashboard/find-doctors"
                     className="flex-1 text-center py-3 rounded-xl font-bold text-sm text-[#2E1A47] no-underline transition-opacity hover:opacity-85"
@@ -414,6 +428,7 @@ export default function SymptomCheckerPage() {
             )}
           </div>
         )}
+      </div>
       </div>
 
       {booking && (

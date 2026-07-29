@@ -60,6 +60,8 @@ serve(async (req) => {
           type: "info",
           title: "Lab Result Ready",
           body: `Your ${result.test_name} result has been uploaded and is ready to view.`,
+          title_ar: "نتيجة التحليل جاهزة",
+          body_ar: `تم رفع نتيجة تحليل ${result.test_name} وأصبحت جاهزة للعرض.`,
           data: { lab_result_id: result.id, kind: "lab" },
         });
 
@@ -93,6 +95,8 @@ serve(async (req) => {
               type: "info",
               title: "Patient Lab Result Ready",
               body: `Lab result (${result.test_name}) for ${patientName} is now available.`,
+              title_ar: "نتيجة تحليل المريض جاهزة",
+              body_ar: `نتيجة تحليل (${result.test_name}) للمريض ${patientName} أصبحت متاحة الآن.`,
               data: {
                 lab_result_id: result.id,
                 patient_id: result.patient_id,
