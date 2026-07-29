@@ -58,6 +58,8 @@ export { TypingIndicator } from "./TypingIndicator";
 export { UrgencyBadge } from "./UrgencyBadge";
 export { TrendChart } from "./TrendChart";
 export type { TrendPoint } from "./TrendChart";
+export { OsmMapView } from "./OsmMapView";
+export type { OsmMapViewProps } from "./OsmMapView";
 export { QueuePositionRing } from "./QueuePositionRing";
 export { QueueTimeline } from "./QueueTimeline";
 export type { QueueStep } from "./QueueTimeline";

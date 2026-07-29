@@ -668,6 +668,7 @@ export const en = {
     loadError: "Couldn't load nearby clinics.",
     emptyTitle: "No clinics found nearby",
     emptyBody: "Try widening your search or check back later.",
+    tilesError: "Couldn't load the map. Check your connection and try again.",
   },
   doctor: {
     about: "About",
