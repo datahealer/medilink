@@ -23,6 +23,11 @@ const PROTECTED_PREFIXES = [
   "/dashboard/profile",
   "/dashboard/notifications",
   "/dashboard/setup",
+  // Account management: GDPR data export, account deletion, 2FA and notification
+  // preferences. The route was added after this list was written and was never
+  // gated, so a signed-out visitor reached the account-management shell (server
+  // reads still failed under RLS, but every action broke obscurely).
+  "/dashboard/settings",
 ];
 
 // Never gate these (avoids redirect loops / breaks static + auth flows).

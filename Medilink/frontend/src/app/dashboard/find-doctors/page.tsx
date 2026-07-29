@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { Json } from "@medilink/shared";
@@ -221,6 +221,16 @@ function DoctorCard({
 
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function FindDoctorsPage() {
+  // `useSearchParams` needs a Suspense boundary in the App Router — same wrapper
+  // pattern the lab-tests and surgeries pages already use.
+  return (
+    <Suspense fallback={null}>
+      <FindDoctorsInner />
+    </Suspense>
+  );
+}
+
+function FindDoctorsInner() {
   const { locale, t } = useI18n();
   const ar = locale === "ar";
 
@@ -238,6 +248,16 @@ export default function FindDoctorsPage() {
 
   const [search, setSearch]           = useState("");
   const [activeSpec, setActiveSpec]   = useState(ALL_SPECIALTY);
+  // Seed the search box from `?q=` so the global SiteSearch actually filters here.
+  // SiteSearch has always linked to /dashboard/find-doctors?q=<term>, but this page
+  // ignored the param and rendered the full unfiltered list, silently dropping the
+  // user's query. Read once on mount (the box is user-owned afterwards).
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [specialties, setSpecialties] = useState<SpecialtyChip[]>([]);
   const [availOnly, setAvailOnly]     = useState(false);
   const [doctors, setDoctors]         = useState<Doctor[]>([]);
