@@ -21,11 +21,14 @@ import type {
   PatientRepository,
   PaymentRepository,
   PrescriptionRepository,
+  QueueRepository,
   ReviewRepository,
   Repositories,
 } from "../repositories";
 import type {
   AiDoctorSuggestion,
+  AiScheduleInput,
+  AiScheduleResponse,
   AiVisitSummary,
   Appointment,
   Clinic,
@@ -51,10 +54,15 @@ import type {
   Prescription,
   PrescriptionShareLink,
   ProfilePatch,
+  QueueAcknowledgeKind,
+  QueuePhase,
+  QueueStatus,
   Review,
   SessionUser,
   Specialty,
 } from "../types";
+// Value import (class, not a type) — thrown by the mock queue repository.
+import { QueueUnavailableError } from "../types";
 
 const delay = <T>(value: T, ms = 450): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -558,6 +566,108 @@ function structuredCloneSafe<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+// ---- queue (simulated) ------------------------------------------------------
+// A time-driven simulation of the HAMS queue so every Live Queue state can be
+// built and reviewed with no backend: the line advances on a timer, then the
+// patient is called, then done. This mirrors the contract's SHAPE only — the real
+// numbers are always server-computed (docs/QUEUE_BACKEND_FOR_MEDILINK.md §2.1).
+
+/** Seconds a mock patient spends at each step, so a full run takes ~1 minute. */
+const MOCK_QUEUE_TICK_MS = 12_000;
+const MOCK_QUEUE_START_AHEAD = 3;
+const MOCK_AVG_CONSULT_MINUTES = 15;
+
+/** When each appointment's simulated queue run began. */
+const mockQueueStartedAt = new Map<string, number>();
+const mockQueueAck = new Map<string, { at: string; kind: QueueAcknowledgeKind }>();
+/** Realtime stand-in: per-appointment listeners ticked by an interval. */
+const mockQueueListeners = new Map<string, Set<() => void>>();
+
+function mockQueueSnapshot(appointmentId: string): QueueStatus {
+  const startedAt = mockQueueStartedAt.get(appointmentId) ?? Date.now();
+  mockQueueStartedAt.set(appointmentId, startedAt);
+
+  const ticks = Math.floor((Date.now() - startedAt) / MOCK_QUEUE_TICK_MS);
+  const peopleAhead = Math.max(0, MOCK_QUEUE_START_AHEAD - ticks);
+  // 0 ahead → called; one tick later → done. Same flag semantics as the server.
+  const phase: QueuePhase =
+    peopleAhead > 0 ? "waiting" : ticks > MOCK_QUEUE_START_AHEAD + 1 ? "done" : "called";
+
+  const appt = appointments.find((a) => a.id === appointmentId) ?? null;
+  const ack = mockQueueAck.get(appointmentId) ?? null;
+  const now = new Date().toISOString();
+
+  return {
+    queueItemId: `mock-queue-${appointmentId}`,
+    position: MOCK_QUEUE_START_AHEAD + 4,
+    peopleAhead,
+    nowServingPosition: MOCK_QUEUE_START_AHEAD + 4 - peopleAhead,
+    status: phase === "done" ? "done" : phase === "called" ? "called" : "waiting",
+    phase,
+    isCheckedIn: true,
+    checkedInAt: new Date(startedAt).toISOString(),
+    calledAt: phase === "waiting" ? null : now,
+    doneAt: phase === "done" ? now : null,
+    acknowledgedAt: ack?.at ?? null,
+    acknowledgedKind: ack?.kind ?? null,
+    isWalkin: false,
+    isOnline: true,
+    estimatedWaitMinutes: phase === "waiting" ? peopleAhead * MOCK_AVG_CONSULT_MINUTES : 0,
+    avgConsultationMinutes: MOCK_AVG_CONSULT_MINUTES,
+    appointment: {
+      id: appointmentId,
+      referenceNumber: appt?.reference_number ?? "HAMS-MOCK01",
+      slotDate: appt?.slot_date ?? null,
+      slotStart: appt?.slot_start ?? null,
+      slotEnd: appt?.slot_end ?? null,
+      status: "checked_in",
+      type: appt?.type ?? "in_person",
+    },
+    doctor: {
+      id: appt?.doctor_id ?? "mock-doc-1",
+      fullName: appt?.doctor?.full_name ?? "Dr. Fatima Al-Said",
+      specialty: appt?.doctor?.specialty ?? "Cardiology",
+      status: phase === "waiting" ? "with_patient" : "available",
+      statusUpdatedAt: now,
+    },
+    facility: { id: "mock-fac-1", name: appt?.facility?.name ?? "Muscat Central Clinic" },
+    serverTime: now,
+  };
+}
+
+const queueRepo: QueueRepository = {
+  async getStatus(appointmentId) {
+    const appt = appointments.find((a) => a.id === appointmentId);
+    // Mirror the real backend's refusals so the UI's empty states are reachable
+    // in mock mode instead of only in staging.
+    if (!appt) throw new QueueUnavailableError("forbidden");
+    if (appt.status !== "checked_in" && !mockQueueStartedAt.has(appointmentId)) {
+      throw new QueueUnavailableError("not_checked_in");
+    }
+    return delay(mockQueueSnapshot(appointmentId), 350);
+  },
+
+  async acknowledge({ appointmentId, kind }) {
+    const snap = mockQueueSnapshot(appointmentId);
+    if (snap.phase === "done") throw new QueueUnavailableError("not_in_queue");
+    mockQueueAck.set(appointmentId, { at: new Date().toISOString(), kind });
+    return delay(undefined, 300);
+  },
+
+  subscribe(appointmentId, onChange) {
+    const set = mockQueueListeners.get(appointmentId) ?? new Set<() => void>();
+    set.add(onChange);
+    mockQueueListeners.set(appointmentId, set);
+    // Stand-in for postgres_changes: fire on the same cadence the line advances.
+    const timer = setInterval(() => onChange(), MOCK_QUEUE_TICK_MS);
+    return () => {
+      clearInterval(timer);
+      set.delete(onChange);
+      if (set.size === 0) mockQueueListeners.delete(appointmentId);
+    };
+  },
+};
+
 // ---- payments (read side) — mirrors the two paid mock appointments ----------
 const payments: Payment[] = [
   {
@@ -820,8 +930,8 @@ const aiRepo: AiRepository = {
       reasoning: "Chest tightness and breathlessness suggest seeing a Cardiologist today.",
       urgencyLevel: "see-doctor",
       doctors: [
-        { id: "doc-khalid", full_name: "Dr. Khalid Al Balushi", specialty: "Cardiologist", rating: 4.9, fee_omr: 25 },
-        { id: "doc-fatma", full_name: "Dr. Fatma Said", specialty: "Cardiologist", rating: 4.7, fee_omr: 22 },
+        { id: "doc-khalid", full_name: "Dr. Khalid Al Balushi", specialty: "Cardiologist", rating: 4.9, fee_omr: 25, clinic: "Muscat Heart Clinic" },
+        { id: "doc-fatma", full_name: "Dr. Fatma Said", specialty: "Cardiologist", rating: 4.7, fee_omr: 22, clinic: "Al Khuwair Medical Center" },
       ],
     });
   },
@@ -832,6 +942,53 @@ const aiRepo: AiRepository = {
       doctorName: "Dr. Khalid Al Balushi",
     });
   },
+  async scheduleAssist(input: AiScheduleInput): Promise<AiScheduleResponse> {
+    // Deterministic mock conversation: ask for a doctor type if none is implied yet,
+    // otherwise return a couple of bookable slots. Enough to exercise the chat UI offline.
+    const q = input.query.toLowerCase();
+    const hasDoctor = /cardio|derma|physician|pediatric|dentist|ortho|eye|skin|heart|tooth|child/.test(q) ||
+      !!input.pendingEntities?.doctor_type;
+    if (!hasDoctor) {
+      return delay({
+        kind: "message",
+        message: "What type of doctor do you need? For example: Cardiologist, Dermatologist, or General Physician.",
+        entities: { doctor_type: null, date_phrase: null, time_preference: "any" },
+      });
+    }
+    return delay({
+      kind: "results",
+      entities: { doctor_type: "Cardiologist", date_phrase: null, time_preference: "any" },
+      results: [
+        {
+          doctorId: "doc-khalid",
+          doctorName: "Dr. Khalid Al Balushi",
+          specialty: "Cardiologist",
+          rating: 4.9,
+          feeOmr: 25,
+          slotDate: "2026-07-28",
+          slots: [
+            { start: "09:00", end: "09:30" },
+            { start: "10:00", end: "10:30" },
+            { start: "11:30", end: "12:00" },
+          ],
+          timeFallback: false,
+        },
+        {
+          doctorId: "doc-fatma",
+          doctorName: "Dr. Fatma Said",
+          specialty: "Cardiologist",
+          rating: 4.7,
+          feeOmr: 22,
+          slotDate: "2026-07-28",
+          slots: [
+            { start: "14:00", end: "14:30" },
+            { start: "15:30", end: "16:00" },
+          ],
+          timeFallback: false,
+        },
+      ],
+    });
+  },
 };
 
 export const mockRepositories: Repositories = {
@@ -840,6 +997,7 @@ export const mockRepositories: Repositories = {
   medicalHistory: medicalHistoryRepo,
   family: familyRepo,
   appointment: appointmentRepo,
+  queue: queueRepo,
   payment: paymentRepo,
   discovery: discoveryRepo,
   doctor: doctorRepo,

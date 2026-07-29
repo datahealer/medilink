@@ -1,20 +1,37 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Linking, Pressable, StyleSheet, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import MapView, { Marker, PROVIDER_DEFAULT, type Region } from "react-native-maps";
 
-import { Avatar, Card, EmptyState, ErrorState, Icon, LoadingState, Screen, Text, TextField } from "@/components/ui";
+import {
+  Avatar,
+  Card,
+  EmptyState,
+  ErrorState,
+  Icon,
+  LoadingState,
+  OsmMapView,
+  Screen,
+  Text,
+  TextField,
+} from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
 import { localizedName } from "@/utils/localizedName";
 import { useNearbyClinics } from "@/hooks/queries/useDiscovery";
+import {
+  isValidTarget,
+  nativeDirectionsUrl,
+  webDirectionsUrl,
+} from "@/services/maps/directions";
+import type { MapCamera, MapMarker, UserLocation } from "@/services/maps/types";
 import type { Clinic } from "@/data/types";
 
 // Default map centre — Muscat (MediLink is an Oman product; the RPC is a proximity
 // search, so we anchor to a sensible origin). Real device-location centring can be
-// layered on later with expo-location without changing this screen's data flow.
+// layered on later with expo-location without changing this screen's data flow — pass
+// the coordinates to `userLocation` below and the pin renders itself.
 const MUSCAT = { lat: 23.588, lng: 58.3829 };
-const DEFAULT_REGION: Region = {
+const DEFAULT_CAMERA: MapCamera = {
   latitude: MUSCAT.lat,
   longitude: MUSCAT.lng,
   latitudeDelta: 0.35,
@@ -28,6 +45,7 @@ export default function MapViewScreen() {
   const query = useNearbyClinics({ lat: MUSCAT.lat, lng: MUSCAT.lng });
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const clinics = useMemo(() => {
     const all = query.data ?? [];
@@ -40,10 +58,42 @@ export default function MapViewScreen() {
 
   const active: Clinic | undefined = clinics.find((c) => c.id === selectedId) ?? clinics[0];
 
+  /** Markers for the map surface, derived from the same clinic list as the card. */
+  const markers: MapMarker[] = useMemo(
+    () =>
+      clinics
+        .filter((c) => c.latitude != null && c.longitude != null)
+        .map((c) => ({
+          id: c.id,
+          latitude: c.latitude as number,
+          longitude: c.longitude as number,
+          title: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
+          subtitle: c.area,
+          selected: c.id === active?.id,
+        })),
+    [clinics, active?.id, isRTL]
+  );
+
+  // Patient position — rendered whenever it is available. Nothing supplies it yet
+  // (expo-location is not a dependency), so it stays null; the map already supports it.
+  const userLocation: UserLocation | null = null;
+
+  /**
+   * Hand off to the platform's own map app — Apple Maps on iOS, the `geo:` chooser on
+   * Android — with an OpenStreetMap web fallback. No Google dependency, and no API key.
+   */
   const openDirections = (c: Clinic) => {
-    if (c.latitude == null || c.longitude == null) return;
-    const url = `https://www.google.com/maps/search/?api=1&query=${c.latitude},${c.longitude}`;
-    Linking.openURL(url).catch(() => Alert.alert(t("map.loadError")));
+    const target = {
+      latitude: c.latitude as number,
+      longitude: c.longitude as number,
+      label: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
+    };
+    if (!isValidTarget(target)) return;
+
+    Linking.openURL(nativeDirectionsUrl(Platform.OS, target)).catch(() => {
+      // No map app installed (or an unexpected platform) — fall back to the web.
+      Linking.openURL(webDirectionsUrl(target)).catch(() => Alert.alert(t("map.loadError")));
+    });
   };
 
   return (
@@ -64,25 +114,24 @@ export default function MapViewScreen() {
         </View>
       </View>
 
-      {/* Real map surface */}
+      {/* Map surface — Leaflet + OpenStreetMap in a WebView; no Google Maps API key. */}
       <View style={styles.map}>
-        <MapView
-          provider={PROVIDER_DEFAULT}
-          style={StyleSheet.absoluteFill}
-          initialRegion={DEFAULT_REGION}
-        >
-          {clinics.map((c) =>
-            c.latitude != null && c.longitude != null ? (
-              <Marker
-                key={c.id}
-                coordinate={{ latitude: c.latitude, longitude: c.longitude }}
-                title={localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}
-                description={c.area}
-                onPress={() => setSelectedId(c.id)}
-              />
-            ) : null
-          )}
-        </MapView>
+        <OsmMapView
+          camera={DEFAULT_CAMERA}
+          markers={markers}
+          userLocation={userLocation}
+          onMarkerPress={setSelectedId}
+          onError={setMapError}
+          testID="osm-map"
+        />
+
+        {/* Leaflet or the tile server was unreachable — say so instead of showing a
+            blank rectangle the user can't interpret. */}
+        {mapError && !query.isLoading ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <ErrorState message={t("map.tilesError")} onRetry={() => setMapError(null)} />
+          </View>
+        ) : null}
 
         {query.isLoading ? (
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>

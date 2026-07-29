@@ -111,14 +111,18 @@ POST {{baseUrl}}/api/payments/{{paymentId}}/refund    Authorization: Bearer {{to
 ```
 **Pass:** checkout returns a usable URL/session; a completed sandbox payment marks the appointment paid; invoice fetch returns a document; refund request is accepted. Use Thawani **sandbox** credentials.
 
-## 6. AI testing — module: AI Services (`MOCK_AI=true` for keyless runs)
+## 6. AI testing — module: AI Services (requires a real `GROQ_API_KEY` — no stub mode)
 ```
 POST {{baseUrl}}/api/ai/symptom-check     Authorization: Bearer {{token}}   Body: { "symptoms": "fever, sore throat, 2 days" }
 POST {{baseUrl}}/api/ai/suggest-doctor    Authorization: Bearer {{token}}   Body: { "symptoms": "chest pain" }
 POST {{baseUrl}}/api/ai/scan-prescription Authorization: Bearer {{token}}   Body: { "imageBase64": "<...>" }
-POST {{baseUrl}}/api/ai/schedule-assist   Authorization: Bearer {{token}}   Body: { "text": "next monday morning with Dr Khan", "doctorId": "{{doctorId}}" }
+POST {{baseUrl}}/api/ai/schedule-assist   Authorization: Bearer {{token}}   Body: { "query": "cardiologist next monday morning", "client_date": "2026-07-27" }
 ```
-**Pass:** each returns 200 with structured JSON (triage/specialty/parsed-meds/parsed-date+slots). With `MOCK_AI=true` responses are deterministic stubs. Requests are logged to `ai_request_logs` / `symptom_check_logs`.
+**Pass:**
+- `symptom-check` streams **SSE** (`Content-Type: text/event-stream`): a `data: {"type":"meta",…}` header (urgency/conditions/remedies/disclaimer), then `data: {"type":"text",…}` chunks, then `data: [DONE]`. Non-medical input returns a JSON 400. (Use `curl -N` to see the stream.)
+- `suggest-doctor` / `schedule-assist` / `scan-prescription` return 200 with structured JSON (specialty+ranked doctors / conversational reply+slots / parsed meds).
+- There is **no** `MOCK_AI` stub — with no `GROQ_API_KEY` these degrade to a graceful 5xx, never fake data.
+- Requests are logged to `ai_request_logs` / `symptom_check_logs`; both are rate-limited to 5/hr per user.
 
 ## 7. Notification testing — module: Notifications / Push
 **Direct (shared) in-app notifications:**

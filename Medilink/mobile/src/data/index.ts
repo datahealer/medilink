@@ -8,7 +8,9 @@
  *
  * Current hybrid (real backend): Auth + session restore; Patient profile; the
  * Profile cluster (family members + medical history); Appointments end-to-end
- * (slots, booking, cancel, reschedule, check-in); Payments (Thawani checkout +
+ * (slots, booking, cancel, reschedule, check-in); Live Queue (HAMS-owned queue
+ * backend — `GET /api/patients/me/queue-status` + acknowledge + realtime on the
+ * patient's own `queue_items` row); Payments (Thawani checkout +
  * verify, invoice, history); Document Vault; Prescriptions; Lab Results
  * (analytes + trends); Reviews (doctor reviews list + rating submission);
  * Favourites (doctors + clinics); Doctor search + details; the Dashboard
@@ -36,6 +38,10 @@ const hybridRepositories: Repositories = {
   family: realRepositories.family,
   medicalHistory: realRepositories.medicalHistory,
   appointment: realRepositories.appointment,
+  // Queue: real. Requires the 5 HAMS queue migrations (20260728000001-05) to be
+  // applied; until then the endpoint answers 500 and the screen shows its error
+  // state. See docs/QUEUE_INTEGRATION_STATUS.md.
+  queue: realRepositories.queue,
   payment: realRepositories.payment,
   doctor: {
     ...mockRepositories.doctor,
@@ -89,5 +95,6 @@ export type {
   FamilyRepository,
   MedicalHistoryRepository,
   AppointmentRepository,
+  QueueRepository,
   Repositories,
 } from "./repositories";

@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -1842,6 +1842,44 @@ export type Database = {
           },
         ]
       }
+      invoice_generation_attempts: {
+        Row: {
+          attempt_no: number
+          created_at: string
+          error: string | null
+          id: string
+          payment_id: string
+          source: string | null
+          status: string
+        }
+        Insert: {
+          attempt_no: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          payment_id: string
+          source?: string | null
+          status: string
+        }
+        Update: {
+          attempt_no?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          payment_id?: string
+          source?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_generation_attempts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_result_analytes: {
         Row: {
           analyte_code: string
@@ -2690,7 +2728,12 @@ export type Database = {
           insurance_applied: boolean
           insurance_discount_percent: number
           insurance_provider: string | null
+          invoice_attempts: number
+          invoice_generated_at: string | null
+          invoice_last_attempt_at: string | null
+          invoice_last_error: string | null
           invoice_number: string | null
+          invoice_status: string
           invoice_url: string | null
           patient_id: string
           payment_method: string | null
@@ -2711,7 +2754,12 @@ export type Database = {
           insurance_applied?: boolean
           insurance_discount_percent?: number
           insurance_provider?: string | null
+          invoice_attempts?: number
+          invoice_generated_at?: string | null
+          invoice_last_attempt_at?: string | null
+          invoice_last_error?: string | null
           invoice_number?: string | null
+          invoice_status?: string
           invoice_url?: string | null
           patient_id: string
           payment_method?: string | null
@@ -2732,7 +2780,12 @@ export type Database = {
           insurance_applied?: boolean
           insurance_discount_percent?: number
           insurance_provider?: string | null
+          invoice_attempts?: number
+          invoice_generated_at?: string | null
+          invoice_last_attempt_at?: string | null
+          invoice_last_error?: string | null
           invoice_number?: string | null
+          invoice_status?: string
           invoice_url?: string | null
           patient_id?: string
           payment_method?: string | null
@@ -3047,6 +3100,8 @@ export type Database = {
       }
       queue_items: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_kind: string | null
           appointment_id: string | null
           branch_id: string | null
           called_at: string | null
@@ -3066,6 +3121,8 @@ export type Database = {
           status: Database["public"]["Enums"]["queue_status"]
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_kind?: string | null
           appointment_id?: string | null
           branch_id?: string | null
           called_at?: string | null
@@ -3085,6 +3142,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["queue_status"]
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_kind?: string | null
           appointment_id?: string | null
           branch_id?: string | null
           called_at?: string | null
@@ -4099,6 +4158,10 @@ export type Database = {
         Args: { token: string; user_id: string }
         Returns: string
       }
+      acknowledge_queue_call: {
+        Args: { p_appointment_id?: string; p_kind?: string }
+        Returns: Json
+      }
       add_walkin_to_queue: {
         Args: {
           p_created_by_staff_id?: string
@@ -4211,6 +4274,15 @@ export type Database = {
       checkin_my_appointment: {
         Args: { p_id: string; p_patient_name: string; p_patient_phone: string }
         Returns: Json
+      }
+      claim_invoice_generation: {
+        Args: { p_payment_id: string }
+        Returns: {
+          attempt_no: number
+          invoice_number: string
+          invoice_url: string
+          outcome: string
+        }[]
       }
       claim_waitlist_appointment: {
         Args: { p_entry_id: string }
@@ -4376,6 +4448,17 @@ export type Database = {
           p_gateway_ref: string
           p_gateway_response: Json
           p_refund_id: string
+        }
+        Returns: undefined
+      }
+      finalize_invoice_generation: {
+        Args: {
+          p_error: string
+          p_invoice_number: string
+          p_invoice_url: string
+          p_ok: boolean
+          p_payment_id: string
+          p_source: string
         }
         Returns: undefined
       }
@@ -4552,6 +4635,10 @@ export type Database = {
       }
       get_monthly_report_summary: {
         Args: { p_facility_id: string; p_month: number; p_year: number }
+        Returns: Json
+      }
+      get_my_queue_position: {
+        Args: { p_appointment_id?: string }
         Returns: Json
       }
       get_nearby_branches: {
@@ -4751,6 +4838,17 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      payments_needing_invoice: {
+        Args: {
+          p_limit?: number
+          p_max_attempts?: number
+          p_stale_minutes?: number
+        }
+        Returns: {
+          attempts: number
+          payment_id: string
+        }[]
+      }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
@@ -4792,6 +4890,12 @@ export type Database = {
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
       purge_deleted_accounts: { Args: never; Returns: undefined }
+      realtime_published_tables: {
+        Args: never
+        Returns: {
+          table_name: string
+        }[]
+      }
       rebook_appointment: { Args: { p_original_id: string }; Returns: Json }
       release_unpaid_hold: { Args: { p_appointment_id: string }; Returns: Json }
       request_appointment_refund: {

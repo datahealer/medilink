@@ -17,3 +17,11 @@ export type {
   PatientDocument,
 } from "./api/records";
 export type { AppointmentTab } from "./api/appointments";
+export type {
+  QueueItemStatus,
+  QueueAcknowledgeKind,
+  QueueErrorCode,
+  QueueStatusPayload,
+  QueueAcknowledgePayload,
+  QueueEnvelope,
+} from "./api/queue";

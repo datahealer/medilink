@@ -8,7 +8,7 @@
 import { api, feeForType } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
-import { apiFetch } from "@/services/api";
+import { apiFetch, ApiError } from "@/services/api";
 import { env } from "@/config/env";
 import { authService } from "@/services/authService";
 import { asText } from "@/utils/text";
@@ -29,10 +29,20 @@ import type {
   PatientRepository,
   PaymentRepository,
   PrescriptionRepository,
+  QueueRepository,
   ReviewRepository,
   Repositories,
 } from "../repositories";
 import type {
+  QueueAcknowledgePayload,
+  QueueEnvelope,
+  QueueStatusPayload,
+} from "@medilink/shared/mobile";
+import { mapQueueStatus, queueReasonFrom } from "../queueMapping";
+import type {
+  AiScheduleDoctorResult,
+  AiScheduleInput,
+  AiScheduleResponse,
   Appointment,
   BloodGroup,
   Clinic,
@@ -49,8 +59,11 @@ import type {
   PatientProfile,
   Payment,
   Prescription,
+  QueueUnavailableReason,
   SmokingStatus,
 } from "../types";
+// Value import (class, not a type) — thrown by the queue repository.
+import { QueueUnavailableError } from "../types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -478,6 +491,74 @@ const appointmentRepo: AppointmentRepository = {
     } catch (e) {
       throw new Error(errText(e));
     }
+  },
+};
+
+// ---- queue ------------------------------------------------------------------
+// Patient-side live queue. HAMS owns every calculation; this is a transport
+// adapter over the two contract endpoints plus the shared realtime helper.
+// See docs/QUEUE_BACKEND_FOR_MEDILINK.md §2.
+//
+// NOTE ON ERROR MAPPING: the queue routes answer with
+// `{ success:false, error:{ code, message } }`, but `apiFetch` only knows how to
+// lift a top-level string `error`, so the useful code arrives on `ApiError.body`
+// rather than in the message. `queueReason()` recovers it; without this every
+// declined read would surface as "[object Object]".
+
+/**
+ * Map an apiFetch failure onto the contract's reason code. The `instanceof` check
+ * stays here (where ApiError lives); the code→reason policy is the pure, unit-tested
+ * `queueReasonFrom` in ../queueMapping.
+ */
+function queueReason(e: unknown): QueueUnavailableReason {
+  if (e instanceof ApiError) {
+    const body = e.body as { error?: { code?: string } } | null;
+    return queueReasonFrom(e.status, body?.error?.code);
+  }
+  return "server_error";
+}
+
+const queueRepo: QueueRepository = {
+  async getStatus(appointmentId) {
+    let res: QueueEnvelope<QueueStatusPayload>;
+    try {
+      res = await apiFetch<QueueEnvelope<QueueStatusPayload>>(
+        `/api/patients/me/queue-status?appointment_id=${encodeURIComponent(appointmentId)}`
+      );
+    } catch (e) {
+      throw new QueueUnavailableError(queueReason(e), errText(e));
+    }
+    // A 200 with success:false shouldn't happen per the contract, but treat the
+    // envelope as authoritative rather than trusting the status code alone.
+    if (!res.success) {
+      throw new QueueUnavailableError(
+        (res.error.code as QueueUnavailableReason) ?? "server_error",
+        res.error.message
+      );
+    }
+    return mapQueueStatus(res.data);
+  },
+
+  async acknowledge({ appointmentId, kind }) {
+    let res: QueueEnvelope<QueueAcknowledgePayload>;
+    try {
+      res = await apiFetch<QueueEnvelope<QueueAcknowledgePayload>>(
+        "/api/patients/me/queue-status/acknowledge",
+        { method: "POST", body: JSON.stringify({ appointment_id: appointmentId, kind }) }
+      );
+    } catch (e) {
+      throw new QueueUnavailableError(queueReason(e), errText(e));
+    }
+    if (!res.success) {
+      throw new QueueUnavailableError(
+        (res.error.code as QueueUnavailableReason) ?? "server_error",
+        res.error.message
+      );
+    }
+  },
+
+  subscribe(appointmentId, onChange) {
+    return api.queue.subscribeToMyQueue(supabase, appointmentId, onChange);
   },
 };
 
@@ -1105,6 +1186,26 @@ interface SuggestDocLoose {
   specialty: string | null;
   avg_rating: number | null;
   fees?: unknown;
+  clinic?: string | null;
+}
+
+/** The `data` payload of POST /api/ai/schedule-assist (all four `type` shapes union'd). */
+interface ScheduleAssistData {
+  type?: "results" | "no_results" | "clarifying_question" | "info";
+  message?: string;
+  question?: string;
+  results?: {
+    doctor: { id: string; full_name: string; specialty: string | null; avg_rating: number | null; fees: number | null };
+    available_slots: { slot_start: string; slot_end: string }[];
+    slot_date: string;
+    booking_url: string;
+    time_fallback: boolean;
+  }[];
+  next_available?: string | null;
+  next_available_doctor?: string | null;
+  next_available_url?: string | null;
+  extracted_entities?: Record<string, unknown>;
+  extracted_intent?: Record<string, unknown>;
 }
 
 const aiRepo: AiRepository = {
@@ -1123,6 +1224,7 @@ const aiRepo: AiRepository = {
         specialty: doc.specialty ?? null,
         rating: doc.avg_rating != null ? Number(doc.avg_rating) : null,
         fee_omr: feeForType(doc.fees, "in_person") || null,
+        clinic: doc.clinic ?? null,
       })),
     };
   },
@@ -1144,6 +1246,56 @@ const aiRepo: AiRepository = {
     if (!row || !row.patient_summary) return null;
     return { summary: row.patient_summary, date: row.slot_date ?? null, doctorName: row.doctors?.full_name ?? null };
   },
+  async scheduleAssist(input: AiScheduleInput): Promise<AiScheduleResponse> {
+    const res = await apiFetch<{ success?: boolean; data?: ScheduleAssistData }>(
+      "/api/ai/schedule-assist",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: input.query,
+          client_date: input.clientDate,
+          history: input.history,
+          pending_entities: input.pendingEntities ?? {},
+        }),
+      }
+    );
+    const d = res?.data;
+    const entities = (d?.extracted_entities ?? d?.extracted_intent ?? {}) as AiScheduleResponse["entities"];
+
+    if (d?.type === "results") {
+      const results: AiScheduleDoctorResult[] = (d.results ?? []).map((r) => ({
+        doctorId: r.doctor.id,
+        doctorName: r.doctor.full_name,
+        specialty: r.doctor.specialty ?? "",
+        rating: r.doctor.avg_rating != null ? Number(r.doctor.avg_rating) : null,
+        feeOmr: r.doctor.fees != null ? Number(r.doctor.fees) : null,
+        slotDate: r.slot_date,
+        slots: (r.available_slots ?? []).map((s) => ({ start: s.slot_start, end: s.slot_end })),
+        timeFallback: !!r.time_fallback,
+      }));
+      return { kind: "results", results, entities };
+    }
+
+    if (d?.type === "no_results") {
+      // Recover the doctor id from the web booking URL so mobile can deep-link into booking.
+      const nextId = d.next_available_url?.match(/doctorId=([0-9a-f-]+)/i)?.[1] ?? null;
+      return {
+        kind: "no_results",
+        message: d.message ?? "No available slots were found.",
+        nextAvailable: d.next_available
+          ? { date: d.next_available, doctorName: d.next_available_doctor ?? null, doctorId: nextId }
+          : null,
+        entities,
+      };
+    }
+
+    // clarifying_question | info | anything else → a conversational message.
+    return {
+      kind: "message",
+      message: d?.question ?? d?.message ?? "Could you rephrase that?",
+      entities,
+    };
+  },
 };
 
 export const realRepositories: Repositories = {
@@ -1152,6 +1304,7 @@ export const realRepositories: Repositories = {
   medicalHistory: medicalHistoryRepo,
   family: familyRepo,
   appointment: appointmentRepo,
+  queue: queueRepo,
   payment: paymentRepo,
   discovery: discoveryRepo,
   doctor: doctorRepo,

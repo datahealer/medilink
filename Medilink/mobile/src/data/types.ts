@@ -133,6 +133,88 @@ export interface Appointment {
 
 export type AppointmentTab = "upcoming" | "past" | "all";
 
+// ---- queue ------------------------------------------------------------------
+// HAMS owns every queue calculation (position, people_ahead, ETA, ordering).
+// These types mirror the integration contract payload verbatim; the app renders
+// them and never derives them. See docs/QUEUE_BACKEND_FOR_MEDILINK.md §2.1.
+
+export type QueueItemStatus = "waiting" | "called" | "done" | "expired";
+export type QueueAcknowledgeKind = "seen" | "on_my_way";
+
+/** Which UI state the Live Queue screen renders. Derived only from server flags. */
+export type QueuePhase = "waiting" | "called" | "done";
+
+/**
+ * Live queue state for one appointment, as returned by
+ * `GET /api/patients/me/queue-status`. Field names are kept identical to the
+ * contract so a payload change is a compile error rather than a silent drift.
+ */
+export interface QueueStatus {
+  queueItemId: string;
+  /** Facility-wide sequence number (display only — not "3rd in line"). */
+  position: number;
+  /** Doctor-scoped patients ahead. Server-computed. */
+  peopleAhead: number;
+  /** Integer position currently with the doctor, or null. Never an identity. */
+  nowServingPosition: number | null;
+  status: QueueItemStatus;
+  phase: QueuePhase;
+  isCheckedIn: boolean;
+  checkedInAt: string | null;
+  calledAt: string | null;
+  doneAt: string | null;
+  acknowledgedAt: string | null;
+  acknowledgedKind: QueueAcknowledgeKind | null;
+  isWalkin: boolean;
+  isOnline: boolean;
+  /** Server-computed ETA in minutes; 0 once called. */
+  estimatedWaitMinutes: number;
+  avgConsultationMinutes: number;
+  appointment: {
+    id: string;
+    referenceNumber: string | null;
+    slotDate: string | null;
+    slotStart: string | null;
+    slotEnd: string | null;
+    status: string | null;
+    type: string | null;
+  };
+  doctor: {
+    id: string;
+    fullName: string | null;
+    specialty: string | null;
+    /** available | with_patient | on_break | unavailable */
+    status: string | null;
+    statusUpdatedAt: string | null;
+  } | null;
+  facility: { id: string; name: string | null };
+  /** Authoritative server clock — drive all elapsed/relative time from this. */
+  serverTime: string;
+}
+
+/**
+ * Why a queue read produced no status. Mirrors the contract's error codes so the
+ * UI can render the right empty/error state instead of a generic failure.
+ */
+export type QueueUnavailableReason =
+  | "not_in_queue"
+  | "not_checked_in"
+  | "forbidden"
+  | "unauthorized"
+  | "server_error"
+  | "offline";
+
+/** Thrown by the queue repository when the backend declines the read/write. */
+export class QueueUnavailableError extends Error {
+  constructor(
+    public reason: QueueUnavailableReason,
+    message?: string
+  ) {
+    super(message ?? reason);
+    this.name = "QueueUnavailableError";
+  }
+}
+
 /** A payment record (Thawani). Read-side only — checkout happens on Thawani's hosted page. */
 export interface Payment {
   id: string;
@@ -257,6 +339,8 @@ export interface AiSuggestedDoctor {
   specialty: string | null;
   rating: number | null;
   fee_omr: number | null;
+  /** Clinic / facility name (from suggest-doctor's facility join), or null. */
+  clinic: string | null;
 }
 
 export interface AiDoctorSuggestion {
@@ -271,6 +355,64 @@ export interface AiVisitSummary {
   date: string | null;
   doctorName: string | null;
 }
+
+// ---- AI scheduling assistant (F-41, PDF p26) --------------------------------
+
+/** Conversational entity memory round-tripped between turns (mirrors the backend). */
+export interface AiScheduleEntities {
+  doctor_type?: string | null;
+  date_phrase?: string | null;
+  time_preference?: string;
+}
+
+/** One turn of the schedule-assist conversation sent back for context. */
+export interface AiScheduleTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiScheduleSlot {
+  /** "HH:MM" local start/end as returned by get_available_slots. */
+  start: string;
+  end: string;
+}
+
+/** A bookable doctor + concrete open slots on a specific date. */
+export interface AiScheduleDoctorResult {
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  rating: number | null;
+  feeOmr: number | null;
+  slotDate: string;
+  slots: AiScheduleSlot[];
+  /** True when preferred time-of-day had none, so any-time slots are shown instead. */
+  timeFallback: boolean;
+}
+
+/** Input for a single scheduling turn. */
+export interface AiScheduleInput {
+  query: string;
+  /** Patient-local date "YYYY-MM-DD" so relative phrases resolve without server UTC drift. */
+  clientDate: string;
+  history: AiScheduleTurn[];
+  pendingEntities?: AiScheduleEntities;
+}
+
+/**
+ * Normalized schedule-assist reply. The backend's four `data.type` shapes collapse to
+ * three UI intents: a conversational message (clarify/info), booking results, or no results
+ * (optionally with the next available date). `entities` is fed back on the next turn.
+ */
+export type AiScheduleResponse =
+  | { kind: "message"; message: string; entities: AiScheduleEntities }
+  | { kind: "results"; results: AiScheduleDoctorResult[]; entities: AiScheduleEntities }
+  | {
+      kind: "no_results";
+      message: string;
+      nextAvailable: { date: string; doctorName: string | null; doctorId: string | null } | null;
+      entities: AiScheduleEntities;
+    };
 
 // ---- discovery (dashboard recents/featured + Batch-2 doctor search) ----------
 
@@ -392,6 +534,8 @@ export interface FavouriteItem {
 export type NotificationKind =
   | "assistant"
   | "appointment"
+  /** Live-queue events (called / next). Deep-links to the queue, not the appointment. */
+  | "queue"
   | "payment"
   | "lab"
   | "prescription"

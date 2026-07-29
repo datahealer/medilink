@@ -53,7 +53,8 @@ export default function AppointmentsScreen() {
         text: t("appointments.confirmCheckIn"),
         onPress: () =>
           checkIn.mutate(apptId, {
-            onSuccess: () => Alert.alert(t("appointments.checkedInDone")),
+            // Land on the Live Queue — that's where position/ETA are authoritative.
+            onSuccess: () => router.push(`/appointments/${apptId}/queue`),
             onError: (e) =>
               Alert.alert(
                 t("appointments.actionFailed"),
@@ -147,6 +148,8 @@ export default function AppointmentsScreen() {
                 // The next (first) actionable card carries inline Check in / Details (design p24).
                 const isNext = i === 0;
                 const canCheckIn = a.status === "confirmed";
+                // Checked in → the inline action becomes "view live queue".
+                const inQueue = a.status === "checked_in";
                 return (
                   <AppointmentCompactCard
                     key={a.id}
@@ -156,9 +159,21 @@ export default function AppointmentsScreen() {
                     statusTone={apptTone(colors, apptStatusCategory(a.status))}
                     topRight={isNext ? relativeLabel(a) : dateLabel(a)}
                     onPress={() => router.push(`/appointments/${a.id}`)}
-                    checkInLabel={isNext && canCheckIn ? t("appointments.checkIn") : undefined}
+                    checkInLabel={
+                      isNext && canCheckIn
+                        ? t("appointments.checkIn")
+                        : isNext && inQueue
+                          ? t("appointments.viewQueue")
+                          : undefined
+                    }
                     detailsLabel={isNext ? t("appointments.details") : undefined}
-                    onCheckIn={isNext && canCheckIn ? () => onHeroCheckIn(a.id) : undefined}
+                    onCheckIn={
+                      isNext && canCheckIn
+                        ? () => onHeroCheckIn(a.id)
+                        : isNext && inQueue
+                          ? () => router.push(`/appointments/${a.id}/queue`)
+                          : undefined
+                    }
                     onDetails={isNext ? () => router.push(`/appointments/${a.id}`) : undefined}
                     checkInLoading={checkIn.isPending}
                     isRTL={isRTL}

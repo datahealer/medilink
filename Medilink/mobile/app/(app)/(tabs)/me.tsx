@@ -68,6 +68,7 @@ export default function MeHubScreen() {
       titleKey: "meHub.sectionAI",
       items: [
         { key: "ai-symptoms", labelKey: "meHub.aiSymptoms", icon: "ai", onPress: go("/ai/assistant") },
+        { key: "ai-schedule", labelKey: "meHub.aiSchedule", icon: "calendar", onPress: go("/ai/schedule") },
         { key: "ai-recommend", labelKey: "meHub.aiRecommend", icon: "people", onPress: go("/ai/recommendations") },
         { key: "ai-insights", labelKey: "meHub.aiInsights", icon: "records", onPress: go("/ai/insights") },
       ],

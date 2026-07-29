@@ -26,6 +26,10 @@ export function classifyNotification(
   const explicit = typeof data?.kind === "string" ? data.kind.toLowerCase() : "";
   const t = explicit || (type ?? "").toLowerCase();
   if (t.includes("payment") || t.includes("invoice") || t.includes("refund")) return "payment";
+  // Queue before the generic appointment match: a "queue_called" push must deep-link
+  // to the Live Queue, not the appointment detail screen. HAMS owns the push payload
+  // (docs/QUEUE_BACKEND_FOR_MEDILINK.md §3.3); this classifies whatever it sends.
+  if (t.includes("queue")) return "queue";
   if (
     t.includes("appointment") || t.includes("booking") || t.includes("reminder") ||
     t.includes("reschedul") || t.includes("cancel") || t.includes("confirm") ||
@@ -53,6 +57,9 @@ export function routeForNotification(kind: NotificationKind, appointmentId?: str
       return appointmentId ? `/appointments/${appointmentId}` : "/payments";
     case "appointment":
       return appointmentId ? `/appointments/${appointmentId}` : "/appointments";
+    case "queue":
+      // Without an appointment id there is no queue to show — fall back to the list.
+      return appointmentId ? `/appointments/${appointmentId}/queue` : "/appointments";
     case "lab":
       return "/records/labs";
     case "prescription":

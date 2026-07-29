@@ -53,8 +53,16 @@ export { SegmentedTabs, type SegmentedTab } from "./SegmentedTabs";
 export { HeroAppointmentCard } from "./HeroAppointmentCard";
 export { AppointmentCompactCard } from "./AppointmentCompactCard";
 export { LoadingState, ErrorState, EmptyState } from "./StateView";
+export { Markdown } from "./Markdown";
+export { TypingIndicator } from "./TypingIndicator";
+export { UrgencyBadge } from "./UrgencyBadge";
 export { TrendChart } from "./TrendChart";
 export type { TrendPoint } from "./TrendChart";
+export { OsmMapView } from "./OsmMapView";
+export type { OsmMapViewProps } from "./OsmMapView";
+export { QueuePositionRing } from "./QueuePositionRing";
+export { QueueTimeline } from "./QueueTimeline";
+export type { QueueStep } from "./QueueTimeline";
 
 export type { ButtonVariant } from "./Button";
 export type { TextFieldProps } from "./TextField";

@@ -54,7 +54,11 @@ export default function AppointmentDetailsScreen() {
         text: t("appointments.confirmCheckIn"),
         onPress: () =>
           checkIn.mutate(id, {
-            onSuccess: () => Alert.alert(t("appointments.checkedInDone")),
+            // Straight into the Live Queue: the position/ETA the patient wants is
+            // the whole point of checking in, and the queue screen is the only
+            // place it's authoritative (the check-in RPC's own `position` is a
+            // facility-wide sequence, not a place in line).
+            onSuccess: () => router.push(`/appointments/${id}/queue`),
             onError: (e) => Alert.alert(t("appointments.actionFailed"), errMsg(e)),
           }),
       },
@@ -104,10 +108,12 @@ export default function AppointmentDetailsScreen() {
   ];
 
   const showCheckIn = status === "confirmed";
+  // Already checked in → the queue is the useful destination, not check-in again.
+  const showQueue = status === "checked_in";
   const showReschedule = status === "pending" || status === "confirmed";
   const showCancel = status === "pending" || status === "confirmed";
   const showRate = status === "completed";
-  const hasActions = showCheckIn || showReschedule || showCancel || showRate;
+  const hasActions = showCheckIn || showQueue || showReschedule || showCancel || showRate;
 
   return (
     <Screen
@@ -149,6 +155,12 @@ export default function AppointmentDetailsScreen() {
         <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
           {showCheckIn ? (
             <Button label={t("appointments.confirmCheckIn")} onPress={onCheckIn} loading={checkIn.isPending} />
+          ) : null}
+          {showQueue ? (
+            <Button
+              label={t("appointments.viewQueue")}
+              onPress={() => router.push(`/appointments/${id}/queue`)}
+            />
           ) : null}
           {showReschedule ? (
             <Button variant="outline" label={t("appointments.reschedule")} onPress={() => router.push(`/appointments/${id}/reschedule`)} />
