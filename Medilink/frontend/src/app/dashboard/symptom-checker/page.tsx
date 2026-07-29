@@ -132,6 +132,7 @@ export default function SymptomCheckerPage() {
       const res = await fetch(`${env.BACKEND_URL}/api/ai/symptom-check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           symptoms: symptoms.trim(),
           patient_age: age ? Number(age) : undefined,
@@ -194,7 +195,7 @@ export default function SymptomCheckerPage() {
       {/* Hero */}
       <section className="py-12 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
         <div className="max-w-6xl mx-auto">
-          <div className={`flex items-center gap-4 ${ar ? "text-right" : ""}`}>
+          <div className={`flex items-center gap-4 ${ar ? "flex-row-reverse text-right" : ""}`}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
               🤖

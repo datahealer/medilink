@@ -629,7 +629,7 @@ export default function DashboardPage() {
                 {ar ? "استشر طبيباً لكل مشكلة." : "A doctor for every concern."}
               </h2>
             </div>
-            <Link href="/dashboard/specialties"
+            <Link href="/dashboard/find-doctors"
               className="inline-flex items-center gap-1.5 text-sm font-bold text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors no-underline flex-shrink-0">
               {ar ? "تصفح الكل ←" : "Browse all →"}
             </Link>

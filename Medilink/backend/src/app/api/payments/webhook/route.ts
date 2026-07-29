@@ -1,17 +1,61 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
 import { logAudit } from "@/lib/audit/logAudit";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
+import { ensureInvoice } from "@/lib/payments/ensureInvoice";
+
+// Vercel: the webhook runs a sequential chain (gateway verify → invoice edge fn →
+// email → notifications); give it headroom above the low default timeout.
+export const maxDuration = 60;
+
+/**
+ * BP-6 — HMAC/signature verification (defense-in-depth, in addition to the Thawani
+ * re-query + idempotent claim below).
+ *
+ * Verifies `HMAC-SHA256(rawBody, THAWANI_WEBHOOK_SECRET)` (hex) against the signature
+ * header (`THAWANI_WEBHOOK_SIGNATURE_HEADER`, default `thawani-signature`), using a
+ * timing-safe compare. Gated on the secret being set:
+ *   • secret unset  → skip (the re-query below stays the authoritative anti-spoof
+ *     guard, so no deployment breaks by omitting it).
+ *   • secret set    → a missing/mismatched signature is rejected (401).
+ * Even if the secret is misconfigured, payments still finalize via the client
+ * `/payments/verify` path (which re-queries Thawani directly), so this never strands
+ * a real payment.
+ */
+function verifyWebhookSignature(req: NextRequest, rawBody: string): { ok: boolean; reason?: string } {
+  const secret = process.env.THAWANI_WEBHOOK_SECRET;
+  if (!secret) return { ok: true, reason: "hmac-not-configured" };
+
+  const headerName = process.env.THAWANI_WEBHOOK_SIGNATURE_HEADER || "thawani-signature";
+  const provided = req.headers.get(headerName);
+  if (!provided) return { ok: false, reason: "missing-signature" };
+
+  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return { ok: false, reason: "signature-mismatch" };
+  return { ok: crypto.timingSafeEqual(a, b), reason: "signature-mismatch" };
+}
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = createServiceSupabase();
 
+    // Read the RAW body once (HMAC must be computed over the exact bytes), verify the
+    // signature, then parse. See verifyWebhookSignature above.
+    const rawBody = await req.text();
+    const sig = verifyWebhookSignature(req, rawBody);
+    if (!sig.ok) {
+      console.warn("⚠️ Webhook signature rejected:", sig.reason);
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
     // ✅ SAFE BODY
     let body: any = {};
     try {
-      body = await req.json();
+      body = rawBody ? JSON.parse(rawBody) : {};
     } catch {
       body = {};
     }
@@ -56,17 +100,54 @@ export async function POST(req: NextRequest) {
 
     const alreadyPaid = payment.status === "paid";
     const hasInvoice = !!payment.invoice_url;
+    let gatewayInvoiceRef: string | null = null;
 
-    // ✅ UPDATE PAYMENT
+    // 🔒 SECURITY: never finalize on the webhook body alone. Confirm the authoritative
+    // payment status with Thawani first (same check as payments/verify). This closes a
+    // payment-bypass where any POST carrying a known appointment id would mark the
+    // payment paid and confirm the appointment without any real payment.
     if (!alreadyPaid) {
-      await supabase
+      if (!payment.gateway_session_id) {
+        console.warn("⚠️ Webhook: payment has no gateway_session_id — cannot verify, not finalizing");
+        return NextResponse.json({ received: true, finalized: false, reason: "no gateway session" });
+      }
+
+      const verifyRes = await fetch(
+        `${process.env.THAWANI_BASE_URL}/checkout/session/${payment.gateway_session_id}`,
+        { headers: { "thawani-api-key": process.env.THAWANI_SECRET_KEY! } }
+      );
+      const verifyJson = await verifyRes.json().catch(() => null);
+
+      if (verifyJson?.data?.payment_status !== "paid") {
+        console.warn("⚠️ Webhook: Thawani does not report this session as paid — not finalizing");
+        return NextResponse.json({ received: true, finalized: false, reason: "not paid per gateway" });
+      }
+
+      console.log("✅ Webhook: Thawani confirms session paid");
+      // Store the gateway's invoice reference alongside the payment (mirrors payments/verify).
+      gatewayInvoiceRef = verifyJson?.data?.invoice ?? null;
+    }
+
+    // ✅ UPDATE PAYMENT (atomic claim → idempotent under duplicate/concurrent delivery)
+    if (!alreadyPaid) {
+      const { data: claimed } = await supabase
         .from("payments")
         .update({
           status: "paid",
           updated_at: new Date().toISOString(),
           gateway_response: body,
+          gateway_ref: gatewayInvoiceRef,
         })
-        .eq("id", payment.id);
+        .eq("id", payment.id)
+        .neq("status", "paid")
+        .select("id");
+
+      // If another delivery already flipped this to paid, ack and skip the one-time
+      // side-effects (notifications / invoice / enqueue) so they never run twice.
+      if (!claimed || claimed.length === 0) {
+        console.log("ℹ️ Webhook: payment already finalized by another delivery — skipping side-effects");
+        return NextResponse.json({ received: true, finalized: false, reason: "already finalized" });
+      }
 
       console.log("✅ Payment marked as PAID");
     }
@@ -215,50 +296,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ✅ GENERATE INVOICE — idempotent worker; NON-FATAL by design.
+    // Never return an error to Thawani on invoice failure: the atomic paid-claim above
+    // short-circuits every webhook re-delivery, so a 500 here would strand the invoice
+    // permanently. Failures are recorded (invoice_status='failed') and the recovery
+    // sweeper (retry-invoices) regenerates them automatically.
     let invoiceUrl = payment.invoice_url;
     let invoiceNumber = payment.invoice_number || payment.id;
-
-    // ✅ GENERATE INVOICE
     if (!hasInvoice) {
-      console.log("🧾 Generating invoice...");
-
-      let invoiceData: any = null;
-      try {
-        const invoiceRes = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-invoice`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              payment_id: payment.id,
-            }),
-          }
-        );
-
-        invoiceData = await invoiceRes.json().catch(() => null);
-        console.log("🔥 Invoice Response:", invoiceData);
-
-        if (!invoiceRes.ok) {
-          console.error("❌ Invoice generation failed:", invoiceData);
-          return NextResponse.json(
-            { error: "Invoice generation failed", details: invoiceData },
-            { status: 500 }
-          );
-        }
-      } catch (fetchErr: any) {
-        console.error("❌ Edge function fetch failed:", fetchErr.message);
-        return NextResponse.json(
-          { error: "Invoice generation failed", details: fetchErr.message },
-          { status: 500 }
-        );
+      const inv = await ensureInvoice(payment.id, "webhook");
+      if (inv.url) {
+        invoiceUrl = inv.url;
+        invoiceNumber = inv.invoiceNumber || payment.id;
+        console.log("✅ Invoice generated:", invoiceNumber);
+      } else {
+        console.warn("⚠️ Invoice not ready; recovery sweeper will retry:", inv.outcome);
       }
-
-      invoiceUrl = invoiceData?.url;
-      invoiceNumber = invoiceData?.invoice_number || payment.id;
-      console.log("✅ Invoice generated:", invoiceNumber);
     }
 
     // Fetch patient email from auth.users (profiles table may not store email)

@@ -1,0 +1,196 @@
+import React, { useMemo, useState } from "react";
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
+import {
+  Avatar,
+  Card,
+  EmptyState,
+  ErrorState,
+  Icon,
+  LoadingState,
+  OsmMapView,
+  Screen,
+  Text,
+  TextField,
+} from "@/components/ui";
+import { useTheme } from "@/hooks/useTheme";
+import { useI18n } from "@/i18n";
+import { localizedName } from "@/utils/localizedName";
+import { useNearbyClinics } from "@/hooks/queries/useDiscovery";
+import {
+  isValidTarget,
+  nativeDirectionsUrl,
+  webDirectionsUrl,
+} from "@/services/maps/directions";
+import type { MapCamera, MapMarker, UserLocation } from "@/services/maps/types";
+import type { Clinic } from "@/data/types";
+
+// Default map centre — Muscat (MediLink is an Oman product; the RPC is a proximity
+// search, so we anchor to a sensible origin). Real device-location centring can be
+// layered on later with expo-location without changing this screen's data flow — pass
+// the coordinates to `userLocation` below and the pin renders itself.
+const MUSCAT = { lat: 23.588, lng: 58.3829 };
+const DEFAULT_CAMERA: MapCamera = {
+  latitude: MUSCAT.lat,
+  longitude: MUSCAT.lng,
+  latitudeDelta: 0.35,
+  longitudeDelta: 0.35,
+};
+
+/** Map View (PDF p19): real map with nearby-clinic markers + a bottom clinic card. */
+export default function MapViewScreen() {
+  const { colors, spacing, isRTL } = useTheme();
+  const { t, num } = useI18n();
+  const query = useNearbyClinics({ lat: MUSCAT.lat, lng: MUSCAT.lng });
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const clinics = useMemo(() => {
+    const all = query.data ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (c) => c.name.toLowerCase().includes(q) || (c.area ?? "").toLowerCase().includes(q)
+    );
+  }, [query.data, search]);
+
+  const active: Clinic | undefined = clinics.find((c) => c.id === selectedId) ?? clinics[0];
+
+  /** Markers for the map surface, derived from the same clinic list as the card. */
+  const markers: MapMarker[] = useMemo(
+    () =>
+      clinics
+        .filter((c) => c.latitude != null && c.longitude != null)
+        .map((c) => ({
+          id: c.id,
+          latitude: c.latitude as number,
+          longitude: c.longitude as number,
+          title: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
+          subtitle: c.area,
+          selected: c.id === active?.id,
+        })),
+    [clinics, active?.id, isRTL]
+  );
+
+  // Patient position — rendered whenever it is available. Nothing supplies it yet
+  // (expo-location is not a dependency), so it stays null; the map already supports it.
+  const userLocation: UserLocation | null = null;
+
+  /**
+   * Hand off to the platform's own map app — Apple Maps on iOS, the `geo:` chooser on
+   * Android — with an OpenStreetMap web fallback. No Google dependency, and no API key.
+   */
+  const openDirections = (c: Clinic) => {
+    const target = {
+      latitude: c.latitude as number,
+      longitude: c.longitude as number,
+      label: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
+    };
+    if (!isValidTarget(target)) return;
+
+    Linking.openURL(nativeDirectionsUrl(Platform.OS, target)).catch(() => {
+      // No map app installed (or an unexpected platform) — fall back to the web.
+      Linking.openURL(webDirectionsUrl(target)).catch(() => Alert.alert(t("map.loadError")));
+    });
+  };
+
+  return (
+    <Screen scroll={false} padded={false} edges={["top", "left", "right", "bottom"]}>
+      {/* Search header */}
+      <View style={[styles.header, { paddingHorizontal: spacing.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")}>
+          <Icon name="chevron" direction={isRTL ? "right" : "left"} size={26} tint={colors.text} strokeWidth={2.2} />
+        </Pressable>
+        <View style={styles.searchWrap}>
+          <TextField
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t("map.searchPlaceholder")}
+            returnKeyType="search"
+            leading={<Icon name="search" size={18} tint={colors.textMuted} />}
+          />
+        </View>
+      </View>
+
+      {/* Map surface — Leaflet + OpenStreetMap in a WebView; no Google Maps API key. */}
+      <View style={styles.map}>
+        <OsmMapView
+          camera={DEFAULT_CAMERA}
+          markers={markers}
+          userLocation={userLocation}
+          onMarkerPress={setSelectedId}
+          onError={setMapError}
+          testID="osm-map"
+        />
+
+        {/* Leaflet or the tile server was unreachable — say so instead of showing a
+            blank rectangle the user can't interpret. */}
+        {mapError && !query.isLoading ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <ErrorState message={t("map.tilesError")} onRetry={() => setMapError(null)} />
+          </View>
+        ) : null}
+
+        {query.isLoading ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <LoadingState />
+          </View>
+        ) : query.isError ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <ErrorState message={t("map.loadError")} onRetry={() => query.refetch()} />
+          </View>
+        ) : clinics.length === 0 ? (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
+            <EmptyState title={t("map.emptyTitle")} body={t("map.emptyBody")} />
+          </View>
+        ) : null}
+      </View>
+
+      {/* Bottom clinic card */}
+      {active ? (
+        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md, paddingTop: spacing.sm }}>
+          <Card onPress={() => openDirections(active)}>
+            <View style={[styles.cardRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+              <Avatar name={active.name} size={44} />
+              <View style={[{ flex: 1 }, isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }]}>
+                <Text variant="title" numberOfLines={1}>
+                  {localizedName(active.name, active.name_ar, active.name_ar_status, isRTL)}
+                </Text>
+                <Text variant="caption" color="textMuted" numberOfLines={1}>
+                  {active.area}
+                </Text>
+                <Text variant="caption" color="textMuted">
+                  {num(
+                    [
+                      `★ ${active.rating}`,
+                      active.distance_km != null ? `${active.distance_km} km` : null,
+                    ]
+                      .filter(Boolean)
+                      .join("   ·   ")
+                  )}
+                </Text>
+              </View>
+              <View style={[styles.directions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <Icon name="map" size={16} tint={colors.primary} />
+                <Text variant="caption" color="primary" style={isRTL ? { marginEnd: 4 } : { marginStart: 4 }}>
+                  {t("map.directions")}
+                </Text>
+              </View>
+            </View>
+          </Card>
+        </View>
+      ) : null}
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { alignItems: "center", gap: 12, paddingTop: 8, paddingBottom: 12 },
+  searchWrap: { flex: 1 },
+  map: { flex: 1, overflow: "hidden" },
+  overlay: { alignItems: "center", justifyContent: "center" },
+  cardRow: { alignItems: "center" },
+  directions: { alignItems: "center" },
+});

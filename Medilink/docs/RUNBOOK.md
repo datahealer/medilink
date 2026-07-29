@@ -46,7 +46,7 @@ SUPABASE_SERVICE_ROLE_KEY=...        # SECRET
 THAWANI_BASE_URL=... THAWANI_API=... THAWANI_API_KEY=... THAWANI_SECRET_KEY=... THAWANI_PUBLISHABLE_KEY=...
 STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=...
 GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... GOOGLE_REDIRECT_URI=...
-GEMINI_API_KEY=... GROQ_API_KEY=... MOCK_AI=true   # MOCK_AI=true avoids real AI keys in dev
+GROQ_API_KEY=...                     # required — AI has no stub mode; provider is Groq only
 EMAIL_USER=... EMAIL_PASS=... EMAIL_FROM=...
 INVITE_SECRET=...                    # any strong random string; guards push dispatch
 ```
@@ -130,7 +130,7 @@ supabase functions serve <name>              # run locally
 | Mobile can't reach backend | `localhost` from device ≠ your machine | Set `EXPO_PUBLIC_BACKEND_URL` to your machine's LAN IP, not `localhost`. |
 | `supabase db push` does nothing | already linked elsewhere / no pending | `supabase migration list`; `supabase link` to the right ref. |
 | Push token returns null | running on simulator/emulator | Use a physical device; set EAS `projectId` in `mobile/app.json`. |
-| AI route 500 with no key | real Gemini/Groq key absent | Set keys, or `MOCK_AI=true` to stub responses in dev. |
+| AI route 5xx with no key | `GROQ_API_KEY` absent | Set a real `GROQ_API_KEY` — AI has no stub mode (the endpoints degrade gracefully to an error, never fake data). |
 
 ## 8. One-shot bring-up (happy path)
 ```bash

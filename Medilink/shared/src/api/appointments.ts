@@ -3,8 +3,26 @@
 import type { DB, Enums, Json } from "./client";
 import { getCurrentUserId, getMyPatientProfileId, today } from "./client";
 
+/**
+ * Call an RPC not present in the generated types (e.g. the patient-action wrappers).
+ * IMPORTANT: invoke `db.rpc(...)` directly — assigning it to a local (`const call =
+ * db.rpc`) detaches `this`, and supabase-js's rpc reads `this.rest`, throwing
+ * "Cannot read property 'rest' of undefined" before any request is made.
+ */
+async function rpcLoose(db: DB, fn: string, args: Record<string, unknown>): Promise<Json> {
+  const res = await db.rpc(fn as never, args as never);
+  const dev = (globalThis as { __DEV__?: boolean }).__DEV__;
+  if (dev) {
+    const r = res as { data?: unknown; error?: unknown; status?: number; statusText?: string };
+    console.warn(`[rpc ${fn}]`, { data: r.data, error: r.error, status: r.status, statusText: r.statusText });
+  }
+  if (res.error) throw res.error;
+  return (res.data ?? null) as Json;
+}
+
 const LIST_SELECT =
-  "*, doctor:doctor_id ( id, full_name, specialty ), facility:facility_id ( id, name, address ), " +
+  "*, doctor:doctor_id ( id, full_name, full_name_ar, full_name_ar_status, specialty, fees ), " +
+  "facility:facility_id ( id, name, name_ar, name_ar_status, address ), " +
   "family_member:for_family_member_id ( full_name ), " +
   "payments ( id, status, amount, currency, invoice_url )";
 
@@ -27,6 +45,19 @@ export async function listMyAppointments(db: DB, tab: AppointmentTab = "all") {
   return data ?? [];
 }
 
+/** A single appointment (same shape as the list rows), scoped to the caller. */
+export async function getAppointment(db: DB, id: string) {
+  const patientId = await getMyPatientProfileId(db);
+  const { data, error } = await db
+    .from("appointments")
+    .select(LIST_SELECT)
+    .eq("id", id)
+    .eq("patient_id", patientId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export interface BookAppointmentInput {
   doctorId: string;
   facilityId: string;
@@ -35,11 +66,15 @@ export interface BookAppointmentInput {
   type: Enums["appointment_type"];
   forFamilyMemberId?: string;
   isEmergency?: boolean;
+  /** Patient's reason for visit → appointments.reason_for_visit (6.4). */
+  reason?: string | null;
 }
 
 /** Book atomically (RPC enforces slot uniqueness / overbooking guards). */
 export async function bookAppointment(db: DB, input: BookAppointmentInput): Promise<Json> {
   const patientId = await getMyPatientProfileId(db);
+  // `p_reason` is now in the generated RPC Args (typed `string | undefined`), so pass
+  // `undefined` (not null) when empty → the RPC applies its DEFAULT NULL.
   const { data, error } = await db.rpc("book_appointment_atomic", {
     p_patient_id: patientId,
     p_doctor_id: input.doctorId,
@@ -49,12 +84,22 @@ export async function bookAppointment(db: DB, input: BookAppointmentInput): Prom
     p_type: input.type,
     p_is_emergency: input.isEmergency ?? false,
     p_for_family_member_id: input.forFamilyMemberId,
+    p_reason: input.reason ?? undefined,
   });
   if (error) throw error;
   return data;
 }
 
-/** Cancel (RPC enforces cutoff + refund side-effects). */
+/**
+ * Cancel (RPC enforces cutoff + refund side-effects).
+ *
+ * NOTE (Phase 3 hybrid merge, see MERGE_INTEGRATION_STRATEGY_AUDIT.md §2.3): an
+ * `ios`-branch rewrite of this function called a new `cancel_my_appointment`
+ * patient-wrapper RPC. That RPC does not exist in the deployed backend (verified
+ * live during the audit — PGRST202, function not found). Do NOT switch to it
+ * until it's actually written and migrated; doing so would break cancellation
+ * for every user the moment this code path runs.
+ */
 export async function cancelAppointment(
   db: DB,
   id: string,
@@ -71,7 +116,13 @@ export async function cancelAppointment(
   return data;
 }
 
-/** Reschedule atomically to a new slot. */
+/**
+ * Reschedule atomically to a new slot.
+ *
+ * NOTE (Phase 3 hybrid merge): same reasoning as cancelAppointment above — do
+ * NOT switch to the `ios`-branch `reschedule_my_appointment` wrapper RPC until
+ * it actually exists in the deployed backend.
+ */
 export async function rescheduleAppointment(
   db: DB,
   id: string,
@@ -88,6 +139,28 @@ export async function rescheduleAppointment(
   });
   if (error) throw error;
   return data;
+}
+
+/** Check in via the patient wrapper (checkin_my_appointment); enqueues into the facility queue. */
+export async function checkInAppointment(
+  db: DB,
+  input: { appointmentId: string; patientName: string; patientPhone: string }
+): Promise<Json> {
+  return rpcLoose(db, "checkin_my_appointment", {
+    p_id: input.appointmentId,
+    p_patient_name: input.patientName,
+    p_patient_phone: input.patientPhone,
+  });
+}
+
+/**
+ * BP-3 — release a still-pending, UNPAID reservation (void it → free the slot).
+ * Called on explicit payment cancel/abandon or a checkout-creation rollback. Distinct
+ * from cancelAppointment (which carries cutoff/refund side-effects for confirmed/paid
+ * bookings). The RPC only ever voids the caller's own pending unpaid hold (R2).
+ */
+export async function releaseUnpaidHold(db: DB, appointmentId: string): Promise<Json> {
+  return rpcLoose(db, "release_unpaid_hold", { p_appointment_id: appointmentId });
 }
 
 /** Re-book a fresh appointment from a previous one. */
@@ -111,49 +184,27 @@ export interface AvailableSlot {
 }
 
 /**
- * Available booking slots for a doctor on a date. Mirrors HAMS `/api/slots`:
- * a doctor's weekly template (`doctor_availability.slots` JSONB for that weekday)
- * minus slots already taken by non-emergency pending/confirmed/checked-in appointments.
+ * Available booking slots for a doctor on a date (YYYY-MM-DD).
+ *
+ * R3 — the backend is the SINGLE SOURCE OF TRUTH for availability. This is a thin
+ * pass-through to the `get_available_slots` RPC, which owns the entire rule set:
+ * the doctor's weekly template minus taken slots, expired-hold exclusion (BP-3),
+ * the booking-window clamp (BP-2), buffer/consult end-times, and walk-in reserved
+ * handling. No slot arithmetic happens client-side any more.
+ *
+ * `branchId` is accepted for call-site compatibility but not applied — slot identity
+ * is (doctor, date, start); the RPC does not scope by branch.
  */
 export async function getAvailableSlots(
   db: DB,
   q: { doctorId: string; date: string; branchId?: string }
 ): Promise<AvailableSlot[]> {
-  const dayOfWeek = new Date(`${q.date}T00:00:00`).getDay();
-
-  const { data: availability, error: availErr } = await db
-    .from("doctor_availability")
-    .select("slots")
-    .eq("doctor_id", q.doctorId)
-    .eq("day_of_week", dayOfWeek)
-    .maybeSingle();
-  if (availErr) throw availErr;
-
-  const template = (availability?.slots as AvailableSlot[] | null) ?? [];
-  if (template.length === 0) return [];
-
-  let bookedQuery = db
-    .from("appointments")
-    .select("slot_start")
-    .eq("doctor_id", q.doctorId)
-    .eq("slot_date", q.date)
-    .in("status", ["pending", "confirmed", "checked_in"])
-    .eq("is_emergency", false);
-  if (q.branchId) bookedQuery = bookedQuery.eq("branch_id", q.branchId);
-
-  const { data: bookedRows, error: bookedErr } = await bookedQuery;
-  if (bookedErr) throw bookedErr;
-
-  // appointments.slot_start serializes as "HH:MM:SS"; template starts are "HH:MM".
-  const booked = new Set(
-    (bookedRows ?? [])
-      .map((r) => r.slot_start)
-      .filter((t): t is string => Boolean(t))
-      .map((t) => t.slice(0, 5))
-  );
-
-  return template.filter((s) => {
-    const start = typeof s.start === "string" ? s.start.slice(0, 5) : "";
-    return start !== "" && !booked.has(start);
-  });
+  const { data, error } = await db.rpc("get_available_slots" as never, {
+    p_doctor_id: q.doctorId,
+    p_date: q.date,
+    p_include_walkin: false,
+  } as never);
+  if (error) throw error;
+  const rows = (data ?? []) as { slot_start: string; slot_end: string; slot_type: string }[];
+  return rows.map((r) => ({ start: r.slot_start, end: r.slot_end, type: r.slot_type }));
 }

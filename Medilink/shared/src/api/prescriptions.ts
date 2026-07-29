@@ -5,7 +5,7 @@ import { getMyPatientProfileId } from "./client";
 
 const SELECT =
   "id, medications, instructions, pdf_url, issued_at, " +
-  "doctors!prescriptions_doctor_id_fkey ( full_name, specialty ), " +
+  "doctors!prescriptions_doctor_id_fkey ( full_name, full_name_ar, full_name_ar_status, specialty ), " +
   "appointments!prescriptions_appointment_id_fkey ( slot_date, type )";
 
 export async function listPrescriptions(db: DB) {

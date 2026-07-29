@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       accounts: {
@@ -185,6 +210,42 @@ export type Database = {
           },
         ]
       }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          patient_id: string
+          read_at: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          patient_id: string
+          read_at?: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          patient_id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           channels: string[]
@@ -299,6 +360,7 @@ export type Database = {
           follow_up_of: string | null
           for_family_member_id: string | null
           google_event_id: string | null
+          hold_expires_at: string | null
           id: string
           is_emergency: boolean
           needs_queue_sync: boolean
@@ -339,6 +401,7 @@ export type Database = {
           follow_up_of?: string | null
           for_family_member_id?: string | null
           google_event_id?: string | null
+          hold_expires_at?: string | null
           id?: string
           is_emergency?: boolean
           needs_queue_sync?: boolean
@@ -379,6 +442,7 @@ export type Database = {
           follow_up_of?: string | null
           for_family_member_id?: string | null
           google_event_id?: string | null
+          hold_expires_at?: string | null
           id?: string
           is_emergency?: boolean
           needs_queue_sync?: boolean
@@ -741,6 +805,33 @@ export type Database = {
           },
         ]
       }
+      device_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       doctor_availability: {
         Row: {
           day_of_week: number
@@ -940,6 +1031,8 @@ export type Database = {
           facility_id: string | null
           fees: Json | null
           full_name: string
+          full_name_ar: string | null
+          full_name_ar_status: string | null
           id: string
           is_active: boolean
           languages: string[] | null
@@ -962,6 +1055,8 @@ export type Database = {
           facility_id?: string | null
           fees?: Json | null
           full_name: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           is_active?: boolean
           languages?: string[] | null
@@ -984,6 +1079,8 @@ export type Database = {
           facility_id?: string | null
           fees?: Json | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           is_active?: boolean
           languages?: string[] | null
@@ -1047,22 +1144,31 @@ export type Database = {
         Row: {
           accepted_insurances: string[]
           address: Json
+          area: string | null
+          building_number: string | null
+          city: string | null
+          country: string | null
           cover_photo_url: string | null
           created_at: string
           custom_type: string | null
           description: string | null
           email: string | null
+          formatted_address: string | null
+          geocoded_at: string | null
           id: string
           is_verified: boolean
           location: unknown
           logo_url: string | null
           max_admins: number | null
           name: string
+          name_ar: string | null
+          name_ar_status: string | null
           phone: string | null
           rating: number
           review_count: number
           services: string[]
           status: string
+          street: string | null
           type: Database["public"]["Enums"]["facility_type"]
           updated_at: string
           website: string | null
@@ -1071,22 +1177,31 @@ export type Database = {
         Insert: {
           accepted_insurances?: string[]
           address?: Json
+          area?: string | null
+          building_number?: string | null
+          city?: string | null
+          country?: string | null
           cover_photo_url?: string | null
           created_at?: string
           custom_type?: string | null
           description?: string | null
           email?: string | null
+          formatted_address?: string | null
+          geocoded_at?: string | null
           id?: string
           is_verified?: boolean
           location?: unknown
           logo_url?: string | null
           max_admins?: number | null
           name: string
+          name_ar?: string | null
+          name_ar_status?: string | null
           phone?: string | null
           rating?: number
           review_count?: number
           services?: string[]
           status?: string
+          street?: string | null
           type?: Database["public"]["Enums"]["facility_type"]
           updated_at?: string
           website?: string | null
@@ -1095,22 +1210,31 @@ export type Database = {
         Update: {
           accepted_insurances?: string[]
           address?: Json
+          area?: string | null
+          building_number?: string | null
+          city?: string | null
+          country?: string | null
           cover_photo_url?: string | null
           created_at?: string
           custom_type?: string | null
           description?: string | null
           email?: string | null
+          formatted_address?: string | null
+          geocoded_at?: string | null
           id?: string
           is_verified?: boolean
           location?: unknown
           logo_url?: string | null
           max_admins?: number | null
           name?: string
+          name_ar?: string | null
+          name_ar_status?: string | null
           phone?: string | null
           rating?: number
           review_count?: number
           services?: string[]
           status?: string
+          street?: string | null
           type?: Database["public"]["Enums"]["facility_type"]
           updated_at?: string
           website?: string | null
@@ -1326,6 +1450,7 @@ export type Database = {
           allow_online_booking: boolean
           allow_telemedicine: boolean
           avg_consultation_minutes: number
+          booking_window_days: number
           buffer_minutes_between_appts: number
           cancellation_cutoff_hours: number
           currency: string
@@ -1343,6 +1468,7 @@ export type Database = {
           allow_online_booking?: boolean
           allow_telemedicine?: boolean
           avg_consultation_minutes?: number
+          booking_window_days?: number
           buffer_minutes_between_appts?: number
           cancellation_cutoff_hours?: number
           currency?: string
@@ -1360,6 +1486,7 @@ export type Database = {
           allow_online_booking?: boolean
           allow_telemedicine?: boolean
           avg_consultation_minutes?: number
+          booking_window_days?: number
           buffer_minutes_between_appts?: number
           cancellation_cutoff_hours?: number
           currency?: string
@@ -1721,16 +1848,128 @@ export type Database = {
           },
         ]
       }
+      invoice_generation_attempts: {
+        Row: {
+          attempt_no: number
+          created_at: string
+          error: string | null
+          id: string
+          payment_id: string
+          source: string | null
+          status: string
+        }
+        Insert: {
+          attempt_no: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          payment_id: string
+          source?: string | null
+          status: string
+        }
+        Update: {
+          attempt_no?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          payment_id?: string
+          source?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_generation_attempts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_result_analytes: {
+        Row: {
+          analyte_code: string
+          analyte_name: string
+          created_at: string
+          display_order: number
+          flag: Database["public"]["Enums"]["lab_flag"]
+          id: string
+          lab_result_id: string
+          measured_at: string
+          patient_id: string
+          reference_high: number | null
+          reference_low: number | null
+          reference_text: string | null
+          unit: string | null
+          value_numeric: number | null
+          value_text: string | null
+        }
+        Insert: {
+          analyte_code: string
+          analyte_name: string
+          created_at?: string
+          display_order?: number
+          flag?: Database["public"]["Enums"]["lab_flag"]
+          id?: string
+          lab_result_id: string
+          measured_at?: string
+          patient_id: string
+          reference_high?: number | null
+          reference_low?: number | null
+          reference_text?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          analyte_code?: string
+          analyte_name?: string
+          created_at?: string
+          display_order?: number
+          flag?: Database["public"]["Enums"]["lab_flag"]
+          id?: string
+          lab_result_id?: string
+          measured_at?: string
+          patient_id?: string
+          reference_high?: number | null
+          reference_low?: number | null
+          reference_text?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_result_analytes_lab_result_id_fkey"
+            columns: ["lab_result_id"]
+            isOneToOne: false
+            referencedRelation: "lab_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_result_analytes_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_results: {
         Row: {
+          ai_insight: string | null
+          ai_insight_at: string | null
           appointment_id: string | null
           facility_id: string
           file_type: string
           file_url: string
+          flagged_count: number
           id: string
           is_viewed: boolean
           notes: string | null
           patient_id: string
+          result_date: string | null
+          status: Database["public"]["Enums"]["lab_result_status"]
           storage_path: string | null
           test_name: string
           uploaded_at: string
@@ -1738,14 +1977,19 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          ai_insight?: string | null
+          ai_insight_at?: string | null
           appointment_id?: string | null
           facility_id: string
           file_type: string
           file_url: string
+          flagged_count?: number
           id?: string
           is_viewed?: boolean
           notes?: string | null
           patient_id: string
+          result_date?: string | null
+          status?: Database["public"]["Enums"]["lab_result_status"]
           storage_path?: string | null
           test_name: string
           uploaded_at?: string
@@ -1753,14 +1997,19 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          ai_insight?: string | null
+          ai_insight_at?: string | null
           appointment_id?: string | null
           facility_id?: string
           file_type?: string
           file_url?: string
+          flagged_count?: number
           id?: string
           is_viewed?: boolean
           notes?: string | null
           patient_id?: string
+          result_date?: string | null
+          status?: Database["public"]["Enums"]["lab_result_status"]
           storage_path?: string | null
           test_name?: string
           uploaded_at?: string
@@ -2092,6 +2341,33 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          categories: Json
+          email: boolean
+          push: boolean
+          sms: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categories?: Json
+          email?: boolean
+          push?: boolean
+          sms?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categories?: Json
+          email?: boolean
+          push?: boolean
+          sms?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           account_id: string
@@ -2397,6 +2673,7 @@ export type Database = {
         Row: {
           address: Json | null
           blood_group: Database["public"]["Enums"]["blood_group_type"]
+          civil_number: string | null
           created_at: string
           date_of_birth: string | null
           emergency_contact: Json | null
@@ -2409,6 +2686,7 @@ export type Database = {
         Insert: {
           address?: Json | null
           blood_group?: Database["public"]["Enums"]["blood_group_type"]
+          civil_number?: string | null
           created_at?: string
           date_of_birth?: string | null
           emergency_contact?: Json | null
@@ -2421,6 +2699,7 @@ export type Database = {
         Update: {
           address?: Json | null
           blood_group?: Database["public"]["Enums"]["blood_group_type"]
+          civil_number?: string | null
           created_at?: string
           date_of_birth?: string | null
           emergency_contact?: Json | null
@@ -2455,7 +2734,12 @@ export type Database = {
           insurance_applied: boolean
           insurance_discount_percent: number
           insurance_provider: string | null
+          invoice_attempts: number
+          invoice_generated_at: string | null
+          invoice_last_attempt_at: string | null
+          invoice_last_error: string | null
           invoice_number: string | null
+          invoice_status: string
           invoice_url: string | null
           patient_id: string
           payment_method: string | null
@@ -2476,7 +2760,12 @@ export type Database = {
           insurance_applied?: boolean
           insurance_discount_percent?: number
           insurance_provider?: string | null
+          invoice_attempts?: number
+          invoice_generated_at?: string | null
+          invoice_last_attempt_at?: string | null
+          invoice_last_error?: string | null
           invoice_number?: string | null
+          invoice_status?: string
           invoice_url?: string | null
           patient_id: string
           payment_method?: string | null
@@ -2497,7 +2786,12 @@ export type Database = {
           insurance_applied?: boolean
           insurance_discount_percent?: number
           insurance_provider?: string | null
+          invoice_attempts?: number
+          invoice_generated_at?: string | null
+          invoice_last_attempt_at?: string | null
+          invoice_last_error?: string | null
           invoice_number?: string | null
+          invoice_status?: string
           invoice_url?: string | null
           patient_id?: string
           payment_method?: string | null
@@ -2728,6 +3022,8 @@ export type Database = {
           export_request_count: number
           facility_id: string | null
           full_name: string
+          full_name_ar: string | null
+          full_name_ar_status: string | null
           id: string
           language: string
           last_export_at: string | null
@@ -2754,6 +3050,8 @@ export type Database = {
           export_request_count?: number
           facility_id?: string | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id: string
           language?: string
           last_export_at?: string | null
@@ -2780,6 +3078,8 @@ export type Database = {
           export_request_count?: number
           facility_id?: string | null
           full_name?: string
+          full_name_ar?: string | null
+          full_name_ar_status?: string | null
           id?: string
           language?: string
           last_export_at?: string | null
@@ -2806,6 +3106,8 @@ export type Database = {
       }
       queue_items: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_kind: string | null
           appointment_id: string | null
           branch_id: string | null
           called_at: string | null
@@ -2825,6 +3127,8 @@ export type Database = {
           status: Database["public"]["Enums"]["queue_status"]
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_kind?: string | null
           appointment_id?: string | null
           branch_id?: string | null
           called_at?: string | null
@@ -2844,6 +3148,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["queue_status"]
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_kind?: string | null
           appointment_id?: string | null
           branch_id?: string | null
           called_at?: string | null
@@ -3090,6 +3396,33 @@ export type Database = {
           proj4text?: string | null
           srid?: number
           srtext?: string | null
+        }
+        Relationships: []
+      }
+      specialties: {
+        Row: {
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -3722,6 +4055,7 @@ export type Database = {
       }
     }
     Functions: {
+      _owns_appointment: { Args: { p_id: string }; Returns: boolean }
       _postgis_deprecate: {
         Args: { newname: string; oldname: string; version: string }
         Returns: undefined
@@ -3830,6 +4164,10 @@ export type Database = {
         Args: { token: string; user_id: string }
         Returns: string
       }
+      acknowledge_queue_call: {
+        Args: { p_appointment_id?: string; p_kind?: string }
+        Returns: Json
+      }
       add_walkin_to_queue: {
         Args: {
           p_created_by_staff_id?: string
@@ -3896,32 +4234,20 @@ export type Database = {
         }
         Returns: Json
       }
-      book_appointment_atomic:
-        | {
-            Args: {
-              p_doctor_id: string
-              p_facility_id: string
-              p_is_emergency?: boolean
-              p_patient_id: string
-              p_slot_date: string
-              p_slot_start: string
-              p_type?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_doctor_id: string
-              p_facility_id: string
-              p_for_family_member_id?: string
-              p_is_emergency?: boolean
-              p_patient_id: string
-              p_slot_date: string
-              p_slot_start: string
-              p_type?: string
-            }
-            Returns: Json
-          }
+      book_appointment_atomic: {
+        Args: {
+          p_doctor_id: string
+          p_facility_id: string
+          p_for_family_member_id?: string
+          p_is_emergency?: boolean
+          p_patient_id: string
+          p_reason?: string
+          p_slot_date: string
+          p_slot_start: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       can_action_account_member: {
         Args: { target_team_account_id: string; target_user_id: string }
         Returns: boolean
@@ -3939,6 +4265,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cancel_my_appointment: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: Json
+      }
       checkin_and_enqueue: {
         Args: {
           p_appointment_id: string
@@ -3946,6 +4276,19 @@ export type Database = {
           p_patient_phone: string
         }
         Returns: Json
+      }
+      checkin_my_appointment: {
+        Args: { p_id: string; p_patient_name: string; p_patient_phone: string }
+        Returns: Json
+      }
+      claim_invoice_generation: {
+        Args: { p_payment_id: string }
+        Returns: {
+          attempt_no: number
+          invoice_number: string
+          invoice_url: string
+          outcome: string
+        }[]
       }
       claim_waitlist_appointment: {
         Args: { p_entry_id: string }
@@ -4050,6 +4393,12 @@ export type Database = {
         }
       }
       disablelongtransactions: { Args: never; Returns: string }
+      doctors_available_today: {
+        Args: { p_date: string }
+        Returns: {
+          doctor_id: string
+        }[]
+      }
       dropgeometrycolumn:
         | {
             Args: {
@@ -4096,6 +4445,29 @@ export type Database = {
       }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
       expire_waitlist_entries: { Args: never; Returns: undefined }
+      fail_appointment_refund: {
+        Args: { p_gateway_response: Json; p_refund_id: string }
+        Returns: undefined
+      }
+      finalize_appointment_refund: {
+        Args: {
+          p_gateway_ref: string
+          p_gateway_response: Json
+          p_refund_id: string
+        }
+        Returns: undefined
+      }
+      finalize_invoice_generation: {
+        Args: {
+          p_error: string
+          p_invoice_number: string
+          p_invoice_url: string
+          p_ok: boolean
+          p_payment_id: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       generate_payouts: { Args: never; Returns: undefined }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
@@ -4271,6 +4643,10 @@ export type Database = {
         Args: { p_facility_id: string; p_month: number; p_year: number }
         Returns: Json
       }
+      get_my_queue_position: {
+        Args: { p_appointment_id?: string }
+        Returns: Json
+      }
       get_nearby_branches: {
         Args: { lat: number; lng: number; radius: number }
         Returns: {
@@ -4289,6 +4665,8 @@ export type Database = {
           distance_km: number
           id: string
           is_verified: boolean
+          latitude: number
+          longitude: number
           name: string
           phone: string
           rating: number
@@ -4429,22 +4807,31 @@ export type Database = {
         Returns: {
           accepted_insurances: string[]
           address: Json
+          area: string | null
+          building_number: string | null
+          city: string | null
+          country: string | null
           cover_photo_url: string | null
           created_at: string
           custom_type: string | null
           description: string | null
           email: string | null
+          formatted_address: string | null
+          geocoded_at: string | null
           id: string
           is_verified: boolean
           location: unknown
           logo_url: string | null
           max_admins: number | null
           name: string
+          name_ar: string | null
+          name_ar_status: string | null
           phone: string | null
           rating: number
           review_count: number
           services: string[]
           status: string
+          street: string | null
           type: Database["public"]["Enums"]["facility_type"]
           updated_at: string
           website: string | null
@@ -4456,6 +4843,17 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      payments_needing_invoice: {
+        Args: {
+          p_limit?: number
+          p_max_attempts?: number
+          p_stale_minutes?: number
+        }
+        Returns: {
+          attempts: number
+          payment_id: string
+        }[]
       }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
@@ -4498,7 +4896,18 @@ export type Database = {
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
       purge_deleted_accounts: { Args: never; Returns: undefined }
+      realtime_published_tables: {
+        Args: never
+        Returns: {
+          table_name: string
+        }[]
+      }
       rebook_appointment: { Args: { p_original_id: string }; Returns: Json }
+      release_unpaid_hold: { Args: { p_appointment_id: string }; Returns: Json }
+      request_appointment_refund: {
+        Args: { p_payment_id: string }
+        Returns: Json
+      }
       reschedule_appointment: {
         Args: {
           p_id: string
@@ -4519,6 +4928,15 @@ export type Database = {
         }
         Returns: Json
       }
+      reschedule_my_appointment: {
+        Args: {
+          p_id: string
+          p_new_date: string
+          p_new_end: string
+          p_new_start: string
+        }
+        Returns: Json
+      }
       revenue_report: {
         Args: { p_facility_id: string; p_period?: string; p_year?: number }
         Returns: Json
@@ -4526,6 +4944,15 @@ export type Database = {
       revoke_nonce: {
         Args: { p_id: string; p_reason?: string }
         Returns: boolean
+      }
+      set_facility_geocode: {
+        Args: {
+          p_facility_id: string
+          p_formatted?: string
+          p_lat: number
+          p_lng: number
+        }
+        Returns: undefined
       }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
@@ -5321,6 +5748,7 @@ export type Database = {
         | "imaging"
         | "insurance"
         | "other"
+        | "invoice"
       facility_type:
         | "clinic"
         | "hospital"
@@ -5350,6 +5778,8 @@ export type Database = {
         | "partial_refund"
       invite_status: "pending" | "accepted" | "expired" | "revoked"
       invite_type: "facility_admin" | "doctor" | "technician" | "staff"
+      lab_flag: "low" | "normal" | "high" | "abnormal"
+      lab_result_status: "normal" | "flagged"
       notification_channel: "in_app" | "email"
       notification_type: "info" | "warning" | "error"
       notification_type_enum: "info" | "warning" | "error"
@@ -5531,6 +5961,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_status: ["active", "suspended", "deletion_pending", "deleted"],
@@ -5632,6 +6065,7 @@ export const Constants = {
         "imaging",
         "insurance",
         "other",
+        "invoice",
       ],
       facility_type: [
         "clinic",
@@ -5659,6 +6093,8 @@ export const Constants = {
       ],
       invite_status: ["pending", "accepted", "expired", "revoked"],
       invite_type: ["facility_admin", "doctor", "technician", "staff"],
+      lab_flag: ["low", "normal", "high", "abnormal"],
+      lab_result_status: ["normal", "flagged"],
       notification_channel: ["in_app", "email"],
       notification_type: ["info", "warning", "error"],
       notification_type_enum: ["info", "warning", "error"],

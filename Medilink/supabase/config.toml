@@ -206,7 +206,10 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# ENABLED to match the hosted project: signup email delivers a 6-digit OTP (see the
+# [auth.email.template.confirmation] template below, which uses {{ .Token }} — NOT a link).
+# The web /otp screen verifies it via verifyOtp({ type: "signup" }).
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -225,6 +228,20 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# Signup confirmation email delivers a 6-digit OTP (via {{ .Token }}), not a verification link.
+# This is the source of truth for the hosted project's "Confirm signup" template; keep them in sync.
+[auth.email.template.confirmation]
+subject = "Confirm Your Signup"
+content_path = "./supabase/templates/confirmation.html"
+
+# Passwordless email LOGIN (signInWithOtp) uses Supabase's Magic Link template. We render
+# {{ .Token }} (a 6-digit code), NOT {{ .ConfirmationURL }} (a link), so mobile's
+# verifyOtp({ type: "email" }) receives an actual OTP. The hosted project's "Magic Link"
+# template has already been updated to match; keep them in sync. (F5 / email-OTP fix.)
+[auth.email.template.magic_link]
+subject = "Your MediLink sign-in code"
+content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -408,6 +425,22 @@ entrypoint = "./functions/generate-invoice/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-invoice/*.html" ]
+
+# F3 · BP-3 / R7 — scheduled sweeper for expired unpaid booking holds.
+# Schedule (~1 min) is configured at deploy time (Supabase cron / functions schedule).
+[functions.release-expired-holds]
+enabled = true
+verify_jwt = true
+import_map = "./functions/release-expired-holds/deno.json"
+entrypoint = "./functions/release-expired-holds/index.ts"
+
+# Backend-only clinic geocoding (address → coordinates). Invoked by a Database Webhook
+# on public.facilities INSERT/UPDATE, or manually with { facility_id } for backfill.
+[functions.geocode-facility]
+enabled = true
+verify_jwt = true
+import_map = "./functions/geocode-facility/deno.json"
+entrypoint = "./functions/geocode-facility/index.ts"
 
 [functions.hams_onboarding_architecture]
 enabled = true

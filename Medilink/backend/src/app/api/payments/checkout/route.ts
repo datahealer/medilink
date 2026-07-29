@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { consultationTotal, feeForType } from "@medilink/shared";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
@@ -12,21 +13,34 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceSupabase();
 
     const body = await req.json();
-    const { appointment_id, amount } = body;
+    // BP-4 (C1 fix): the client-sent `amount` is IGNORED — the charged amount is
+    // derived server-side from the doctor's fee + VAT below. Only the id is required.
+    const { appointment_id } = body;
 
-    if (!appointment_id || !amount) {
+    if (!appointment_id) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
-    // 🔎 Appointment
+    // 🔎 Appointment (+ doctor fees & type → server-derived amount)
     const { data: appointment } = await supabaseAuth
       .from("appointments")
-      .select("id, patient_id, facility_id, is_emergency, status")
+      .select("id, patient_id, facility_id, is_emergency, status, type, doctors ( fees )")
       .eq("id", appointment_id)
       .single();
 
     if (!appointment) {
       return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    }
+
+    // 💰 Server-derived amount: doctor fee for the appointment type + 5% VAT.
+    const fee = feeForType(
+      (appointment.doctors as { fees?: unknown } | null)?.fees,
+      appointment.type as string | null
+    );
+    const { total: amount } = consultationTotal(fee);
+
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ error: "Consultation fee unavailable" }, { status: 400 });
     }
 
     // 🛡️ Guard: block payment for emergency appointments not yet approved by staff
@@ -89,7 +103,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session ID missing" }, { status: 500 });
     }
 
-    const checkoutUrl = `https://uatcheckout.thawani.om/pay/${sessionId}?key=${process.env.THAWANI_PUBLISHABLE_KEY}`;
+    // Env-driven Thawani checkout host (UAT vs production). Falls back to UAT so a
+    // missing env in dev doesn't break local testing; MUST be set to the production
+    // host (https://checkout.thawani.om) for a real-money deployment.
+    const checkoutBase = process.env.THAWANI_CHECKOUT_BASE_URL ?? "https://uatcheckout.thawani.om";
+    const checkoutUrl = `${checkoutBase}/pay/${sessionId}?key=${process.env.THAWANI_PUBLISHABLE_KEY}`;
 
     // 💾 UPSERT PAYMENT
     const { error: insertError } = await supabase
@@ -97,6 +115,9 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           appointment_id,
+          // payments.patient_id FK → profiles(id) (the auth uid). Keep user.id; the
+          // patient read is enabled by the corrected RLS policy (patient_id = auth.uid()),
+          // see migration 20260630_fix_payments_patient_read_rls.sql.
           patient_id: user.id,
           facility_id: appointment.facility_id ?? "",
           amount,

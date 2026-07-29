@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-import Groq from "groq-sdk";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { GROQ_MODEL, describeAiError, exposeAiDetail, groqClient } from "@/lib/ai/groq";
 import { createHash } from "crypto";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Vercel: raise the function timeout above the low default to cover the AI call.
+export const maxDuration = 30;
 
 type AIResult = {
   is_medical: boolean;
@@ -24,26 +25,6 @@ function getAIAndDoctors(symptoms: string) {
   return unstable_cache(
     async () => {
       const supabase = createServiceSupabase();
-
-      // MOCK mode — skip AI, return real available doctors
-      if (process.env.MOCK_AI === "true") {
-        const { data: mockDoctors } = await supabase
-          .from("doctors")
-          .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status")
-          .eq("status", "available")
-          .eq("is_active", true)
-          .limit(6);
-        return {
-          is_medical: true,
-          ai_reasoning: "Mock: based on symptoms, evaluation recommended.",
-          urgency_level: "medium" as const,
-          suggested_specialties: ["General Medicine"],
-          recommended_doctors: (mockDoctors ?? []).map((doc) => ({
-            ...doc,
-            booking_url: `/dashboard/dashboardpages/patient/book?doctorId=${doc.id}`,
-          })),
-        };
-      }
 
       // Step 1: Fetch real specialty names from DB so AI picks exact values
       const { data: specialtyRows } = await supabase
@@ -66,8 +47,8 @@ Rules:
 - Pick 1–3 most relevant specialties. If none match well, return the closest one from the list.
 - Return ONLY valid JSON: { "is_medical": boolean, "ai_reasoning": string, "urgency_level": "low"|"medium"|"high"|"emergency", "suggested_specialties": string[] }`;
 
-      const completion = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+      const completion = await groqClient().chat.completions.create({
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: symptoms },
@@ -80,22 +61,44 @@ Rules:
         completion.choices[0].message.content ?? "{}"
       );
 
-      // Step 3: Query doctors by exact specialty match — no status filter, all doctors are bookable
-      const { data: doctors } = await supabase
-        .from("doctors")
-        .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status")
-        .in("specialty", aiResult.suggested_specialties)
-        .limit(6);
+      // Step 3: Match doctors across ALL suggested specialties, CASE-INSENSITIVELY
+      // (the freetext `doctors.specialty` column varies in casing/whitespace vs. the
+      // AI's output), and RANK by rating — never filter by `status` (all doctors are
+      // bookable; availability, if needed, is a ranking signal, not a filter).
+      const specialties = (aiResult.suggested_specialties ?? [])
+        .map((s) => (typeof s === "string" ? s.trim() : ""))
+        .filter((s) => s.length > 0 && !s.includes(",")); // commas break the PostgREST or() grammar
+
+      let doctors: Array<Record<string, unknown>> = [];
+      if (specialties.length > 0) {
+        const orFilter = specialties.map((s) => `specialty.ilike.${s}`).join(",");
+        // Join the doctor's facility so cards can show the clinic name. This is static
+        // relative to the 1-hour cache (unlike open slots, which is why availability is NOT
+        // embedded here — it's resolved live on the booking screen).
+        const { data } = await supabase
+          .from("doctors")
+          .select("id, full_name, specialty, avg_rating, fees, profile_photo_url, status, facilities:facility_id ( name )")
+          .or(orFilter)
+          .order("avg_rating", { ascending: false, nullsFirst: false })
+          .limit(10);
+        doctors = data ?? [];
+      }
 
       return {
         is_medical: aiResult.is_medical !== false,
         ai_reasoning: aiResult.ai_reasoning,
         urgency_level: aiResult.urgency_level,
         suggested_specialties: aiResult.suggested_specialties,
-        recommended_doctors: (doctors ?? []).map((doc) => ({
-          ...doc,
-          booking_url: `/dashboard/dashboardpages/patient/book?doctorId=${doc.id}`,
-        })),
+        recommended_doctors: (doctors ?? []).map((doc) => {
+          const facility = doc.facilities as { name?: string | null } | null;
+          const { facilities: _facilities, ...rest } = doc;
+          void _facilities;
+          return {
+            ...rest,
+            clinic: facility?.name ?? null,
+            booking_url: `/dashboard/dashboardpages/patient/book?doctorId=${doc.id}`,
+          };
+        }),
       };
     },
     [`suggest-doctor-${hash}`],
@@ -157,23 +160,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (err: unknown) {
-    console.error("AI suggest-doctor error:", err);
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
-      return NextResponse.json(
-        { success: false, error: "AI rate limit reached. Please try again in a moment." },
-        { status: 429 }
-      );
-    }
-    if (message.includes("503") || message.toLowerCase().includes("service unavailable")) {
-      return NextResponse.json(
-        { success: false, error: "AI service temporarily unavailable. Please try again." },
-        { status: 503 }
-      );
-    }
+    const info = describeAiError(err);
+    console.error(`AI suggest-doctor error [${info.code}]:`, info.detail, err);
     return NextResponse.json(
-      { success: false, error: "Something went wrong. Please try again." },
-      { status: 500 }
+      { success: false, error: info.clientMessage, ...(exposeAiDetail() ? { code: info.code, detail: info.detail } : {}) },
+      { status: info.httpStatus }
     );
   }
 }

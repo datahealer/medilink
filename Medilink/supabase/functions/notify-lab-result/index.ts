@@ -62,7 +62,7 @@ serve(async (req) => {
           body: `Your ${result.test_name} result has been uploaded and is ready to view.`,
           title_ar: "نتيجة التحليل جاهزة",
           body_ar: `تم رفع نتيجة تحليل ${result.test_name} وأصبحت جاهزة للعرض.`,
-          data: { lab_result_id: result.id },
+          data: { lab_result_id: result.id, kind: "lab" },
         });
 
       if (pNotifErr) {

@@ -8,6 +8,8 @@ import { authErrorResponse } from "@/lib/auth/authError";
 const PDFDocument = require("pdfkit") as any;
 
 export const dynamic = "force-dynamic";
+// Vercel: PDF generation + Supabase Storage upload; modest headroom over the default.
+export const maxDuration = 30;
 
 export async function POST(
   req: NextRequest,

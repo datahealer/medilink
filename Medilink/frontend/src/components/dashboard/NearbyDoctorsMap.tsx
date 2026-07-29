@@ -146,7 +146,7 @@ export default function NearbyDoctorsMap({ isAr }: { isAr: boolean }) {
       const docs = (doctorsByFacility[f.id] ?? []).slice(0, 3);
       const html = `
         <div style="min-width:180px">
-          <p style="font-weight:700;margin-bottom:2px">${escapeHtml(f.name)}</p>
+          <a href="/dashboard/clinics/${f.id}" style="display:block;font-weight:700;color:#46255f;margin-bottom:2px">${escapeHtml(f.name)}</a>
           ${address ? `<p style="font-size:12px;color:#666;margin-bottom:4px">${escapeHtml(address)}</p>` : ""}
           <p style="font-size:12px;margin-bottom:6px">${f.distance_km} km · ★ ${f.rating.toFixed(1)}</p>
           ${docs

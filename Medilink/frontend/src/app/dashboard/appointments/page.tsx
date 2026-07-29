@@ -5,12 +5,25 @@ import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 import { specialtyLabel } from "@/lib/specialties";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
+
+/** A confirmed, in-person appointment scheduled for today can be checked in. */
+function isCheckInEligible(a: { rawStatus: string; rawType: string; rawDate: string }): boolean {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return (
+    (a.rawStatus === "confirmed" || a.rawStatus === "approved") &&
+    a.rawType !== "online" &&
+    a.rawDate === ymd
+  );
+}
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type ApptStatus = "Confirmed" | "Pending" | "Completed" | "Cancelled";
 type Appt = {
   id: string; initials: string; grad: string; status: ApptStatus;
+  rawStatus: string; rawType: string;
   doctorId: string | null; facilityId: string | null; rawDate: string;
   en: { name: string; spec: string; hospital: string; date: string; time: string; type: string; notes?: string };
   ar: { name: string; spec: string; hospital: string; date: string; time: string; type: string; notes?: string };
@@ -76,6 +89,8 @@ function toAppt(row: ApptRow, i: number): Appt {
     initials: apptInitials(name),
     grad: GRADS[i % GRADS.length]!,
     status: STATUS_MAP[row.status] ?? "Pending",
+    rawStatus: row.status,
+    rawType: row.type,
     doctorId: row.doctor_id ?? null,
     facilityId: row.facility_id ?? null,
     rawDate: row.slot_date,
@@ -452,6 +467,7 @@ export default function AppointmentsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const { fullName, phone } = useMyProfile();
 
   const [tab, setTab]           = useState("All");
   const [expanded, setExp]      = useState<string | null>(null);
@@ -481,6 +497,26 @@ export default function AppointmentsPage() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : (ar ? "تعذر إلغاء الموعد." : "Could not cancel the appointment."));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Self check-in enqueues the patient into the facility queue via the shared RPC
+  // (api.appointments.checkInAppointment → checkin_my_appointment). Name/phone come
+  // from the account profile, mirroring the mobile flow.
+  async function checkInAppt(id: string) {
+    setBusyId(id);
+    setError("");
+    try {
+      await api.appointments.checkInAppointment(supabase, {
+        appointmentId: id,
+        patientName: fullName,
+        patientPhone: phone,
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : (ar ? "تعذر تسجيل الوصول." : "Could not check in."));
     } finally {
       setBusyId(null);
     }
@@ -643,18 +679,33 @@ export default function AppointmentsPage() {
                       </div>
                     )}
                     {isUpcoming && (
-                      <div className={`flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
-                        <button
-                          onClick={() => setRescheduling(appt)}
-                          className="flex-1 py-2 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#46255f]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-all">
-                          {ar ? "إعادة جدولة" : "Reschedule"}
-                        </button>
-                        <button
-                          onClick={() => cancelAppt(appt.id)}
-                          disabled={busyId === appt.id}
-                          className="flex-1 py-2 rounded-xl text-sm font-bold border border-red-200 dark:border-red-800/40 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-all">
-                          {busyId === appt.id ? (ar ? "جارٍ الإلغاء…" : "Cancelling…") : (ar ? "إلغاء الموعد" : "Cancel Appointment")}
-                        </button>
+                      <div className="space-y-2">
+                        {appt.rawStatus === "checked_in" ? (
+                          <div className={`flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 ${ar ? "flex-row-reverse" : ""}`}>
+                            <span>✓</span> {ar ? "تم تسجيل الوصول" : "Checked in"}
+                          </div>
+                        ) : isCheckInEligible(appt) && (
+                          <button
+                            onClick={() => checkInAppt(appt.id)}
+                            disabled={busyId === appt.id}
+                            className="w-full py-2 rounded-xl text-sm font-bold text-[#2E1A47] disabled:opacity-50 transition-opacity hover:opacity-90"
+                            style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}>
+                            {busyId === appt.id ? (ar ? "جارٍ تسجيل الوصول…" : "Checking in…") : (ar ? "تسجيل الوصول" : "Check In")}
+                          </button>
+                        )}
+                        <div className={`flex gap-2 ${ar ? "flex-row-reverse" : ""}`}>
+                          <button
+                            onClick={() => setRescheduling(appt)}
+                            className="flex-1 py-2 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#46255f]/50 hover:text-[#46255f] dark:hover:text-[#DFC8E7] transition-all">
+                            {ar ? "إعادة جدولة" : "Reschedule"}
+                          </button>
+                          <button
+                            onClick={() => cancelAppt(appt.id)}
+                            disabled={busyId === appt.id}
+                            className="flex-1 py-2 rounded-xl text-sm font-bold border border-red-200 dark:border-red-800/40 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-all">
+                            {busyId === appt.id ? (ar ? "جارٍ الإلغاء…" : "Cancelling…") : (ar ? "إلغاء الموعد" : "Cancel Appointment")}
+                          </button>
+                        </div>
                       </div>
                     )}
                     {!isUpcoming && (

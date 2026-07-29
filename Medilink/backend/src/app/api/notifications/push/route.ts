@@ -1,20 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { sendPushToUser } from "@/lib/notifications/sendPush";
 
 /**
- * Push dispatch (foundation). Server-to-server only — guarded by a shared secret so
- * it can never be called from a client bundle. Looks up the target user's registered
- * device tokens (service role) and fans the message out via Expo's push service.
+ * Push dispatch. Server-to-server only — guarded by a shared secret so it can never be
+ * called from a client bundle. Delegates to the canonical `sendPushToUser` dispatcher
+ * (device_tokens + profiles.notification_prefs opt-in + Expo batching + invalid-token
+ * cleanup), so every push path behaves identically.
  *
  * Body: { userId: string, title: string, body: string, data?: Record<string, unknown> }
  * Header: x-internal-secret: <INVITE_SECRET>
- *
- * Provider note: Expo push is used as the transport abstraction over FCM/APNs. Swap
- * the `sendToExpo` impl for direct FCM/APNs later without changing callers.
  */
-const EXPO_PUSH_ENDPOINT = "https://exp.host/--/api/v2/push/send";
-
 interface PushBody {
   userId: string;
   title: string;
@@ -37,55 +34,10 @@ export async function POST(req: NextRequest) {
 
   const { userId, title, body, data } = payload;
   if (!userId || !title || !body) {
-    return NextResponse.json(
-      { error: "userId, title and body are required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "userId, title and body are required" }, { status: 400 });
   }
 
-  const supabase = createServiceSupabase();
-
-  // Respect the user's opt-in before sending.
-  const { data: prefs } = await supabase
-    .from("notification_preferences")
-    .select("push")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (prefs && prefs.push === false) {
-    return NextResponse.json({ skipped: "push disabled by user" });
-  }
-
-  const { data: tokens, error } = await supabase
-    .from("device_tokens")
-    .select("token")
-    .eq("user_id", userId);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  if (!tokens?.length) {
-    return NextResponse.json({ sent: 0, reason: "no registered devices" });
-  }
-
-  const messages = tokens.map((t) => ({
-    to: t.token,
-    title,
-    body,
-    data: data ?? {},
-    sound: "default",
-  }));
-
-  const result = await sendToExpo(messages);
-  return NextResponse.json({ sent: messages.length, result });
-}
-
-async function sendToExpo(messages: unknown[]): Promise<unknown> {
-  const res = await fetch(EXPO_PUSH_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(messages),
-  });
-  return res.json().catch(() => null);
+  const service = createServiceSupabase();
+  const result = await sendPushToUser(service, { userId, title, body, data });
+  return NextResponse.json(result);
 }
