@@ -3,7 +3,7 @@
     "name": "MediLink",
     "slug": "medilink",
     "scheme": "medilink",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "icon": "./assets/images/icon.png",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
