@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { assertBackendEnv, inactiveOptionalEnv } from "@/lib/env";
+
 /**
  * Server-side error reporting for the API app.
  *
@@ -22,6 +24,20 @@ import * as Sentry from "@sentry/nextjs";
 const dsn = process.env.SENTRY_DSN;
 
 export async function register() {
+  // Environment contract first, before anything else gets a chance to fail obscurely.
+  // `register()` runs once per server runtime at startup, which makes it the earliest hook
+  // that can refuse to serve a misconfigured deployment. Throwing here fails the boot.
+  assertBackendEnv();
+
+  const inactive = inactiveOptionalEnv();
+  if (inactive.length > 0) {
+    // Not a warning about a mistake — most of these are legitimately unset in development.
+    // It is here so "why did email not send" is answerable from the startup log.
+    console.info(
+      `[MediLink] optional env not set, these features are inactive: ${inactive.join(", ")}`
+    );
+  }
+
   if (!dsn) return;
 
   Sentry.init({
