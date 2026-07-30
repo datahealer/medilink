@@ -53,6 +53,10 @@ export const env = {
   GOOGLE_WEB_CLIENT_ID: optional(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
   GOOGLE_ANDROID_CLIENT_ID: optional(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID),
   GOOGLE_IOS_CLIENT_ID: optional(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
+  // Sentry ingest URL — optional. Absent means error reporting stays fully inert (the SDK
+  // is never even loaded); see src/services/reporting. A DSN is a public, write-only
+  // ingest key by design, which is why it lives in EXPO_PUBLIC_* like the anon key.
+  SENTRY_DSN: optional(process.env.EXPO_PUBLIC_SENTRY_DSN),
 } as const;
 
 export const isDev = env.APP_ENV !== "production";
