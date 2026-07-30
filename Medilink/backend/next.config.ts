@@ -37,8 +37,10 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   transpilePackages: ["@medilink/shared"],
-  // Privileged SDKs kept server-side:
-  serverExternalPackages: ["pdfkit", "@google/generative-ai", "groq-sdk", "stripe", "nodemailer", "googleapis", "sharp"],
+  // Privileged SDKs kept server-side. `stripe` and `@google/generative-ai` were removed
+  // alongside the dependencies themselves — payments run on Thawani and AI on Groq, so
+  // neither package was ever imported and externalizing an unimported package is a no-op.
+  serverExternalPackages: ["pdfkit", "groq-sdk", "nodemailer", "googleapis", "sharp"],
   // pdfkit reads its built-in AFM font metrics from disk at runtime; make sure those
   // data files are traced into the serverless bundle for the one route that uses them.
   // NOTE: do NOT set outputFileTracingRoot on Vercel — Vercel auto-detects the
