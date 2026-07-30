@@ -2,10 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import sharp from "sharp";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
+import { aiRateLimitMessage, isAiRateLimited, recordAiRequest } from "@/lib/ai/rateLimit";
 
 // Vercel: sharp image compression + a Groq vision call can exceed the low default
 // timeout; give it headroom.
 export const maxDuration = 60;
+
+// The most expensive AI route we have: an image upload, a sharp resize, and a *vision*
+// completion. It was authenticated but unbounded, so one signed-in account could run the
+// Groq bill up indefinitely. Lower than symptom-check's 40/hr because this is per-scan
+// rather than per-chat-turn, but high enough to absorb the retries the route itself invites
+// — a blurry photo comes back 422 "reupload a clearer image".
+const RATE_LIMIT_PER_HOUR = 10;
+
+// Reject oversized uploads before spending memory or CPU on them.
+//
+// 4 MB sits deliberately under Vercel's ~4.5 MB serverless request-body limit, so an
+// oversized upload gets this explicit 413 instead of the platform's opaque rejection. The
+// route downscales to 1024px/JPEG-80 anyway, so a larger original buys no accuracy — any
+// client should compress before uploading rather than lean on this ceiling.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 // Lazy init: `next build` imports route modules for page-data collection, and the Groq
 // SDK throws on an empty key at construction. Creating the client on first request keeps
@@ -80,6 +96,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
+    // Coarse guard first, on the declared body size: `req.formData()` buffers the entire
+    // request, so checking Content-Length up front avoids pulling a huge payload into memory
+    // just to measure it. Multipart framing makes this slightly larger than the file itself,
+    // so it is a cheap outer bound only — `file.size` below is the precise check.
+    const declaredLength = Number(req.headers.get("content-length") ?? "");
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_UPLOAD_BYTES * 1.1) {
+      return NextResponse.json(
+        { success: false, error: "Image is too large. Please upload an image under 4 MB." },
+        { status: 413 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("image") as File | null;
 
@@ -91,6 +119,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "File must be an image" }, { status: 400 });
     }
 
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { success: false, error: "Image is too large. Please upload an image under 4 MB." },
+        { status: 413 }
+      );
+    }
+
+    // Quota check comes after the free validations above so malformed spam is rejected
+    // without a DB round trip, but before sharp and the vision call — the two costly steps.
+    if (await isAiRateLimited(user.id, "prescription_scan", RATE_LIMIT_PER_HOUR)) {
+      return NextResponse.json(
+        { success: false, error: aiRateLimitMessage(RATE_LIMIT_PER_HOUR) },
+        { status: 429 }
+      );
+    }
+
     // Compress image with sharp — max 1024px, JPEG quality 80
     const arrayBuffer = await file.arrayBuffer();
     const compressed = await sharp(Buffer.from(arrayBuffer))
@@ -99,6 +143,10 @@ export async function POST(req: NextRequest) {
       .toBuffer();
 
     const base64 = compressed.toString("base64");
+
+    // Count the attempt before the paid call, so a scan that reaches Groq and then fails
+    // (timeout, unparseable JSON, 422 NOT_READABLE) still consumes quota — it consumed cost.
+    await recordAiRequest(user.id, "prescription_scan");
 
     // Call Groq vision model
     const completion = await groqClient().chat.completions.create({

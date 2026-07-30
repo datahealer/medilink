@@ -3,9 +3,17 @@ import * as chrono from "chrono-node";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { GROQ_MODEL, describeAiError, exposeAiDetail, groqClient } from "@/lib/ai/groq";
+import { aiRateLimitMessage, isAiRateLimited, recordAiRequest } from "@/lib/ai/rateLimit";
 
 // Vercel: raise the function timeout above the low default to cover the AI call.
 export const maxDuration = 30;
+
+// Authenticated but previously unbounded, and a single request can make TWO Groq calls
+// (intent classification, plus the GENERAL_QUERY follow-up). This is a conversation, so the
+// budget is spent roughly one unit per turn — the same reason symptom-check runs at 40/hr
+// rather than suggest-doctor's 5. 30 covers a long booking dialogue with room to spare while
+// still capping a runaway client or a scripted abuser.
+const RATE_LIMIT_PER_HOUR = 30;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -101,6 +109,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Quota is checked only past the off-topic fast path above: that branch returns without
+    // touching Groq, so it costs nothing and must not consume the caller's allowance.
+    if (await isAiRateLimited(user.id, "schedule_assist", RATE_LIMIT_PER_HOUR)) {
+      return NextResponse.json(
+        { success: false, error: aiRateLimitMessage(RATE_LIMIT_PER_HOUR) },
+        { status: 429 }
+      );
+    }
+
     const serviceSupabase = createServiceSupabase();
 
     // Fetch real specialty names from DB for LLM to match against
@@ -162,6 +179,10 @@ Rules (apply in order):
 6. NEVER assume or guess doctor_type — must be stated or clearly body-part implied
 7. CRITICAL for date_phrase: copy the EXACT words the user said — do NOT convert to a day name, do NOT convert to YYYY-MM-DD, do NOT do any date arithmetic. "day after tomorrow" → date_phrase: "day after tomorrow" (never "Monday" or a date). "next week" → "next week". "after 2 weeks" → "after 2 weeks".
 IMPORTANT: If the current user message contains absolutely NO date, time, day name, or relative time expression → always set date_phrase: null and needs_clarification: true regardless of any other context or conversation history.`;
+
+    // One log row per request, recorded before the first paid call. A request that fans out
+    // into the second (GENERAL_QUERY) completion still counts once — the turn is the unit.
+    await recordAiRequest(user.id, "schedule_assist");
 
     const completion = await groqClient().chat.completions.create({
       model: GROQ_MODEL,
