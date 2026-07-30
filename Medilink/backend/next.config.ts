@@ -14,3 +14,5 @@ const nextConfig: NextConfig = {
     "/api/prescriptions/[id]/generate-pdf": ["./node_modules/pdfkit/js/data/**/*"],
   },
 };
+
+export default nextConfig;
