@@ -22,10 +22,23 @@
     "android": {
       "package": "com.medilink.app",
       "edgeToEdgeEnabled": true,
-      "permissions": []
+      "permissions": [],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#2E1A47"
+      }
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/me-mark.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#2E1A47"
+        }
+      ],
       [
         "expo-secure-store",
         {
@@ -37,6 +50,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/brand/me-mark.png",
           "color": "#2E1A47"
         }
       ],

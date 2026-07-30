@@ -61,6 +61,39 @@ import { assertProductionEnv } from "./src/config/envGuard.js";
  * `expo-local-authentication` dependency and no `requireAuthentication` call. NOTE: if
  * SecureStore is ever given `requireAuthentication: true`, this must be changed back to a
  * real string or iOS will fail when Face ID is invoked.
+ *
+ * ── RELEASE ASSET RATIONALE ──
+ *
+ * Every asset referenced from app.json already existed under `assets/`; nothing was
+ * generated, and no placeholder was invented. Each choice was made after actually looking
+ * at the image, because dimensions alone do not tell you whether a mask will crop a logo.
+ *
+ * `android.adaptiveIcon.foregroundImage` = assets/images/icon.png (1024x1024, opaque).
+ *   Android masks the foreground layer to a circle/squircle, so the logo has to sit inside
+ *   the centre ~66% "safe zone" or it gets clipped. In icon.png the "Me" mark spans roughly
+ *   the centre 60% horizontally and 41% vertically, so it survives the mask intact.
+ *   assets/brand/me-mark.png was the tempting alternative — it is already white-on-
+ *   transparent, which is the textbook foreground format — but it is 1363x926, so scaling
+ *   it into a square would push the M and e almost to the edges and the mask would clip
+ *   them. Known cosmetic limitation of using icon.png: because its violet background is
+ *   baked in rather than supplied by `backgroundColor`, Android cannot parallax the logo
+ *   independently of the background. A designer-produced transparent square foreground
+ *   would fix that; it is polish, not a defect.
+ *
+ * `expo-notifications.icon` = assets/brand/me-mark.png.
+ *   Android ignores the colours in a notification icon entirely: it takes the ALPHA channel,
+ *   renders it white and tints it with `color`. me-mark.png is exactly that — an opaque
+ *   white mark on transparency. Without this set, Android falls back to the app icon, and
+ *   because icon.png is a fully opaque square its alpha channel is a solid block, which is
+ *   precisely why notifications currently show a white square. The mark is not square, so
+ *   it is letterboxed inside the density buckets and renders a little small — legible and
+ *   correct, but a square monochrome variant would look better.
+ *
+ * `expo-splash-screen` image = assets/brand/me-mark.png on #2E1A47.
+ *   Same colour the root layout already paints while fonts load
+ *   (`app/_layout.tsx` → backgroundColor "#2E1A47"), so the splash hands over to the first
+ *   frame with no flash. `resizeMode: "contain"` with `imageWidth: 200` keeps the
+ *   non-square mark undistorted.
  */
 assertProductionEnv(process.env);
 
