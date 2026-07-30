@@ -16,20 +16,22 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.inzint.medilink",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Used to securely unlock your saved session.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.medilink.app",
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": []
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-localization",
       "expo-font",
       [
@@ -41,7 +43,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "MediLink uses your photos to set a profile picture."
+          "photosPermission": "MediLink uses your photos to set a profile picture.",
+          "cameraPermission": "MediLink uses your camera to capture medical documents.",
+          "microphonePermission": false
         }
       ]
     ],
