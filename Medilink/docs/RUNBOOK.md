@@ -68,7 +68,8 @@ Build / typecheck / lint:
 ```bash
 npm run build:frontend       # next build (frontend)
 npm run build:backend        # next build (backend)
-npm run build:shared
+# No build:shared — `shared/` ships as TypeScript source (Next transpilePackages, Metro
+# aliases) and has only a `typecheck` script. The old root build:shared always failed.
 npm run typecheck            # all workspaces (must be exit 0)
 npm run lint
 ```

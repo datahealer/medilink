@@ -39,7 +39,10 @@ npm run dev:mobile                # Expo Metro + QR (or: cd mobile && npm start)
 
 npm run build:backend
 npm run build:frontend
-npm run build:shared
+# NB: there is no build:shared. `shared/` is consumed as TypeScript SOURCE (Next
+# `transpilePackages`, Metro/Babel aliases), so it has no build step and needs none —
+# only `typecheck`. A root `build:shared` script existed and always failed with npm's
+# "Missing script: build"; it has been removed rather than given a build it doesn't need.
 
 npm run typecheck                 # tsc --noEmit across all workspaces — must exit 0
 npm run lint                      # eslint across all workspaces (mobile: expo lint)
