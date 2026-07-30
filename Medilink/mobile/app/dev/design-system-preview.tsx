@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { Redirect, useLocalSearchParams } from "expo-router";
 
 import {
   AppCard,
@@ -26,6 +26,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useThemeContext } from "@/theme/ThemeProvider";
 import { useI18n } from "@/i18n";
 import { useLocaleStore } from "@/stores/localeStore";
+import { isDev } from "@/config/env";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const { spacing } = useTheme();
@@ -62,6 +63,11 @@ export default function DesignSystemPreview() {
     if (sel) { setMode(sel.mode); setLocale(sel.loc); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m]);
+
+  // DEV-ONLY. Placed after every hook (Rules of Hooks) and mirroring the guard in
+  // app/dev/screen-gallery.tsx: without it this internal component gallery was
+  // reachable in a production build via `medilink://dev/design-system-preview`.
+  if (!isDev) return <Redirect href="/splash" />;
 
   return (
     <AppScreen headerVariant="none">
