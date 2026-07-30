@@ -3,7 +3,7 @@
 > Start here. This guide gets a brand-new developer productive **without any prior knowledge of HAMS** (the source project MediLink's backend was migrated from). Companion docs: [BACKEND_MODULES.md](./BACKEND_MODULES.md), [API_CATALOG.md](./API_CATALOG.md), [RUNBOOK.md](./RUNBOOK.md), [TESTING_GUIDE.md](./TESTING_GUIDE.md), [ARCHITECTURE_DIAGRAMS.md](./ARCHITECTURE_DIAGRAMS.md).
 
 ## 1. Project overview
-MediLink is a patient-facing healthcare app for **web (Next.js)** and **mobile (Expo / React Native)**, backed by **Supabase** (Postgres + Auth + Storage + Edge Functions) and a **Next.js API backend** for privileged/heavy operations. Patients can find doctors/facilities, book/cancel/reschedule appointments, manage family members, view lab results & prescriptions, manage medical records, pay (Thawani primary, Stripe secondary), and receive notifications.
+MediLink is a patient-facing healthcare app for **web (Next.js)** and **mobile (Expo / React Native)**, backed by **Supabase** (Postgres + Auth + Storage + Edge Functions) and a **Next.js API backend** for privileged/heavy operations. Patients can find doctors/facilities, book/cancel/reschedule appointments, manage family members, view lab results & prescriptions, manage medical records, pay (Thawani — the only payment provider), and receive notifications.
 
 **Core design principle — "re-home, don't rewrite":**
 - **RLS-safe CRUD** (anything a patient may do under Row-Level Security) → executed **directly against Supabase** from web/mobile via the **shared API layer** (`shared/src/api/*`).
@@ -72,7 +72,7 @@ Web/backend resolve the shared package via `transpilePackages: ["@medilink/share
 
 ## 5. Backend responsibilities (`backend/`)
 The backend exists **only** for things a patient client cannot or should not do directly:
-- **Secrets:** Thawani/Stripe keys, `SUPABASE_SERVICE_ROLE_KEY`, Google client secret, Gemini/Groq keys, email creds, `INVITE_SECRET`.
+- **Secrets:** Thawani keys, `SUPABASE_SERVICE_ROLE_KEY`, Google client secret, `GROQ_API_KEY`, email creds, `INVITE_SECRET`. *(Corrected 2026-07-30: no Stripe or Gemini keys — neither integration exists.)*
 - **Service-role DB access:** operations that must bypass RLS (e.g. enqueueing on payment webhook, GDPR export/delete).
 - **Heavy compute / native libs:** PDF generation (`pdfkit`), image processing (`sharp`).
 - **Auth side-effects:** signup, OTP send/verify/resend, 2FA, session logging, Google OAuth callback.
@@ -83,7 +83,7 @@ Backend layout:
 - `backend/src/lib/supabase/` — clients: `service.ts` (service role), `server.ts`/`api.ts` (request-scoped, RLS), `adminClient.ts`, `client.ts`/`browser.ts`/`middleware.ts`.
 - `backend/src/lib/auth/` — `getServerSession`, `getUser`, `requireRole`, `withRole`, `validatePassword`, etc.
 - `backend/src/lib/email/`, `backend/src/lib/sms/`, `backend/src/lib/audit/` — side-effect helpers.
-- `backend/next.config.ts` — `serverExternalPackages` keeps `pdfkit`, `@google/generative-ai`, `groq-sdk`, `stripe`, `nodemailer`, `googleapis`, `sharp` server-side.
+- `backend/next.config.ts` — `serverExternalPackages` keeps `pdfkit`, `groq-sdk`, `nodemailer`, `googleapis`, `sharp` server-side. *(Corrected 2026-07-30: `@google/generative-ai` and `stripe` were listed here and have been removed along with the unused dependencies themselves. Note also that this whole config was inert until 2026-07-30 — the file was missing its `export default`.)*
 
 ## 6. Shared package responsibilities (`shared/`)
 The single source of truth shared by all clients:

@@ -1,9 +1,17 @@
 # MediLink — Mobile (Expo / React Native)
 
 Patient-only healthcare app. **One shared TypeScript codebase for Android + iOS.**
-This package contains **Week 1 (real auth) + Week 2 (dashboard, profile, medical history,
-family)**. Week 3+ (doctors / booking / payments / records / labs / prescriptions / AI /
-notifications / settings) is intentionally **not** built yet.
+
+> **Scope note (corrected 2026-07-30).** This file previously said the package contained
+> "Week 1 + Week 2" only, with doctors / booking / payments / records / AI / notifications /
+> settings "intentionally not built yet". That has been stale by many sprints. The app is now
+> **64 screens across 17 route groups** under `app/(app)/` — including `ai`, `appointments`,
+> `booking`, `clinics`, `doctors`, `family`, `notifications`, `payments`, `records`, `rate`,
+> `search` and `settings`.
+>
+> The route tree in `app/` and `git log` are the source of truth for current scope. The
+> "Screens" section below is kept because it is still broadly accurate about the public and
+> tab-level routes, but it is not a complete inventory.
 
 - **Stack:** Expo SDK 54 · React Native 0.81 · React 19 · Expo Router 6 · TypeScript
 - **Server state:** TanStack Query · **API client:** reused `@medilink/shared` `api.*` (Supabase-direct + RLS) + `apiFetch` for backend REST

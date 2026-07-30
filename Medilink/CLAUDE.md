@@ -81,8 +81,9 @@ sequence and a troubleshooting table (peer conflicts, Metro alias caching, RLS d
   mobile just pass different client instances against identical RLS policies — same logic, same
   security boundary, everywhere.
 - **Backend tier** — `backend/src/app/api/**/route.ts`, Next.js server routes with secrets /
-  service-role Supabase / native libs (`pdfkit`, `sharp`) / third-party APIs (Stripe, Thawani,
-  Gemini, Groq, Google Calendar). Only exists for what a client can't safely do under RLS:
+  service-role Supabase / native libs (`pdfkit`, `sharp`) / third-party APIs (Thawani for
+  payments, Groq for AI, Google Calendar). Only exists for what a client can't safely do under
+  RLS:
   signup/OTP/2FA, payments, PDF generation, AI, push dispatch. See `docs/BACKEND_MODULES.md` for
   the full module → tier → env-var matrix.
 
