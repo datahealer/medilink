@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Text } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/i18n";
+import { reportError } from "@/services/reporting";
 import { reloadApp } from "@/utils/restart";
 
 /** Themed, localized fallback shown when a descendant render throws. */
@@ -51,8 +52,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Surfaced to the JS console / crash logging. Render errors carry no PII.
-    console.error("[MediLink] Uncaught render error:", error, info.componentStack);
+    // Render errors carry no PII, so the component stack is safe to attach — and it is the
+    // one piece of context that makes a production crash diagnosable. `reportError` still
+    // logs to the console, so dev behaviour is unchanged when no DSN is configured.
+    reportError(error, {
+      tags: { surface: "error-boundary" },
+      extra: { componentStack: info.componentStack },
+    });
   }
 
   reset = () => {

@@ -20,6 +20,7 @@ import { repositories, isMockData } from "@/data";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
+import { reportError } from "@/services/reporting";
 import { signInSchema, type SignInForm } from "@/utils/validation";
 
 export default function SignInScreen() {
@@ -82,10 +83,8 @@ export default function SignInScreen() {
         setFormError(t(res.messageKey ?? "errors.unknown"));
       }
     } catch (error) {
-      console.error(
-        "[MediLink] sign-in failed:",
-        error instanceof Error ? error.message : "Unknown error"
-      );
+      // No credentials or identifiers in the report — only that sign-in threw.
+      reportError(error, { tags: { surface: "sign-in" } });
       setFormError(t("errors.unknown"));
     } finally {
       setLoading(false);
