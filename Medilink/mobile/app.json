@@ -23,7 +23,6 @@
     "android": {
       "package": "com.medilink.app",
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true,
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]
