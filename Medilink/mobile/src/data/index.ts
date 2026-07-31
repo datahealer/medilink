@@ -18,10 +18,28 @@
  * doctors); Notifications list + preferences + Facility Messages; AI (doctor
  * recommendations + visit summary).
  *
- * Still mock (no backend source yet): Doctor map pins (Map View needs a native
- * map SDK — see docs/backend-specs/map-view-backend-spec.md). The AI Symptom
- * Checker transcript and the AI Insights vitals-trend chart are intentionally
- * static (product decision / documented gaps), not wired to a repository.
+ * Still mock — exactly ONE method of 77, and it is unreachable at runtime:
+ * `doctor.mapClinics`. It has no backend: `real.doctor.mapClinics` is a stub that
+ * returns `[]`, so wiring it would empty the screen rather than make it live. No screen
+ * calls it either — `useMapClinics` exists in hooks/queries/useDoctors.ts but has no
+ * consumer, and Map View reads the REAL `discovery.nearbyClinics` instead
+ * (app/(app)/search/map.tsx). Do not "fix" this by pointing the hybrid at the real stub.
+ *
+ * Corrected 2026-07-31 — this block previously claimed three things that are no longer
+ * true, which made the app look less integrated than it is:
+ *   • Facility messages are REAL (`api.notifications.listFacilityMessages`), not mock.
+ *   • There is no AI Symptom Checker transcript stub; app/(app)/ai/assistant.tsx streams
+ *     from the live endpoint.
+ *   • The AI Insights vitals-trend chart is not "static" — it was REMOVED, because
+ *     MediLink has no vitals data source and a trend there would be fabricated clinical
+ *     data (see the note at the top of app/(app)/ai/insights.tsx).
+ *
+ * NOTE on the spreads below: `...mockRepositories` and the per-repository spreads are
+ * now redundant — all 16 repositories and every method except `doctor.mapClinics` are
+ * explicitly wired to real. They are kept as a safety net so that ADDING a method to a
+ * repository interface cannot leave a screen with `undefined`; it falls back to mock
+ * instead. The trade-off is that a new method silently serves mock data until wired, so
+ * check this file whenever the Repositories interface grows.
  *
  * The UI imports `repositories` (and the domain types) from here only.
  */
@@ -44,6 +62,9 @@ const hybridRepositories: Repositories = {
   queue: realRepositories.queue,
   payment: realRepositories.payment,
   doctor: {
+    // `mapClinics` is the ONE method still served by mock — deliberately. There is no
+    // backend for it (real.doctor.mapClinics returns []), and nothing calls it. See the
+    // header block.
     ...mockRepositories.doctor,
     search: realRepositories.doctor.search,
     get: realRepositories.doctor.get,
