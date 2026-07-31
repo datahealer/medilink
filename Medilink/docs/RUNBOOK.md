@@ -43,8 +43,9 @@ EXPO_PUBLIC_BACKEND_URL=http://<your-LAN-ip>:3001
 Required additionally for **backend** privileged features:
 ```
 SUPABASE_SERVICE_ROLE_KEY=...        # SECRET
-THAWANI_BASE_URL=... THAWANI_API=... THAWANI_API_KEY=... THAWANI_SECRET_KEY=... THAWANI_PUBLISHABLE_KEY=...
-STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=...
+THAWANI_BASE_URL=... THAWANI_SECRET_KEY=... THAWANI_PUBLISHABLE_KEY=... THAWANI_CHECKOUT_BASE_URL=...
+# (corrected 2026-07-30: THAWANI_API / THAWANI_API_KEY were never read by any code; there
+#  is no Stripe integration, so the STRIPE_* keys listed here previously are gone)
 GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... GOOGLE_REDIRECT_URI=...
 GROQ_API_KEY=...                     # required — AI has no stub mode; provider is Groq only
 EMAIL_USER=... EMAIL_PASS=... EMAIL_FROM=...
@@ -68,7 +69,8 @@ Build / typecheck / lint:
 ```bash
 npm run build:frontend       # next build (frontend)
 npm run build:backend        # next build (backend)
-npm run build:shared
+# No build:shared — `shared/` ships as TypeScript source (Next transpilePackages, Metro
+# aliases) and has only a `typecheck` script. The old root build:shared always failed.
 npm run typecheck            # all workspaces (must be exit 0)
 npm run lint
 ```

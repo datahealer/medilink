@@ -6,13 +6,24 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "//": "No `env` block on purpose: a dev-client build must keep reading the developer's local mobile/.env so day-to-day work is unchanged. app.config.ts still refuses APP_ENV=production with a non-production DATA_MODE."
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "//": "Internal/tester builds. DATA_MODE must never be `mock` here — testers would exercise seeded fake patient data and the QA pass would be worthless. The remaining EXPO_PUBLIC_* values (API_URL, SUPABASE_URL, SUPABASE_ANON_KEY) are environment-specific and are supplied by EAS environment variables, NOT committed here; env.ts throws if any is missing while DATA_MODE is not `mock`.",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_DATA_MODE": "staging"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "//": "Store builds. APP_ENV=production also disables the app/dev/* routes (see isDev in src/config/env.ts). API_URL / SUPABASE_URL / SUPABASE_ANON_KEY come from EAS environment variables.",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_DATA_MODE": "production"
+      }
     }
   },
   "submit": {

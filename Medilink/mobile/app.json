@@ -3,7 +3,7 @@
     "name": "MediLink",
     "slug": "medilink",
     "scheme": "medilink",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "icon": "./assets/images/icon.png",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
@@ -16,33 +16,50 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.inzint.medilink",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Used to securely unlock your saved session.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.medilink.app",
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": [],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#2E1A47"
+      }
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/me-mark.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#2E1A47"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-localization",
       "expo-font",
       [
         "expo-notifications",
         {
+          "icon": "./assets/brand/me-mark.png",
           "color": "#2E1A47"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "MediLink uses your photos to set a profile picture."
+          "photosPermission": "MediLink uses your photos to set a profile picture.",
+          "cameraPermission": "MediLink uses your camera to capture medical documents.",
+          "microphonePermission": false
         }
       ]
     ],

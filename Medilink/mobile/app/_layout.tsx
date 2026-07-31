@@ -12,7 +12,13 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PushNotifications } from "@/components/PushNotifications";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { initReporting } from "@/services/reporting";
 import { BRAND_FONT_FILES } from "@/theme/typography";
+
+// Module scope, not an effect: this runs as the root module is evaluated, so reporting is
+// live before any provider or screen mounts and can therefore capture a crash during the
+// first render. Idempotent, and a complete no-op when no DSN is configured.
+initReporting();
 
 /**
  * Root layout: provider tree + navigation Stack.

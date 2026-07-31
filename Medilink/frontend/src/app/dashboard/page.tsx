@@ -68,13 +68,22 @@ function upDate(ymd: string, isAr: boolean) {
   return isAr ? `${d.getDate()} ${MON_AR[d.getMonth()]}` : `${d.getDate()} ${MON_EN[d.getMonth()]}`;
 }
 
+/**
+ * Symptom-led entry points ("A doctor for every concern").
+ *
+ * Deliberately a curated symptom list, NOT the `specialties` catalog — the catalog
+ * holds clinical names (Cardiology, Dermatology…) whereas these are the complaints a
+ * patient recognises. Each now carries `q`, the term handed to the real doctor search
+ * via /dashboard/find-doctors?q=… (the same convention SiteSearch uses), so the tiles
+ * are functional links instead of the dead buttons they were.
+ */
 const SPECIALTIES = [
-  { emoji: "🤰", en: "Period doubts or Pregnancy",  ar: "تأخر الدورة أو الحمل"        },
-  { emoji: "🧴", en: "Acne, pimple or skin issues", ar: "حب الشباب أو مشاكل الجلد"    },
-  { emoji: "💪", en: "Performance issues in bed",   ar: "مشاكل الأداء"                 },
-  { emoji: "🤧", en: "Cold, cough or fever",        ar: "برد أو كحة أو حمى"           },
-  { emoji: "👶", en: "Child not feeling well",      ar: "الطفل لا يشعر بتحسن"        },
-  { emoji: "🧠", en: "Depression or anxiety",       ar: "اكتئاب أو قلق"               },
+  { emoji: "🤰", q: "Gynecology",   en: "Period doubts or Pregnancy",  ar: "تأخر الدورة أو الحمل"        },
+  { emoji: "🧴", q: "Dermatology",  en: "Acne, pimple or skin issues", ar: "حب الشباب أو مشاكل الجلد"    },
+  { emoji: "💪", q: "Urology",      en: "Performance issues in bed",   ar: "مشاكل الأداء"                 },
+  { emoji: "🤧", q: "General",      en: "Cold, cough or fever",        ar: "برد أو كحة أو حمى"           },
+  { emoji: "👶", q: "Pediatrics",   en: "Child not feeling well",      ar: "الطفل لا يشعر بتحسن"        },
+  { emoji: "🧠", q: "Psychiatry",   en: "Depression or anxiety",       ar: "اكتئاب أو قلق"               },
 ];
 
 const CLINIC_STEPS = [
@@ -142,28 +151,86 @@ function notifRel(iso: string | null, isAr: boolean): string {
   return day > 0 ? `${day}d ago` : hr > 0 ? `${hr}h ago` : `${min}m ago`;
 }
 
-const HEALTH_METRICS = [
-  { icon: "❤️",
-    en: { label: "Heart Rate",     value: "72 bpm",  sub: "Normal"  },
-    ar: { label: "معدل ضربات القلب", value: "72 نبضة/د", sub: "طبيعي" },
+/**
+ * Health Snapshot — every value is REAL patient data.
+ *
+ * This previously rendered hardcoded clinical readings ("Heart Rate 72 bpm · Normal",
+ * "Blood Pressure 118/78 · Normal", "BMI 22.4") to every patient regardless of who
+ * they were. That is fabricated clinical data and was removed: the schema has no
+ * vitals/measurements table and no height/weight anywhere, so those three cannot be
+ * sourced. (The same defect was fixed on mobile — see MOBILE_COMPLETION_TRACKER 1.1.)
+ *
+ * The four cards now show what the backend actually knows, keeping the original
+ * 4-up grid and card styling untouched:
+ *   blood group   → patient_profiles.blood_group
+ *   prescriptions → api.prescriptions.listPrescriptions
+ *   allergies     → medical_histories.allergies
+ *   lab reports   → api.labs.listLabResults (flagged count surfaced as the badge)
+ *
+ * Card visuals are static presentation; only the numbers come from state.
+ */
+type MetricCard = {
+  icon: string;
+  color: string;
+  badge: string;
+  en: { label: string; value: string; sub: string };
+  ar: { label: string; value: string; sub: string };
+};
+
+const METRIC_STYLE = {
+  blood: {
+    icon: "🩸",
     color: "from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20",
-    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
-  { icon: "⚖️",
-    en: { label: "BMI",            value: "22.4",    sub: "Healthy" },
-    ar: { label: "مؤشر كتلة الجسم",  value: "22.4",    sub: "صحي"   },
-    color: "from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20",
-    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
-  { icon: "💉",
-    en: { label: "Blood Pressure", value: "118/78",  sub: "Normal"  },
-    ar: { label: "ضغط الدم",       value: "118/78",  sub: "طبيعي" },
-    color: "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
-    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
-  { icon: "💊",
-    en: { label: "Active Rx",      value: "2",       sub: "Ongoing" },
-    ar: { label: "الأدوية النشطة",  value: "2",       sub: "جارية" },
+    badge: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400",
+  },
+  rx: {
+    icon: "💊",
     color: "from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20",
-    badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
-];
+    badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+  },
+  allergies: {
+    icon: "⚠️",
+    color: "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
+    badge: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400",
+  },
+  labs: {
+    icon: "🧪",
+    color: "from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20",
+    badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
+  },
+} as const;
+
+/** Build the snapshot from loaded data. `—` where the patient has nothing recorded. */
+function buildHealthMetrics(m: {
+  bloodGroup: string | null;
+  rxCount: number;
+  allergyCount: number;
+  labCount: number;
+  flaggedLabs: number;
+}): MetricCard[] {
+  return [
+    {
+      ...METRIC_STYLE.blood,
+      en: { label: "Blood Group", value: m.bloodGroup ?? "—", sub: m.bloodGroup ? "On file" : "Not set" },
+      ar: { label: "فصيلة الدم", value: m.bloodGroup ?? "—", sub: m.bloodGroup ? "مسجلة" : "غير محددة" },
+    },
+    {
+      ...METRIC_STYLE.rx,
+      en: { label: "Prescriptions", value: String(m.rxCount), sub: m.rxCount ? "On record" : "None" },
+      ar: { label: "الوصفات الطبية", value: String(m.rxCount), sub: m.rxCount ? "مسجلة" : "لا يوجد" },
+    },
+    {
+      ...METRIC_STYLE.allergies,
+      en: { label: "Allergies", value: String(m.allergyCount), sub: m.allergyCount ? "Recorded" : "None known" },
+      ar: { label: "الحساسية", value: String(m.allergyCount), sub: m.allergyCount ? "مسجلة" : "لا يوجد" },
+    },
+    {
+      ...METRIC_STYLE.labs,
+      en: { label: "Lab Reports", value: String(m.labCount), sub: m.flaggedLabs ? `${m.flaggedLabs} flagged` : "All normal" },
+      ar: { label: "تقارير المختبر", value: String(m.labCount), sub: m.flaggedLabs ? `${m.flaggedLabs} تحتاج مراجعة` : "طبيعية" },
+    },
+  ];
+}
 
 const DASHBOARD_ARTICLES = ARTICLES.slice(0, 2);
 
@@ -204,6 +271,10 @@ export default function DashboardPage() {
   const [firstName, setFirstName] = useState("");
   const [upcoming, setUpcoming]   = useState<UpItem[]>([]);
   const [stats, setStats]         = useState({ upcoming: 0, records: 0, pending: 0 });
+  // Real Health Snapshot values (see buildHealthMetrics above).
+  const [healthMetrics, setHealthMetrics] = useState<MetricCard[]>(() =>
+    buildHealthMetrics({ bloodGroup: null, rxCount: 0, allergyCount: 0, labCount: 0, flaggedLabs: 0 })
+  );
   const [loading, setLoading]     = useState(true);
   const [notifs, setNotifs]       = useState<NotifPreview[]>([]);
 
@@ -213,13 +284,16 @@ export default function DashboardPage() {
     let active = true;
     (async () => {
       try {
-        const [profile, up, rx, labs, docs, notes] = await Promise.all([
+        const [profile, up, rx, labs, docs, notes, history] = await Promise.all([
           api.profile.getMyProfile(supabase).catch(() => null),
           api.appointments.listMyAppointments(supabase, "upcoming").catch(() => []),
           api.prescriptions.listPrescriptions(supabase).catch(() => []),
           api.labs.listLabResults(supabase).catch(() => []),
           api.records.listDocuments(supabase).catch(() => []),
           api.notifications.listNotifications(supabase, { limit: 5 }).catch(() => []),
+          // Added for the Health Snapshot's allergy count — same shared API the
+          // profile page already uses, so no new client or hook is introduced.
+          api.records.getMedicalHistory(supabase).catch(() => null),
         ]);
         if (!active) return;
         setNotifs(notes.map((r) => {
@@ -250,6 +324,19 @@ export default function DashboardPage() {
           records: rx.length + labs.length + docs.length,
           pending: ups.filter((a) => a.status === "pending").length,
         });
+
+        // Health Snapshot — real values only. `blood_group` uses the DB's "unknown"
+        // sentinel, which must render as "not set" rather than the literal string.
+        const bg = profile?.patient?.blood_group ?? null;
+        setHealthMetrics(
+          buildHealthMetrics({
+            bloodGroup: bg && bg !== "unknown" ? bg : null,
+            rxCount: rx.length,
+            allergyCount: history?.allergies?.length ?? 0,
+            labCount: labs.length,
+            flaggedLabs: labs.filter((l) => (l.flagged_count ?? 0) > 0).length,
+          })
+        );
       } finally {
         if (active) setLoading(false);
       }
@@ -515,7 +602,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${ar ? "direction-rtl" : ""}`}>
-            {HEALTH_METRICS.map(m => {
+            {healthMetrics.map(m => {
               const d = ar ? m.ar : m.en;
               return (
                 <div key={m.en.label}
@@ -637,7 +724,11 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
             {SPECIALTIES.map(s => (
-              <button key={s.en} className="flex flex-col items-center gap-3 group">
+              <Link
+                key={s.en}
+                href={`/dashboard/find-doctors?q=${encodeURIComponent(s.q)}`}
+                className="flex flex-col items-center gap-3 group no-underline"
+              >
                 <div className="w-[70px] h-[70px] rounded-full border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030] flex items-center justify-center text-2xl transition-all duration-200 group-hover:border-[#DFC8E7] group-hover:bg-[#f0e8f8] dark:group-hover:bg-[#2E1A47]/40 group-hover:scale-105 group-hover:shadow-md">
                   {s.emoji}
                 </div>
@@ -647,7 +738,7 @@ export default function DashboardPage() {
                 <span className="text-[10px] font-bold text-[#46255f] dark:text-[#DFC8E7]/60 tracking-widest  group-hover:underline">
                   {ar ? "استشر الآن" : "Consult Now"}
                 </span>
-              </button>
+              </Link>
             ))}
           </div>
         </div>

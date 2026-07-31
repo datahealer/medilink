@@ -56,6 +56,16 @@ jest.mock("expo-router", () => ({
   Link: () => null,
 }));
 
+// `react-native-webview` calls TurboModuleRegistry.getEnforcing at import time, which
+// throws under Jest ("'RNCWebViewModule' could not be found"). It is reached indirectly by
+// anything importing the `@/components/ui` barrel, because that barrel exports OsmMapView —
+// so without this stub a component test fails purely for its import graph. Rendering the map
+// itself is a device concern (see DEVICE_TEST_CHECKLIST.md), not something Jest can assert.
+jest.mock("react-native-webview", () => {
+  const React = require("react");
+  return { WebView: (props) => React.createElement("WebView", props) };
+});
+
 // `src/utils/restart.ts` touches DevSettings at module load (to decide whether a
 // dev reload is possible). Under Jest that emits a NativeEventEmitter warning, so
 // stub it — the reload path itself is never exercised in tests.

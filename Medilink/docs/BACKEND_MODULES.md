@@ -93,18 +93,18 @@ Common env vars (used by virtually everything):
 - **Env:** Supabase public keys only.
 
 ## 12. Payments
-- **Purpose:** Checkout (Thawani primary, Stripe secondary), invoices, refunds, unpaid list, webhook (confirms payment → enqueues emergency appointments via RPC).
+- **Purpose:** Checkout (Thawani — the only provider), invoices, refunds, unpaid list, webhook (confirms payment → enqueues emergency appointments via RPC).
 - **Source:** HAMS Reused.
 - **Location:** Backend `backend/src/app/api/payments/*` — `checkout`, `[id]/invoice`, `[id]/refund`, `get-appointment/[id]`, `unpaid`, `webhook`, `payments` (list). RPC `enqueue_appointment`; Edge Functions `generate-invoice`, `poll-refund-status`. Tables `payments`, `refunds`, `appointments`.
-- **Dependencies:** `stripe`; Thawani via `fetch`; `@supabase/supabase-js` (service role).
-- **Env:** `THAWANI_BASE_URL`, `THAWANI_API`, `THAWANI_API_KEY`, `THAWANI_SECRET_KEY`, `THAWANI_PUBLISHABLE_KEY`; `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; `SUPABASE_SERVICE_ROLE_KEY`.
+- **Dependencies:** Thawani via `fetch`; `@supabase/supabase-js` (service role). *(Corrected 2026-07-30: there is no Stripe integration — `stripe` was installed but never imported, and has been removed.)*
+- **Env:** `THAWANI_BASE_URL`, `THAWANI_SECRET_KEY`, `THAWANI_PUBLISHABLE_KEY`, `THAWANI_CHECKOUT_BASE_URL`, `THAWANI_WEBHOOK_SECRET`, `THAWANI_WEBHOOK_SIGNATURE_HEADER`; `SUPABASE_SERVICE_ROLE_KEY`. *(Corrected 2026-07-30: `THAWANI_API` and `THAWANI_API_KEY` were never read by any code; the `STRIPE_*` keys are gone. These six are the complete Thawani set.)*
 
 ## 13. AI Services
 - **Purpose:** Symptom check, doctor suggestion, prescription scan (OCR/parse), schedule assist (NLP date parsing).
 - **Source:** HAMS Reused.
 - **Location:** Backend `backend/src/app/api/ai/{symptom-check,suggest-doctor,scan-prescription,schedule-assist}`. Edge Function `generate-health-insights`. Logs to `ai_request_logs`, `symptom_check_logs`.
-- **Dependencies:** `@google/generative-ai` (Gemini), `groq-sdk` (Groq), `chrono-node` (schedule-assist).
-- **Env:** `GEMINI_API_KEY`, `GROQ_API_KEY`, `MOCK_AI` (stub when `true`).
+- **Dependencies:** `groq-sdk` (Groq — the only AI provider), `chrono-node` (schedule-assist), `sharp` (scan-prescription image compression). *(Corrected 2026-07-30: `@google/generative-ai` was installed but never imported, and has been removed.)*
+- **Env:** `GROQ_API_KEY` (required — AI has no mock/stub fallback), `GROQ_MODEL` (optional model override). *(Corrected 2026-07-30: `GEMINI_API_KEY` was read by no code; `MOCK_AI` no longer exists.)* All four routes enforce a per-user hourly quota via `ai_request_logs`.
 
 ## 14. PDF Services
 - **Purpose:** Generate prescription PDFs and medical-history PDFs.
@@ -139,7 +139,7 @@ Common env vars (used by virtually everything):
 | Prescriptions | ✓ | PDF | — |
 | Notifications | ✓ | push | INVITE_SECRET |
 | Reviews | ✓ | — | — |
-| Payments | — | ✓ | Thawani*, Stripe* |
-| AI | — | ✓ | GEMINI/GROQ, MOCK_AI |
+| Payments | — | ✓ | Thawani* |
+| AI | — | ✓ | GROQ |
 | PDF | — | ✓ | — |
 | Push | mobile | ✓ | INVITE_SECRET |

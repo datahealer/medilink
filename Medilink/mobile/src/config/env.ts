@@ -6,6 +6,8 @@
  * a staging URL or your laptop's LAN IP (e.g. http://192.168.1.20:3000), NOT
  * `localhost` (which resolves to the device itself). See mobile/.env.example.
  */
+import { assertProductionEnv } from "./envGuard.js";
+
 /**
  * Data source for the whole app:
  *   • mock        — typed in-memory data, no backend (UI-first; the dev default)
@@ -17,6 +19,12 @@ const RAW_DATA_MODE = (process.env.EXPO_PUBLIC_DATA_MODE ?? "mock").toLowerCase(
 export const DATA_MODE: DataMode =
   RAW_DATA_MODE === "staging" || RAW_DATA_MODE === "production" ? RAW_DATA_MODE : "mock";
 const isMockMode = DATA_MODE === "mock";
+
+// Runtime half of the production guard. `app.config.ts` runs the same check while Expo
+// resolves the config, which is what actually fails a bad BUILD; this catches a bundle
+// whose variables changed afterwards (e.g. a dev client relaunched against new env).
+// Fails loudly at startup rather than silently serving seeded mock patient data.
+assertProductionEnv(process.env);
 
 /** Required when talking to a real backend; in mock mode it falls back harmlessly. */
 function required(name: string, value: string | undefined, mockFallback: string): string {
@@ -45,6 +53,10 @@ export const env = {
   GOOGLE_WEB_CLIENT_ID: optional(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
   GOOGLE_ANDROID_CLIENT_ID: optional(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID),
   GOOGLE_IOS_CLIENT_ID: optional(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
+  // Sentry ingest URL — optional. Absent means error reporting stays fully inert (the SDK
+  // is never even loaded); see src/services/reporting. A DSN is a public, write-only
+  // ingest key by design, which is why it lives in EXPO_PUBLIC_* like the anon key.
+  SENTRY_DSN: optional(process.env.EXPO_PUBLIC_SENTRY_DSN),
 } as const;
 
 export const isDev = env.APP_ENV !== "production";

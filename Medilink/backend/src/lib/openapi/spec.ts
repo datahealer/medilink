@@ -492,7 +492,7 @@ export function buildOpenApiSpec() {
       "/api/ai/scan-prescription": {
         post: {
           tags: ["AI Features"], summary: "AI prescription OCR (image)", security: bearer,
-          description: "Multipart upload (`image`). Extracts medications via a vision model; validates names against the drug list.",
+          description: "Multipart upload (`image`, max 4 MB). Extracts medications via a vision model; validates names against the drug list. Rate-limited to 10/hour per user.",
           requestBody: {
             required: true,
             content: {
@@ -504,8 +504,9 @@ export function buildOpenApiSpec() {
           responses: {
             "200": { description: "Extraction result.", ...json(ref("ScanPrescriptionResponse")) },
             "400": { description: "No image / not an image.", ...json(ref("SuccessError")) },
+            "413": { description: "Image exceeds the 4 MB upload cap.", ...json(ref("SuccessError")) },
             "422": { description: "Unreadable / unparseable.", ...json(ref("SuccessError")) },
-            "429": { description: "AI rate limit.", ...json(ref("SuccessError")) },
+            "429": { description: "Per-user hourly cap reached, or upstream AI rate limit.", ...json(ref("SuccessError")) },
             "503": { description: "AI service unavailable.", ...json(ref("SuccessError")) },
             ...commonErrorsSuccessShape,
           },
@@ -514,12 +515,12 @@ export function buildOpenApiSpec() {
       "/api/ai/schedule-assist": {
         post: {
           tags: ["AI Features"], summary: "AI scheduling assistant", security: bearer,
-          description: "Conversational booking helper: classifies intent, extracts doctor type/date/time, returns matching doctors + slots or a clarifying question.",
+          description: "Conversational booking helper: classifies intent, extracts doctor type/date/time, returns matching doctors + slots or a clarifying question. Rate-limited to 30/hour per user.",
           requestBody: { required: true, ...json(ref("ScheduleAssistRequest")) },
           responses: {
             "200": { description: "Assistant response.", ...json(ref("ScheduleAssistResponse")) },
             "400": { description: "query required.", ...json(ref("SuccessError")) },
-            "429": { description: "AI rate limit.", ...json(ref("SuccessError")) },
+            "429": { description: "Per-user hourly cap reached, or upstream AI rate limit.", ...json(ref("SuccessError")) },
             ...commonErrorsSuccessShape,
           },
         },

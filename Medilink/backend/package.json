@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@medilink/shared": "*",
     "@scalar/nextjs-api-reference": "^0.11.5",
+    "@sentry/nextjs": "^10.69.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.2",
     "bcryptjs": "^2.4.3",
@@ -27,7 +27,6 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sharp": "^0.34.5",
-    "stripe": "^22.0.1",
     "tailwind-merge": "^3.5.0",
     "zod": "^3.23.8"
   },

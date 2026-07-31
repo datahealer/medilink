@@ -39,7 +39,10 @@ npm run dev:mobile                # Expo Metro + QR (or: cd mobile && npm start)
 
 npm run build:backend
 npm run build:frontend
-npm run build:shared
+# NB: there is no build:shared. `shared/` is consumed as TypeScript SOURCE (Next
+# `transpilePackages`, Metro/Babel aliases), so it has no build step and needs none —
+# only `typecheck`. A root `build:shared` script existed and always failed with npm's
+# "Missing script: build"; it has been removed rather than given a build it doesn't need.
 
 npm run typecheck                 # tsc --noEmit across all workspaces — must exit 0
 npm run lint                      # eslint across all workspaces (mobile: expo lint)
@@ -78,8 +81,9 @@ sequence and a troubleshooting table (peer conflicts, Metro alias caching, RLS d
   mobile just pass different client instances against identical RLS policies — same logic, same
   security boundary, everywhere.
 - **Backend tier** — `backend/src/app/api/**/route.ts`, Next.js server routes with secrets /
-  service-role Supabase / native libs (`pdfkit`, `sharp`) / third-party APIs (Stripe, Thawani,
-  Gemini, Groq, Google Calendar). Only exists for what a client can't safely do under RLS:
+  service-role Supabase / native libs (`pdfkit`, `sharp`) / third-party APIs (Thawani for
+  payments, Groq for AI, Google Calendar). Only exists for what a client can't safely do under
+  RLS:
   signup/OTP/2FA, payments, PDF generation, AI, push dispatch. See `docs/BACKEND_MODULES.md` for
   the full module → tier → env-var matrix.
 

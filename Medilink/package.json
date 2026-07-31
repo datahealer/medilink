@@ -15,7 +15,6 @@
     "dev:mobile": "npm run start --workspace=@medilink/mobile",
     "build:backend": "npm run build --workspace=@medilink/backend",
     "build:frontend": "npm run build --workspace=@medilink/frontend",
-    "build:shared": "npm run build --workspace=@medilink/shared",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "db:push": "supabase db push",
