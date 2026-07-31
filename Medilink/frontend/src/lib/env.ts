@@ -19,8 +19,42 @@
  * keeping it is deliberate.
  */
 
+/**
+ * ── Why every read below is a LITERAL `process.env.NEXT_PUBLIC_X` ──
+ *
+ * Next.js inlines these by substituting the exact member-expression `process.env.NEXT_PUBLIC_X`
+ * for a string literal at build time (webpack DefinePlugin-style). It is a syntactic match, not
+ * data-flow analysis, so a DYNAMIC read — `process.env[name]` — is never substituted and
+ * survives into the browser bundle as a real runtime lookup.
+ *
+ * That mattered: it shipped a bug. On the client `globalThis.process` does not exist, so Next's
+ * shim falls back to a polyfill whose `env` is `{}` — making every dynamic lookup `undefined`
+ * while the static ones held their inlined values. The build and SSR passed (real `process.env`
+ * there), the bundle genuinely contained the Supabase URL, and yet the browser threw
+ * "Missing required public env vars" on load.
+ *
+ * So: never read a NEXT_PUBLIC_* value through a computed key in this file. Keep the name and
+ * the read adjacent in a literal map.
+ */
+
 /** Absence produces a bundle that cannot work, so the build must fail. */
 const REQUIRED_ENV = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const;
+
+/** Statically-inlinable reads for the required set. Order matches REQUIRED_ENV. */
+const REQUIRED_VALUES: Record<(typeof REQUIRED_ENV)[number], string | undefined> = {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+};
+
+/** Statically-inlinable reads for the optional set. Keys match OPTIONAL_ENV. */
+const OPTIONAL_VALUES: Record<string, string | undefined> = {
+  NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  // Server-only by design (no NEXT_PUBLIC_ prefix), so this is always undefined in the
+  // browser. `inactiveOptionalEnv` is a diagnostic, so reporting it as inactive client-side
+  // is expected and was the behaviour before this fix too.
+  SENTRY_DSN: process.env.SENTRY_DSN,
+};
 
 /**
  * Feature-scoped: absence degrades one capability, and the app still builds and runs. The
@@ -46,7 +80,8 @@ export const OPTIONAL_ENV: Record<string, string> = {
  */
 function assertRequired(): void {
   const missing = REQUIRED_ENV.filter((name) => {
-    const value = process.env[name];
+    // Reads the pre-resolved literal map, NOT `process.env[name]` — see the note above.
+    const value = REQUIRED_VALUES[name];
     // Present-but-empty is a misconfiguration, not a value: `NEXT_PUBLIC_SUPABASE_URL=` in a
     // .env file is the most common way this goes wrong. (The previous `!value` check caught
     // this too; keeping the behaviour explicit rather than incidental.)
@@ -75,7 +110,8 @@ export const env = {
 /** Optional vars currently absent — for a startup diagnostic or a config-health view. */
 export function inactiveOptionalEnv(): string[] {
   return Object.keys(OPTIONAL_ENV).filter((name) => {
-    const value = process.env[name];
+    // Same reason as assertRequired: literal map, never a computed `process.env` key.
+    const value = OPTIONAL_VALUES[name];
     return value === undefined || value.trim() === "";
   });
 }
