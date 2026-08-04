@@ -1034,23 +1034,42 @@ const documentRepo: DocumentRepository = {
       (input.asset.name?.split(".").pop() || input.asset.mimeType?.split("/").pop() || "jpg")
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${auth.user.id}/${Date.now()}.${ext}`;
-    const body = await fetch(input.asset.uri).then((r) => r.arrayBuffer());
+    // Storage name is always generated, never the user-supplied filename. The random
+    // suffix removes the same-millisecond collision that `upsert: false` would reject.
+    const path = `${auth.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+    // Reading the picked file is a local (file://) read, but it fails with RN's opaque
+    // "Network request failed" — relabel it so a vanished cache file is diagnosable
+    // instead of looking like a backend outage.
+    let body: ArrayBuffer;
+    try {
+      body = await fetch(input.asset.uri).then((r) => r.arrayBuffer());
+    } catch (e) {
+      throw new Error(`Couldn't read the selected file (${errText(e)}). Please pick it again.`);
+    }
     const contentType = input.asset.mimeType ?? mimeFromName(input.asset.name);
     const { error: upErr } = await supabase.storage
       .from("patient-docs")
       .upload(path, body, { contentType, upsert: false });
     if (upErr) throw upErr;
-    const row = (await api.records.addDocument(supabase, {
-      name: input.name,
-      // 'invoice' is added by migration 20260721000001; the generated DB types won't
-      // include it until `npm run db:types` runs post-push, so bridge with a cast to the
-      // exact expected union (safe at runtime once the enum value exists).
-      type: input.type as Parameters<typeof api.records.addDocument>[1]["type"],
-      file_url: path,
-      file_type: contentType,
-      linked_appointment_id: input.linkedAppointmentId ?? null,
-    })) as unknown as DocRowLoose;
+    // The object now exists. If recording the row fails, the object would be orphaned in
+    // the bucket (invisible to the vault, still billed, still holding PHI), so remove it
+    // before re-throwing — Storage and `patient_documents` must not drift apart.
+    let row: DocRowLoose;
+    try {
+      row = (await api.records.addDocument(supabase, {
+        name: input.name,
+        // 'invoice' is added by migration 20260721000001; the generated DB types won't
+        // include it until `npm run db:types` runs post-push, so bridge with a cast to the
+        // exact expected union (safe at runtime once the enum value exists).
+        type: input.type as Parameters<typeof api.records.addDocument>[1]["type"],
+        file_url: path,
+        file_type: contentType,
+        linked_appointment_id: input.linkedAppointmentId ?? null,
+      })) as unknown as DocRowLoose;
+    } catch (e) {
+      await supabase.storage.from("patient-docs").remove([path]).catch(() => {});
+      throw e;
+    }
     return mapDoc(row);
   },
   async remove(id) {

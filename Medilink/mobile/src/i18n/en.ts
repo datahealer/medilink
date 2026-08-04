@@ -748,13 +748,27 @@ export const en = {
     noFile: "No file selected yet",
     fileSelected: "Document ready to upload",
     upload: "Upload",
-    pickerSoon: "File picking opens when records sync is wired.",
     defaultName: "Document",
     uploadSuccess: "Document uploaded.",
     uploadFailed: "Couldn't upload the document.",
     permissionTitle: "Permission needed",
     cameraPermission: "Allow camera access to scan a document.",
-    libraryPermission: "Allow photo access to attach a file.",
+    // Picker/camera failures — previously these were swallowed silently, so the
+    // button appeared to do nothing.
+    pickFailedTitle: "Couldn't open the file picker",
+    scanFailedTitle: "Couldn't open the camera",
+    pickerBusy: "A picker is already open. Close it and try again.",
+    openSettings: "Open settings",
+    cameraBlocked: "Camera access is blocked for MediLink. Enable it in Settings to scan a document.",
+    tooLargeTitle: "File too large",
+    tooLarge: "Choose a file smaller than {limit}.",
+    unsupportedTitle: "Unsupported file type",
+    unsupported: "Only JPEG, PNG and PDF files can be uploaded.",
+    // Android can destroy the app while the camera is open; the capture is recovered
+    // on return rather than silently lost.
+    recoveredTitle: "Scan recovered",
+    recoveredBody: "Your device closed MediLink while the camera was open. The document you captured has been restored — choose a category and upload it.",
+    selectCategory: "Choose a category to continue",
   },
   docPreview: {
     // Document Preview (design p29)

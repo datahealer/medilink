@@ -267,6 +267,14 @@ export interface PhotoAsset {
   uri: string;
   name?: string;
   mimeType?: string;
+  /**
+   * Size in bytes when the picker reports it (`ImagePickerAsset.fileSize` /
+   * `DocumentPickerAsset.size`). Used to reject a file that is too large BEFORE the
+   * upload path materialises it as an ArrayBuffer in JS memory — see the size guard in
+   * app/(app)/records/upload.tsx. Optional because a camera capture does not always
+   * carry it.
+   */
+  size?: number | null;
 }
 
 // ---- document vault (PDF p28-29) --------------------------------------------

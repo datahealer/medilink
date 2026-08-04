@@ -61,6 +61,7 @@ module.exports = {
   // it lives outside `rootDir`, so Jest excludes it from the report.
   collectCoverageFrom: [
     "src/data/queueMapping.ts",
+    "src/utils/documentUpload.ts",
     "src/hooks/queries/queuePolling.ts",
     "src/utils/appointments.ts",
     "src/utils/notifications.ts",
