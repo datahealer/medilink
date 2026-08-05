@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeDigits, normalizeEmail, normalizeHumanText } from "@medilink/shared";
 import { logAudit } from "@/lib/audit/logAudit";
 import { validatePassword } from "@/lib/auth/validatePassword";
 
@@ -13,7 +14,16 @@ export async function POST(req: NextRequest) {
     );
 
     const body = await req.json();
-    const { email, password, full_name, phone, role } = body;
+    const { password, role } = body;
+
+    /* Normalized HERE, not just in the client form. This route is public, unauthenticated
+     * and service-role backed, so a direct POST used to be able to create an account whose
+     * `full_name` was "     " — the hams_handle_new_user trigger copies metadata straight
+     * into profiles.full_name, so that padding reached every appointment and clinic record.
+     * PASSWORD IS DELIBERATELY NOT NORMALIZED (spaces can be part of it). */
+    const email = normalizeEmail(body.email);
+    const phone = normalizeDigits(body.phone) || null;
+    const full_name = normalizeHumanText(body.full_name);
 
     // ✅ Validation
     const pwResult = validatePassword(password ?? "");
@@ -27,6 +37,15 @@ export async function POST(req: NextRequest) {
     if (!email && !phone) {
       return NextResponse.json(
         { success: false, error: "Email or phone is required" },
+        { status: 400 }
+      );
+    }
+
+    // A whitespace-only name previously passed the `full_name || ""` fallback untouched.
+    // Mirrors the 2-character floor the mobile sign-up schema already enforces.
+    if (full_name.length < 2) {
+      return NextResponse.json(
+        { success: false, error: "Full name must be at least 2 characters." },
         { status: 400 }
       );
     }
@@ -46,8 +65,8 @@ export async function POST(req: NextRequest) {
       password,
       email_confirm: true,
       user_metadata: {
-        full_name: full_name || "",
-        phone: phone || null,
+        full_name,
+        phone,
         role: safeRole,
       },
     });

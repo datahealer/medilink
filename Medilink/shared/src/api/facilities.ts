@@ -1,4 +1,5 @@
 // FACILITIES — RE-HOMED from HAMS `facilities[/[id]]` + `facilities/nearby` → Supabase (RLS).
+import { normalizeSearchQuery } from "../utils/normalize";
 import type { DB } from "./client";
 
 const LIST_SELECT =
@@ -45,7 +46,10 @@ export interface FacilitySearch {
  * case-insensitively (QA #14). RLS-safe client query — no new RPC needed.
  */
 export async function searchFacilities(db: DB, opts: FacilitySearch) {
-  const term = opts.term.trim();
+  // Already trimmed before this change; normalizeSearchQuery additionally collapses
+  // internal runs so "Al   Noor" matches "Al Noor", and keeps the rule identical to
+  // searchDoctors rather than two near-copies drifting apart.
+  const term = normalizeSearchQuery(opts.term);
   let query = db
     .from("facilities")
     .select(LIST_SELECT)

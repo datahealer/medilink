@@ -1,4 +1,5 @@
 // DOCTORS — RE-HOMED from HAMS `doctors[/[id]]` → direct Supabase (RLS).
+import { normalizeSearchQuery } from "../utils/normalize";
 import type { DB } from "./client";
 
 const LIST_SELECT =
@@ -27,8 +28,15 @@ export async function searchDoctors(db: DB, q: DoctorSearch = {}) {
   // from the catalog label the UI sends (QA #8). Match case-insensitively on the
   // trimmed value (no `%` wildcards → still a whole-string match, so "Surgery" does
   // not over-match "Neurosurgery"). Proper fix = a `specialty_id` FK (backend, tracked).
-  if (q.specialty) query = query.ilike("specialty", q.specialty.trim());
-  if (q.term) query = query.ilike("full_name", `%${q.term}%`);
+  // `%` is added around the NORMALIZED term. Interpolating the raw value meant a query of
+  // "  Ahmed  " became `ilike '%  Ahmed  %'`, which requires that padding to exist inside
+  // the stored name and therefore matched nothing — search silently failed for anyone
+  // whose keyboard or paste added a space. A whitespace-only term normalizes to "" and is
+  // correctly treated as "no term" (return the unfiltered list) rather than `ilike '%   %'`.
+  const specialty = normalizeSearchQuery(q.specialty);
+  const term = normalizeSearchQuery(q.term);
+  if (specialty) query = query.ilike("specialty", specialty);
+  if (term) query = query.ilike("full_name", `%${term}%`);
 
   const limit = q.limit ?? 20;
   const offset = q.offset ?? 0;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeEmail, normalizeHumanText } from "@medilink/shared/mobile";
 
 import type { MessageKey } from "@/i18n";
 
@@ -18,8 +19,13 @@ export const isValidCivilNumber = (value: string): boolean => {
   return v === "" || CIVIL_NUMBER_RE.test(v);
 };
 
-/** Full name: required, at least 2 characters (mirrors signUpSchema). */
-export const isValidName = (value: string): boolean => value.trim().length >= 2;
+/**
+ * Full name: required, at least 2 characters after normalization (mirrors signUpSchema).
+ *
+ * Uses the shared rule rather than a bare `.trim()` so "  A   B  " is measured as the
+ * "A B" that will actually be stored — the UI and the write boundary agree on the length.
+ */
+export const isValidName = (value: string): boolean => normalizeHumanText(value).length >= 2;
 
 /** Empty allowed (optional) OR a valid Oman 8-digit local number. */
 export const isValidOmanPhone = (value: string): boolean => {
@@ -51,8 +57,16 @@ export const isValidDob = (value: string): boolean => {
   return d.getTime() <= Date.now();
 };
 
+/**
+ * Email: normalized (trimmed + lowercased) BEFORE the format check, so "  A@b.com "
+ * validates and — because Zod transforms — the form's parsed output is the normalized
+ * address the API will receive.
+ */
 const email = (t: T) =>
-  z.string().min(1, t("validation.required")).email(t("validation.email"));
+  z
+    .string()
+    .transform(normalizeEmail)
+    .pipe(z.string().min(1, t("validation.required")).email(t("validation.email")));
 
 /** Password policy mirrors the backend (`validatePassword`): 8+, upper, lower, number, special. */
 const password = (t: T) =>
@@ -76,9 +90,15 @@ export type SignInForm = z.infer<ReturnType<typeof signInSchema>>;
 // (No confirm-password field — that lives only on the Reset Password screen.)
 export const signUpSchema = (t: T) =>
   z.object({
-    fullName: z.string().trim().min(2, t("validation.nameMin")),
+    // `.transform(normalizeHumanText)` rather than `.trim()`: collapses internal runs too,
+    // and the transformed value is what the form hands to authService, so the padded
+    // original can never be submitted.
+    fullName: z
+      .string()
+      .transform(normalizeHumanText)
+      .pipe(z.string().min(2, t("validation.nameMin"))),
     email: email(t),
-    phone: z.string().regex(OMAN_PHONE, t("validation.phone")),
+    phone: z.string().transform((v) => v.replace(/\D/g, "")).pipe(z.string().regex(OMAN_PHONE, t("validation.phone"))),
     password: password(t),
     acceptTerms: z.literal(true, {
       errorMap: () => ({ message: t("validation.terms") }),
@@ -87,7 +107,14 @@ export const signUpSchema = (t: T) =>
 export type SignUpForm = z.infer<ReturnType<typeof signUpSchema>>;
 
 export const forgotSchema = (t: T) =>
-  z.object({ identifier: z.string().min(1, t("validation.required")) });
+  z.object({
+    // Normalized so "  me@x.com " reaches resetPasswordForEmail as "me@x.com" and a
+    // whitespace-only entry is rejected as required rather than sent as a blank identifier.
+    identifier: z
+      .string()
+      .transform(normalizeEmail)
+      .pipe(z.string().min(1, t("validation.required"))),
+  });
 export type ForgotForm = z.infer<ReturnType<typeof forgotSchema>>;
 
 export const resetSchema = (t: T) =>

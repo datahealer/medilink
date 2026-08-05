@@ -13,6 +13,7 @@ import { useSearchFilterStore, activeFilterCount } from "@/stores/searchFilterSt
 import type { Clinic, Doctor } from "@/data/types";
 import { localizedName } from "@/utils/localizedName";
 import { facilityTypeLabel } from "@/utils/specialties";
+import { normalizeSearchQuery } from "@medilink/shared/mobile";
 import { useGuestGate } from "@/hooks/useGuestGate";
 
 /** Search & Results (PDF p17): query, quick filters and ranked doctor cards. */
@@ -23,7 +24,12 @@ export default function SearchScreen() {
 
   const filters = useSearchFilterStore();
   const setFilters = useSearchFilterStore((s) => s.setFilters);
+  // `query` holds exactly what the user typed — never normalized per keystroke, or typing
+  // "Ahmed Al Balushi" would fight the user on every space. `searchTerm` is the normalized
+  // value the queries actually use, so "  Ahmed  " and "Ahmed" hit one cache entry and a
+  // whitespace-only box behaves as an empty search.
   const [query, setQuery] = useState("");
+  const searchTerm = normalizeSearchQuery(query);
   const { requireAuth } = useGuestGate(); // F4: guests can browse, but Book → wall
 
   // Pagination (QA #13): grow the fetch window from the top of the ranked list.
@@ -32,10 +38,10 @@ export default function SearchScreen() {
   // Reset to the first page whenever the search/filters change.
   useEffect(() => {
     setLimit(PAGE);
-  }, [query, filters.specialty, filters.gender, filters.maxFee, filters.minRating, filters.availableToday, filters.topRated]);
+  }, [searchTerm, filters.specialty, filters.gender, filters.maxFee, filters.minRating, filters.availableToday, filters.topRated]);
 
   const doctors = useDoctors({
-    query,
+    query: searchTerm,
     specialty: filters.specialty,
     gender: filters.gender,
     maxFee: filters.maxFee,
@@ -52,7 +58,7 @@ export default function SearchScreen() {
 
   // Doctors | Clinics search (QA #14). Clinic query only runs in clinics mode.
   const [mode, setMode] = useState<"doctors" | "clinics">("doctors");
-  const clinics = useSearchClinics(query, { enabled: mode === "clinics" });
+  const clinics = useSearchClinics(searchTerm, { enabled: mode === "clinics" });
 
   const count = doctors.data?.length ?? 0;
   // A full window came back → more likely exist. (When client-side filters trim a

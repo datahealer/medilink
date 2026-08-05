@@ -1,10 +1,34 @@
 // MEDICAL RECORDS — RE-HOMED from HAMS `patients/me/medical-history` + `patients/me/documents`.
 // Medical history (structured, one row/patient) + uploaded documents (with signed URLs).
+import { normalizeFreeText, normalizeHumanText } from "../utils/normalize";
 import type { DB, Insert, Row } from "./client";
 import { getMyPatientProfileId } from "./client";
 
 export type MedicalHistory = Row<"medical_histories">;
 export type PatientDocument = Row<"patient_documents">;
+
+/**
+ * Normalize a list of short clinical labels (allergies, conditions, medications,
+ * surgeries), dropping entries that were only whitespace and de-duplicating what that
+ * collapse reveals — `"Penicillin"` and `"Penicillin "` are one allergy, and showing a
+ * clinician two is worse than showing one.
+ */
+function cleanLabels(list: string[] | null | undefined): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  for (const raw of list) {
+    const value = normalizeHumanText(raw);
+    if (value) seen.add(value);
+  }
+  return [...seen];
+}
+
+/** A vault document must be findable, so it needs a real title. */
+function requireDocumentName(input: string): string {
+  const value = normalizeHumanText(input);
+  if (value === "") throw new Error("Document name cannot be empty.");
+  return value;
+}
 
 const DOCS_SELECT =
   "*, appointment:linked_appointment_id ( slot_date, slot_start, doctor:doctor_id ( full_name ) )";
@@ -37,10 +61,22 @@ export async function upsertMedicalHistory(
   patch: MedicalHistoryPatch
 ): Promise<MedicalHistory> {
   const patientId = await getMyPatientProfileId(db);
+  // Clinical free text: `notes` keeps its line breaks (a patient listing three things on
+  // three lines meant three lines) but loses padding. The array fields are lists of short
+  // human labels — allergy/medication names — so each entry is name-normalized and blank
+  // entries are dropped rather than stored as "" rows a clinician would see as gaps.
+  const safePatch: MedicalHistoryPatch = {
+    ...patch,
+    ...(patch.allergies !== undefined ? { allergies: cleanLabels(patch.allergies) } : {}),
+    ...(patch.conditions !== undefined ? { conditions: cleanLabels(patch.conditions) } : {}),
+    ...(patch.medications !== undefined ? { medications: cleanLabels(patch.medications) } : {}),
+    ...(patch.surgeries !== undefined ? { surgeries: cleanLabels(patch.surgeries) } : {}),
+    ...(patch.notes !== undefined ? { notes: normalizeFreeText(patch.notes) } : {}),
+  };
   const { data, error } = await db
     .from("medical_histories")
     .upsert(
-      { patient_id: patientId, ...patch, updated_at: new Date().toISOString() },
+      { patient_id: patientId, ...safePatch, updated_at: new Date().toISOString() },
       { onConflict: "patient_id" }
     )
     .select()
@@ -78,10 +114,13 @@ export async function addDocument(db: DB, doc: NewDocument): Promise<PatientDocu
     .from("patient_documents")
     .insert({
       patient_id: patientId,
-      name: doc.name,
+      // A document title is user-typed and shown in the vault list; `file_url` is a
+      // storage path and `file_type` a MIME string, so both are trim-only — collapsing
+      // runs inside them would be meaningless at best and corrupting at worst.
+      name: requireDocumentName(doc.name),
       type: doc.type,
-      file_url: doc.file_url,
-      file_type: doc.file_type,
+      file_url: doc.file_url.trim(),
+      file_type: doc.file_type.trim(),
       linked_appointment_id: doc.linked_appointment_id ?? null,
     })
     .select()

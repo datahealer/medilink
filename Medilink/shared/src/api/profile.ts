@@ -1,7 +1,8 @@
 // PROFILE — RE-HOMED from HAMS `patients/me` + `me` routes → direct Supabase (RLS).
 // The patient identity spans two tables: `profiles` (account: name/phone/role) and
 // `patient_profiles` (clinical: dob/gender/blood group/address/emergency contact).
-import type { DB, Row, Update } from "./client";
+import { normalizeHumanText, normalizeOptionalText } from "../utils/normalize";
+import type { DB, Json, Row, Update } from "./client";
 import { getCurrentUserId } from "./client";
 
 export interface MyProfile {
@@ -24,6 +25,17 @@ export async function getMyProfile(db: DB): Promise<MyProfile> {
   return { account, patient };
 }
 
+/**
+ * `patient_profiles.address` and `.emergency_contact` are JSONB, not text. MediLink writes
+ * plain strings into them, but HAMS can store a structured object, so normalize ONLY the
+ * string case and pass anything else through untouched — running a text normalizer over an
+ * object would destroy a structured address.
+ */
+function normalizeJsonText(value: Json): Json {
+  if (typeof value !== "string") return value;
+  return normalizeOptionalText(value);
+}
+
 export interface ProfilePatch {
   // → profiles
   full_name?: string;
@@ -42,20 +54,31 @@ export interface ProfilePatch {
 export async function updateMyProfile(db: DB, patch: ProfilePatch): Promise<MyProfile> {
   const userId = await getCurrentUserId(db);
 
+  // Normalized HERE, not only in the callers' forms: this is the single write path for
+  // both web and mobile, so padded text cannot reach `profiles`/`patient_profiles` even
+  // from a caller that forgot to trim. See utils/normalize.ts.
   const accountPatch: Update<"profiles"> = {};
-  if (patch.full_name !== undefined) accountPatch.full_name = patch.full_name;
-  if (patch.phone !== undefined) accountPatch.phone = patch.phone;
+  if (patch.full_name !== undefined) accountPatch.full_name = normalizeHumanText(patch.full_name);
+  if (patch.phone !== undefined) accountPatch.phone = normalizeOptionalText(patch.phone);
 
   const patientPatch: Update<"patient_profiles"> = {};
   if (patch.date_of_birth !== undefined) patientPatch.date_of_birth = patch.date_of_birth;
   if (patch.gender !== undefined) patientPatch.gender = patch.gender;
   if (patch.blood_group !== undefined) patientPatch.blood_group = patch.blood_group;
-  if (patch.address !== undefined) patientPatch.address = patch.address;
+  if (patch.address !== undefined) patientPatch.address = normalizeJsonText(patch.address);
   if (patch.emergency_contact !== undefined)
-    patientPatch.emergency_contact = patch.emergency_contact;
+    patientPatch.emergency_contact = normalizeJsonText(patch.emergency_contact);
+  // A URL, not prose — trim only; collapsing internal runs would corrupt a signed URL.
   if (patch.profile_photo_url !== undefined)
-    patientPatch.profile_photo_url = patch.profile_photo_url;
-  if (patch.civil_number !== undefined) patientPatch.civil_number = patch.civil_number;
+    patientPatch.profile_photo_url = patch.profile_photo_url?.trim() || null;
+  if (patch.civil_number !== undefined) patientPatch.civil_number = normalizeOptionalText(patch.civil_number);
+
+  // A required name must not be blanked by a padded-empty value. Rejecting is safer than
+  // silently dropping the key: the caller asked to set a name and would otherwise be told
+  // it succeeded while the old value stayed.
+  if (patch.full_name !== undefined && accountPatch.full_name === "") {
+    throw new Error("Full name cannot be empty.");
+  }
 
   if (Object.keys(accountPatch).length > 0) {
     const { error } = await db.from("profiles").update(accountPatch).eq("id", userId);

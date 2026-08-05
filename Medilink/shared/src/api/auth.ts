@@ -6,13 +6,20 @@
 // auth.users insert, so client signUp still creates the patient profile.
 import type { Session, User } from "@supabase/supabase-js";
 
+import { normalizeEmail, normalizeHumanText } from "../utils/normalize";
 import type { DB } from "./client";
 
 export async function signInWithPassword(
   db: DB,
   input: { email: string; password: string }
 ): Promise<{ user: User; session: Session }> {
-  const { data, error } = await db.auth.signInWithPassword(input);
+  // Email is normalized; PASSWORD IS NOT. A leading/trailing space can be a deliberate
+  // part of a password, and trimming it here would lock out anyone who set one — see the
+  // note on `password` in utils/normalize.ts.
+  const { data, error } = await db.auth.signInWithPassword({
+    email: normalizeEmail(input.email),
+    password: input.password,
+  });
   if (error) throw error;
   // Supabase returns user+session on success for password grant.
   return { user: data.user, session: data.session };
@@ -29,10 +36,18 @@ export async function signUp(
   db: DB,
   input: { email: string; password: string; data?: Record<string, unknown> }
 ): Promise<{ user: User | null; session: Session | null }> {
+  // `full_name` rides along in metadata and the `hams_handle_new_user` trigger copies it
+  // straight into `profiles.full_name`, so a padded value here becomes a padded name on
+  // every appointment and clinic record. Normalize it at this boundary; leave the rest of
+  // `data` alone (callers own their own keys) and never touch `password`.
+  const metadata = input.data ? { ...input.data } : undefined;
+  if (metadata && typeof metadata.full_name === "string") {
+    metadata.full_name = normalizeHumanText(metadata.full_name);
+  }
   const { data, error } = await db.auth.signUp({
-    email: input.email,
+    email: normalizeEmail(input.email),
     password: input.password,
-    options: input.data ? { data: input.data } : undefined,
+    options: metadata ? { data: metadata } : undefined,
   });
   if (error) throw error;
   return { user: data.user, session: data.session };
@@ -47,8 +62,10 @@ export async function verifyEmailOtp(
   input: { email: string; token: string; type: "signup" | "recovery" | "email" }
 ): Promise<{ user: User | null; session: Session | null }> {
   const { data, error } = await db.auth.verifyOtp({
-    email: input.email,
-    token: input.token,
+    email: normalizeEmail(input.email),
+    // OTP: remove whitespace only. Users paste "123 456" out of an email, and the digits
+    // are the whole token — nothing else about the string is reinterpreted.
+    token: input.token.replace(/\s+/g, ""),
     type: input.type,
   });
   if (error) throw error;
@@ -57,7 +74,7 @@ export async function verifyEmailOtp(
 
 /** Re-send the signup confirmation OTP email. */
 export async function resendSignupOtp(db: DB, email: string): Promise<void> {
-  const { error } = await db.auth.resend({ type: "signup", email });
+  const { error } = await db.auth.resend({ type: "signup", email: normalizeEmail(email) });
   if (error) throw error;
 }
 
@@ -75,7 +92,7 @@ export async function resendSignupOtp(db: DB, email: string): Promise<void> {
  */
 export async function signInWithEmailOtp(db: DB, email: string): Promise<void> {
   const { error } = await db.auth.signInWithOtp({
-    email,
+    email: normalizeEmail(email),
     options: { shouldCreateUser: false },
   });
   if (error) throw error;
@@ -105,7 +122,7 @@ export async function resetPasswordForEmail(
   redirectTo?: string
 ): Promise<void> {
   const { error } = await db.auth.resetPasswordForEmail(
-    email,
+    normalizeEmail(email),
     redirectTo ? { redirectTo } : undefined
   );
   if (error) throw error;

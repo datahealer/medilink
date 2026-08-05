@@ -3,6 +3,9 @@ export * from "./types/index";
 export * from "./auth/index";
 export * from "./config/index";
 export { ROUTES } from "./utils/routes";
+// Input normalization — no dependencies, so it is RN-safe and exported directly
+// (the ./utils barrel is not, because cn pulls in tailwind-merge).
+export * from "./utils/normalize";
 export * as api from "./api/index";
 
 // Flat domain-type re-exports so app screens import HAMS-shaped types directly

@@ -1,4 +1,5 @@
 // REVIEWS — RE-HOMED from HAMS `reviews/me` (list) + `reviews` POST (create) → Supabase (RLS).
+import { normalizeFreeText } from "../utils/normalize";
 import type { DB, Enums, Row } from "./client";
 import { getMyPatientProfileId } from "./client";
 
@@ -119,8 +120,12 @@ export async function createReview(db: DB, input: NewReview): Promise<Review> {
       target_type: input.targetType,
       target_id: input.targetId,
       rating: input.rating,
-      review_text: input.reviewText,
-      comment: input.comment ?? null,
+      // Patient-authored prose shown on the doctor's public profile. Free text, so line
+      // breaks survive; `normalizeFreeText` returns null for a whitespace-only comment so
+      // an empty review body is stored as null rather than "   ".
+      // `review_text` is nullable, so a star-only rating stores null rather than "".
+      review_text: normalizeFreeText(input.reviewText),
+      comment: normalizeFreeText(input.comment ?? null),
       appointment_id: input.appointmentId ?? null,
     })
     .select()

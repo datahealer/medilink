@@ -1,5 +1,6 @@
 // APPOINTMENTS — RE-HOMED from HAMS `patients/me/appointments`, `appointments/book`,
 // `appointments/[id]`, `slots` → direct Supabase + RPCs (RLS / SECURITY DEFINER).
+import { normalizeFreeText } from "../utils/normalize";
 import type { DB, Enums, Json } from "./client";
 import { getCurrentUserId, getMyPatientProfileId, today } from "./client";
 
@@ -84,7 +85,10 @@ export async function bookAppointment(db: DB, input: BookAppointmentInput): Prom
     p_type: input.type,
     p_is_emergency: input.isEmergency ?? false,
     p_for_family_member_id: input.forFamilyMemberId,
-    p_reason: input.reason ?? undefined,
+    // The clinic reads this before the consultation, so keep the patient's line breaks but
+    // drop padding. A whitespace-only reason becomes `undefined` → the RPC's DEFAULT NULL,
+    // rather than a reason field the doctor sees as blank-but-present.
+    p_reason: normalizeFreeText(input.reason ?? null) ?? undefined,
   });
   if (error) throw error;
   return data;
