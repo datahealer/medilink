@@ -189,6 +189,20 @@ describe("signUpSchema — password policy mirrors the backend", () => {
   });
 
   it("requires an 8-digit Oman phone", () => {
-    expect(signUpSchema(t).safeParse({ ...base, phone: "+96891111111", password: "Abcdef1!" }).success).toBe(false);
+    // 9 digits is a typo and must still be rejected — the schema deliberately does NOT
+    // truncate to 8 (that would store a different number than the user typed). The 8-char
+    // cap lives in PhoneField, where the user sees the field refuse the keystroke.
+    expect(signUpSchema(t).safeParse({ ...base, phone: "912345678", password: "Abcdef1!" }).success).toBe(false);
+    expect(signUpSchema(t).safeParse({ ...base, phone: "9123456", password: "Abcdef1!" }).success).toBe(false);
+  });
+
+  it("ACCEPTS a pasted full E.164 number by dropping its country code (QA MED-007)", () => {
+    // BEHAVIOUR CHANGE: this used to be rejected, because the old `\D`-strip transform left
+    // "96891111111" (11 digits). Rejecting a correct number purely for including its own
+    // country code was user-hostile, and PhoneField now renders +968 as a visible prefix —
+    // so a paste is normalised to the local digits instead of erroring.
+    const r = signUpSchema(t).safeParse({ ...base, phone: "+96891111111", password: "Abcdef1!" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.phone).toBe("91111111");
   });
 });

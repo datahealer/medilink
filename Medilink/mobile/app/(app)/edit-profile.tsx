@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { omanPhoneE164 } from "@medilink/shared/mobile";
 import type { BloodGroup, Gender } from "@/data/types";
 
 import {
@@ -63,7 +64,11 @@ export default function EditProfileScreen() {
   // Captured once, alongside the seed above, so "has the user edited the name?" is a value
   // comparison rather than a touched-flag that a programmatic set could desync.
   const [initialFullName] = useState(account?.full_name ?? "");
-  const [phone, setPhone] = useState(account?.phone ?? "");
+  // Stored canonically as +968XXXXXXXX; the editable field holds the 8 LOCAL digits.
+  // THIS SEED IS THE MED-007 SAVE BLOCKER: it used to load the raw column value, so a
+  // normally-registered patient got "+96891234567" in a field validated by /^[0-9]{8}$/ —
+  // phoneError was permanently set and onSave() returned early on a field they never touched.
+  const [phone, setPhone] = useState(extractOmanLocalPhone(account?.phone ?? ""));
   const [dob, setDob] = useState(patient?.date_of_birth ?? "");
   const [gender, setGender] = useState<Gender | undefined>(patient?.gender ?? undefined);
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | undefined>(
@@ -147,7 +152,8 @@ export default function EditProfileScreen() {
     update.mutate(
       {
         full_name: fullName.trim(),
-        phone: phone.trim(),
+        // Re-attach the country code: field holds local digits, column holds E.164.
+        phone: omanPhoneE164(phone) ?? "",
         date_of_birth: dob.trim() || null,
         gender: gender ?? null,
         blood_group: bloodGroup ?? "unknown",
@@ -305,12 +311,16 @@ export default function EditProfileScreen() {
         ))}
       </View>
 
-      <TextField
+      {/* Phone — PhoneField, not a raw TextField (QA MED-007). The old input had
+          `keyboardType="phone-pad"` with no maxLength and no sanitisation, so `#`, `;`, `*`
+          and 9+ digits reached the database. PhoneField holds the 8 local digits; +968 is
+          rendered as a prefix and re-attached on save. */}
+      <PhoneField
         label={t("profile.phone")}
         value={phone}
         onChangeText={setPhone}
-        keyboardType="phone-pad"
         error={phoneError}
+        placeholder="9000 0000"
         containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
       <TextField

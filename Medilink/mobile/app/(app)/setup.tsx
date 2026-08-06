@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import { omanPhoneE164 } from "@medilink/shared/mobile";
 import type { BloodGroup, Gender } from "@/data/types";
 
 import { AppHeader, Button, Chip, DateField, PhoneField, Screen, Text, TextField } from "@/components/ui";
@@ -49,7 +50,10 @@ export default function SetupScreen() {
   // which can legitimately contain characters this rule rejects. Grandfathered until edited
   // so onboarding can never dead-end. See nameProblem() in utils/validation.
   const [initialFullName] = useState(account?.full_name ?? "");
-  const [phone, setPhone] = useState(account?.phone ?? "");
+  // Stored canonically as +968XXXXXXXX (signup writes that), so the editable field is seeded
+  // with the 8 LOCAL digits — otherwise the +968 would appear twice on screen and the value
+  // would fail the 8-digit rule. See the Oman phone block in shared/src/utils/normalize.ts.
+  const [phone, setPhone] = useState(extractOmanLocalPhone(account?.phone ?? ""));
   const [dob, setDob] = useState(patient?.date_of_birth ?? "");
   const [gender, setGender] = useState<Gender | undefined>(patient?.gender ?? undefined);
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | undefined>(
@@ -66,15 +70,17 @@ export default function SetupScreen() {
   const nameKey = nameErrorKey(fullName, { grandfathered: fullName === initialFullName });
   const nameError = nameKey ? t(nameKey) : undefined;
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
+  const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
   const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
-  const canFinish = !nameError && dobValid && !!gender && !civilError && !emergencyError;
+  const canFinish = !nameError && dobValid && !!gender && !civilError && !phoneError && !emergencyError;
 
   const onFinish = () => {
     if (!canFinish) return;
     update.mutate(
       {
         full_name: fullName.trim(),
-        phone: phone.trim() || undefined,
+        // Re-attach the country code: the field holds local digits, the column holds E.164.
+        phone: omanPhoneE164(phone) ?? undefined,
         date_of_birth: dob.trim(),
         gender: gender ?? null,
         blood_group: bloodGroup ?? "unknown",
@@ -170,11 +176,17 @@ export default function SetupScreen() {
         containerStyle={{ marginBottom: spacing.md }}
       />
 
-      <TextField
+      {/* Phone — PhoneField, not a raw TextField (QA MED-007). It was a bare
+          `keyboardType="phone-pad"` input with no maxLength, no sanitisation, no dial-code
+          prefix and no error display, so `#`, `;`, `*` and 9+ digits all went straight to
+          the database. PhoneField holds the 8 local digits only; +968 is re-attached on
+          save. */}
+      <PhoneField
         label={t("profile.phone")}
         value={phone}
         onChangeText={setPhone}
-        keyboardType="phone-pad"
+        error={phoneError}
+        placeholder="9000 0000"
         containerStyle={{ marginBottom: spacing.md }}
       />
 

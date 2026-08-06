@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { normalizeEmail, normalizeHumanText } from "@medilink/shared/mobile";
+import {
+  normalizeEmail,
+  normalizeHumanText,
+  omanPhoneDigits,
+  omanPhoneLocal,
+} from "@medilink/shared/mobile";
 
 import type { MessageKey } from "@/i18n";
 
@@ -113,16 +118,18 @@ export const isValidOmanPhone = (value: string): boolean => {
 };
 
 /**
- * Best-effort extraction of an 8-digit Oman local number from a possibly-legacy
- * emergency-contact string like "Name · +968 9111 1111" (QA #3 backward-compat).
- * Strips non-digits, drops a leading 968 country code, and keeps the last 8 digits.
- * Returns "" when no plausible number is present (so the field shows empty, not junk).
+ * Any stored representation → the 8 editable local digits, or "".
+ *
+ * Now a thin alias for the shared `omanPhoneLocal` so there is exactly ONE conversion in
+ * the codebase (QA MED-007). It previously reimplemented the same logic with an ASCII-only
+ * `\D` strip, which silently discarded Arabic-Indic digits. Kept as a named export because
+ * both profile screens use it, and the name says what the call site means.
+ *
+ * Handles the legacy shapes that really exist in this column: `91234567`,
+ * `+96891234567`, `96891234567`, `"+968 9123 4567"`, and the emergency-contact strings
+ * like `"Name · +968 9111 1111"` (QA #3 back-compat).
  */
-export const extractOmanLocalPhone = (value: string): string => {
-  let digits = (value || "").replace(/\D/g, "");
-  if (digits.startsWith("968") && digits.length > 8) digits = digits.slice(3);
-  return digits.length >= 8 ? digits.slice(-8) : "";
-};
+export const extractOmanLocalPhone = omanPhoneLocal;
 
 /** Date of birth: empty allowed OR a real calendar date in YYYY-MM-DD, not in the future. */
 export const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -208,7 +215,16 @@ export const signUpSchema = (t: T) =>
     // than reaching the database. Arabic and mixed-script names pass — see personName.
     fullName: personName(t),
     email: email(t),
-    phone: z.string().transform((v) => v.replace(/\D/g, "")).pipe(z.string().regex(OMAN_PHONE, t("validation.phone"))),
+    // `omanPhoneDigits`, NOT `omanPhoneInput` (QA MED-007). Both fold Arabic-Indic digits
+    // (an ASCII-only `\D` strip silently emptied the field for anyone typing ٩١٢…) and drop
+    // a pasted +968 so a correct number is not rejected for including its country code.
+    // But only `omanPhoneInput` truncates to 8, and a VALIDATOR must never truncate: that
+    // would turn a 9-digit typo into a valid-looking wrong number. Here 9 digits stay 9 and
+    // are rejected below. The 8-char cap belongs to PhoneField, where the user can see it.
+    phone: z
+      .string()
+      .transform(omanPhoneDigits)
+      .pipe(z.string().regex(OMAN_PHONE, t("validation.phone"))),
     password: password(t),
     acceptTerms: z.literal(true, {
       errorMap: () => ({ message: t("validation.terms") }),

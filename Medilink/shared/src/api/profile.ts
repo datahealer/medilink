@@ -1,7 +1,7 @@
 // PROFILE — RE-HOMED from HAMS `patients/me` + `me` routes → direct Supabase (RLS).
 // The patient identity spans two tables: `profiles` (account: name/phone/role) and
 // `patient_profiles` (clinical: dob/gender/blood group/address/emergency contact).
-import { normalizeHumanText, normalizeOptionalText } from "../utils/normalize";
+import { normalizeHumanText, normalizeOptionalText, omanPhoneE164 } from "../utils/normalize";
 import type { DB, Json, Row, Update } from "./client";
 import { getCurrentUserId } from "./client";
 
@@ -59,7 +59,17 @@ export async function updateMyProfile(db: DB, patch: ProfilePatch): Promise<MyPr
   // from a caller that forgot to trim. See utils/normalize.ts.
   const accountPatch: Update<"profiles"> = {};
   if (patch.full_name !== undefined) accountPatch.full_name = normalizeHumanText(patch.full_name);
-  if (patch.phone !== undefined) accountPatch.phone = normalizeOptionalText(patch.phone);
+  // Phone is canonicalised to E.164 (+968XXXXXXXX) — the format signup already writes and
+  // the one the backend's OpenAPI schema and send-otp route document. See the Oman phone
+  // block in utils/normalize.ts for why this column had three competing formats.
+  //
+  // Deliberately NOT canonicalise-or-null: an unrecognised value falls back to plain text
+  // normalization instead of being discarded. Web's profile form has no phone validation
+  // yet, and silently nulling a field a user typed into would be worse than storing it
+  // verbatim. Recognisable numbers become consistent; nothing else is destroyed.
+  if (patch.phone !== undefined) {
+    accountPatch.phone = omanPhoneE164(patch.phone) ?? normalizeOptionalText(patch.phone);
+  }
 
   const patientPatch: Update<"patient_profiles"> = {};
   if (patch.date_of_birth !== undefined) patientPatch.date_of_birth = patch.date_of_birth;

@@ -1,5 +1,6 @@
 import React, { forwardRef } from "react";
 import { StyleSheet, View, type TextInput } from "react-native";
+import { omanPhoneInput } from "@medilink/shared/mobile";
 
 import { useTheme } from "@/hooks/useTheme";
 import { TextField, type TextFieldProps } from "./TextField";
@@ -15,20 +16,38 @@ export interface PhoneFieldProps extends Omit<TextFieldProps, "leading" | "keybo
  * `dialCode` prop keeps it reusable; the prefix block is where a country-code
  * picker would mount in a later iteration.
  *
+ * The field holds ONLY the 8 editable local digits — never the dial code, which is
+ * rendered separately and re-attached at the write boundary (`omanPhoneE164`). Keeping the
+ * prefix out of the value is what makes `+968+96891234567` structurally impossible.
+ *
+ * ── SANITISATION LIVES HERE, NOT IN EACH SCREEN (QA MED-007) ──
+ *
+ * Every keystroke and paste is filtered through `omanPhoneInput`: Arabic-Indic digits are
+ * folded to ASCII, non-digits are dropped, a pasted country code is removed, and the result
+ * is capped at 8. So `#`, `;`, `*`, `+`, letters and emoji cannot enter the value even
+ * though a soft keyboard or the clipboard may offer them.
+ *
+ * Two deliberate choices:
+ *  • `number-pad`, not `phone-pad` — the phone pad offers `+ * # ,`, which this field can
+ *    never accept, so showing them invites the exact input QA reported.
+ *  • NO native `maxLength`. A controlled TextInput sitting exactly at `maxLength` hits an
+ *    RN reconciliation bug where edits to the final character get reverted; the length cap
+ *    is applied in JS instead. Same reasoning as the Civil Number fields (F2).
+ *
  * TODO: replace the static prefix with a CountryCodePicker (search + flags).
  */
 export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneField(
-  { dialCode = "+968", ...rest },
+  { dialCode = "+968", onChangeText, ...rest },
   ref
 ) {
   const { colors, isRTL } = useTheme();
   return (
     <TextField
       ref={ref}
-      keyboardType="phone-pad"
+      keyboardType="number-pad"
       autoComplete="tel"
       textContentType="telephoneNumber"
-      maxLength={8}
+      onChangeText={onChangeText ? (raw) => onChangeText(omanPhoneInput(raw)) : undefined}
       leading={
         <View
           style={[
