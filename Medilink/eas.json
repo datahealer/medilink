@@ -20,6 +20,7 @@
     "production": {
       "autoIncrement": true,
       "//": "Store builds. APP_ENV=production also disables the app/dev/* routes (see isDev in src/config/env.ts). API_URL / SUPABASE_URL / SUPABASE_ANON_KEY come from EAS environment variables.",
+      "//2": "GOOGLE SIGN-IN: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID must also be set as an EAS environment variable, or the Google button is hidden on Android. It is a PUBLIC client ID; the client SECRET belongs only in the Supabase dashboard. Hold back EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID until Apple Sign-In ships (App Store Guideline 4.8). See docs/GOOGLE_SIGN_IN_SETUP.md.",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_DATA_MODE": "production"

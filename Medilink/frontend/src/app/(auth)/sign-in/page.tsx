@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api } from "@medilink/shared";
+import { api, safeNextPath } from "@medilink/shared";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
@@ -12,7 +12,9 @@ import { useI18n } from "@/i18n/I18nProvider";
 
 function SignInForm() {
   const router = useRouter();
-  const next = useSearchParams().get("next") || "/dashboard";
+  // `next` arrives from a link anyone can craft and ends up in router.push() and in the
+  // OAuth redirectTo — constrain it to a same-origin path before either.
+  const next = safeNextPath(useSearchParams().get("next"), "/dashboard");
   const { locale } = useI18n();
   const ar = locale === "ar";
 

@@ -28,6 +28,7 @@ export default function SignInScreen() {
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   // F5: identifier channel for passwordless login. Phone is intentionally disabled
@@ -91,9 +92,32 @@ export default function SignInScreen() {
     }
   };
 
-  const onGoogle = () => {
-    // Honest disabled state — no fake success (see audit: no Google login endpoint).
-    setFormError(t("errors.googleNotConfigured"));
+  /**
+   * Native Google sign-in. Routed through the repository like every other auth call, so
+   * mock mode stays offline (it returns "not configured" rather than hitting Google).
+   *
+   * Cancellation is silent by contract: `{ ok: false }` with NO messageKey means the
+   * user dismissed the account sheet, and showing an error there would be wrong.
+   */
+  const onGoogle = async () => {
+    setFormError(null);
+    setGoogleLoading(true);
+    try {
+      const res = await repositories.auth.googleSignIn();
+      if (res.ok) {
+        // Onboarding is decided by (app)/_layout: a brand-new Google patient has a NULL
+        // date_of_birth and is redirected to /setup from there. Never route around it.
+        router.replace("/dashboard");
+      } else if (res.messageKey) {
+        setFormError(t(res.messageKey));
+      }
+    } catch (error) {
+      // No tokens or identifiers in the report — only that the flow threw.
+      reportError(error, { tags: { surface: "sign-in-google" } });
+      setFormError(t("errors.googleSignInFailed"));
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -232,38 +256,30 @@ export default function SignInScreen() {
         </View>
       ) : null}
 
-      {/* divider */}
-      <View style={[styles.divider, { marginVertical: spacing.lg }]}>
-        <View style={[styles.line, { backgroundColor: colors.border }]} />
-        <Text variant="caption" color="textMuted" style={{ marginHorizontal: 12 }}>
-          {t("signIn.or")}
-        </Text>
-        <View style={[styles.line, { backgroundColor: colors.border }]} />
-      </View>
+      {/* Social sign-in. The whole block is omitted when no provider is available on
+          this platform, so the screen never ends with a stray "or" and a dead button.
+          Today that means: Android → Google; iOS → nothing until Apple Sign-In ships
+          (App Store Guideline 4.8 requires Apple alongside any social login, so Google
+          on iOS is deliberately gated off — see src/config/env.ts). */}
+      {isGoogleConfigured ? (
+        <>
+          <View style={[styles.divider, { marginVertical: spacing.lg }]}>
+            <View style={[styles.line, { backgroundColor: colors.border }]} />
+            <Text variant="caption" color="textMuted" style={{ marginHorizontal: 12 }}>
+              {t("signIn.or")}
+            </Text>
+            <View style={[styles.line, { backgroundColor: colors.border }]} />
+          </View>
 
-      <Button
-        label={t("signIn.google")}
-        variant="outline"
-        disabled={!isGoogleConfigured}
-        onPress={onGoogle}
-        leading={<Ionicons name="logo-google" size={18} color={colors.primary} />}
-      />
-      {!isGoogleConfigured ? (
-        <Text variant="caption" color="textMuted" align="center" style={{ marginTop: spacing.sm }}>
-          {t("errors.googleNotConfigured")}
-        </Text>
+          <Button
+            label={t("signIn.google")}
+            variant="outline"
+            loading={googleLoading}
+            onPress={onGoogle}
+            leading={<Ionicons name="logo-google" size={18} color={colors.primary} />}
+          />
+        </>
       ) : null}
-
-      {/* Apple sign-in (PDF p12). Disabled until an Apple provider is configured —
-          we never fake auth (see audit). */}
-      <View style={{ height: spacing.sm }} />
-      <Button
-        label={t("signIn.apple")}
-        variant="outline"
-        disabled
-        onPress={() => {}}
-        leading={<Ionicons name="logo-apple" size={18} color={colors.primary} />}
-      />
 
       <View style={[styles.footer, { marginTop: spacing.xl, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Text variant="body" color="textMuted">

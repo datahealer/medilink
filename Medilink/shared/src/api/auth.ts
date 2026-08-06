@@ -98,6 +98,48 @@ export async function signInWithEmailOtp(db: DB, email: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * NATIVE SOCIAL SIGN-IN — exchange a provider ID token for a Supabase session.
+ *
+ * This is the mobile counterpart to the web's `signInWithOAuth`: instead of a browser
+ * redirect, the native SDK (Google Play Services / Apple's ASAuthorization) hands us a
+ * signed OIDC ID token, which Supabase verifies against the provider's public keys.
+ * There is NO authorization code, NO redirect URI and therefore nothing to add to the
+ * Supabase redirect allow-list — which is precisely why it was chosen over a
+ * WebBrowser/AuthSession flow for `mobile/` (see docs/GOOGLE_SIGN_IN_SETUP.md).
+ *
+ * The token's `aud` claim MUST appear in the provider's "Client IDs" list in the
+ * Supabase dashboard or verification fails — for Google that means the Web client ID
+ * (Android's token audience) and the iOS client ID.
+ *
+ * `nonce` is the RAW nonce. Apple/Google receive its SHA-256 hash; Supabase re-hashes
+ * this value and compares. Passing the hash here instead of the raw string is the
+ * single most common way this flow fails, so callers must not pre-hash.
+ *
+ * Account linking is Supabase's own: when the provider's verified email matches an
+ * existing user's CONFIRMED email, the identity is attached to that user and no new
+ * `auth.users` row (and therefore no second patient profile) is created. We
+ * deliberately implement no linking logic of our own — see the account-collision notes
+ * in docs/GOOGLE_SIGN_IN_SETUP.md.
+ */
+export async function signInWithIdToken(
+  db: DB,
+  input: { provider: "google" | "apple"; token: string; nonce?: string }
+): Promise<{ user: User; session: Session }> {
+  const { data, error } = await db.auth.signInWithIdToken({
+    provider: input.provider,
+    token: input.token,
+    ...(input.nonce ? { nonce: input.nonce } : {}),
+  });
+  if (error) throw error;
+  // Supabase returns both on success; guard anyway so a malformed response surfaces
+  // as a thrown error rather than an "authenticated" state with no session.
+  if (!data.user || !data.session) {
+    throw new Error("Identity provider returned no session");
+  }
+  return { user: data.user, session: data.session };
+}
+
 export async function signOut(db: DB): Promise<void> {
   const { error } = await db.auth.signOut();
   if (error) throw error;

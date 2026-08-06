@@ -25,6 +25,8 @@
     },
     "production": {
       "autoIncrement": true,
+      "//": "GOOGLE SIGN-IN: add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID here (it is a PUBLIC client ID, safe to commit — the client SECRET lives only in the Supabase dashboard). Without it the Google button is hidden on Android. Do NOT add EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID until Apple Sign-In ships: App Store Guideline 4.8 requires Apple alongside any social login on iOS. See docs/GOOGLE_SIGN_IN_SETUP.md.",
+      "//2": "WARNING — two eas.json files exist (this one and Medilink/eas.json). Whichever directory `eas build` runs from wins. This file hardcodes env; the root one expects EAS environment variables. Keep the Google client ID in sync across BOTH, or one profile silently ships without it.",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_DATA_MODE": "production",

@@ -413,6 +413,11 @@ const authRepo: AuthRepository = {
   async resetPassword() {
     return delay({ ok: true });
   },
+  /**
+   * Mock mode never contacts Google — the whole point of DATA_MODE=mock is that the
+   * app runs with no network and no provider configuration. Reported honestly as
+   * "not configured" rather than faking a session, matching the no-fake-auth rule.
+   */
   async googleSignIn() {
     return delay({ ok: false, messageKey: "errors.googleNotConfigured" });
   },

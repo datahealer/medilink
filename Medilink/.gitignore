@@ -18,6 +18,9 @@ mobile/dist/
 *.jks
 *.p12
 *.keystore
+# Apple "Sign in with Apple" / APNs private keys. Downloadable exactly once from the
+# Apple Developer portal; belongs in the org password manager, never in the repo.
+*.p8
 
 # build / cache
 dist/

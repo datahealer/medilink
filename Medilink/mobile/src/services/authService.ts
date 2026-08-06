@@ -6,6 +6,11 @@
  *   • sign-up                                  → auth.signUp (email confirmation OTP)
  *   • verify / resend OTP                      → auth.verifyOtp / auth.resend (email)
  *   • password reset                           → resetPasswordForEmail → recovery OTP
+ *   • Google sign-in                           → native SDK ID token → signInWithIdToken
+ *
+ * Google runs through the NATIVE flow (see services/googleAuth.ts) — no browser, no
+ * deep link, no expo-auth-session. Web keeps Supabase's browser OAuth. The two
+ * architectures are per-platform and never mixed.
  *
  * The previous custom `otp_records` backend flow (send/verify/resend-otp, service-role
  * signup) is retired; delivery was never wired. Results carry a stable `messageKey`
@@ -14,11 +19,11 @@
  */
 import { api } from "@medilink/shared/mobile";
 
-import { isGoogleConfigured } from "@/config/env";
 import type { MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { setRememberSession } from "@/lib/authPersistence";
 import { ApiError, apiFetch } from "@/services/api";
+import { signInWithGoogle, signOutGoogle } from "@/services/googleAuth";
 import { clearPushToken } from "@/services/push";
 
 export interface SignInInput {
@@ -36,7 +41,14 @@ export interface SignUpInput {
 
 export interface AuthResult {
   ok: boolean;
-  /** i18n key for a user-facing message (error or info). */
+  /**
+   * i18n key for a user-facing message (error or info).
+   *
+   * ABSENT on a failure means "fail silently" — currently only the Google/Apple
+   * user-cancelled path. Callers must treat `{ ok: false }` with no key as a no-op
+   * rather than falling back to a generic error, or dismissing the account sheet
+   * would show a bogus "Unexpected error".
+   */
   messageKey?: MessageKey;
   /** signUp only: true when a live session was returned (email confirmation is
    *  disabled), so the OTP step can be skipped. */
@@ -209,20 +221,32 @@ export const authService = {
     }
   },
 
+  /**
+   * Native Google sign-in (Play Services / Google SDK → Supabase `signInWithIdToken`).
+   *
+   * `cancelled` is NOT an error: the user dismissing the account sheet must leave the
+   * screen exactly as it was, with no toast and no error box. It is reported as
+   * `{ ok: false }` with NO messageKey, and the caller keys off that absence.
+   */
   async googleSignIn(): Promise<AuthResult> {
-    if (!isGoogleConfigured) {
-      return { ok: false, messageKey: "errors.googleNotConfigured" };
+    const outcome = await signInWithGoogle();
+    if (outcome.status === "success") {
+      // Social sign-in is an explicit, deliberate login — persist it across cold
+      // launches, matching verifyLoginOtp. There is no "remember me" checkbox on the
+      // Google path, and silently forgetting the session would look like a bug.
+      await setRememberSession(true);
+      return { ok: true };
     }
-    // Real native Google OAuth requires expo-auth-session + redirect config.
-    // Client IDs exist but the native flow is intentionally not wired here;
-    // surface the same honest "not configured" state until it is.
-    return { ok: false, messageKey: "errors.googleNotConfigured" };
+    if (outcome.status === "cancelled") return { ok: false };
+    return { ok: false, messageKey: outcome.messageKey };
   },
 
   async signOut(): Promise<void> {
     // Remove this device's push token first (while the session is still valid for the
-    // RLS-scoped delete), then end the session.
+    // RLS-scoped delete), then clear Google's cached account so the next sign-in offers
+    // the chooser, then end the Supabase session.
     await clearPushToken();
+    await signOutGoogle();
     await api.auth.signOut(supabase);
   },
 

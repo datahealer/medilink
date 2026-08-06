@@ -66,6 +66,28 @@ jest.mock("react-native-webview", () => {
   return { WebView: (props) => React.createElement("WebView", props) };
 });
 
+// Google Sign-In calls TurboModuleRegistry.getEnforcing('RNGoogleSignin') at IMPORT time,
+// so it throws under Jest for any suite that merely reaches it through the import graph —
+// src/data/real/index.ts → authService → googleAuth pulls it into the data-layer
+// integration tests, which never touch Google at all. This stub keeps those suites honest
+// about what they are testing. The behavioural tests in
+// src/services/__tests__/googleAuth.test.ts declare their own richer jest.mock, which takes
+// precedence over this one.
+jest.mock("@react-native-google-signin/google-signin", () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(() => Promise.resolve(true)),
+    signIn: jest.fn(() => Promise.resolve({ type: "cancelled" })),
+    signOut: jest.fn(() => Promise.resolve()),
+  },
+  isErrorWithCode: jest.fn(() => false),
+  statusCodes: {
+    SIGN_IN_CANCELLED: "SIGN_IN_CANCELLED",
+    IN_PROGRESS: "IN_PROGRESS",
+    PLAY_SERVICES_NOT_AVAILABLE: "PLAY_SERVICES_NOT_AVAILABLE",
+  },
+}));
+
 // `src/utils/restart.ts` touches DevSettings at module load (to decide whether a
 // dev reload is possible). Under Jest that emits a NativeEventEmitter warning, so
 // stub it — the reload path itself is never exercised in tests.

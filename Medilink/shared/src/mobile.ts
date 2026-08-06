@@ -6,6 +6,9 @@ export { ROUTES } from "./utils/routes";
 // Input normalization — no dependencies, so it is RN-safe and exported directly
 // (the ./utils barrel is not, because cn pulls in tailwind-merge).
 export * from "./utils/normalize";
+// Redirect allow-listing. Mobile does not redirect, but this is the only workspace with
+// a Jest runner, so its tests live there — see src/utils/__tests__/safeNext.test.ts.
+export * from "./utils/safeNext";
 export * as api from "./api/index";
 
 // Flat domain-type re-exports so app screens import HAMS-shaped types directly
