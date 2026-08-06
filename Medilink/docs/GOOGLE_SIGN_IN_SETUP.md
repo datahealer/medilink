@@ -170,8 +170,10 @@ brokered entirely by Supabase; a browser copy of the client ID would be redundan
 secret must never reach the bundle.
 
 > ⚠️ **Two `eas.json` files exist** (`Medilink/eas.json` and `Medilink/mobile/eas.json`).
-> Whichever directory `eas build` runs from wins. Keep the Google client ID in sync across
-> both, or one profile ships without it.
+> Whichever directory `eas build` runs from wins — normally `mobile/`. Keep the Google
+> client ID in sync across both, or one profile ships without it. Profile-by-profile
+> rationale (and why `eas.json` must never contain `"//"` comment keys) lives in
+> [`EAS_BUILD_PROFILES.md`](./EAS_BUILD_PROFILES.md).
 
 ---
 
