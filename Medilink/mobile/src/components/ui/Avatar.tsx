@@ -36,6 +36,16 @@ export function Avatar({ name, uri, size = 56 }: AvatarProps) {
     );
   }
 
+  // Initials scale with the circle, so lineHeight MUST be derived here too.
+  //
+  // `Text` computes lineHeight from its variant — `title` is {fontSize:16, lineHeight:22}.
+  // Overriding only fontSize left every avatar wider than 61px drawing ~32px glyphs into a
+  // 22px line box, which clipped the initials (QA MED-008: Edit Profile at 88, Profile at
+  // 76). 1.2x is the smallest multiplier that clears ascenders and descenders in both
+  // Manrope (Latin) and 29LT Zarid Sans (Arabic).
+  const fontSize = Math.round(size * 0.36);
+  const lineHeight = Math.round(fontSize * 1.2);
+
   return (
     <View
       style={[
@@ -45,7 +55,32 @@ export function Avatar({ name, uri, size = 56 }: AvatarProps) {
       accessibilityRole="image"
       accessibilityLabel={name ?? undefined}
     >
-      <Text variant="title" color="primary" style={{ fontSize: size * 0.36 }}>
+      <Text
+        variant="title"
+        color="primary"
+        // One line, always: a wrapped initial would be centred as a block and sit visibly
+        // off-axis rather than simply overflowing.
+        numberOfLines={1}
+        // ── Why font scaling is disabled HERE specifically ──
+        // The circle is a FIXED decorative size set by each caller. At a 200% system font
+        // scale the glyphs would burst it, and nothing is gained: the initials are a
+        // redundant visual stand-in for a name that is always rendered next to the avatar,
+        // and the real accessible content is `accessibilityLabel={name}` on the View above,
+        // which a screen reader announces in full and which scaling does not affect.
+        // This is scoped to the avatar glyph only — no other text in the app opts out.
+        allowFontScaling={false}
+        style={{
+          fontSize,
+          lineHeight,
+          // Override Text's locale default (right in RTL); initials are centred in a circle.
+          textAlign: "center",
+          // Android-only. `includeFontPadding` adds asymmetric ascent/descent padding that
+          // pushes the glyph off-centre in a tight box; `textAlignVertical` then centres
+          // what remains. Both are no-ops on iOS.
+          includeFontPadding: false,
+          textAlignVertical: "center",
+        }}
+      >
         {initials(name)}
       </Text>
     </View>

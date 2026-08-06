@@ -218,7 +218,11 @@ export default function SignInScreen() {
             onChangeText={onChange}
             onBlur={onBlur}
             error={errors.password?.message}
-            placeholder="••••••••"
+            // No placeholder: the previous "••••••••" was eight literal U+2022 BULLET
+            // characters, which rendered as fake masked input in an empty field and
+            // vanished on the first keystroke (QA MED-003). The label already says
+            // "Password", so no replacement string is needed — and adding one would
+            // reintroduce untranslated copy. Sign-up and reset-password never had one.
           />
         )}
       />

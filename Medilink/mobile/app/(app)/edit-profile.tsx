@@ -183,9 +183,26 @@ export default function EditProfileScreen() {
     >
       <AppHeader title={t("profile.editTitle")} />
 
-      {/* Photo */}
+      {/* Photo — the avatar and the "Change photo" caption are two tap targets for the
+          SAME `pickPhoto` handler (QA MED-009: the avatar looked interactive but only the
+          caption was wrapped in a Pressable). The caption stays because an unlabelled
+          tappable avatar is undiscoverable; the avatar itself is what users actually aim
+          at. No upload logic is duplicated — both call the existing handler, which owns
+          permissions, the picker and the useUploadProfilePhoto mutation. */}
       <View style={styles.photo}>
-        <Avatar name={fullName} uri={patient?.profile_photo_url} size={88} />
+        <Pressable
+          onPress={pickPhoto}
+          disabled={uploadPhoto.isPending}
+          accessibilityRole="button"
+          accessibilityLabel={t("profile.changePhoto")}
+          accessibilityState={{ disabled: uploadPhoto.isPending, busy: uploadPhoto.isPending }}
+          hitSlop={8}
+          // Circular so the press feedback matches the avatar's shape rather than
+          // flashing a square behind it.
+          style={{ borderRadius: 44 }}
+        >
+          <Avatar name={fullName} uri={patient?.profile_photo_url} size={88} />
+        </Pressable>
         <Pressable onPress={pickPhoto} hitSlop={8} disabled={uploadPhoto.isPending} style={{ marginTop: spacing.sm }}>
           <Text variant="label" color="primary">
             {uploadPhoto.isPending ? t("common.loading") : t("profile.changePhoto")}

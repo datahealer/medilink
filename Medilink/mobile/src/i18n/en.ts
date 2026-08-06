@@ -26,6 +26,10 @@ export const en = {
     none: "None",
     done: "Done",
     close: "Close",
+    // Password show/hide toggle (PasswordField). These label the ACTION the button
+    // performs, not the current state — the icon conveys state. See PasswordField.tsx.
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     dowSun: "Sun",
     dowMon: "Mon",
     dowTue: "Tue",
