@@ -33,8 +33,8 @@ import {
   extractOmanLocalPhone,
   isValidCivilNumber,
   isValidDob,
-  isValidName,
   isValidOmanPhone,
+  nameErrorKey,
 } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
@@ -60,6 +60,9 @@ export default function EditProfileScreen() {
   const patient = profile.data?.patient;
 
   const [fullName, setFullName] = useState(account?.full_name ?? "");
+  // Captured once, alongside the seed above, so "has the user edited the name?" is a value
+  // comparison rather than a touched-flag that a programmatic set could desync.
+  const [initialFullName] = useState(account?.full_name ?? "");
   const [phone, setPhone] = useState(account?.phone ?? "");
   const [dob, setDob] = useState(patient?.date_of_birth ?? "");
   const [gender, setGender] = useState<Gender | undefined>(patient?.gender ?? undefined);
@@ -71,7 +74,12 @@ export default function EditProfileScreen() {
   const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
-  const nameError = isValidName(fullName) ? undefined : t("validation.nameMin");
+  // The stored name may predate the shared name rule (a HAMS row, or a Google display name
+  // containing an emoji). Enforcing the charset/length rules against a value the user has
+  // not touched would make this whole screen unsaveable — they could not even change their
+  // date of birth. So the loaded value is grandfathered until they edit it. (QA MED-001)
+  const nameKey = nameErrorKey(fullName, { grandfathered: fullName === initialFullName });
+  const nameError = nameKey ? t(nameKey) : undefined;
   const dobError = isValidDob(dob) ? undefined : t("validation.dob");
   const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.

@@ -412,6 +412,10 @@ export const en = {
     required: "This field is required",
     email: "Enter a valid email address",
     nameMin: "Please enter your full name",
+    nameMax: "Name is too long (100 characters maximum)",
+    // Deliberately does not enumerate what IS allowed: the rule permits every script, so
+    // "letters only" would be misleading for an Arabic user. Names them by what to remove.
+    nameInvalid: "Name can't contain numbers or symbols",
     phone: "Enter a valid Oman number (8 digits)",
     passwordMin: "At least 8 characters",
     passwordUpper: "Add an uppercase letter",

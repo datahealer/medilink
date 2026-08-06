@@ -19,13 +19,92 @@ export const isValidCivilNumber = (value: string): boolean => {
   return v === "" || CIVIL_NUMBER_RE.test(v);
 };
 
-/**
- * Full name: required, at least 2 characters after normalization (mirrors signUpSchema).
+/* ─────────────────────────── PERSON NAMES (QA MED-001) ───────────────────────────
  *
- * Uses the shared rule rather than a bare `.trim()` so "  A   B  " is measured as the
- * "A B" that will actually be stored — the UI and the write boundary agree on the length.
+ * ONE rule, used by every screen that captures a human name: sign-up, first-time setup,
+ * edit profile, and add/edit family member. Previously each screen invented its own check
+ * (`!!trim()`, `trim().length < 2`, or a Zod `min(2)`), so "Satyam123", "@@@@" and a
+ * 5,000-character paste were accepted in some places and not others.
+ *
+ * ── WHY AN ALLOW-LIST BY UNICODE PROPERTY, NOT AN ASCII RANGE ──
+ *
+ * `[A-Za-z ]` would reject every Arabic name in the product's primary market, and
+ * `[A-Za-z؀-ۿ]` would still reject Persian, Urdu and extended-Arabic letters
+ * that legitimately appear in Omani records. `\p{L}` is every letter in every script, so
+ * Arabic, Latin, and a mixed-script name like "محمد Ali" all pass without enumerating
+ * anything. `\p{M}` covers combining marks, which is what Arabic harakat (مُحَمَّد) are —
+ * omitting it would reject correctly-vowelised names.
+ *
+ * Punctuation is limited to the four marks that occur inside real names:
+ *   -  Al-Harthy        '  O'Brien        ’  O’Brien (curly, what iOS types)        .  Jr.
+ *
+ * Digits and emoji are absent from the class, so they are rejected. Whitespace is allowed
+ * INSIDE the name only — `normalizeHumanText` has already stripped the ends and collapsed
+ * internal runs, so the value tested here is the value that will be stored.
+ *
+ * Must START with a letter, which rejects "-Ali", "'''" and ".".
+ *
+ * NOTE: `\p{...}` needs the `u` flag. Hermes compiles regex literals at bundle time, so a
+ * successful `expo export` proves the engine accepts this pattern.
  */
-export const isValidName = (value: string): boolean => normalizeHumanText(value).length >= 2;
+export const NAME_MIN = 2;
+/** Comfortably fits Arabic tri-partite names and long Iberian/South-Asian names. */
+export const NAME_MAX = 100;
+
+const NAME_ALLOWED = /^\p{L}[\p{L}\p{M}\s'’.-]*$/u;
+
+/** Which rule a name breaks, or `null` when it is acceptable. */
+export type NameProblem = "required" | "min" | "max" | "invalid";
+
+/**
+ * Validate a person name against the shared rule.
+ *
+ * `grandfathered` exists to prevent a lockout, and is NOT cosmetic. Screens that EDIT an
+ * existing record seed the field from the database, and that stored value may predate this
+ * rule (HAMS rows, or a Google display name containing an emoji). If the charset and
+ * length rules were enforced against an untouched seeded value, the user could never save
+ * the screen at all — not even to change their date of birth. So while the field still
+ * holds exactly what was loaded, only the rules that always applied are enforced
+ * (present, at least NAME_MIN). The moment the user edits the field, the full rule applies
+ * to what they typed.
+ */
+export function nameProblem(
+  value: string,
+  opts?: { grandfathered?: boolean }
+): NameProblem | null {
+  const v = normalizeHumanText(value);
+  if (v === "") return "required";
+  if (v.length < NAME_MIN) return "min";
+  if (opts?.grandfathered) return null;
+  if (v.length > NAME_MAX) return "max";
+  if (!NAME_ALLOWED.test(v)) return "invalid";
+  return null;
+}
+
+/** i18n key for the broken rule, or `null` when the name is acceptable. */
+export function nameErrorKey(
+  value: string,
+  opts?: { grandfathered?: boolean }
+): MessageKey | null {
+  const problem = nameProblem(value, opts);
+  if (problem === null) return null;
+  return (
+    {
+      required: "validation.nameMin",
+      min: "validation.nameMin",
+      max: "validation.nameMax",
+      invalid: "validation.nameInvalid",
+    } as const
+  )[problem];
+}
+
+/**
+ * Full name acceptable? Thin boolean wrapper over `nameProblem` for call sites that only
+ * gate a submit button. Prefer `nameErrorKey` where a message is shown, so the user is
+ * told WHICH rule failed rather than always seeing "enter your full name".
+ */
+export const isValidName = (value: string, opts?: { grandfathered?: boolean }): boolean =>
+  nameProblem(value, opts) === null;
 
 /** Empty allowed (optional) OR a valid Oman 8-digit local number. */
 export const isValidOmanPhone = (value: string): boolean => {
@@ -78,10 +157,44 @@ const password = (t: T) =>
     .regex(/[0-9]/, t("validation.passwordNumber"))
     .regex(/[^A-Za-z0-9]/, t("validation.passwordSpecial"));
 
+/**
+ * Shared person-name field for Zod forms. Normalizes first, so the value the form hands to
+ * the service is the value that will be stored, and the length is measured on that.
+ */
+const personName = (t: T) =>
+  z
+    .string()
+    .transform(normalizeHumanText)
+    .pipe(
+      z
+        .string()
+        .min(NAME_MIN, t("validation.nameMin"))
+        .max(NAME_MAX, t("validation.nameMax"))
+        .regex(NAME_ALLOWED, t("validation.nameInvalid"))
+    );
+
 export const signInSchema = (t: T) =>
   z.object({
     email: email(t),
-    password: z.string().min(1, t("validation.required")),
+    // WHITESPACE-ONLY IS REJECTED; THE PASSWORD IS NEVER MODIFIED (QA MED-005).
+    //
+    // `min(1)` alone accepted "   " and fired a real auth request. The refine below blocks
+    // that, but note what it deliberately does NOT do: there is no `.trim()` and no
+    // transform anywhere on this field.
+    //
+    // Trimming here would be a silent lockout. A space is a legal password character; if
+    // someone registered with " hunter2 ", that is what is hashed in Supabase, and sending
+    // "hunter2" would be a DIFFERENT credential that can never match — they could never sign
+    // in again, and the failure would look like a wrong password. See the note on `password`
+    // in shared/src/utils/normalize.ts, which makes the same decision at the API boundary.
+    //
+    // Rejecting whitespace-ONLY is safe because it can never be a real credential: the
+    // signup policy below requires an uppercase letter, a lowercase letter, a digit and a
+    // symbol, so no account can exist whose password is nothing but spaces.
+    password: z
+      .string()
+      .min(1, t("validation.required"))
+      .refine((v) => v.trim().length > 0, t("validation.required")),
     remember: z.boolean(),
   });
 export type SignInForm = z.infer<ReturnType<typeof signInSchema>>;
@@ -90,13 +203,10 @@ export type SignInForm = z.infer<ReturnType<typeof signInSchema>>;
 // (No confirm-password field — that lives only on the Reset Password screen.)
 export const signUpSchema = (t: T) =>
   z.object({
-    // `.transform(normalizeHumanText)` rather than `.trim()`: collapses internal runs too,
-    // and the transformed value is what the form hands to authService, so the padded
-    // original can never be submitted.
-    fullName: z
-      .string()
-      .transform(normalizeHumanText)
-      .pipe(z.string().min(2, t("validation.nameMin"))),
+    // Shared rule (QA MED-001): normalized, 2–100 chars, letters/marks + - ' ’ . only, so
+    // "Satyam123", "@@@@", an emoji and a 5,000-char paste are all rejected here rather
+    // than reaching the database. Arabic and mixed-script names pass — see personName.
+    fullName: personName(t),
     email: email(t),
     phone: z.string().transform((v) => v.replace(/\D/g, "")).pipe(z.string().regex(OMAN_PHONE, t("validation.phone"))),
     password: password(t),

@@ -7,7 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
-import { isValidDob } from "@/utils/validation";
+import { isValidDob, nameErrorKey } from "@/utils/validation";
 import { useAddFamilyMember, useFamily } from "@/hooks/queries/useFamily";
 import type { FamilyRelation, Gender } from "@/data/types";
 
@@ -48,8 +48,12 @@ export default function AddFamilyMemberScreen() {
 
   const onAdd = () => {
     setError(null);
-    if (fullName.trim().length < 2) {
-      setError(t("validation.nameMin"));
+    // Shared name rule (QA MED-001) — was a bare `trim().length < 2`, which let a family
+    // member be created as "Ali123" or a 5,000-character paste. New record, so nothing to
+    // grandfather: the full rule applies.
+    const nameKey = nameErrorKey(fullName);
+    if (nameKey) {
+      setError(t(nameKey));
       return;
     }
     if (!relation) {

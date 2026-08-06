@@ -8,7 +8,13 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useProfile, useUpdateProfile } from "@/hooks/queries/usePatient";
-import { CIVIL_NUMBER_LENGTH, extractOmanLocalPhone, isValidCivilNumber, isValidOmanPhone } from "@/utils/validation";
+import {
+  CIVIL_NUMBER_LENGTH,
+  extractOmanLocalPhone,
+  isValidCivilNumber,
+  isValidOmanPhone,
+  nameErrorKey,
+} from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
   { value: "male", key: "genderMale" },
@@ -39,6 +45,10 @@ export default function SetupScreen() {
   const patient = profile.data?.patient;
 
   const [fullName, setFullName] = useState(account?.full_name ?? "");
+  // Seeded from signup metadata — or, for a social login, from the provider's display name,
+  // which can legitimately contain characters this rule rejects. Grandfathered until edited
+  // so onboarding can never dead-end. See nameProblem() in utils/validation.
+  const [initialFullName] = useState(account?.full_name ?? "");
   const [phone, setPhone] = useState(account?.phone ?? "");
   const [dob, setDob] = useState(patient?.date_of_birth ?? "");
   const [gender, setGender] = useState<Gender | undefined>(patient?.gender ?? undefined);
@@ -51,9 +61,13 @@ export default function SetupScreen() {
 
   const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
   const dobValid = DOB_RE.test(dob.trim());
+  // Shared name rule (QA MED-001). This screen previously gated only on `!!fullName.trim()`,
+  // so a single character, "Satyam123" or a 5,000-character paste all passed.
+  const nameKey = nameErrorKey(fullName, { grandfathered: fullName === initialFullName });
+  const nameError = nameKey ? t(nameKey) : undefined;
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
   const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
-  const canFinish = !!fullName.trim() && dobValid && !!gender && !civilError && !emergencyError;
+  const canFinish = !nameError && dobValid && !!gender && !civilError && !emergencyError;
 
   const onFinish = () => {
     if (!canFinish) return;
@@ -99,6 +113,7 @@ export default function SetupScreen() {
         label={t("profile.fullName")}
         value={fullName}
         onChangeText={setFullName}
+        error={nameError}
         autoComplete="name"
         containerStyle={{ marginBottom: spacing.md }}
       />

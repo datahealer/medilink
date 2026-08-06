@@ -17,7 +17,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import type { MessageKey } from "@/i18n";
-import { isValidDob } from "@/utils/validation";
+import { isValidDob, nameErrorKey } from "@/utils/validation";
 import {
   useFamily,
   useRemoveFamilyMember,
@@ -92,8 +92,11 @@ export default function EditFamilyMemberScreen() {
 
   const onSave = () => {
     setError(null);
-    if (fullName.trim().length < 2) {
-      setError(t("validation.nameMin"));
+    // Shared name rule (QA MED-001). Existing record, so the stored value is grandfathered
+    // while untouched — a legacy member name must never make this screen unsaveable.
+    const nameKey = nameErrorKey(fullName, { grandfathered: fullName === member.full_name });
+    if (nameKey) {
+      setError(t(nameKey));
       return;
     }
     if (dobError) {
