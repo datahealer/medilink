@@ -29,6 +29,17 @@ const LIST_SELECT =
 
 export type AppointmentTab = "upcoming" | "past" | "all";
 
+/**
+ * Statuses that END an appointment. They may still carry a future `slot_date`, so a
+ * date-only filter is NOT enough to decide what is "upcoming" — a cancelled visit
+ * booked for next week is still `slot_date >= today`.
+ *
+ * Kept as an exclusion list rather than an allow-list of active statuses on purpose:
+ * `appointment_status` also contains `approved`, which the appointments UI treats as
+ * equivalent to `confirmed`. An allow-list would silently drop it.
+ */
+const ENDED_STATUSES = ["cancelled", "completed", "no_show"] as const;
+
 /** List the patient's appointments (newest first), optionally partitioned by tab. */
 export async function listMyAppointments(db: DB, tab: AppointmentTab = "all") {
   const patientId = await getMyPatientProfileId(db);
@@ -38,8 +49,15 @@ export async function listMyAppointments(db: DB, tab: AppointmentTab = "all") {
     .eq("patient_id", patientId)
     .order("slot_date", { ascending: false });
 
-  if (tab === "upcoming") query = query.gte("slot_date", today());
-  else if (tab === "past") query = query.lt("slot_date", today());
+  if (tab === "upcoming") {
+    // "Upcoming" means still going to happen: future-dated AND not already ended.
+    // Without the status filter a cancelled future appointment stayed in this list,
+    // so the dashboard "next visit" card kept rendering it after a successful cancel.
+    // `past`/`all` are deliberately untouched — that is where a cancelled visit belongs.
+    query = query
+      .gte("slot_date", today())
+      .not("status", "in", `(${ENDED_STATUSES.join(",")})`);
+  } else if (tab === "past") query = query.lt("slot_date", today());
 
   const { data, error } = await query;
   if (error) throw error;
