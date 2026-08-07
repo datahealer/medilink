@@ -100,45 +100,6 @@ function toYMD(date: Date) {
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
-/** Doctors with at least one open (unbooked) slot today, from their weekly availability template. */
-async function computeAvailableTodayIds(
-  supabase: ReturnType<typeof createBrowserSupabaseClient>,
-  doctorIds: string[]
-): Promise<Set<string>> {
-  if (doctorIds.length === 0) return new Set();
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const today = toYMD(now);
-
-  const [{ data: availRows }, { data: bookedRows }] = await Promise.all([
-    supabase.from("doctor_availability").select("doctor_id, slots").eq("day_of_week", dayOfWeek).in("doctor_id", doctorIds),
-    supabase.from("appointments").select("doctor_id, slot_start")
-      .eq("slot_date", today).in("doctor_id", doctorIds)
-      .in("status", ["pending", "confirmed", "checked_in"]).eq("is_emergency", false),
-  ]);
-
-  const bookedByDoctor = new Map<string, Set<string>>();
-  for (const r of bookedRows ?? []) {
-    const doctorId = r.doctor_id;
-    const start = typeof r.slot_start === "string" ? r.slot_start.slice(0, 5) : "";
-    if (!doctorId || !start) continue;
-    if (!bookedByDoctor.has(doctorId)) bookedByDoctor.set(doctorId, new Set());
-    bookedByDoctor.get(doctorId)!.add(start);
-  }
-
-  const availableToday = new Set<string>();
-  for (const row of availRows ?? []) {
-    const booked = bookedByDoctor.get(row.doctor_id) ?? new Set<string>();
-    const slots = (row.slots ?? []) as { start?: string }[];
-    const hasOpenSlot = slots.some(s => {
-      const start = typeof s.start === "string" ? s.start.slice(0, 5) : "";
-      return Boolean(start) && !booked.has(start);
-    });
-    if (hasOpenSlot) availableToday.add(row.doctor_id);
-  }
-  return availableToday;
-}
-
 /* ─── DoctorCard ─────────────────────────────────────────────────────── */
 function DoctorCard({
   doctor,
@@ -164,13 +125,13 @@ function DoctorCard({
         <div className={`flex-1 min-w-0 ${isAr ? "text-right" : ""}`}>
           <div className={`flex items-center gap-2 mb-0.5 ${isAr ? "flex-row-reverse" : ""}`}>
             <p className="font-bold text-[#2E1A47] dark:text-[#DFC8E7] truncate">{d.name}</p>
-            {doctor.available
-              ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 flex-shrink-0">
-                  {isAr ? "متاح" : "Available"}
-                </span>
-              : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f9f4fa] dark:bg-[#241540] text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 border border-[#e7dcee] dark:border-[#3a2560] flex-shrink-0">
-                  {isAr ? "غير متاح" : "Unavailable"}
-                </span>}
+            {/* Badge only when the doctor has a real bookable slot TODAY. A doctor with no
+                slot today is still bookable later in the window, so no "Unavailable" badge. */}
+            {doctor.available && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 flex-shrink-0">
+                {isAr ? "متاح اليوم" : "Available Today"}
+              </span>
+            )}
           </div>
           <p className="text-xs text-[#46255f] dark:text-[#DFC8E7]/70 font-semibold mb-0.5">
             {specialtyLabel(doctor.specialty, isAr)}
@@ -206,13 +167,10 @@ function DoctorCard({
         </Link>
         <button
           onClick={onBook}
-          disabled={!doctor.available}
-          className="flex-1 py-2.5 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
+          className="flex-1 py-2.5 rounded-xl font-bold text-sm text-[#2E1A47] transition-opacity"
           style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
         >
-          {doctor.available
-            ? isAr ? "احجز موعداً" : "Book Appointment"
-            : isAr ? "غير متاح حالياً" : "Currently Unavailable"}
+          {isAr ? "احجز موعداً" : "Book Appointment"}
         </button>
       </div>
     </div>
@@ -274,7 +232,13 @@ function FindDoctorsInner() {
       .then(async (rows) => {
         if (!active) return;
         const base = rows.map(toDoctor);
-        const availableToday = await computeAvailableTodayIds(supabase, base.map(d => d.id)).catch(() => new Set<string>());
+        // BP-1 slot-based "Available Today" via the shared `doctors_available_today`
+        // RPC — the same function mobile's discovery repository uses. Best-effort: the
+        // RPC reads `appointments`, invisible to a guest caller, so a failure just means
+        // no badges. It never gates booking.
+        const availableToday = await api.doctors
+          .listDoctorsAvailableToday(supabase, toYMD(new Date()))
+          .catch(() => new Set<string>());
         if (!active) return;
         setDoctors(base.map(d => ({ ...d, available: availableToday.has(d.id) })));
       })
@@ -328,7 +292,7 @@ function FindDoctorsInner() {
 
   // Booking happens on the doctor details page (single shared flow).
   function goToDoctor(doc: Doctor) {
-    if (doc.available) router.push(`/dashboard/find-doctors/${doc.id}`);
+    router.push(`/dashboard/find-doctors/${doc.id}`);
   }
 
   return (

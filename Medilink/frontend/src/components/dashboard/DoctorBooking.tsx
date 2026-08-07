@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api, i18n } from "@medilink/shared";
+import { api, i18n, BOOKING_WINDOW_DAYS } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { env } from "@/lib/env";
 
@@ -46,6 +46,14 @@ const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو"
 
 const TODAY = new Date(); // real "today" — gates past dates in the booking calendar
 
+/**
+ * BP-2 — the last bookable day: today + (BOOKING_WINDOW_DAYS - 1), inclusive.
+ * `get_available_slots` clamps to this same window server-side and returns nothing
+ * outside it, so an unclamped calendar let the user pick a date that could only ever
+ * render "No available times". Same single source of truth mobile's DayGrid uses.
+ */
+const LAST_BOOKABLE = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() + BOOKING_WINDOW_DAYS - 1);
+
 function toYMD(date: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
@@ -78,6 +86,7 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
   const [viewMonth, setViewMonth] = useState(TODAY.getMonth());
   const cells = buildCalendar(viewYear, viewMonth);
   const atMin = viewYear === TODAY.getFullYear() && viewMonth === TODAY.getMonth();
+  const atMax = viewYear === LAST_BOOKABLE.getFullYear() && viewMonth === LAST_BOOKABLE.getMonth();
 
   function prevMonth() { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); } else setViewMonth(m => m - 1); }
   function nextMonth() { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); } else setViewMonth(m => m + 1); }
@@ -92,8 +101,8 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
         <span className="text-sm font-bold text-[#2E1A47] dark:text-[#DFC8E7]">
           {isAr ? MONTH_LONG_AR[viewMonth] : MONTH_LONG_EN[viewMonth]} {viewYear}
         </span>
-        <button onClick={nextMonth}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/30 transition-all">
+        <button onClick={nextMonth} disabled={atMax}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/30 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
@@ -108,13 +117,16 @@ function MiniCalendar({ isAr, selected, onSelect }: { isAr: boolean; selected: D
           const date = new Date(viewYear, viewMonth, day);
           const isToday = sameDay(date, TODAY);
           const isPast  = date < new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+          // Beyond the booking window the backend returns no slots — don't offer the day.
+          const isBeyond = date > LAST_BOOKABLE;
+          const isOff   = isPast || isBeyond;
           const isSel   = selected ? sameDay(date, selected) : false;
           return (
-            <button key={`d-${day}`} disabled={isPast} onClick={() => onSelect(date)}
+            <button key={`d-${day}`} disabled={isOff} onClick={() => onSelect(date)}
               className={`mx-auto w-8 h-8 rounded-full text-sm font-semibold flex items-center justify-center transition-all ${
                 isSel ? "bg-[#2E1A47] dark:bg-[#DFC8E7] text-white dark:text-[#1a1030] shadow-md"
                   : isToday ? "border-2 border-[#46255f] dark:border-[#DFC8E7] text-[#46255f] dark:text-[#DFC8E7] font-bold"
-                  : isPast  ? "text-[#2E1A47]/18 dark:text-[#DFC8E7]/18 cursor-not-allowed"
+                  : isOff   ? "text-[#2E1A47]/18 dark:text-[#DFC8E7]/18 cursor-not-allowed"
                   : "text-[#2E1A47] dark:text-[#DFC8E7] hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/30"
               }`}>
               {day}

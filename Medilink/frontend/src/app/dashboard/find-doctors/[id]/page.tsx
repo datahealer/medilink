@@ -25,20 +25,25 @@ type RealDoctorRow = {
   bio: string | null;
   languages: string[] | null;
   fees: unknown;
-  status: string | null;
   avg_rating: number | null;
   review_count: number | null;
   facility_id: string | null;
   facilities: { name?: string } | null;
 };
 
-function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDoctor {
+function toYMD(date: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+
+function realToView(row: RealDoctorRow, isAr: boolean, index: number, availableToday: boolean): ViewDoctor {
   const initials = row.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "DR";
   const fees = row.fees as { in_person?: number; online?: number } | null;
   const qualifications = row.qualifications ?? [];
   const languages = row.languages ?? [];
   return {
     id: row.id,
+    facilityId: row.facility_id,
     initials,
     grad: PROFILE_GRADS[index % PROFILE_GRADS.length]!,
     specialty: row.specialty ?? (isAr ? "طب عام" : "General Medicine"),
@@ -46,7 +51,12 @@ function realToView(row: RealDoctorRow, isAr: boolean, index: number): ViewDocto
     fee: fees?.in_person ?? fees?.online ?? 0,
     rating: row.avg_rating ?? 0,
     reviews: row.review_count ?? 0,
-    available: row.status === "available",
+    // BP-1: "Available Today" means the doctor has a real bookable slot today
+    // (`doctors_available_today` RPC), NOT the runtime `doctors.status` presence flag —
+    // that column has no writer anywhere in the app and reads "unavailable" for every
+    // row, which is why this page used to render a dead "Currently Unavailable" button.
+    // This is a display badge only; booking is never gated on it (same as mobile).
+    available: availableToday,
     name: row.full_name,
     hospital: row.facilities?.name?.trim() || (isAr ? "شبكة ميدلينك" : "MediLink Network"),
     type: isAr ? "في العيادة" : "In-clinic",
@@ -77,6 +87,7 @@ export default function DoctorProfilePage() {
   const [realDoctor, setRealDoctor] = useState<RealDoctorRow | null>(null);
   const [loadingReal, setLoadingReal] = useState(true);
   const [realNotFound, setRealNotFound] = useState(false);
+  const [availableToday, setAvailableToday] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +95,7 @@ export default function DoctorProfilePage() {
       const supabase = createBrowserSupabaseClient();
       const { data } = await supabase
         .from("doctors")
-        .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, status, avg_rating, review_count, facility_id, facilities(name)")
+        .select("id, full_name, specialty, qualifications, years_experience, bio, languages, fees, avg_rating, review_count, facility_id, facilities(name)")
         .eq("id", rawId)
         .eq("is_active", true)
         .maybeSingle();
@@ -96,7 +107,25 @@ export default function DoctorProfilePage() {
     return () => { cancelled = true; };
   }, [rawId]);
 
-  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0) : null;
+  // Slot-based "Available Today" badge — same shared RPC mobile uses (BP-1).
+  // Best-effort: the RPC reads `appointments`, which a guest caller cannot see, so a
+  // failure just means no badge. It never blocks booking.
+  useEffect(() => {
+    if (!rawId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const ids = await api.doctors.listDoctorsAvailableToday(supabase, toYMD(new Date()));
+        if (!cancelled) setAvailableToday(ids.has(rawId));
+      } catch {
+        if (!cancelled) setAvailableToday(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rawId]);
+
+  const doctor: ViewDoctor | null = realDoctor ? realToView(realDoctor, ar, 0, availableToday) : null;
 
   const [reviews, setReviews]     = useState<Review[]>([]);
   const [hoverStar, setHoverStar] = useState(0);
@@ -116,7 +145,8 @@ export default function DoctorProfilePage() {
    * rule as the symptom-checker's "Book" action.
    */
   function handleBookClick() {
-    if (!doctor?.available) return;
+    // Booking is NOT gated on an availability badge: the modal loads real slots per day
+    // across the booking window and the backend is the authority on what is bookable.
     if (!user) {
       router.push(`/sign-in?next=${encodeURIComponent(`/dashboard/find-doctors/${rawId}`)}`);
       return;
@@ -244,9 +274,11 @@ export default function DoctorProfilePage() {
             <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
               <div className={`flex items-center gap-2 flex-wrap mb-1.5 ${ar ? "flex-row-reverse" : ""}`}>
                 <h1 className="font-black text-white text-xl leading-tight">{doctor.name}</h1>
-                {doctor.available
-                  ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-700/40">{ar ? "متاح" : "Available"}</span>
-                  : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/40 border border-white/10">{ar ? "غير متاح" : "Unavailable"}</span>}
+                {doctor.available && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-700/40">
+                    {ar ? "متاح اليوم" : "Available Today"}
+                  </span>
+                )}
               </div>
               <p className="text-sm font-semibold mb-1" style={{ color: "rgba(223,200,231,0.75)" }}>{doctor.specialty}</p>
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.42)" }}>{doctor.hospital}</p>
@@ -446,11 +478,10 @@ export default function DoctorProfilePage() {
         <div className="max-w-6xl mx-auto">
           <button
             onClick={handleBookClick}
-            disabled={!doctor.available}
-            className="w-full py-3.5 rounded-xl font-bold text-sm text-[#2E1A47] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
+            className="w-full py-3.5 rounded-xl font-bold text-sm text-[#2E1A47] transition-opacity"
             style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)" }}
           >
-            {doctor.available ? (ar ? "احجز موعداً" : "Book Appointment") : (ar ? "غير متاح حالياً" : "Currently Unavailable")}
+            {ar ? "احجز موعداً" : "Book Appointment"}
           </button>
         </div>
       </div>

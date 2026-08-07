@@ -232,7 +232,6 @@ export default function ClinicDetailPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {doctors.map((d, i) => {
-                const available = d.status === "available";
                 return (
                   <Link key={d.id} href={`/dashboard/find-doctors/${d.id}`}
                     className="bg-white dark:bg-[#1a1030] rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 no-underline block">
@@ -241,11 +240,12 @@ export default function ClinicDetailPage() {
                         {initialsOf(d.full_name)}
                       </div>
                       <div className={`flex-1 min-w-0 ${ar ? "text-right" : ""}`}>
+                        {/* No availability badge here: it used to read the runtime
+                            `doctors.status` flag (no writer anywhere — always
+                            "unavailable"), so every doctor showed a false "Unavailable".
+                            Slot-based availability is shown on the doctor page. */}
                         <div className={`flex items-center gap-2 mb-0.5 ${ar ? "flex-row-reverse" : ""}`}>
                           <p className="font-bold text-sm text-[#2E1A47] dark:text-[#DFC8E7] truncate">{d.full_name}</p>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 border ${available ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40" : "bg-[#f9f4fa] dark:bg-[#241540] text-[#2E1A47]/40 dark:text-[#DFC8E7]/40 border-[#e7dcee] dark:border-[#3a2560]"}`}>
-                            {available ? (ar ? "متاح" : "Available") : (ar ? "غير متاح" : "Unavailable")}
-                          </span>
                         </div>
                         <p className="text-xs text-[#46255f] dark:text-[#DFC8E7]/70 font-semibold">{d.specialty ?? (ar ? "طب عام" : "General Medicine")}</p>
                         <div className={`flex items-center gap-2 mt-1.5 text-xs text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 ${ar ? "flex-row-reverse" : ""}`}>
