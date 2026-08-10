@@ -27,7 +27,13 @@
       ]
     },
     "allowJs": true,
-    "incremental": true
+    "incremental": true,
+    // Tests run on Node's built-in runner, which executes TypeScript by stripping types and
+    // does NO extension guessing — so test files import `../module.ts` explicitly. This flag
+    // permits that syntax. Safe here because `noEmit` is already true: it changes what tsc
+    // accepts, never what it emits, and application code keeps extensionless imports so the
+    // Next build is untouched.
+    "allowImportingTsExtensions": true
   },
   "include": [
     "next-env.d.ts",

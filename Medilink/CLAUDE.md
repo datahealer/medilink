@@ -137,7 +137,10 @@ to `Repositories`) → a mock implementation → a real implementation → wire 
 Mobile-specific non-obvious rules:
 - Forgot-password completion is BLOCKED (no deep-link recovery session wired) — don't silently
   "fix" this by faking success; the email send is real, completion isn't.
-- Google sign-in is permanently disabled client-side (no backend endpoint/client IDs configured).
+- Google sign-in is implemented natively (Play Services ID token → `signInWithIdToken`, see
+  `src/services/googleAuth.ts`), but it is **config-gated**: the button is hidden unless
+  `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` is set, and iOS stays off until Sign in with Apple ships
+  (App Store Guideline 4.8). `docs/GOOGLE_SIGN_IN_SETUP.md` is the reference.
 - Family members and medical history are keyed on `patient_profiles.id` — a new signup needs the
   corresponding DB trigger to have created that row, or those screens legitimately show empty.
 - Full detail: `mobile/docs/DATA_LAYER.md`, `mobile/docs/HAMS_MOBILE_INTEGRATION.md`,
@@ -209,6 +212,13 @@ SSR/cookie client (`frontend/src/lib/supabase/{client,middleware}.ts`); privileg
 static assets.
 
 ### Auth
+
+Email is split down a hard line: **authentication** email (signup verification, password
+reset, login OTP) is delivered by Supabase Auth itself and never touches our code, while
+**application** email (booking/cancellation/reschedule confirmations, payment receipts,
+invitations) goes through the one Nodemailer transporter in
+`backend/src/lib/email/transporter.ts` over Microsoft 365 SMTP. Never move an auth email
+into Nodemailer — `docs/EMAIL_ARCHITECTURE.md` explains why and lists every trigger point.
 
 Supabase Auth throughout — no custom JWT. Web uses SSR + cookies (`@supabase/ssr`); mobile uses a
 bearer token persisted in `expo-secure-store`. Both call into `shared/src/api/auth.ts`
