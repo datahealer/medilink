@@ -1,4 +1,12 @@
-import nodemailer from "nodemailer";
+/**
+ * Generic notification email — an in-app notification mirrored to the inbox.
+ *
+ * `body` is plain text supplied by the caller; newlines become <br />. It is ESCAPED
+ * first (it previously was not, so any `<` in a notification body corrupted the markup
+ * and an operator-authored body was raw HTML into every recipient's inbox).
+ */
+import { escapeHtml, renderEmail, toPlainText } from "./layout";
+import { sendMail, type SendMailResult } from "./transporter";
 
 type SendNotificationEmailPayload = {
   to: string;
@@ -6,30 +14,19 @@ type SendNotificationEmailPayload = {
   body: string;
 };
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
 export async function sendNotificationEmail({
   to,
   subject,
   body,
-}: SendNotificationEmailPayload) {
-  try {
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to,
-      subject,
-      html: `<p>${body.replace(/\n/g, "<br />")}</p>`,
-    });
+}: SendNotificationEmailPayload): Promise<SendMailResult> {
+  const html = renderEmail({
+    heading: subject,
+    preheader: body.slice(0, 120),
+    body: `<p style="margin:0;color:#1A1A1A;font-size:15px;line-height:1.6">${escapeHtml(body).replace(
+      /\n/g,
+      "<br />"
+    )}</p>`,
+  });
 
-    return { success: true, data: info };
-  } catch (error) {
-    console.error("Notification email send failed:", error);
-    return { success: false, error };
-  }
+  return sendMail({ to, subject, html, text: toPlainText(html) });
 }

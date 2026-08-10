@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { notifyAppointmentEmail } from "@/lib/appointmentEmail";
 import { useI18n } from "@/i18n/I18nProvider";
 import { specialtyLabel } from "@/lib/specialties";
 import { useMyProfile } from "@/hooks/useMyProfile";
@@ -299,6 +300,7 @@ function RescheduleModal({
       await api.appointments.rescheduleAppointment(supabase, appt.id, {
         date: toYMD(selDate), start: selSlot.start, end: selSlot.end,
       });
+      notifyAppointmentEmail(appt.id, "rescheduled"); // fire-and-forget; never blocks the UI
       setDone(true);
       onDone();
     } catch (e) {
@@ -494,6 +496,7 @@ export default function AppointmentsPage() {
     setError("");
     try {
       await api.appointments.cancelAppointment(supabase, id);
+      notifyAppointmentEmail(id, "cancelled"); // fire-and-forget; never blocks the UI
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : (ar ? "تعذر إلغاء الموعد." : "Could not cancel the appointment."));

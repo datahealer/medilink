@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
+import { sendAppointmentEmailForUser } from "@/lib/email/appointmentEmailForUser";
 import { logAudit } from "@/lib/audit/logAudit";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 import { ensureInvoice } from "@/lib/payments/ensureInvoice";
@@ -328,6 +329,27 @@ export async function POST(req: NextRequest) {
       }
     } else {
       console.log("⚠️ Skipping email — email:", email, "invoiceUrl:", invoiceUrl);
+    }
+
+    // ✅ BOOKING CONFIRMATION EMAIL — the patient-facing counterpart to the invoice.
+    //
+    // Sent HERE rather than at booking time on purpose: `book_appointment_atomic` creates
+    // the appointment as `pending`, and payment is what confirms it (the update a few
+    // dozen lines above). An "Appointment confirmed" email at booking time would go out
+    // for an unpaid hold that the TTL sweeper may release minutes later.
+    //
+    // Gated on `!alreadyPaid` so a duplicate webhook delivery cannot re-send it — same
+    // rule the in-app booking notifications above already follow.
+    if (!alreadyPaid && email) {
+      const apptEmail = await sendAppointmentEmailForUser(supabase, {
+        appointmentId: payment.appointment_id,
+        userId: patientUserId,
+        kind: "booked",
+        to: email,
+      });
+      if (!apptEmail.success && !apptEmail.skipped) {
+        console.error("❌ Appointment confirmation email failed (non-fatal)");
+      }
     }
 
     // ✅ PAYMENT NOTIFICATIONS (patient + facility admins)

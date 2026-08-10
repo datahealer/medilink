@@ -5,6 +5,8 @@ import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 import { ensureInvoice } from "@/lib/payments/ensureInvoice";
+import { sendAppointmentEmailForUser } from "@/lib/email/appointmentEmailForUser";
+import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
 
 type Service = ReturnType<typeof createServiceSupabase>;
 
@@ -105,6 +107,14 @@ export async function POST(req: NextRequest) {
     if (!payment) return NextResponse.json({ status: "none", payment: null });
 
     let paidNow = payment.status === "paid";
+    /**
+     * True only when THIS request performed the pending → paid transition.
+     *
+     * Distinct from `paidNow`, which is also true on every subsequent call — and the
+     * mobile confirmation screen polls this endpoint several times per payment. Anything
+     * that must happen exactly once (emails) keys off this flag, not `paidNow`.
+     */
+    let finalizedNow = false;
 
     // Gated on payment.status !== "paid" — if the webhook already finalized this
     // payment, this whole block (including the notification below) is skipped, so
@@ -148,12 +158,43 @@ export async function POST(req: NextRequest) {
           console.error("❌ Patient payment notification failed:", notifResult.error);
         }
         paidNow = true;
+        finalizedNow = true;
       }
     }
 
     // Ensure the invoice exists once the payment is paid, so the app can auto-file it
     // into the Document Vault on return (idempotent; safe if the webhook already made it).
-    if (paidNow) await ensureInvoice(payment.id, "verify");
+    const invoice = paidNow ? await ensureInvoice(payment.id, "verify") : null;
+
+    // Transactional email, on the SAME condition as the notification above: only when
+    // this request is the one that finalized the payment.
+    //
+    // The webhook sends these too, but it is not reachable from a local/LAN backend —
+    // which is exactly the demo and development setup. Without this block a payment made
+    // against a local server produces no receipt and no confirmation at all. The
+    // `finalizedNow` gate means only one of the two paths ever runs for a given payment.
+    if (finalizedNow) {
+      const { data: authUser } = await service.auth.admin.getUserById(payment.patient_id);
+      const to = authUser.user?.email ?? null;
+
+      if (to) {
+        if (invoice?.url) {
+          await sendInvoiceEmail(to, invoice.url, invoice.invoiceNumber || payment.id);
+        } else {
+          // Distinguishable from "email failed": there was nothing to attach yet, so no
+          // receipt was even attempted. The invoice sweeper will regenerate it.
+          console.warn("[email] receipt not attempted — invoice URL not ready for payment", payment.id);
+        }
+        await sendAppointmentEmailForUser(service, {
+          appointmentId: appointment_id,
+          userId: payment.patient_id,
+          kind: "booked",
+          to,
+        });
+      } else {
+        console.warn("[email] no email on account", payment.patient_id, "— receipt/confirmation not sent");
+      }
+    }
 
     const recap = await buildRecap(service, appointment_id);
     return NextResponse.json({ status: recap?.status ?? payment.status ?? "pending", payment: recap });

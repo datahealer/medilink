@@ -64,10 +64,37 @@ export const OPTIONAL_ENV: Record<string, string> = {
   GROQ_API_KEY: "all four AI routes return a graceful 5xx without it — never fabricated data",
   GROQ_MODEL: "overrides the chat model; defaults to llama-3.3-70b-versatile",
 
-  // ── Email ──
-  EMAIL_USER: "SMTP account — transactional email silently does not send",
-  EMAIL_PASS: "SMTP password — same",
-  EMAIL_FROM: "From address on outbound email",
+  // ── Email (transactional only) ──
+  //
+  // Application email ONLY: booking/cancellation/reschedule confirmations, payment
+  // receipts, invitations. Authentication email (signup verification, password reset,
+  // login OTP) is delivered by Supabase Auth's own mailer and reads NONE of these — see
+  // lib/email/transporter.ts. Absence disables application email and nothing else; every
+  // send site already treats a failure as non-fatal.
+  //
+  // AUTH: Microsoft Entra OAuth2 (client credentials → XOAUTH2). Basic SMTP auth is refused
+  // by Microsoft whenever Entra security defaults are enabled, so these three are the real
+  // credential set. All server-only — never NEXT_PUBLIC_/EXPO_PUBLIC_.
+  MICROSOFT_TENANT_ID: "Entra tenant (directory) ID — OAuth2 SMTP does not authenticate without it",
+  MICROSOFT_CLIENT_ID: "Entra app (client) ID of the mail-sending app registration",
+  MICROSOFT_CLIENT_SECRET: "Entra client secret — SERVER ONLY, never in a client bundle",
+  SMTP_HOST: 'SMTP server; defaults to "smtp.office365.com" (Microsoft 365)',
+  SMTP_PORT: "SMTP port; defaults to 587 (STARTTLS)",
+  SMTP_SECURE: 'implicit TLS — set "true" ONLY with SMTP_PORT=465; 587 must stay false',
+  SMTP_USER: "the mailbox to submit as (e.g. alerts@medilink.om) — required in BOTH auth modes",
+  SMTP_PASS:
+    "LEGACY Basic-auth password, kept only as a rollback path. Ignored whenever the " +
+    "MICROSOFT_* variables are set — OAuth2 always wins, and a partial OAuth config is " +
+    "reported as an error rather than silently downgrading to this",
+  EMAIL_FROM: "From address on outbound email; falls back to SMTP_USER",
+  SMTP_CA_FILE:
+    "extra trusted root (PEM path) for a dev machine behind a TLS-intercepting proxy or " +
+    'endpoint antivirus, which otherwise fails with "self-signed certificate in certificate ' +
+    'chain". Adds a root; verification stays on. Leave unset in production',
+  // Legacy names from the Gmail-era modules. Still read as a fallback so an environment
+  // that has not been migrated keeps sending; prefer SMTP_USER / SMTP_PASS.
+  EMAIL_USER: "deprecated alias for SMTP_USER",
+  EMAIL_PASS: "deprecated alias for SMTP_PASS",
 
   // ── Google (OAuth + Calendar) ──
   GOOGLE_CLIENT_ID: "Google sign-in / Calendar sync; the routes fail without it",

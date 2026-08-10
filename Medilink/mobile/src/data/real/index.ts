@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { apiFetch, ApiError } from "@/services/api";
 import { env } from "@/config/env";
 import { authService } from "@/services/authService";
+import { notifyAppointmentEmail } from "@/services/appointmentEmail";
 import { asText } from "@/utils/text";
 import { classifyNotification } from "@/utils/notifications";
 import { mimeFromName } from "@/utils/mime";
@@ -448,6 +449,7 @@ const appointmentRepo: AppointmentRepository = {
     // cancel_appointment_safe returns { success: false, error } on business failures.
     const r = (res ?? {}) as Record<string, unknown>;
     if (r.success === false) throw new Error(String(r.error ?? "CANCEL_FAILED"));
+    notifyAppointmentEmail(id, "cancelled");
   },
   async releaseHold(id) {
     // BP-3: void a still-pending, unpaid reservation (frees the slot). release_unpaid_hold
@@ -478,6 +480,7 @@ const appointmentRepo: AppointmentRepository = {
     }
     const r = (res ?? {}) as Record<string, unknown>;
     if (r.success === false) throw new Error(String(r.error ?? "RESCHEDULE_FAILED"));
+    notifyAppointmentEmail(id, "rescheduled");
   },
   async checkIn(id) {
     // checkin_and_enqueue needs the patient's name/phone; pull them from the profile.
