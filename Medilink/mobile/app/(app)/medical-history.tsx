@@ -18,6 +18,12 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useMedicalHistory, useUpsertMedicalHistory } from "@/hooks/queries/usePatient";
+import {
+  MEDICAL_TAG_MAX,
+  medicalTagErrorKey,
+  medicalTagProblem,
+  normalizeMedicalTag,
+} from "@/utils/validation";
 
 type Smoking = SmokingStatus;
 const SMOKING: { value: Smoking; key: "smokingNever" | "smokingFormer" | "smokingCurrent" | "smokingUnknown" }[] = [
@@ -40,16 +46,38 @@ function TagEditor({
   placeholder: string;
 }) {
   const { spacing, colors, radii, isRTL } = useTheme();
+  const { t } = useI18n();
   const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | undefined>(undefined);
 
+  // QA MED-011: was `draft.trim()` + a case-SENSITIVE `includes`, with no length or
+  // charset rule. Now the shared medical-tag rule decides, and the user is told which
+  // rule failed instead of the tag silently vanishing.
   const add = () => {
-    const v = draft.trim();
-    if (!v || items.includes(v)) {
+    const value = normalizeMedicalTag(draft);
+    const problem = medicalTagProblem(draft, items);
+
+    // A blank submit is not worth an error message — just clear and move on, which is
+    // what pressing "done" on an empty field should do.
+    if (problem === "required") {
       setDraft("");
+      setError(undefined);
       return;
     }
-    onChange([...items, v]);
+    if (problem) {
+      setError(t(medicalTagErrorKey(draft, items)!));
+      return;
+    }
+
+    onChange([...items, value]);
     setDraft("");
+    setError(undefined);
+  };
+
+  // Clear the message as soon as the user starts correcting it.
+  const onDraftChange = (next: string) => {
+    setDraft(next);
+    if (error) setError(undefined);
   };
 
   return (
@@ -57,10 +85,14 @@ function TagEditor({
       <Text variant="label" color="textMuted" style={{ marginBottom: 8 }}>{label}</Text>
       <TextField
         value={draft}
-        onChangeText={setDraft}
+        onChangeText={onDraftChange}
         placeholder={placeholder}
         onSubmitEditing={add}
         returnKeyType="done"
+        error={error}
+        // Hard stop well past MEDICAL_TAG_MAX: the validator gives the real message, but
+        // this stops a multi-thousand-character paste from ever entering the field.
+        maxLength={MEDICAL_TAG_MAX * 2}
         trailing={
           <Pressable
             onPress={add}

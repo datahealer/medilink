@@ -31,11 +31,15 @@ import {
 } from "@/hooks/queries/usePatient";
 import {
   CIVIL_NUMBER_LENGTH,
+  MEDICAL_TAG_MAX,
+  civilNumberProblem,
   extractOmanLocalPhone,
-  isValidCivilNumber,
   isValidDob,
-  isValidOmanPhone,
+  medicalTagErrorKey,
+  medicalTagProblem,
   nameErrorKey,
+  normalizeMedicalTag,
+  omanPhoneProblem,
 } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
@@ -78,7 +82,13 @@ export default function EditProfileScreen() {
   // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
   const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
-  const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
+  // QA MED-012: distinguish "not 8 digits" from "8 digits but obviously fake" (00000000,
+  // 11111111, 12345678). Telling someone who typed exactly 8 digits to "enter 8 digits"
+  // gives them nothing to act on.
+  const civilProblem = civilNumberProblem(civilNumber);
+  const civilError = civilProblem
+    ? t(civilProblem === "trivial" ? "validation.civilNumberTrivial" : "validation.civilNumber")
+    : undefined;
   // The stored name may predate the shared name rule (a HAMS row, or a Google display name
   // containing an emoji). Enforcing the charset/length rules against a value the user has
   // not touched would make this whole screen unsaveable — they could not even change their
@@ -86,11 +96,19 @@ export default function EditProfileScreen() {
   const nameKey = nameErrorKey(fullName, { grandfathered: fullName === initialFullName });
   const nameError = nameKey ? t(nameKey) : undefined;
   const dobError = isValidDob(dob) ? undefined : t("validation.dob");
-  const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
+  // QA MED-013: same split for phone numbers.
+  const phoneProblemKind = omanPhoneProblem(phone);
+  const phoneError = phoneProblemKind
+    ? t(phoneProblemKind === "trivial" ? "validation.phoneTrivial" : "validation.phone")
+    : undefined;
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
-  const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
+  const emergencyProblem = omanPhoneProblem(emergency);
+  const emergencyError = emergencyProblem
+    ? t(emergencyProblem === "trivial" ? "validation.phoneTrivial" : "validation.phone")
+    : undefined;
   const [allergies, setAllergies] = useState<string[]>(history.data?.allergies ?? []);
   const [newAllergy, setNewAllergy] = useState("");
+  const [allergyError, setAllergyError] = useState<string | undefined>(undefined);
 
   // Wait for medical history too: the `allergies` state seeds from `history.data`
   // (once, on first render), so rendering the form before it loads would seed an
@@ -136,14 +154,31 @@ export default function EditProfileScreen() {
     );
   };
 
+  // QA MED-011 — the SAME rule the Medical History TagEditor uses. This screen edits the
+  // same `allergies` array, so a tag rejected there must be rejected here too; they
+  // previously had two independent, weaker checks.
   const addAllergy = () => {
-    const v = newAllergy.trim();
-    if (!v || allergies.includes(v)) {
+    const value = normalizeMedicalTag(newAllergy);
+    const problem = medicalTagProblem(newAllergy, allergies);
+
+    if (problem === "required") {
       setNewAllergy("");
+      setAllergyError(undefined);
       return;
     }
-    setAllergies([...allergies, v]);
+    if (problem) {
+      setAllergyError(t(medicalTagErrorKey(newAllergy, allergies)!));
+      return;
+    }
+
+    setAllergies([...allergies, value]);
     setNewAllergy("");
+    setAllergyError(undefined);
+  };
+
+  const onAllergyChange = (next: string) => {
+    setNewAllergy(next);
+    if (allergyError) setAllergyError(undefined);
   };
 
   const onSave = () => {
@@ -285,11 +320,13 @@ export default function EditProfileScreen() {
       ) : null}
       <TextField
         value={newAllergy}
-        onChangeText={setNewAllergy}
+        onChangeText={onAllergyChange}
         placeholder={t("medical.addPlaceholder")}
         autoCapitalize="words"
         returnKeyType="done"
         onSubmitEditing={addAllergy}
+        error={allergyError}
+        maxLength={MEDICAL_TAG_MAX * 2}
         trailing={
           <Pressable onPress={addAllergy} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("common.add")}>
             <Icon name="plus" size={20} tint={colors.primary} strokeWidth={2.2} />

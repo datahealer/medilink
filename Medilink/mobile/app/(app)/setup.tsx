@@ -12,8 +12,8 @@ import { useProfile, useUpdateProfile } from "@/hooks/queries/usePatient";
 import {
   CIVIL_NUMBER_LENGTH,
   extractOmanLocalPhone,
-  isValidCivilNumber,
-  isValidOmanPhone,
+  civilNumberProblem,
+  omanPhoneProblem,
   nameErrorKey,
 } from "@/utils/validation";
 
@@ -63,15 +63,26 @@ export default function SetupScreen() {
   // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
   const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
 
-  const civilError = isValidCivilNumber(civilNumber) ? undefined : t("validation.civilNumber");
+  // QA MED-012: "not 8 digits" and "8 digits but obviously fake" need different messages.
+  const civilProblem = civilNumberProblem(civilNumber);
+  const civilError = civilProblem
+    ? t(civilProblem === "trivial" ? "validation.civilNumberTrivial" : "validation.civilNumber")
+    : undefined;
   const dobValid = DOB_RE.test(dob.trim());
   // Shared name rule (QA MED-001). This screen previously gated only on `!!fullName.trim()`,
   // so a single character, "Satyam123" or a 5,000-character paste all passed.
   const nameKey = nameErrorKey(fullName, { grandfathered: fullName === initialFullName });
   const nameError = nameKey ? t(nameKey) : undefined;
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
-  const phoneError = isValidOmanPhone(phone) ? undefined : t("validation.phone");
-  const emergencyError = isValidOmanPhone(emergency) ? undefined : t("validation.phone");
+  // QA MED-013: same split for phone numbers (rejects 00000000 and friends).
+  const phoneProblemKind = omanPhoneProblem(phone);
+  const phoneError = phoneProblemKind
+    ? t(phoneProblemKind === "trivial" ? "validation.phoneTrivial" : "validation.phone")
+    : undefined;
+  const emergencyProblem = omanPhoneProblem(emergency);
+  const emergencyError = emergencyProblem
+    ? t(emergencyProblem === "trivial" ? "validation.phoneTrivial" : "validation.phone")
+    : undefined;
   const canFinish = !nameError && dobValid && !!gender && !civilError && !phoneError && !emergencyError;
 
   const onFinish = () => {

@@ -432,6 +432,14 @@ export const en = {
     terms: "Please accept the Terms & Privacy Policy",
     otpIncomplete: "Enter all 6 digits",
     civilNumber: "Enter a valid 8-digit civil number",
+    // Separate from `civilNumber` on purpose: "8 digits" is unhelpful when the user typed
+    // exactly 8 digits. Names the actual problem instead (QA MED-012).
+    civilNumberTrivial: "That doesn't look like a real civil number",
+    phoneTrivial: "That doesn't look like a real phone number",
+    // Medical tags — allergies, conditions, medications, surgeries (QA MED-011).
+    tagMax: "Keep this under 60 characters",
+    tagInvalid: "Use letters, numbers and basic punctuation only",
+    tagDuplicate: "Already added",
     dob: "Enter a valid date (YYYY-MM-DD)",
   },
   theme: {

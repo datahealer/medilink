@@ -1,10 +1,13 @@
 import {
   CIVIL_NUMBER_LENGTH,
+  civilNumberProblem,
   extractOmanLocalPhone,
+  isTrivialDigitSequence,
   isValidCivilNumber,
   isValidDob,
   isValidName,
   isValidOmanPhone,
+  omanPhoneProblem,
   signInSchema,
   signUpSchema,
 } from "../validation";
@@ -14,8 +17,11 @@ const t = ((key: string) => key) as unknown as Parameters<typeof signInSchema>[0
 
 describe("isValidCivilNumber", () => {
   it("accepts exactly 8 digits", () => {
+    // Sample changed from "12345678" to a non-sequential number: the length rule is what
+    // this case asserts, and 12345678 is now separately rejected as placeholder input
+    // (QA MED-012, covered below). The assertion itself is unchanged.
     expect(CIVIL_NUMBER_LENGTH).toBe(8);
-    expect(isValidCivilNumber("12345678")).toBe(true);
+    expect(isValidCivilNumber("50219384")).toBe(true);
   });
 
   it("treats empty as valid (the field is optional)", () => {
@@ -31,7 +37,7 @@ describe("isValidCivilNumber", () => {
   });
 
   it("trims surrounding whitespace before validating", () => {
-    expect(isValidCivilNumber("  12345678  ")).toBe(true);
+    expect(isValidCivilNumber("  50219384  ")).toBe(true);
   });
 });
 
@@ -204,5 +210,95 @@ describe("signUpSchema — password policy mirrors the backend", () => {
     const r = signUpSchema(t).safeParse({ ...base, phone: "+96891111111", password: "Abcdef1!" });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.phone).toBe("91111111");
+  });
+});
+
+/**
+ * Trivial/dummy numeric identifiers (QA MED-012 + MED-013).
+ *
+ * `00000000` satisfied both the civil-number and the phone rule because each only asked
+ * for "exactly 8 digits". One shared rule now rejects placeholder input, and the two call
+ * sites report it with their own message.
+ */
+describe("isTrivialDigitSequence", () => {
+  it("rejects every all-identical run", () => {
+    for (let d = 0; d <= 9; d++) {
+      expect(isTrivialDigitSequence(String(d).repeat(8))).toBe(true);
+    }
+  });
+
+  it("rejects strict ascending and descending runs", () => {
+    expect(isTrivialDigitSequence("12345678")).toBe(true);
+    expect(isTrivialDigitSequence("87654321")).toBe(true);
+    expect(isTrivialDigitSequence("23456789")).toBe(true);
+  });
+
+  it("accepts ordinary numbers, including ones that merely start in sequence", () => {
+    expect(isTrivialDigitSequence("91234567")).toBe(false);
+    expect(isTrivialDigitSequence("12345679")).toBe(false); // breaks at the last digit
+    expect(isTrivialDigitSequence("11111112")).toBe(false); // nearly-uniform, still real
+    expect(isTrivialDigitSequence("50219384")).toBe(false);
+  });
+});
+
+describe("civilNumberProblem — MED-012", () => {
+  it("rejects 00000000 and every other repeated digit", () => {
+    expect(civilNumberProblem("00000000")).toBe("trivial");
+    expect(civilNumberProblem("11111111")).toBe("trivial");
+    expect(civilNumberProblem("99999999")).toBe("trivial");
+    expect(isValidCivilNumber("00000000")).toBe(false);
+  });
+
+  it("rejects obvious sequences", () => {
+    expect(civilNumberProblem("12345678")).toBe("trivial");
+    expect(civilNumberProblem("87654321")).toBe("trivial");
+  });
+
+  it("still accepts a real 8-digit civil number", () => {
+    expect(civilNumberProblem("12345679")).toBeNull();
+    expect(civilNumberProblem("50219384")).toBeNull();
+    expect(isValidCivilNumber("50219384")).toBe(true);
+  });
+
+  it("keeps the field optional and still reports wrong shapes as 'format'", () => {
+    expect(civilNumberProblem("")).toBeNull();
+    expect(civilNumberProblem("   ")).toBeNull();
+    expect(civilNumberProblem("1234567")).toBe("format");
+    expect(civilNumberProblem("1234567a")).toBe("format");
+  });
+
+  it("distinguishes the two problems so the message can differ", () => {
+    // "Enter 8 digits" is useless advice to someone who typed exactly 8 digits.
+    expect(civilNumberProblem("1234567")).not.toBe(civilNumberProblem("00000000"));
+  });
+});
+
+describe("omanPhoneProblem — MED-013", () => {
+  it("rejects 00000000 and other repeated-digit dummies", () => {
+    expect(omanPhoneProblem("00000000")).toBe("trivial");
+    expect(omanPhoneProblem("99999999")).toBe("trivial");
+    expect(isValidOmanPhone("00000000")).toBe(false);
+  });
+
+  it("rejects obvious sequences", () => {
+    expect(omanPhoneProblem("12345678")).toBe("trivial");
+  });
+
+  it("accepts real Oman numbers, including the non-9 prefixes present in live data", () => {
+    // Deliberately NOT restricted to /^[79]/ — production rows carry leading 2 (landline),
+    // 5 and 8, and this field also backs the emergency contact. See the rationale block
+    // on omanPhoneProblem: enforcing a prefix would reproduce the MED-007 save blocker.
+    expect(omanPhoneProblem("91234567")).toBeNull();
+    expect(omanPhoneProblem("71234567")).toBeNull();
+    expect(omanPhoneProblem("24567890")).toBeNull();
+    expect(omanPhoneProblem("87654322")).toBeNull();
+  });
+
+  it("keeps the MED-007 shape rules: optional, exactly 8 digits, no symbols", () => {
+    expect(omanPhoneProblem("")).toBeNull();
+    expect(omanPhoneProblem("9123456")).toBe("format");
+    expect(omanPhoneProblem("912345678")).toBe("format");
+    expect(omanPhoneProblem("9123-456")).toBe("format");
+    expect(omanPhoneProblem("9123456#")).toBe("format");
   });
 });

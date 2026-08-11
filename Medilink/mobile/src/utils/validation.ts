@@ -14,15 +14,68 @@ type T = (key: MessageKey) => string;
 // Oman mobile numbers are 8 digits (the +968 country code is shown separately).
 const OMAN_PHONE = /^[0-9]{8}$/;
 
+/* ──────────────────── TRIVIAL / DUMMY NUMERIC IDENTIFIERS (QA MED-012, MED-013) ───────
+ *
+ * `00000000` satisfied both the civil-number and phone rules because each only checked
+ * "exactly 8 digits". QA filed it twice; it is one missing rule.
+ *
+ * Deliberately narrow. Only two shapes are rejected, both of which are unambiguously
+ * placeholder input rather than a real identifier:
+ *
+ *   • ALL IDENTICAL digits — 00000000, 11111111 … 99999999
+ *   • A STRICT RUN of consecutive digits, ascending or descending — 12345678, 87654321
+ *
+ * Nothing else. In particular this does NOT implement a checksum: Oman's civil number has
+ * no published check-digit algorithm that this repository or its docs establish, and
+ * inventing one would reject real patients. See `isValidOmanPhone` for the same reasoning
+ * applied to operator prefixes.
+ */
+function isAllSameDigit(digits: string): boolean {
+  return digits.length > 1 && /^(\d)\1+$/.test(digits);
+}
+
+function isSequentialRun(digits: string): boolean {
+  if (digits.length < 2) return false;
+  let ascending = true;
+  let descending = true;
+  for (let i = 1; i < digits.length; i++) {
+    const step = digits.charCodeAt(i) - digits.charCodeAt(i - 1);
+    if (step !== 1) ascending = false;
+    if (step !== -1) descending = false;
+  }
+  return ascending || descending;
+}
+
+/** True for placeholder input like 00000000, 11111111, 12345678, 87654321. */
+export function isTrivialDigitSequence(digits: string): boolean {
+  return isAllSameDigit(digits) || isSequentialRun(digits);
+}
+
 // Oman civil number (national ID) — 8 digits. Optional field: empty is allowed;
 // a non-empty value must match. Length is centralised here (plan F2 assumes 8).
 export const CIVIL_NUMBER_LENGTH = 8;
 export const CIVIL_NUMBER_RE = /^[0-9]{8}$/;
-/** True when the value is empty (optional) OR a valid 8-digit civil number. */
-export const isValidCivilNumber = (value: string): boolean => {
+
+/** Which rule a civil number breaks, or `null` when it is acceptable. */
+export type CivilNumberProblem = "format" | "trivial";
+
+/**
+ * Validate a civil number. Empty stays valid — the field is optional (existing product
+ * behaviour, preserved).
+ *
+ * Split from the boolean so the UI can say WHICH rule failed: "enter 8 digits" and "that
+ * is not a real civil number" are different corrections for the user (QA MED-012).
+ */
+export function civilNumberProblem(value: string): CivilNumberProblem | null {
   const v = value.trim();
-  return v === "" || CIVIL_NUMBER_RE.test(v);
-};
+  if (v === "") return null;
+  if (!CIVIL_NUMBER_RE.test(v)) return "format";
+  if (isTrivialDigitSequence(v)) return "trivial";
+  return null;
+}
+
+/** True when the value is empty (optional) OR a plausible 8-digit civil number. */
+export const isValidCivilNumber = (value: string): boolean => civilNumberProblem(value) === null;
 
 /* ─────────────────────────── PERSON NAMES (QA MED-001) ───────────────────────────
  *
@@ -111,11 +164,116 @@ export function nameErrorKey(
 export const isValidName = (value: string, opts?: { grandfathered?: boolean }): boolean =>
   nameProblem(value, opts) === null;
 
-/** Empty allowed (optional) OR a valid Oman 8-digit local number. */
-export const isValidOmanPhone = (value: string): boolean => {
+/* ───────────────── MEDICAL TAGS: allergies, conditions, medications, surgeries ─────────
+ *                                                                        (QA MED-011)
+ *
+ * These four lists share one editor, and it previously did nothing but `trim()` plus a
+ * case-SENSITIVE duplicate check: no length cap and no charset rule, so a 5,000-character
+ * paste or a row of emoji became a permanent chip that overflowed its container.
+ *
+ * ── THIS IS CLINICAL SAFETY DATA, SO THE RULE IS PERMISSIVE BY DESIGN ──
+ *
+ * A wrongly-REJECTED allergy is more dangerous than an ugly one: the patient shrugs and
+ * leaves it out, and the clinician never sees it. So the charset is an explicit allow-list
+ * of everything real terminology uses, not a conservative alphabet:
+ *
+ *   letters, ANY script   Penicillin · حساسية · combining marks for Arabic harakat
+ *   digits                Vitamin B12 · Amoxicillin 500mg
+ *   space                 Sulfa drugs · Dust mites
+ *   - ' ’                 Cow's milk · Iodine-based contrast
+ *   . , ( ) / + & %       Peanut (raw) · Bee/wasp venom · NSAIDs, aspirin · 0.9% saline
+ *
+ * What that leaves out is exactly what breaks a chip or means nothing clinically: emoji,
+ * control characters, and box-drawing/symbol blocks. A value must also contain at least
+ * one letter or digit, so "..." and "---" are rejected.
+ *
+ * 60 characters comfortably fits the longest real terms ("Iodinated contrast media",
+ * "Non-steroidal anti-inflammatory drugs") while making an accidental paste impossible.
+ * Truncating instead of rejecting was considered and dropped: silently storing half an
+ * allergy name is worse than asking the user to shorten it.
+ */
+export const MEDICAL_TAG_MAX = 60;
+
+const MEDICAL_TAG_ALLOWED = /^[\p{L}\p{M}\p{N} '’\-.,()/+&%]+$/u;
+const MEDICAL_TAG_HAS_CONTENT = /[\p{L}\p{N}]/u;
+
+/** Which rule a medical tag breaks, or `null` when it is acceptable. */
+export type MedicalTagProblem = "required" | "max" | "invalid" | "duplicate";
+
+/**
+ * Canonical form of a tag: ends trimmed, internal whitespace runs collapsed. This is the
+ * value that gets stored, so validation and storage can never disagree.
+ */
+export const normalizeMedicalTag = (value: string): string => normalizeHumanText(value);
+
+/**
+ * Validate one tag against the existing list.
+ *
+ * Duplicates are matched case-INSENSITIVELY: "Penicillin" and "penicillin" are the same
+ * allergy, and storing both makes a medication list look like two distinct entries.
+ */
+export function medicalTagProblem(value: string, existing: readonly string[] = []): MedicalTagProblem | null {
+  const v = normalizeMedicalTag(value);
+  if (v === "") return "required";
+  if (v.length > MEDICAL_TAG_MAX) return "max";
+  if (!MEDICAL_TAG_ALLOWED.test(v) || !MEDICAL_TAG_HAS_CONTENT.test(v)) return "invalid";
+  const folded = v.toLocaleLowerCase();
+  if (existing.some((e) => normalizeMedicalTag(e).toLocaleLowerCase() === folded)) return "duplicate";
+  return null;
+}
+
+/** i18n key for the broken rule, or `null` when the tag is acceptable. */
+export function medicalTagErrorKey(value: string, existing: readonly string[] = []): MessageKey | null {
+  const problem = medicalTagProblem(value, existing);
+  if (problem === null) return null;
+  return (
+    {
+      // A blank submit is not an error worth shouting about — the editor just ignores it.
+      required: "validation.required",
+      max: "validation.tagMax",
+      invalid: "validation.tagInvalid",
+      duplicate: "validation.tagDuplicate",
+    } as const
+  )[problem];
+}
+
+/** Which rule a phone number breaks, or `null` when it is acceptable. */
+export type OmanPhoneProblem = "format" | "trivial";
+
+/**
+ * Validate an Oman local mobile number. Empty stays valid — the field is optional.
+ *
+ * ── WHY THERE IS NO OPERATOR-PREFIX RULE (QA MED-013) ──
+ *
+ * The obvious tightening is `/^[79][0-9]{7}$/`, since Omani MOBILE numbers are commonly
+ * documented as starting 7 or 9. It is deliberately NOT applied, on evidence:
+ *
+ *   • Nothing in this repository, its docs, or `shared/src/utils/normalize.ts` establishes
+ *     an accepted prefix set. The rule would be invented, not sourced.
+ *   • Live production data contradicts it. Of the 8-digit local numbers currently stored
+ *     in `profiles.phone`, the leading digits observed were 9 (majority) but also 2, 5 and
+ *     8 — roughly a third of existing rows. `2` is an Omani LANDLINE prefix, and this
+ *     column is a general contact number, not a mobile-only field; it also backs the
+ *     emergency-contact field, where a landline is entirely legitimate.
+ *   • Enforcing the prefix would therefore reproduce the MED-007 SAVE BLOCKER exactly:
+ *     a patient who never touched the field could not save Edit Profile at all.
+ *
+ * So this rejects only what is unambiguously placeholder input. Narrowing to real mobile
+ * prefixes is a BUSINESS DECISION that needs (a) a confirmed prefix set and (b) a
+ * migration plan for existing rows — most likely the same `grandfathered` treatment the
+ * person-name rule uses. Documented rather than guessed.
+ */
+export function omanPhoneProblem(value: string): OmanPhoneProblem | null {
   const v = value.trim();
-  return v === "" || OMAN_PHONE.test(v);
-};
+  if (v === "") return null;
+  if (!OMAN_PHONE.test(v)) return "format";
+  // 00000000, 11111111, 12345678, 87654321 … (QA MED-013)
+  if (isTrivialDigitSequence(v)) return "trivial";
+  return null;
+}
+
+/** Empty allowed (optional) OR a plausible Oman 8-digit local number. */
+export const isValidOmanPhone = (value: string): boolean => omanPhoneProblem(value) === null;
 
 /**
  * Any stored representation → the 8 editable local digits, or "".
