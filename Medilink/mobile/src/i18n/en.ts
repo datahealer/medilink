@@ -393,14 +393,20 @@ export const en = {
     success: "Phone verified",
     sent: "A new code has been sent.",
   },
+  // QA MED-019 — this screen used to promise a "reset link", but mobile recovery is
+  // CODE-based: `resetPasswordForEmail` is called with no `redirectTo`, the screen routes
+  // to /auth/otp?flow=recovery, and the user types a 6-digit code that
+  // `verifyOtp(type:"recovery")` exchanges for a recovery session. There is no link to
+  // open — mobile has no deep-link handling at all. Wording now matches the `otp` block
+  // above so "code" means the same thing on both screens.
   forgot: {
     title: "Forgot password",
-    subtitle: "Enter the email for your account and we'll send a reset link.",
+    subtitle: "Enter the email for your account and we'll send you a 6-digit code.",
     field: "Email",
-    submit: "Send reset link",
+    submit: "Send code",
     backToSignIn: "Back to sign in",
     emailSentTitle: "Check your email",
-    emailSent: "If that account exists, a password reset link is on its way.",
+    emailSent: "If that account exists, a 6-digit code is on its way.",
   },
   reset: {
     title: "Reset password",
@@ -458,7 +464,9 @@ export const en = {
     googleSignInFailed: "Couldn't sign in with Google. Please try again.",
     googleNoToken: "Google didn't return a sign-in token. Please try again.",
     googlePlayServices: "Google Play Services is unavailable or needs an update.",
-    recoverySession: "Open the reset link from your email to set a new password.",
+    // QA MED-019 — shown when updatePassword runs without a recovery session. The user
+    // does not "open a link"; they enter the emailed code on the OTP screen.
+    recoverySession: "Enter the code from your email to set a new password.",
     samePassword: "New password cannot be the same as your previous password.",
     unknown: "Unexpected error. Please try again.",
     loadFailed: "Couldn't load this right now.",

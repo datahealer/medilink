@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
@@ -18,6 +18,23 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  // This screen is reached from /otp?flow=recovery, which establishes a recovery session
+  // via verifyOtp. It used to be reached from an emailed link, so arriving without a
+  // session was impossible; now it is just a URL. Without this guard `updateUser` fails
+  // with a raw "Auth session missing" that means nothing to a patient. Redirect them to
+  // start recovery properly instead.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const supabase = createBrowserSupabaseClient();
+      const { data } = await supabase.auth.getSession();
+      if (active && !data.session) router.replace("/forgot-password");
+    })();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

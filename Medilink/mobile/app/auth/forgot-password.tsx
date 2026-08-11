@@ -25,7 +25,9 @@ export default function ForgotPasswordScreen() {
   } = useForm<ForgotForm>({
     resolver: zodResolver(forgotSchema(t)),
     defaultValues: { identifier: "" },
-    mode: "onBlur",
+    // QA MED-017 — see sign-in.tsx. Paired with MED-020: this field now validates as an
+    // email, so the error it shows must also clear as soon as the address is corrected.
+    mode: "onTouched",
   });
 
   const onSubmit = async (values: ForgotForm) => {

@@ -2,18 +2,35 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Input } from "@/components/auth/Input";
 import { Button } from "@/components/auth/Button";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 
+/**
+ * Password recovery — 6-DIGIT CODE, shared with mobile.
+ *
+ * This used to pass `redirectTo`, which made Supabase send {{ .ConfirmationURL }} (a
+ * clickable link) and land the user on /reset-password with a session already established.
+ * Mobile, meanwhile, calls the same `resetPasswordForEmail` with NO redirectTo and expects
+ * a 6-digit code for `verifyOtp({ type: "recovery" })`.
+ *
+ * Supabase allows only ONE recovery template per project, so those two flows were mutually
+ * exclusive: whichever was configured, the other platform's recovery was dead. The default
+ * was the link, so MOBILE recovery could not complete at all.
+ *
+ * Both platforms now use the code. Dropping `redirectTo` is what makes Supabase render the
+ * {{ .Token }} recovery template (supabase/templates/recovery.html), and the user is sent
+ * to /otp?flow=recovery to enter it. Do NOT reintroduce `redirectTo` here.
+ */
 export default function ForgotPasswordPage() {
+  const router = useRouter();
   const { locale } = useI18n();
   const ar = locale === "ar";
 
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,11 +40,15 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       const supabase = createBrowserSupabaseClient();
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (err) setError(err.message);
-      else setSent(true);
+      // No redirectTo → Supabase sends the 6-digit recovery code, not a link.
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      if (err) {
+        setError(err.message);
+        return;
+      }
+      // Straight to the shared OTP screen in recovery mode; it verifies the code and then
+      // routes on to /reset-password with a live recovery session.
+      router.push(`/otp?flow=recovery&email=${encodeURIComponent(email.trim().toLowerCase())}`);
     } catch {
       setError(ar ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Please try again.");
     } finally {
@@ -35,31 +56,9 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  if (sent) {
-    return (
-      <AuthCard>
-        <div className="flex flex-col items-center text-center gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
-            style={{ background: "#DFC8E7" }}>
-            📧
-          </div>
-          <h2 className="font-bold text-[#2E1A47] dark:text-[#DFC8E7]"
-            style={{ fontFamily: "var(--font-serif), Georgia, serif", fontSize: "30px" }}>
-            {ar ? "تحقق من بريدك الوارد" : "Check your inbox"}
-          </h2>
-          <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60">
-            {ar
-              ? <>أرسلنا رابط إعادة التعيين إلى <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{email}</span>. اتبع الرابط لإنشاء كلمة مرور جديدة.</>
-              : <>We sent a reset link to <span className="font-semibold text-[#2E1A47] dark:text-[#DFC8E7]">{email}</span>. Follow the link to create a new password.</>
-            }
-          </p>
-          <Link href="/sign-in" className="mt-2 text-sm font-semibold text-[#46255f] dark:text-[#DFC8E7] hover:underline">
-            {ar ? "العودة لتسجيل الدخول" : "Back to sign in"}
-          </Link>
-        </div>
-      </AuthCard>
-    );
-  }
+  // No "check your inbox" interstitial any more: the user goes straight to /otp to type
+  // the code, which is where they need to be. A terminal "follow the link" screen would
+  // now be a dead end, since there is no link.
 
   return (
     <AuthCard>
@@ -69,7 +68,9 @@ export default function ForgotPasswordPage() {
           {ar ? "نسيت كلمة المرور؟" : "Forgot password?"}
         </h2>
         <p className="mt-1 text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55">
-          {ar ? "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين." : "Enter your email and we'll send you a reset link."}
+          {ar
+            ? "أدخل بريدك الإلكتروني وسنرسل لك رمزًا مكوّنًا من 6 أرقام."
+            : "Enter your email and we'll send you a 6-digit code."}
         </p>
       </div>
 
@@ -90,7 +91,7 @@ export default function ForgotPasswordPage() {
           </p>
         )}
         <Button type="submit" variant="cta" fullWidth loading={loading} className="mt-1">
-          {ar ? "إرسال رابط إعادة التعيين" : "Send reset link"}
+          {ar ? "إرسال الرمز" : "Send code"}
         </Button>
       </form>
 

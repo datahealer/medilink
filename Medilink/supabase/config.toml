@@ -240,8 +240,33 @@ content_path = "./supabase/templates/confirmation.html"
 # verifyOtp({ type: "email" }) receives an actual OTP. The hosted project's "Magic Link"
 # template has already been updated to match; keep them in sync. (F5 / email-OTP fix.)
 [auth.email.template.magic_link]
-subject = "Your MediLink sign-in code"
+# Subject mirrors the hosted "Sign in" template verbatim so local and production match.
+subject = "Your Signin token"
 content_path = "./supabase/templates/magic_link.html"
+
+# PASSWORD RECOVERY — 6-digit code, NOT a link.
+#
+# The hosted project's "Reset Password" template ALREADY sends {{ .Token }} and tells the
+# user to enter a 6-digit code in the app — verified against the dashboard. This file was
+# simply missing, so the repo had no record of it and the local stack fell back to
+# Supabase's default link template.
+#
+# WHAT WAS ACTUALLY BROKEN: WEB, not mobile. Supabase permits one recovery template per
+# project, and it sends a code. Mobile matched that — resetPasswordForEmail with no
+# redirectTo, then /auth/otp?flow=recovery and verifyOtp({ type: "recovery" }). Web passed
+# a `redirectTo` and told the user to "follow the link", so a web user received a 6-digit
+# code and a screen offering them a link that did not exist. Web recovery could not
+# complete. Web now uses the same code flow.
+#
+# Do NOT reintroduce {{ .ConfirmationURL }} here or a `redirectTo` on either platform: the
+# hosted template has no link to follow, so it would strand the user again.
+#
+# Subject mirrors the hosted template verbatim. `config.toml` governs the LOCAL stack only
+# and is not applied to a hosted project by `db push`; it is the repo's record of what
+# production is configured to do. Keep them in sync, as with the two above.
+[auth.email.template.recovery]
+subject = "Reset your password"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

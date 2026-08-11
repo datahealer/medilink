@@ -12,10 +12,23 @@ import { useI18n } from "@/i18n/I18nProvider";
 
 const RESEND_SECONDS = 60;
 
+/**
+ * Shared 6-digit code screen for BOTH signup confirmation and password recovery.
+ *
+ * `flow=recovery` (from /forgot-password) verifies with type "recovery" and hands off to
+ * /reset-password, where the recovery session established here lets `updateUser` set the
+ * new password. Anything else is the signup confirmation path and is unchanged.
+ *
+ * This screen used to hardcode type "signup", so it could not serve recovery at all —
+ * which is why web recovery relied on a {{ .ConfirmationURL }} link while mobile expected
+ * a code. Supabase permits only one recovery template, so those two could never coexist;
+ * both platforms now use the code. See supabase/config.toml → auth.email.template.recovery.
+ */
 function OTPForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") ?? "";
+  const isRecovery = params.get("flow") === "recovery";
   const { locale } = useI18n();
   const ar = locale === "ar";
 
@@ -42,11 +55,18 @@ function OTPForm() {
     setLoading(true);
     try {
       const supabase = createBrowserSupabaseClient();
-      const { error: err } = await supabase.auth.verifyOtp({ email, token: otp, type: "signup" });
+      const { error: err } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: isRecovery ? "recovery" : "signup",
+      });
       if (err) setError(err.message);
-      // First-time patients complete the setup wizard once; returning users go to the
-      // dashboard. The session is live on `supabase` after verifyOtp, so this reads the
-      // just-provisioned profile. (Only reached during signup confirmation.)
+      // Recovery: verifyOtp has established a recovery session, which is exactly what
+      // /reset-password's updateUser({ password }) needs. No link, no callback route.
+      else if (isRecovery) router.push("/reset-password");
+      // Signup: first-time patients complete the setup wizard once; returning users go to
+      // the dashboard. The session is live on `supabase` after verifyOtp, so this reads
+      // the just-provisioned profile.
       else router.push(await postSignupDestination(supabase));
     } catch {
       setError(ar ? "فشل التحقق. حاول مرة أخرى." : "Verification failed. Please try again.");
@@ -59,7 +79,10 @@ function OTPForm() {
     setResendLoading(true);
     try {
       const supabase = createBrowserSupabaseClient();
-      await supabase.auth.resend({ type: "signup", email });
+      // `resend` only covers signup/email-change. Re-issuing a RECOVERY code means calling
+      // resetPasswordForEmail again — still with no redirectTo, so it stays a code.
+      if (isRecovery) await supabase.auth.resetPasswordForEmail(email);
+      else await supabase.auth.resend({ type: "signup", email });
       setCountdown(RESEND_SECONDS);
       timerRef.current = setInterval(() => {
         setCountdown((c) => {

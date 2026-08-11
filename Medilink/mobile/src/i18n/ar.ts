@@ -379,14 +379,16 @@ export const ar: Messages = {
     success: "تم تأكيد الهاتف",
     sent: "تم إرسال رمز جديد.",
   },
+  // QA MED-019 — mobile recovery is CODE-based, not link-based. Wording matches the `otp`
+  // block above ("الرمز المكوّن من 6 أرقام") so both screens use one term.
   forgot: {
     title: "نسيت كلمة المرور",
-    subtitle: "أدخل البريد الإلكتروني لحسابك وسنرسل لك رابط إعادة التعيين.",
+    subtitle: "أدخل البريد الإلكتروني لحسابك وسنرسل لك رمزًا مكوّنًا من 6 أرقام.",
     field: "البريد الإلكتروني",
-    submit: "إرسال رابط إعادة التعيين",
+    submit: "إرسال الرمز",
     backToSignIn: "العودة إلى تسجيل الدخول",
     emailSentTitle: "تحقّق من بريدك",
-    emailSent: "إذا كان هذا الحساب موجودًا، فسيصلك رابط إعادة تعيين كلمة المرور.",
+    emailSent: "إذا كان هذا الحساب موجودًا، فسيصلك رمز مكوّن من 6 أرقام.",
   },
   reset: {
     title: "إعادة تعيين كلمة المرور",
@@ -439,7 +441,7 @@ export const ar: Messages = {
     googleSignInFailed: "تعذّر تسجيل الدخول عبر Google. يرجى المحاولة مرة أخرى.",
     googleNoToken: "لم يُرجع Google رمز تسجيل الدخول. يرجى المحاولة مرة أخرى.",
     googlePlayServices: "خدمات Google Play غير متوفرة أو تحتاج إلى تحديث.",
-    recoverySession: "افتح رابط إعادة التعيين من بريدك لتعيين كلمة مرور جديدة.",
+    recoverySession: "أدخل الرمز المُرسل إلى بريدك لتعيين كلمة مرور جديدة.",
     samePassword: "لا يمكن أن تكون كلمة المرور الجديدة مطابقة لكلمة المرور السابقة.",
     unknown: "خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
     loadFailed: "تعذّر تحميل هذا الآن.",
