@@ -6,6 +6,7 @@ import { GuestWall } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/authStore";
 import { useProfile } from "@/hooks/queries/usePatient";
+import { useAccountStatus } from "@/hooks/queries/useAuth";
 
 /**
  * Guest-browsing allow-list (F4). A signed-out guest may reach ONLY these read-only
@@ -46,6 +47,10 @@ export default function AppLayout() {
   const segments = useSegments();
   // Only fetch the profile once authed (guests never reach the gated content).
   const profile = useProfile({ enabled: status === "authed" });
+  // Account lifecycle status (MED-016). Reads `profiles` only — the one table a
+  // deletion_pending user can still read — so it resolves even while every PHI table is
+  // being denied to them.
+  const accountStatus = useAccountStatus({ enabled: status === "authed" });
 
   const loader = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
@@ -64,6 +69,26 @@ export default function AppLayout() {
     if (!isGuestAllowed(segments)) return <GuestWall />;
     // Allowed discovery route → fall through to render the Stack.
   } else {
+    // ── Deletion grace window (QA MED-016 / NEW-001) ──────────────────────────
+    // An account that requested deletion may reach ONLY the restore screen. This check
+    // must come BEFORE the profile-setup gate below, because RLS now denies
+    // `patient_profiles` to a deletion_pending user (migration 20260811020000): their
+    // profile reads back with `patient: null`, which the DOB-null rule would misread as
+    // "never onboarded" and bounce them to /setup instead of the restore screen.
+    //
+    // This is routing, not security. The security boundary is the restrictive RLS policy,
+    // which denies PHI even to a valid token with the app entirely bypassed. If this check
+    // were removed the app would still leak nothing — it would just show empty screens
+    // instead of an explanation and a way back.
+    if (accountStatus.data === "deletion_pending") {
+      return <Redirect href="/restore-account" />;
+    }
+    // Only block on the status query while it is genuinely unresolved. A failed read
+    // resolves to null and falls through: failing open here shows the normal app, whose
+    // data RLS is already denying, whereas failing closed would strand a healthy user on a
+    // restore screen because of one flaky request.
+    if (accountStatus.isLoading) return loader;
+
     // Mandatory profile setup for first-time patients. A freshly-provisioned
     // patient_profiles row has `date_of_birth === null` (it is written only by the
     // setup screen / profile editor), so DOB-null is a schema-free "not onboarded yet"

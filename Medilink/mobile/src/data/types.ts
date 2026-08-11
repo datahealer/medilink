@@ -19,6 +19,16 @@ export interface SessionUser {
   email: string | null;
 }
 
+/**
+ * Account lifecycle status (mirrors the `account_status` DB enum).
+ *
+ * "deletion_pending" is the one the UI acts on: the account has requested deletion and is
+ * inside the 30-day grace window, so it may only reach the restore-only screen. RLS denies
+ * it every PHI table (migration 20260811020000), so this is a routing signal, not the
+ * security boundary.
+ */
+export type AccountStatus = "active" | "suspended" | "deletion_pending" | "deleted";
+
 /** Result of an auth action — carries a stable i18n key, never raw English. */
 export interface AuthResult {
   ok: boolean;

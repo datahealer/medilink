@@ -52,6 +52,13 @@ export default function RootLayout() {
                     <Stack.Screen name="onboarding" />
                     <Stack.Screen name="language" />
                     <Stack.Screen name="auth" />
+                    {/* Restore-only screen for an account in the 30-day deletion grace
+                        window (MED-016). Sits at the root, outside `(app)`, because the
+                        `(app)` gate is what redirects here — nesting it there would loop.
+                        Gestures off: it is a terminal state with two explicit exits
+                        (restore, or sign out), and swiping back would land on a screen the
+                        gate is actively redirecting away from. */}
+                    <Stack.Screen name="restore-account" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="(app)" />
                     {/* Dev-only Screen Gallery (gated inside the route by isDev). */}
                     <Stack.Screen name="dev/screen-gallery" />

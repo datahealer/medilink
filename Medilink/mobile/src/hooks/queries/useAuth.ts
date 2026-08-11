@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { queryClient, clearPersistedCache } from "@/providers/QueryProvider";
 import { repositories } from "@/data";
@@ -71,18 +71,58 @@ export function useDeleteAccount() {
   return useMutation({
     mutationFn: async () => {
       const res = await repositories.auth.deleteAccount();
-      // The backend soft-delete does NOT revoke the current token, so end the local
-      // session ourselves once the request is accepted.
-      if (res.ok) await repositories.auth.signOut().catch(() => {});
+      // The backend now revokes every refresh token itself (MED-016), so the local sign-out
+      // that used to live here is gone. Signing out client-side would also have been the
+      // wrong shape: it left the account reachable by simply signing back in, and it hid the
+      // deletion_pending state instead of surfacing the restore screen.
       return res;
     },
     onSettled: (res) => {
-      // Only tear down local state when deletion was actually accepted.
+      // Cached PHI must not survive the request — RLS already denies the server copy, but
+      // the on-device cache was fetched while the account was still active.
       if (res?.ok) {
         usePatientStore.getState().reset();
         queryClient.clear();
         void clearPersistedCache();
       }
+    },
+  });
+}
+
+/** Query key for the account lifecycle status (MED-016). */
+export const accountStatusKey = ["auth", "account-status"] as const;
+
+/**
+ * Account lifecycle status, used by the `(app)` gate to divert a deletion_pending user to
+ * the restore-only screen.
+ *
+ * `staleTime: 0` and a refetch on mount are deliberate: a stale "active" would let a
+ * deletion_pending user render app chrome for a frame. The screens behind it would be empty
+ * anyway (RLS denies the data), but the correct destination is the restore screen, not a
+ * dashboard full of failed queries.
+ */
+export function useAccountStatus(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: accountStatusKey,
+    queryFn: () => repositories.auth.getAccountStatus(),
+    enabled: options?.enabled ?? true,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+}
+
+/**
+ * Cancel a pending deletion, then bring the app back to a healthy signed-in state.
+ *
+ * The cache was cleared when deletion was requested and every query since has been denied
+ * by RLS, so those failures are cached as errors. Clearing again after a successful restore
+ * forces a clean refetch rather than replaying the denials.
+ */
+export function useCancelDeletion() {
+  return useMutation({
+    mutationFn: () => repositories.auth.cancelDeletion(),
+    onSuccess: (res) => {
+      if (res.ok) queryClient.clear();
     },
   });
 }

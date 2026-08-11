@@ -1006,6 +1006,20 @@ export const en = {
     largerText: "Larger text",
     largerTextHint: "Improve readability",
   },
+  /**
+   * Restore-only screen shown while an account is inside the 30-day deletion grace window
+   * (MED-016). Deliberately contains no patient data and no account identifiers — the whole
+   * point of the screen is that nothing personal is reachable in this state.
+   */
+  restoreAccount: {
+    title: "Your account is scheduled for deletion",
+    body:
+      "You asked us to delete this account, so it's on hold and your health information is locked. Restore it to get everything back exactly as it was.",
+    note: "If you do nothing, the account and its personal details are permanently deleted 30 days after you requested it. Medical records that must be kept by law are retained.",
+    restore: "Restore my account",
+    signOut: "Sign out",
+  },
+
   settings: {
     title: "Settings",
     preferences: "Preferences",
@@ -1023,7 +1037,10 @@ export const en = {
     deleteConfirmBody:
       "Your login, email, phone number and personal profile will be removed. Medical records that must be kept for legal and healthcare history are retained. You have 30 days to change your mind before deletion is finalized.",
     deleteConfirmCta: "Delete account",
-    deleteScheduled: "Your account is scheduled for deletion. You've been signed out.",
+    // MED-016: deletion no longer signs the user out — this device keeps a session so the
+    // account can still be restored. The old "You've been signed out" wording described
+    // behaviour that no longer exists.
+    deleteScheduled: "Your account is scheduled for deletion. You can still restore it.",
     deleteFailed: "We couldn't process the deletion. Please try again.",
     exportComingSoon: "Data export opens in a later update.",
     privacyComingSoon: "Privacy & security controls open in a later update.",

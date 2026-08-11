@@ -27,6 +27,7 @@ import type {
 } from "../repositories";
 import type {
   AiDoctorSuggestion,
+  AccountStatus,
   AiScheduleInput,
   AiScheduleResponse,
   AiVisitSummary,
@@ -378,6 +379,12 @@ const notificationRepo: NotificationRepository = {
 // ---- auth -------------------------------------------------------------------
 
 let currentUser: SessionUser | null = null;
+/**
+ * Mock account lifecycle state (MED-016). Kept separate from `currentUser` because the two
+ * are genuinely orthogonal: a deletion_pending account still has a valid session — that is
+ * the whole point of the restore-only flow.
+ */
+let mockAccountStatus: AccountStatus = "active";
 const listeners = new Set<(u: SessionUser | null) => void>();
 const notify = () => listeners.forEach((l) => l(currentUser));
 
@@ -427,8 +434,19 @@ const authRepo: AuthRepository = {
     await delay(null, 150);
   },
   async deleteAccount() {
-    // Mock: simulate the soft-delete by ending the session.
-    currentUser = null;
+    // Mock the real soft-delete: the account enters the grace window and the session STAYS,
+    // so the app routes to the restore-only screen. It no longer signs out here — signing
+    // out would hide the very state MED-016 added, making the restore flow unreachable in
+    // mock mode.
+    mockAccountStatus = "deletion_pending";
+    notify();
+    return delay({ ok: true });
+  },
+  async getAccountStatus() {
+    return delay(currentUser ? mockAccountStatus : null, 150);
+  },
+  async cancelDeletion() {
+    mockAccountStatus = "active";
     notify();
     return delay({ ok: true });
   },

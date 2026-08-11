@@ -110,8 +110,11 @@ export default function MeHubScreen() {
           deleteAccount.mutate(undefined, {
             onSuccess: (res) => {
               if (res.ok) {
-                router.replace("/auth/sign-in");
-                Alert.alert(t("settings.deleteScheduled"));
+                // MED-016: deletion no longer signs the user out. The backend revokes
+                // every OTHER session and RLS locks the data, but this device keeps a
+                // session so the account can still be restored — so route to the
+                // restore-only screen rather than the sign-in wall.
+                router.replace("/restore-account");
               } else {
                 Alert.alert(t(res.messageKey ?? "settings.deleteFailed"));
               }

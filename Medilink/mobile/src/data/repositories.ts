@@ -3,6 +3,7 @@
  * The UI talks to these, never to Supabase or the backend directly.
  */
 import type {
+  AccountStatus,
   AiDoctorSuggestion,
   AiScheduleInput,
   AiScheduleResponse,
@@ -61,6 +62,13 @@ export interface AuthRepository {
   signOut(): Promise<void>;
   /** F57 — request account deletion (soft-delete + 30-day grace; records retained). */
   deleteAccount(): Promise<AuthResult>;
+  /**
+   * MED-016 — the account's lifecycle status, used to route a deletion_pending user into
+   * the restore-only screen instead of the app. Null means unknown → treat as not pending.
+   */
+  getAccountStatus(): Promise<AccountStatus | null>;
+  /** MED-016 — cancel a pending deletion and reactivate the account. */
+  cancelDeletion(): Promise<AuthResult>;
   /** Restore a persisted session on launch. Resolves to the user, or null. */
   restoreSession(): Promise<SessionUser | null>;
   /** Subscribe to session changes; returns an unsubscribe fn. */

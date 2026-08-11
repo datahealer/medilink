@@ -26,6 +26,9 @@ import { ApiError, apiFetch } from "@/services/api";
 import { signInWithGoogle, signOutGoogle } from "@/services/googleAuth";
 import { clearPushToken } from "@/services/push";
 
+/** Account lifecycle status, mirroring the `account_status` DB enum. */
+export type AccountStatus = "active" | "suspended" | "deletion_pending" | "deleted";
+
 export interface SignInInput {
   email: string;
   password: string;
@@ -271,6 +274,58 @@ export const authService = {
     } catch (err) {
       // Already requested → treat as success (idempotent from the user's view).
       if (err instanceof ApiError && err.status === 409) return { ok: true };
+      return { ok: false, messageKey: toMessageKey(err) };
+    }
+  },
+
+  /**
+   * Read the account lifecycle status (MED-016 / NEW-001).
+   *
+   * Reads `profiles` ONLY. That table is deliberately excluded from the restrictive
+   * account-active RLS policy (20260811020000) precisely so a deletion_pending user can
+   * still discover their own status and reach the restore screen — every PHI table is
+   * blocked for them, so this must not join to one.
+   *
+   * Returns null when there is no session or the row cannot be read. Callers treat null as
+   * "not pending" and let the account through: failing open here only risks showing the
+   * normal app, and RLS is still denying the PHI underneath it. Failing closed would strand
+   * a healthy user on a restore screen over a transient network blip.
+   */
+  async getAccountStatus(): Promise<AccountStatus | null> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (error || !data) return null;
+      return (data.status as AccountStatus) ?? null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Cancel a pending deletion and reactivate the account (MED-016 / NEW-001).
+   *
+   * Privileged: only the service role may write `profiles.status`, so this goes through the
+   * existing backend route rather than Supabase-direct. No new endpoint was added.
+   */
+  async cancelDeletion(): Promise<AuthResult> {
+    try {
+      await apiFetch("/api/users/me/account/cancel-deletion", { method: "POST" });
+      // The JWT does not carry account status — RLS reads profiles.status live — so the
+      // token needs no re-mint for access to come back. Refresh anyway so the session is
+      // demonstrably healthy before the caller routes into the app, and so any client that
+      // caches user metadata sees the new state.
+      await supabase.auth.refreshSession().catch(() => {});
+      return { ok: true };
+    } catch (err) {
+      // 400 "No pending deletion request found" means someone else already restored it —
+      // the user's goal is met, so report success rather than a confusing error.
+      if (err instanceof ApiError && err.status === 400) return { ok: true };
       return { ok: false, messageKey: toMessageKey(err) };
     }
   },
