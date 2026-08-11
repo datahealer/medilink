@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
@@ -16,6 +16,7 @@ import {
   TextField,
 } from "@/components/ui";
 import { isGoogleConfigured } from "@/config/env";
+import { getRememberedEmail } from "@/lib/authPersistence";
 import { repositories, isMockData } from "@/data";
 import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
@@ -40,13 +41,42 @@ export default function SignInScreen() {
     control,
     handleSubmit,
     getValues,
+    setValue,
     trigger,
     formState: { errors },
   } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema(t)),
     defaultValues: { email: "", password: "", remember: false },
-    mode: "onBlur",
+    // QA MED-017 — "onTouched", not "onBlur". RHF's `reValidateMode` only takes effect
+    // AFTER the first submit, so under "onBlur" a user who fixed an invalid email kept
+    // staring at the stale error until they blurred the field again. "onTouched"
+    // validates on the first blur (so we don't shout while they're still typing) and on
+    // every change after that, which clears the error the moment it is corrected.
+    mode: "onTouched",
   });
+
+  // QA MED-018 — restore "Remember me".
+  //
+  // The form previously hardcoded `remember: false` and never read the saved preference
+  // back, so the checkbox reset to unchecked on every visit and signing in without
+  // re-ticking it silently disabled the feature. A stored address IS the preference:
+  // present → prefill the field and tick the box; absent → the previous empty default,
+  // which is also what a fresh install sees.
+  //
+  // Only the email is restored. The password field stays empty by design — it is never
+  // persisted anywhere (see lib/authPersistence.ts).
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const remembered = await getRememberedEmail();
+      if (!active || !remembered) return;
+      setValue("email", remembered);
+      setValue("remember", true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [setValue]);
 
   // F5: send a passwordless email login code, then go to the OTP screen (flow=login).
   const onSendCode = async () => {

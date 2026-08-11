@@ -42,7 +42,9 @@ export default function SignUpScreen() {
       password: "",
       acceptTerms: false as unknown as true,
     },
-    mode: "onBlur",
+    // QA MED-017 — see sign-in.tsx. "onBlur" left a corrected field showing its old
+    // error until the next blur; "onTouched" re-validates on change once touched.
+    mode: "onTouched",
   });
 
   const onSubmit = async (values: SignUpForm) => {

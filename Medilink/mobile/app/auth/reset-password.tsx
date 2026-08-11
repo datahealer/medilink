@@ -26,7 +26,9 @@ export default function ResetPasswordScreen() {
   } = useForm<ResetForm>({
     resolver: zodResolver(resetSchema(t)),
     defaultValues: { password: "", confirmPassword: "" },
-    mode: "onBlur",
+    // QA MED-017 — see sign-in.tsx. Matters most here: the confirm-password mismatch
+    // error persisted while the user was actively fixing the second field.
+    mode: "onTouched",
   });
 
   const password = watch("password");

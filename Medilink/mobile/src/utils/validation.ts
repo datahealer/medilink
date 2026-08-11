@@ -392,12 +392,19 @@ export type SignUpForm = z.infer<ReturnType<typeof signUpSchema>>;
 
 export const forgotSchema = (t: T) =>
   z.object({
-    // Normalized so "  me@x.com " reaches resetPasswordForEmail as "me@x.com" and a
-    // whitespace-only entry is rejected as required rather than sent as a blank identifier.
-    identifier: z
-      .string()
-      .transform(normalizeEmail)
-      .pipe(z.string().min(1, t("validation.required"))),
+    // QA MED-020 — this used to be `min(1)` with NO `.email()` check, so "abc" passed
+    // validation, fired a real `resetPasswordForEmail("abc")` request, and surfaced
+    // whatever generic error came back ("Unexpected error") instead of telling the user
+    // their email was malformed. That is the "incorrect/unclear message for an invalid
+    // email" report, and it also meant an obviously invalid value hit the network.
+    //
+    // It now uses the SAME `email(t)` rule as sign-in and sign-up, so all three screens
+    // give one message for one problem. The field keeps the name `identifier` (renaming
+    // it would touch the screen for no behavioural gain), but it is email-only: the
+    // screen's own copy says "Enter the email for your account" and the service calls
+    // `resetPasswordForEmail`. Normalisation is unchanged — `email()` also trims and
+    // lowercases, so "  Me@X.com " still reaches Supabase as "me@x.com".
+    identifier: email(t),
   });
 export type ForgotForm = z.infer<ReturnType<typeof forgotSchema>>;
 
