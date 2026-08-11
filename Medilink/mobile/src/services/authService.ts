@@ -21,7 +21,7 @@ import { api } from "@medilink/shared/mobile";
 
 import type { MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
-import { setRememberSession } from "@/lib/authPersistence";
+import { setRememberSession, setRememberedEmail } from "@/lib/authPersistence";
 import { ApiError, apiFetch } from "@/services/api";
 import { signInWithGoogle, signOutGoogle } from "@/services/googleAuth";
 import { clearPushToken } from "@/services/push";
@@ -106,6 +106,9 @@ export const authService = {
       // Record whether this session should survive a cold app launch. Enforced on
       // next launch by AuthProvider (see src/lib/authPersistence.ts).
       await setRememberSession(input.remember ?? false);
+      // QA MED-018 — remember the ADDRESS so Sign In can prefill it next time, or forget
+      // it when the user opted out. The PASSWORD is never persisted; see authPersistence.
+      await setRememberedEmail(input.remember ? input.email : null);
       return { ok: true };
     } catch (err) {
       return { ok: false, messageKey: toMessageKey(err) };
