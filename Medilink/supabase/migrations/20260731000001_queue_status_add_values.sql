@@ -1,0 +1,41 @@
+-- Phase 5.5 (part 1 of 2) — new queue states
+--
+-- Adds the two states a real front desk needs and the queue has never had:
+--
+--   skipped  — the patient was called but did not come forward (stepped out,
+--              in the bathroom, on the phone). NOT terminal: staff recall them
+--              and they return to the line. Today the only options are to
+--              leave them blocking the head of the queue or mark them done,
+--              which falsely records a consultation that never happened.
+--
+--   no_show  — terminal. The patient never attended. Distinct from `done`
+--              (seen) and from `expired` (which exists in the enum but is
+--              written by nothing and has no defined meaning).
+--
+-- SPLIT INTO TWO MIGRATIONS ON PURPOSE
+-- PostgreSQL forbids using a newly added enum value in the same transaction
+-- that adds it, and Supabase wraps each migration file in a transaction. Part 2
+-- (20260731000002) contains every object that references these labels. Keeping
+-- the ADD VALUEs alone here is what makes part 2 safe to apply.
+--
+-- This is the same trap that made 20260729000001 land as a history row with no
+-- schema change, so: after pushing, VERIFY before assuming.
+--
+--   SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+--   WHERE t.typname = 'queue_status' ORDER BY e.enumsortorder;
+--   -- expect: waiting, called, done, expired, skipped, no_show
+--
+-- MEDILINK COMPATIBILITY
+-- Additive. A patient's queue row only enters these states through a
+-- deliberate staff action. Part 2 updates get_my_queue_position so MediLink
+-- receives explicit is_skipped / is_no_show booleans alongside the existing
+-- is_waiting / is_called / is_done, rather than an unrecognised string. Adding
+-- an enum value alters no existing row.
+--
+-- ROLLBACK
+-- PostgreSQL cannot drop an enum value. Reverting would mean recreating the
+-- type and rewriting queue_items.status. Mitigation: the labels are inert
+-- unless part 2 and the staff endpoints are also deployed.
+
+ALTER TYPE public.queue_status ADD VALUE IF NOT EXISTS 'skipped';
+ALTER TYPE public.queue_status ADD VALUE IF NOT EXISTS 'no_show';

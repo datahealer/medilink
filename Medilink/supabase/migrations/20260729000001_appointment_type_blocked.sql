@@ -1,0 +1,52 @@
+-- Phase 3 — add 'blocked' to public.appointment_type
+--
+-- WHY THIS MIGRATION IS REQUIRED
+-- ------------------------------
+-- /api/doctors/[id]/availability/block records a blocked slot as an
+-- appointments row with `type = 'blocked'`, but 'blocked' was never added to
+-- the appointment_type enum. The enum is:
+--
+--     'in_person', 'online'                     (20260319071603, base schema)
+--     'walk_in'                                 (20260429000004)
+--
+-- so every INSERT from that route fails with
+--     invalid input value for enum appointment_type: "blocked"
+-- and the route returns 500. Availability/slot blocking has therefore never
+-- worked in any environment. This cannot be fixed in application code — an
+-- invalid enum label can only be made valid in the database.
+--
+-- (Found in Phase 2 while adding the reception appointment list, which needed
+-- to filter blocked rows out.)
+--
+-- SHAPE
+-- -----
+-- Additive and idempotent, and deliberately the ONLY statement in this file:
+-- PostgreSQL forbids using a newly added enum value in the same transaction
+-- that adds it, and Supabase wraps each migration in a transaction. Keeping
+-- this alone guarantees no later statement here can reference it. This is the
+-- exact pattern 20260429000004 used to add 'walk_in'.
+--
+-- MEDILINK COMPATIBILITY
+-- ----------------------
+-- Safe. Blocked rows carry patient_id = NULL, so they cannot appear in any
+-- patient-scoped query: MediLink's appointment reads filter by the patient's
+-- patient_profiles.id, and get_my_queue_position INNER JOINs patient_profiles.
+-- No MediLink surface can receive a row of this type. Adding a value to an
+-- enum does not alter any existing row or column.
+--
+-- ROLLBACK IMPLICATIONS
+-- ---------------------
+-- PostgreSQL cannot DROP a value from an enum. Reverting would mean recreating
+-- the type and rewriting every dependent column — not a realistic rollback.
+-- The mitigation is that the change is purely additive: nothing reads or
+-- writes 'blocked' except the block route and the calendar/reception filters,
+-- so leaving the value in place is inert even if slot blocking is later
+-- redesigned to use its own table.
+--
+-- AFTER APPLYING
+-- --------------
+-- Re-generate types so the value appears in src/types/supabase.ts:
+--   supabase gen types typescript --linked > src/types/supabase.ts
+-- (redirect carefully — a stray CLI notice previously corrupted that file).
+
+ALTER TYPE public.appointment_type ADD VALUE IF NOT EXISTS 'blocked';
