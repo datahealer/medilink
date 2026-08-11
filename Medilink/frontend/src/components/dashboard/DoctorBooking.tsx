@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api, i18n, BOOKING_WINDOW_DAYS } from "@medilink/shared";
+import { api, i18n, BOOKING_WINDOW_DAYS, omanTodayParts } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { env } from "@/lib/env";
 
@@ -44,7 +44,17 @@ const MONTH_LONG_AR = ["يناير","فبراير","مارس","أبريل","ما
 const MONTH_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
-const TODAY = new Date(); // real "today" — gates past dates in the booking calendar
+/**
+ * "Today" in OMAN, expressed as a local-midnight Date so the rest of this calendar
+ * (which builds cells with `new Date(y, m, d)` and keys them with `toYMD`) keeps
+ * working unchanged while being anchored to the Oman calendar rather than the
+ * browser's. Previously this was `new Date()`, so a browser in another timezone —
+ * or any browser between 00:00 and 04:00 Oman time — gated past dates and generated
+ * slot keys for the wrong day. Same shared helper mobile's DayGrid uses; the
+ * database (`oman_today()`) remains authoritative.
+ */
+const OMAN_TODAY = omanTodayParts();
+const TODAY = new Date(OMAN_TODAY.year, OMAN_TODAY.monthIndex, OMAN_TODAY.dayOfMonth);
 
 /**
  * BP-2 — the last bookable day: today + (BOOKING_WINDOW_DAYS - 1), inclusive.

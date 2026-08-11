@@ -240,6 +240,12 @@ export const en = {
     proceedToPayment: "Proceed to payment",
     confirmBooking: "Confirm booking",
     bookingFailed: "Couldn't book that appointment",
+    // Readable text for the booking RPC's business error codes. Unmapped codes fall
+    // through to the raw backend reason so a new code is never silently swallowed.
+    errSlotInPast: "That time has already passed. Please pick a later slot.",
+    errSlotTaken: "Someone just booked that slot. Please pick another time.",
+    errOutsideWindow: "That date is outside the booking window.",
+    errInvalidSlot: "That time is no longer offered by this doctor.",
     missingInfo: "Please pick a clinic, date and time slot first.",
     slotsError: "Couldn't load available slots.",
     selectSlotFirst: "Select a time slot to continue",

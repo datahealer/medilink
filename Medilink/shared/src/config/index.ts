@@ -14,5 +14,11 @@ export * from "./payments";
  * Emergency (`is_emergency=true`) bookings bypass the window (server-side).
  */
 export const BOOKING_WINDOW_DAYS = 7;
+/**
+ * Oman (Asia/Muscat) business-date helpers. The ONE client-side definition of a
+ * MediLink calendar date + slot-elapsed check, shared by mobile and web so the two
+ * cannot drift. The database (`oman_today()` / `oman_time_now()`) stays authoritative.
+ */
+export * from "./time";
 export * from "./clinicTypes";
 export * as i18n from "./i18n/index";

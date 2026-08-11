@@ -161,6 +161,13 @@ export function useCreateAppointment() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: patientKeys.appointmentsUpcoming });
     },
+    // A rejected booking means our cached availability was stale — the slot has
+    // since been taken (SLOT_ALREADY_BOOKED) or has now elapsed (SLOT_IN_PAST,
+    // which the server checks against Oman time). Drop the cached slot lists so the
+    // picker re-reads the backend instead of re-offering the slot that just failed.
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["appointments", "slots"] });
+    },
   });
 }
 
@@ -184,6 +191,10 @@ export function useRescheduleAppointment() {
     mutationFn: (vars: { id: string; slot: { date: string; start: string; end: string } }) =>
       repositories.appointment.reschedule(vars.id, vars.slot),
     onSuccess: () => invalidateAppointments(qc),
+    // Same staleness rule as booking (SLOT_ALREADY_TAKEN / SLOT_IN_PAST).
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["appointments", "slots"] });
+    },
   });
 }
 

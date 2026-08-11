@@ -17,7 +17,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useAppointment, useAvailableSlots, useRescheduleAppointment } from "@/hooks/queries/usePatient";
-import { BOOKING_WINDOW_DAYS } from "@medilink/shared/mobile";
+import { bookingErrorMessage } from "@/utils/appointments";
+import { BOOKING_WINDOW_DAYS, omanBookingDays } from "@medilink/shared/mobile";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
 // Reschedule uses the same booking window as new bookings (single source of truth);
@@ -50,16 +51,14 @@ export default function RescheduleScreen() {
   const appt = useAppointment(apptId);
   const doctorId = appt.data?.doctor_id ?? "";
 
-  // 5-day strip from today (same convention as the booking schedule screen).
+  // Booking-window strip in OMAN calendar days (same convention as the booking
+  // schedule screen). Keyed and labelled from the same Oman clock so the chip and
+  // the slots query can never refer to different dates around local midnight.
   const days = useMemo(() => {
     const items: DayItem[] = [];
-    const base = new Date();
-    for (let i = 0; i < DAY_COUNT; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      const dow = t(`common.${DOW[d.getDay()]}` as Parameters<typeof t>[0]);
-      items.push({ id: key, top: dow, bottom: num(String(d.getDate())) });
+    for (const d of omanBookingDays(DAY_COUNT)) {
+      const dow = t(`common.${DOW[d.weekday]}` as Parameters<typeof t>[0]);
+      items.push({ id: d.key, top: dow, bottom: num(String(d.dayOfMonth)) });
     }
     return items;
   }, [t, num]);
@@ -87,7 +86,9 @@ export default function RescheduleScreen() {
           Alert.alert(t("appointments.rescheduleSuccess"));
           router.back();
         },
-        onError: (e) => Alert.alert(t("appointments.actionFailed"), errMsg(e)),
+        // Localize the known RPC codes (SLOT_IN_PAST / SLOT_ALREADY_TAKEN / …);
+        // anything else still surfaces the raw backend reason.
+        onError: (e) => Alert.alert(t("appointments.actionFailed"), bookingErrorMessage(errMsg(e), t)),
       }
     );
   };

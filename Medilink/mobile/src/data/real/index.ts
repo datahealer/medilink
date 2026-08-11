@@ -5,7 +5,7 @@
  * reads go directly to Supabase via the shared `@medilink/shared` `api.*` modules.
  * This is only the boundary the UI consumes.
  */
-import { api, feeForType } from "@medilink/shared/mobile";
+import { api, feeForType, omanToday } from "@medilink/shared/mobile";
 
 import { supabase } from "@/lib/supabase";
 import { apiFetch, ApiError } from "@/services/api";
@@ -735,10 +735,16 @@ function feeOf(fees: unknown): number {
   return Number(fees) || 0;
 }
 
-/** Local-date YYYY-MM-DD for "today" (BP-1 availability; timezone handling is R5). */
+/**
+ * OMAN-date YYYY-MM-DD for "today" (BP-1 availability).
+ *
+ * Was device-local, which is wrong twice over: a patient travelling outside Oman got
+ * their own timezone's date, and even inside Oman it disagreed with the backend,
+ * which now clamps availability to `oman_today()`. Delegates to the shared helper so
+ * mobile, web and the database all mean the same calendar day.
+ */
 function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return omanToday();
 }
 
 function mapDoctorRow(r: DoctorRowLoose): Doctor {

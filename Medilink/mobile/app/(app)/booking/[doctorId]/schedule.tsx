@@ -21,7 +21,7 @@ import { useI18n } from "@/i18n";
 import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useAvailableSlots } from "@/hooks/queries/usePatient";
 import { useBookingStore } from "@/stores/bookingStore";
-import { BOOKING_WINDOW_DAYS } from "@medilink/shared/mobile";
+import { BOOKING_WINDOW_DAYS, omanBookingDays } from "@medilink/shared/mobile";
 
 const DOW = ["dowSun", "dowMon", "dowTue", "dowWed", "dowThu", "dowFri", "dowSat"] as const;
 // BP-2: render exactly the booking window (today + N-1). Single source of truth.
@@ -45,20 +45,23 @@ export default function ScheduleScreen() {
   const start = useBookingStore((s) => s.start);
   const setSchedule = useBookingStore((s) => s.setSchedule);
 
-  // Five days from today; ids are ISO dates, labels are localized.
+  // The booking window in OMAN calendar days; ids are Oman ISO dates, labels localized.
+  //
+  // Both the id and the label come from the same Oman-shifted clock (omanBookingDays),
+  // which is what removes the midnight bug: this previously keyed on
+  // `toISOString()` (UTC) while labelling with `getDate()` (device local), so between
+  // 00:00 and 04:00 Oman time the chip rendered one date and the slots query asked
+  // the backend for the previous one. The backend clamps to `oman_today()`, so the
+  // two now agree by construction.
   const { days, dateLabels } = useMemo(() => {
     const items: DayItem[] = [];
     const labels: Record<string, string> = {};
-    const base = new Date();
-    for (let i = 0; i < DAY_COUNT; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      const dow = t(`common.${DOW[d.getDay()]}` as Parameters<typeof t>[0]);
-      const dom = num(String(d.getDate()));
-      const month = t(`common.month${d.getMonth()}` as Parameters<typeof t>[0]);
-      items.push({ id: key, top: dow, bottom: dom });
-      labels[key] = `${dow} ${dom} ${month}`;
+    for (const d of omanBookingDays(DAY_COUNT)) {
+      const dow = t(`common.${DOW[d.weekday]}` as Parameters<typeof t>[0]);
+      const dom = num(String(d.dayOfMonth));
+      const month = t(`common.month${d.monthIndex}` as Parameters<typeof t>[0]);
+      items.push({ id: d.key, top: dow, bottom: dom });
+      labels[d.key] = `${dow} ${dom} ${month}`;
     }
     return { days: items, dateLabels: labels };
   }, [t, num]);

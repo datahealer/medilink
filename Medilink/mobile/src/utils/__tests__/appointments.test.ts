@@ -1,4 +1,4 @@
-import { apptStatusCategory, hoursUntilAppt, refundTier } from "../appointments";
+import { apptStatusCategory, bookingErrorMessage, hoursUntilAppt, refundTier } from "../appointments";
 
 /**
  * Refund tiers decide how much money a patient gets back on cancellation
@@ -106,5 +106,56 @@ describe("apptStatusCategory", () => {
     expect(() => apptStatusCategory("approved")).not.toThrow();
     expect(() => apptStatusCategory(null)).not.toThrow();
     expect(() => apptStatusCategory(undefined)).not.toThrow();
+  });
+});
+
+/**
+ * Booking failure messages (audit 2026-08-11, BUG 1 presentation half).
+ *
+ * The repository deliberately re-throws the backend's own error CODE verbatim so
+ * nothing is swallowed (see bookingFlow.integration.test.ts). That contract is
+ * unchanged — this maps those codes to patient-readable text at the very last
+ * moment, and must never turn an unknown code into a blank or generic alert.
+ */
+/**
+ * Stand-in for useI18n().t — echoes the key back so assertions read as intent.
+ * Cast with `as never` at the call sites (the same escape hatch the push-routing
+ * code uses) because the real `t` is typed against the MessageKey union.
+ */
+function tStub(key: string): string {
+  return `t:${key}`;
+}
+
+describe("bookingErrorMessage", () => {
+  const t = tStub as never;
+
+  it("localizes SLOT_IN_PAST — the new server-side past-slot rejection", () => {
+    expect(bookingErrorMessage("SLOT_IN_PAST", t)).toBe("t:booking.errSlotInPast");
+  });
+
+  it("localizes both slot-taken codes to the same message", () => {
+    expect(bookingErrorMessage("SLOT_ALREADY_BOOKED", t)).toBe("t:booking.errSlotTaken");
+    expect(bookingErrorMessage("SLOT_ALREADY_TAKEN", t)).toBe("t:booking.errSlotTaken");
+  });
+
+  it("localizes the window and invalid-slot codes", () => {
+    expect(bookingErrorMessage("OUTSIDE_BOOKING_WINDOW", t)).toBe("t:booking.errOutsideWindow");
+    expect(bookingErrorMessage("INVALID_SLOT", t)).toBe("t:booking.errInvalidSlot");
+  });
+
+  it("finds the code even when an Error wrapped it in other text", () => {
+    expect(bookingErrorMessage("Error: SLOT_IN_PAST", t)).toBe("t:booking.errSlotInPast");
+  });
+
+  it("passes an unmapped backend reason through verbatim, never a generic string", () => {
+    // A new server code must stay visible in a bug report rather than being hidden.
+    expect(bookingErrorMessage("DOCTOR_UNAVAILABLE", t)).toBe("DOCTOR_UNAVAILABLE");
+    expect(bookingErrorMessage("some postgres detail", t)).toBe("some postgres detail");
+  });
+
+  it("falls back to a generic message only when there is no reason at all", () => {
+    expect(bookingErrorMessage("", t)).toBe("t:errors.unknown");
+    expect(bookingErrorMessage(null, t)).toBe("t:errors.unknown");
+    expect(bookingErrorMessage(undefined, t)).toBe("t:errors.unknown");
   });
 });

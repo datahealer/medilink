@@ -19,6 +19,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
+import { bookingErrorMessage } from "@/utils/appointments";
 import { localizedName } from "@/utils/localizedName";
 import { isMockData } from "@/data";
 import { useProfile, useCreateAppointment } from "@/hooks/queries/usePatient";
@@ -112,13 +113,15 @@ export default function ReviewScreen() {
         onError: (e) => {
           // Surface the real backend reason (RPC error code / Postgres message),
           // never a generic string — see bookingStore + appointment.create().
+          // Known business codes (SLOT_IN_PAST, SLOT_ALREADY_BOOKED, …) are localized
+          // for the patient; anything unrecognised still shows the raw reason.
           const detail =
             e instanceof Error
               ? e.message
               : e && typeof e === "object" && "message" in e
                 ? String((e as { message: unknown }).message)
                 : String(e);
-          Alert.alert(t("booking.bookingFailed"), detail);
+          Alert.alert(t("booking.bookingFailed"), bookingErrorMessage(detail, t));
         },
       }
     );

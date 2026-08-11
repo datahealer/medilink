@@ -132,3 +132,38 @@ export function apptStatusLabel(status: string | null | undefined, t: T): string
   const key = STATUS_KEYS[status];
   return key ? t(key) : status.replace(/_/g, " ");
 }
+
+/**
+ * Business error codes returned by the booking / reschedule RPCs.
+ *
+ * The repository deliberately surfaces the backend's own code verbatim (see
+ * data/real/index.ts and bookingFlow.integration.test.ts) so nothing is swallowed;
+ * this is the PRESENTATION layer that turns those codes into something a patient can
+ * read. `SLOT_IN_PAST` is raised by `book_appointment_atomic` /
+ * `reschedule_appointment_atomic` when the chosen slot has already elapsed in Oman
+ * time — the server-side half of the past-slot fix.
+ */
+const BOOKING_ERROR_KEYS: Record<string, Parameters<T>[0]> = {
+  SLOT_IN_PAST: "booking.errSlotInPast",
+  SLOT_ALREADY_BOOKED: "booking.errSlotTaken",
+  SLOT_ALREADY_TAKEN: "booking.errSlotTaken",
+  OUTSIDE_BOOKING_WINDOW: "booking.errOutsideWindow",
+  INVALID_SLOT: "booking.errInvalidSlot",
+};
+
+/**
+ * Readable message for a booking failure.
+ *
+ * Falls back to the raw backend reason for any unmapped code, so adding a new server
+ * error can never leave the patient staring at an empty alert — and so a code we have
+ * not localized yet is still visible in a bug report.
+ */
+export function bookingErrorMessage(reason: string | null | undefined, t: T): string {
+  const raw = (reason ?? "").trim();
+  if (!raw) return t("errors.unknown");
+  // Codes arrive bare from the RPC, but a thrown Error may prefix/wrap them.
+  const code = Object.keys(BOOKING_ERROR_KEYS).find(
+    (c) => raw === c || raw.includes(c)
+  );
+  return code ? t(BOOKING_ERROR_KEYS[code]!) : raw;
+}

@@ -2,6 +2,8 @@
 // client, mobile passes a bearer-token client — both hit identical RLS.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "../types/index";
+// Dependency-free module (no imports of its own), so this cannot create a cycle.
+import { omanToday } from "../config/time";
 
 export type DB = SupabaseClient<Database>;
 export type { Json };
@@ -37,7 +39,15 @@ export async function getMyPatientProfileId(db: DB): Promise<string> {
   return data.id;
 }
 
-/** Today's date as `YYYY-MM-DD` (local), used for upcoming/past partitioning. */
+/**
+ * Today's date as `YYYY-MM-DD` in OMAN, used for upcoming/past partitioning.
+ *
+ * Was `toISOString()` — i.e. UTC, despite the comment claiming "local". Since
+ * `appointments.slot_date` is an Oman calendar date, that mis-classified rows for
+ * four hours every night: between 00:00 and 04:00 Oman time the UTC date is still
+ * yesterday, so YESTERDAY's appointments were listed as upcoming. Uses the same
+ * shared helper as the booking grid and mirrors the database's `oman_today()`.
+ */
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return omanToday();
 }
