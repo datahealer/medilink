@@ -15,6 +15,13 @@ const MARK_RATIO = 1363 / 926; // width / height (official SUBMARK, trimmed)
 const WORD_RATIO = 1200 / 289;
 const WORD_RATIO_AR = 1200 / 289;
 
+/**
+ * Exported so callers that size the wordmark by WIDTH (the splash scales it as a
+ * fraction of the screen) can convert to the `height` prop without re-deriving the
+ * asset's aspect ratio. Both locales share the same ratio.
+ */
+export const MEDILINK_WORDMARK_RATIO = WORD_RATIO;
+
 export interface MeMarkProps {
   /** Rendered height in px (width derives from the brand aspect ratio). */
   height?: number;
