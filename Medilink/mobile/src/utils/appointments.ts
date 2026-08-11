@@ -1,3 +1,5 @@
+import { omanWallClockToInstant } from "@medilink/shared/mobile";
+
 import type { useI18n } from "@/i18n";
 import type { ThemeColors } from "@/theme/light";
 
@@ -98,7 +100,13 @@ export function hoursUntilAppt(date: string | null | undefined, start: string | 
   const time = /^(\d{1,2}):(\d{2})/.exec(start ?? "00:00");
   const hh = time ? time[1]?.padStart(2, "0") : "00";
   const mm = time ? time[2] : "00";
-  const when = new Date(`${date}T${hh}:${mm}:00`);
+  // The slot is an OMAN wall clock. `new Date(\`${date}T${hh}:${mm}\`)` read it in the
+  // DEVICE's timezone, so a patient travelling — or simply on a phone set to another
+  // zone — got an appointment shifted by the offset difference. That lands on the
+  // refund tier: a 3-hour error can cross the 24h or 48h boundary, so the app promised
+  // a refund the server (which measures in Asia/Muscat) would not grant.
+  const when = omanWallClockToInstant(date, `${hh}:${mm}`);
+  if (!when) return Number.POSITIVE_INFINITY;
   return (when.getTime() - Date.now()) / 3_600_000;
 }
 

@@ -52,10 +52,27 @@ export async function POST(
     }
 
     /* ================= PARSE DATE ================= */
-    const start = new Date(`${appointment.slot_date}T${appointment.slot_start}`);
-    const end = new Date(`${appointment.slot_date}T${appointment.slot_end}`);
+    // `slot_date` + `slot_start` are an OMAN wall clock with no zone attached.
+    //
+    // This previously did `new Date(\`${date}T${time}\`).toISOString()`, which reads the
+    // pair in the SERVER's timezone — UTC on Vercel — and then stamped a `Z` offset on
+    // it. Google honours the explicit offset in `dateTime` and ignores `timeZone` for
+    // the instant, so a 09:00 Oman appointment was filed at 09:00Z = 13:00 Oman: every
+    // synced event landed four hours late. The `timeZone` was also "Asia/Kolkata",
+    // which is India, not Oman.
+    //
+    // The fix is to send the wall clock UNCHANGED with no offset and name the zone, the
+    // documented Google Calendar pattern for local-time events. No Date object is
+    // involved, so no timezone can be inferred by accident.
+    const OMAN_TIME_ZONE = "Asia/Muscat";
+    const hhmmss = (t: string) => (t.length === 5 ? `${t}:00` : t.slice(0, 8));
+    const startLocal = `${appointment.slot_date}T${hhmmss(appointment.slot_start)}`;
+    const endLocal = `${appointment.slot_date}T${hhmmss(appointment.slot_end)}`;
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    // Validate the assembled wall clocks without letting a Date parse define the
+    // instant — this only proves the shape is RFC3339-local, which is what Google needs.
+    const SHAPE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+    if (!SHAPE.test(startLocal) || !SHAPE.test(endLocal)) {
       return NextResponse.json(
         { success: false, error: "Invalid date format" },
         { status: 400 }
@@ -80,14 +97,16 @@ export async function POST(
       summary: "Doctor Appointment",
       description: `Doctor: ${appointment.doctors?.full_name || "N/A"}\nFacility: ${appointment.facilities?.name || "N/A"}`,
 
+      // Local wall clock + named zone: Google resolves the instant in Asia/Muscat.
+      // Never send an offset here (`Z` or `+04:00`) — it would override the zone.
       start: {
-        dateTime: start.toISOString(),
-        timeZone: "Asia/Kolkata", // ✅ FIXED
+        dateTime: startLocal,
+        timeZone: OMAN_TIME_ZONE,
       },
 
       end: {
-        dateTime: end.toISOString(),
-        timeZone: "Asia/Kolkata", // ✅ FIXED
+        dateTime: endLocal,
+        timeZone: OMAN_TIME_ZONE,
       },
     };
 

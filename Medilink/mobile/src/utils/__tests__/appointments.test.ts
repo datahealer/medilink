@@ -49,7 +49,14 @@ describe("refundTier", () => {
 describe("hoursUntilAppt", () => {
   // Fixed clock: this function reads Date.now(), so a real clock makes the test
   // time-of-day dependent and flaky near midnight.
-  const NOW = new Date("2026-07-28T10:00:00").getTime();
+  //
+  // NOW is pinned to 10:00 OMAN (= 06:00 UTC, since Oman is UTC+4 with no DST), NOT
+  // `new Date("2026-07-28T10:00:00")`. That literal is parsed in the RUNNER's timezone,
+  // so the old version of this suite only produced the expected 6/24/-2 hour gaps on a
+  // machine set to Oman time — it silently measured something else in CI. Pinning the
+  // instant makes every assertion below mean "N hours before an Oman wall clock",
+  // which is what the refund tier actually depends on.
+  const NOW = Date.UTC(2026, 6, 28, 10 - 4, 0);
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(NOW);
@@ -157,5 +164,75 @@ describe("bookingErrorMessage", () => {
     expect(bookingErrorMessage("", t)).toBe("t:errors.unknown");
     expect(bookingErrorMessage(null, t)).toBe("t:errors.unknown");
     expect(bookingErrorMessage(undefined, t)).toBe("t:errors.unknown");
+  });
+});
+
+/**
+ * Oman-anchored appointment timing (audit 2026-08-11, BUG 3 residual).
+ *
+ * `hoursUntilAppt` feeds `refundTier`, so a timezone error here is a MONEY error: the
+ * app previously parsed the slot in the device's zone, and a 1.5–4 hour shift can
+ * cross the 24h or 48h refund boundary. The server measures the same cutoff in
+ * Asia/Muscat (cancel_appointment_safe / reschedule_appointment_atomic), so a
+ * device-local reading made the app promise refunds the server would refuse.
+ */
+describe("hoursUntilAppt is anchored to Oman, not the device", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** Freeze the clock at a given Oman wall clock (UTC+4, no DST). */
+  function freezeAtOman(y: number, mo: number, d: number, h: number, mi = 0): void {
+    jest.useFakeTimers().setSystemTime(Date.UTC(y, mo - 1, d, h - 4, mi));
+  }
+
+  it("measures the gap in Oman time regardless of the runner's timezone", () => {
+    freezeAtOman(2026, 8, 13, 10, 0);
+    // 16:00 Oman on the same day is exactly 6 hours away, everywhere.
+    expect(hoursUntilAppt("2026-08-13", "16:00")).toBeCloseTo(6, 5);
+    expect(hoursUntilAppt("2026-08-14", "10:00")).toBeCloseTo(24, 5);
+    expect(hoursUntilAppt("2026-08-15", "10:00")).toBeCloseTo(48, 5);
+  });
+
+  it("keeps the 48h full-refund boundary on the correct side", () => {
+    // The defect: read in a UTC server/device the slot appears 4h later, so an
+    // appointment 47h away looked like 51h and promised 100% instead of 50%.
+    freezeAtOman(2026, 8, 13, 10, 0);
+    expect(refundTier(hoursUntilAppt("2026-08-15", "09:00")).pct).toBe(50); // 47h
+    expect(refundTier(hoursUntilAppt("2026-08-15", "10:00")).pct).toBe(100); // exactly 48h
+  });
+
+  it("keeps the 24h boundary on the correct side", () => {
+    freezeAtOman(2026, 8, 13, 10, 0);
+    expect(refundTier(hoursUntilAppt("2026-08-14", "09:00")).pct).toBe(10); // 23h
+    expect(refundTier(hoursUntilAppt("2026-08-14", "10:00")).pct).toBe(50); // exactly 24h
+  });
+
+  it("handles an early-morning Oman slot, which is the PREVIOUS day in UTC", () => {
+    // 02:00 Oman on the 14th is 22:00 UTC on the 13th. A naive parse in UTC would
+    // place it 4 hours later and mis-tier it.
+    freezeAtOman(2026, 8, 13, 23, 0);
+    expect(hoursUntilAppt("2026-08-14", "02:00")).toBeCloseTo(3, 5);
+  });
+
+  it("still reports a passed slot as negative", () => {
+    freezeAtOman(2026, 8, 13, 10, 0);
+    expect(hoursUntilAppt("2026-08-13", "08:00")).toBeCloseTo(-2, 5);
+  });
+
+  it("falls back to infinity on an unusable DATE — never 'no refund'", () => {
+    freezeAtOman(2026, 8, 13, 10, 0);
+    expect(hoursUntilAppt("13-08-2026", "10:00")).toBe(Number.POSITIVE_INFINITY);
+    expect(hoursUntilAppt(null, "10:00")).toBe(Number.POSITIVE_INFINITY);
+    expect(refundTier(hoursUntilAppt(null, "10:00")).pct).toBe(100);
+  });
+
+  it("treats an unusable TIME as Oman midnight, matching the missing-time contract", () => {
+    // Pre-existing behaviour (see the "defaults a missing start time to midnight"
+    // case): an unparseable time is the same as no time. Asserted here so the Oman
+    // rewrite is shown to preserve it — midnight is now Oman midnight, not device.
+    freezeAtOman(2026, 8, 13, 10, 0);
+    expect(hoursUntilAppt("2026-08-13", "not-a-time")).toBeCloseTo(-10, 5);
+    expect(hoursUntilAppt("2026-08-13", null)).toBeCloseTo(-10, 5);
   });
 });

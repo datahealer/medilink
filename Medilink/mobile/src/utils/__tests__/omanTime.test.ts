@@ -25,6 +25,7 @@ import {
   omanMinutesNow,
   omanToday,
   omanTodayParts,
+  omanWallClockToInstant,
   slotStartMinutes,
 } from "@medilink/shared/mobile";
 
@@ -201,5 +202,41 @@ describe("isSlotInPast — BUG 1 slot eligibility (client mirror of the server r
 
   it("defers to the server on an unparseable time rather than hiding the slot", () => {
     expect(isSlotInPast("2026-08-11", "garbage", now)).toBe(false);
+  });
+});
+
+describe('omanWallClockToInstant — slot wall clock to a real instant', () => {
+  it('resolves an Oman wall clock to the correct UTC instant', () => {
+    // 09:00 Oman == 05:00 UTC (UTC+4, no DST).
+    expect(omanWallClockToInstant('2026-08-13', '09:00')!.toISOString())
+      .toBe('2026-08-13T05:00:00.000Z');
+    expect(omanWallClockToInstant('2026-08-13', '16:30')!.toISOString())
+      .toBe('2026-08-13T12:30:00.000Z');
+  });
+
+  it('rolls back across the date boundary for an early-morning Oman slot', () => {
+    // 02:00 Oman on the 14th is 22:00 UTC on the 13th — the case a naive parse got wrong.
+    expect(omanWallClockToInstant('2026-08-14', '02:00')!.toISOString())
+      .toBe('2026-08-13T22:00:00.000Z');
+    expect(omanWallClockToInstant('2026-01-01', '00:00')!.toISOString())
+      .toBe('2025-12-31T20:00:00.000Z');
+  });
+
+  it('accepts HH:mm:ss as stored by Postgres TIME', () => {
+    expect(omanWallClockToInstant('2026-08-13', '09:30:00')!.toISOString())
+      .toBe('2026-08-13T05:30:00.000Z');
+  });
+
+  it('round-trips: the instant maps back to the same Oman calendar date', () => {
+    for (const t of ['00:00', '03:59', '04:00', '12:00', '23:59']) {
+      const inst = omanWallClockToInstant('2026-08-14', t)!;
+      expect(omanToday(inst)).toBe('2026-08-14');
+    }
+  });
+
+  it('returns null rather than a plausible-but-wrong instant', () => {
+    expect(omanWallClockToInstant('14-08-2026', '09:00')).toBeNull();
+    expect(omanWallClockToInstant('2026-08-14', 'nope')).toBeNull();
+    expect(omanWallClockToInstant('', '09:00')).toBeNull();
   });
 });

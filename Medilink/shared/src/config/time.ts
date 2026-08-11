@@ -133,6 +133,39 @@ export function slotStartMinutes(slotStart: string): number {
   return hours * 60 + minutes;
 }
 
+const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Turn an Oman wall clock (`YYYY-MM-DD` + `HH:mm`) into a real instant.
+ *
+ * `appointments.slot_date` + `slot_start` are stored as a LOCAL wall-clock pair with
+ * no zone, so `new Date(\`${date}T${time}\`)` interprets them in whatever timezone the
+ * device or server happens to be in. For anything that measures elapsed time — the
+ * refund tier, a cancellation cutoff, a calendar event — that silently shifts the
+ * appointment by the difference between the local zone and Oman: 4 hours on a UTC
+ * server, 1.5 hours on an Indian phone.
+ *
+ * Returns `null` for an unparseable date or time so callers can choose their own
+ * fallback rather than receiving a plausible-but-wrong instant.
+ */
+export function omanWallClockToInstant(dateKey: string, timeOfDay: string): Date | null {
+  const ymd = YMD.exec(String(dateKey).trim());
+  if (!ymd) return null;
+  const minutes = slotStartMinutes(timeOfDay);
+  if (Number.isNaN(minutes)) return null;
+  // Subtracting the offset inside Date.UTC lets it normalise a negative minute count
+  // across the date boundary — an 02:00 Oman slot is 22:00 UTC the previous day.
+  return new Date(
+    Date.UTC(
+      Number(ymd[1]),
+      Number(ymd[2]) - 1,
+      Number(ymd[3]),
+      0,
+      minutes - OMAN_UTC_OFFSET_MINUTES
+    )
+  );
+}
+
 /**
  * Has this slot already elapsed in Oman time?
  *
