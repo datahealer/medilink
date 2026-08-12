@@ -24,6 +24,10 @@ export const en = {
     optional: "Optional",
     notSet: "Not set",
     none: "None",
+    // Distance unit. Was a hardcoded Latin "km" in three screens, so an Arabic user saw
+    // Arabic-Indic digits next to a Latin unit. `t()` localises the digits itself.
+    km: "km",
+    doctorsCount: "{count} doctors",
     done: "Done",
     close: "Close",
     // Password show/hide toggle (PasswordField). These label the ACTION the button
@@ -702,6 +706,23 @@ export const en = {
     emptyTitle: "No clinics found nearby",
     emptyBody: "Try widening your search or check back later.",
     tilesError: "Couldn't load the map. Check your connection and try again.",
+    // Location states. Each one is a DIFFERENT user action, which is why they are not one
+    // generic string: re-prompting cannot fix a system-wide toggle, and iOS will not
+    // re-prompt at all once permission has been refused.
+    locateCta: "Use my location",
+    locating: "Finding your location…",
+    // Shown before the patient has opted in — the map is centred on Muscat, and saying so
+    // is the point: it must never look like the patient's own position.
+    locationPromptTitle: "See clinics near you",
+    locationPromptBody: "Showing clinics around Muscat. Share your location to sort them by distance from where you are.",
+    locationDeniedBody: "Location permission is off, so clinics are shown around Muscat. Enable it in Settings to see the ones nearest you.",
+    locationServicesOffBody: "Location services are turned off on this device, so clinics are shown around Muscat.",
+    locationUnavailableBody: "We couldn't get your location, so clinics are shown around Muscat.",
+    openSettings: "Open Settings",
+    // Confirms WHERE the list is measured from, so distances are never ambiguous.
+    nearYou: "Sorted by distance from you",
+    nearMuscat: "Sorted by distance from Muscat",
+    viewClinic: "View clinic",
   },
   doctor: {
     about: "About",

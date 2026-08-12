@@ -274,7 +274,7 @@ export default function DashboardScreen() {
             key={c.id}
             name={localizedName(c.name, c.name_ar, c.name_ar_status, isRTL)}
             tagLabel={num(`★ ${c.rating} · ${t("dashboard.featured")}`)}
-            meta={num([(c.category ? facilityTypeLabel(c.category, t) : c.area), c.doctors_count ? `${c.doctors_count} doctors` : null, c.distance_km != null ? `${c.distance_km} km` : null].filter(Boolean).join(" · "))}
+            meta={num([(c.category ? facilityTypeLabel(c.category, t) : c.area), c.doctors_count ? t("common.doctorsCount", { count: c.doctors_count }) : null, c.distance_km != null ? `${c.distance_km} ${t("common.km")}` : null].filter(Boolean).join(" · "))}
             onPress={() => router.push("/search")}
             isRTL={isRTL}
           />

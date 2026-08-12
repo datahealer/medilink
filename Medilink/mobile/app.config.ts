@@ -42,9 +42,37 @@ import { assertProductionEnv } from "./src/config/envGuard.js";
  *      visible in introspect:
  *        • CAMERA                                    (expo-image-picker)
  *        • POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED (expo-notifications)
+ *        • ACCESS_COARSE_LOCATION, ACCESS_FINE_LOCATION (expo-location)
  *      CAMERA is genuinely used — `records/upload.tsx` calls `launchCameraAsync` to capture
  *      medical documents. It arrives via the library manifest, so `cameraPermission` must
  *      never be set to `false`: that would add it to `blockedPermissions` and break capture.
+ *
+ *      LOCATION is FOREGROUND-ONLY and is used by one screen: `app/(app)/search/map.tsx`
+ *      asks for the patient's position so the nearby-clinic RPC can be queried from where
+ *      they actually are instead of a hardcoded Muscat centre. The plugin is configured with
+ *      `isIosBackgroundLocationEnabled: false`, `isAndroidBackgroundLocationEnabled: false`
+ *      and `isAndroidForegroundServiceEnabled: false`, so ACCESS_BACKGROUND_LOCATION and
+ *      FOREGROUND_SERVICE_LOCATION are NOT added — those are the entries that trigger Play
+ *      Console's background-location declaration review, and MediLink has no use for them.
+ *      The coordinate is held in React state for the lifetime of the screen and sent only as
+ *      RPC parameters; it is never written to Supabase, AsyncStorage, SecureStore, a log or
+ *      an analytics event. Answer the Play Data Safety form accordingly: location is
+ *      COLLECTED (it leaves the device in the RPC call) but NOT STORED and NOT SHARED.
+ *      NOTE FOR DATA SAFETY: if a future change adds background location or persistence,
+ *      that form answer stops being true.
+ *
+ *      `locationAlwaysAndWhenInUsePermission: false` and `locationAlwaysPermission: false`
+ *      are the same shape of problem as `faceIDPermission` and `microphonePermission` above.
+ *      Setting only `isIosBackgroundLocationEnabled: false` is NOT enough: the plugin still
+ *      injected NSLocationAlwaysAndWhenInUseUsageDescription and
+ *      NSLocationAlwaysUsageDescription with its own generic default text
+ *      ("Allow $(PRODUCT_NAME) to access your location") — verified via
+ *      `npx expo config --type introspect`. Shipping an Always usage string for an app that
+ *      never calls requestBackgroundPermissionsAsync invites an App Review question and puts
+ *      un-reviewed copy in front of users. Explicit `false` removes both keys; introspect now
+ *      reports NSLocationWhenInUseUsageDescription only, and Android gets
+ *      ACCESS_COARSE/FINE_LOCATION with no ACCESS_BACKGROUND_LOCATION and no
+ *      FOREGROUND_SERVICE_LOCATION.
  *
  * RECORD_AUDIO is refused in two places because one is not enough: it was listed in
  * `android.permissions` AND added independently by expo-image-picker's plugin (which adds it
