@@ -70,6 +70,22 @@ function toMessageKey(err: unknown): MessageKey {
     if (text.includes("invalid otp") || text.includes("valid 6-digit"))
       return "errors.otpInvalid";
     if (text.includes("already registered")) return "errors.emailInUse";
+    // TRANSPORT FAILURE, NOT A SERVER FAULT. `apiFetch` wraps a fetch rejection or its 20s
+    // timeout as ApiError(0) — there is no HTTP response at all. Because status 0 matched no
+    // branch, every offline/unreachable/timed-out request fell through to "errors.server" and
+    // told the user the problem was on our side. It also made the `err instanceof TypeError`
+    // check above dead code for every backend call, since apiFetch never lets a raw TypeError
+    // escape.
+    if (err.status === 0) return "errors.network";
+    // AUTHENTICATION, NOT A SERVER FAULT. A 401 means this device's session was not accepted.
+    // This is the mapping that made MED-016's restore bug so hard to read: cancel-deletion
+    // returned 401 (its session had just been revoked by the delete request) and the screen
+    // said "Something went wrong on our side. Please try again." — which is why it looked
+    // transient and why retrying the same broken session never helped. The user needs to know
+    // to sign in again; 403 gets the same message, since a patient cannot act on either.
+    // `common.sessionExpired`, NOT a new errors.* key — this string already existed and is
+    // already used for exactly this case by ai/recommendations.tsx and ai/schedule.tsx.
+    if (err.status === 401 || err.status === 403) return "common.sessionExpired";
     if (err.status >= 500) return "errors.server";
     return "errors.server";
   }

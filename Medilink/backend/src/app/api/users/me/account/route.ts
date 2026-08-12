@@ -80,23 +80,38 @@ export async function DELETE(req: NextRequest) {
       resource_id: user.id,
     });
 
-    // Revoke every refresh token for this user, on every device (MED-016 / NEW-001).
+    // Revoke this user's sessions on every OTHER device (MED-016 / NEW-001).
     //
     // Previously this route changed `status` and nothing else: the auth user was left
     // completely intact, so a phone that was already signed in kept working for the whole
     // 30-day grace period and could read PHI straight from PostgREST.
     //
-    // BE PRECISE ABOUT WHAT THIS DOES AND DOES NOT DO. Supabase access tokens are stateless
-    // JWTs validated by signature and expiry alone — revoking refresh tokens cannot recall
-    // one that has already been issued, so an access token minted seconds ago stays
-    // syntactically valid until it expires (1h by default). This call only guarantees that
-    // no NEW access token can be minted after it runs.
+    // ── WHY "others" AND NOT "global" ──
     //
-    // The actual security boundary is therefore the RESTRICTIVE RLS policy added in
-    // 20260811020000, which denies PHI to a deletion_pending user even with a perfectly
-    // valid, unexpired token. This revocation is defence in depth on top of that: it shortens
-    // the window in which a stale token can do anything at all, and it forces every other
-    // device back to the restore-only screen. It must never be relied on alone.
+    // This was "global", and that broke the restore flow it is supposed to protect. The
+    // comment here previously asserted that revoking sessions "cannot recall an access token
+    // that has already been issued". THAT IS WRONG FOR GOTRUE: a Supabase access token
+    // carries a `session_id` claim, and GoTrue's /user endpoint validates that the session
+    // still exists. "global" deletes EVERY session including the caller's own, so the very
+    // next request from THIS device — the one that just asked to delete — was rejected.
+    //
+    // Measured in production (2026-08-12): DELETE returned 200 at 08:45:50, and
+    // POST /cancel-deletion from the same device returned 401 seventeen seconds later, with
+    // an access token nowhere near its 1h expiry. Restoring only became possible after the
+    // patient signed out and back in, which minted a new session. The restore screen itself
+    // rendered fine throughout — it holds no PHI and fetches nothing — so the only broken
+    // thing was its single action.
+    //
+    // "others" revokes every other device, which is the actual intent: stop a second phone
+    // that is still signed in. The current device keeps its session so it can reach the
+    // restore screen and authenticate the restore.
+    //
+    // THIS DOES NOT WIDEN PHI ACCESS. The security boundary is the RESTRICTIVE RLS policy
+    // from 20260811020000, which denies every PHI table to a deletion_pending user regardless
+    // of how valid their token is — verified live: 0 rows from all 5 PHI tables with a
+    // perfectly good session. The surviving session can do exactly two things: render the
+    // restore screen and call cancel-deletion. Revocation was always defence in depth here,
+    // never the guarantee, so narrowing its scope removes no protection.
     //
     // Deliberately NOT `ban_duration` — a banned user cannot authenticate at all, and the
     // restore flow requires the patient to sign in and reach the restore screen. Banning is
@@ -110,7 +125,7 @@ export async function DELETE(req: NextRequest) {
         .replace(/^Bearer /i, "");
       const jwt = bearer || (await supabase.auth.getSession()).data.session?.access_token;
       if (jwt) {
-        await serviceClient.auth.admin.signOut(jwt, "global");
+        await serviceClient.auth.admin.signOut(jwt, "others");
       } else {
         console.error("[account:DELETE] no JWT available to revoke sessions for", user.id);
       }
