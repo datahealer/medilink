@@ -15,13 +15,22 @@ serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // Fix 4: Filter by auth_masked = false so already-processed users are skipped
+  // `auth_masked = false` is the ONLY progress marker, by design.
+  //
+  // This previously also filtered `.is("email", null)`, waiting for purge_deleted_accounts()
+  // to null profiles.email. It never could: profiles.email is NOT NULL, so that UPDATE raised
+  // 23502 and aborted the whole sweep. Even once the SQL was fixed, it now writes the masked
+  // sentinel `deleted_<uuid>@deleted.invalid` rather than NULL — because profiles.email is a
+  // mirror of auth.users.email (HAMS 20260802000001) and must stay non-null. So the email
+  // filter would still match zero rows forever.
+  //
+  // auth_masked is exactly the right marker: it is set true below only after the auth user is
+  // masked and banned, so it already prevents re-processing without depending on the email.
   const { data: deletedProfiles, error } = await supabase
     .from("profiles")
     .select("id")
     .eq("status", "deleted")
-    .is("email", null)       // profiles.email already nulled by purge_deleted_accounts()
-    .eq("auth_masked", false); // Fix 4: skip already-masked accounts
+    .eq("auth_masked", false);
 
   if (error) {
     console.error("[purge-user-auth] Query failed:", error.message);
