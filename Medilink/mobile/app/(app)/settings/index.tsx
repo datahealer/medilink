@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { useSignOut, useDeleteAccount } from "@/hooks/queries/useAuth";
 import { useProfile } from "@/hooks/queries/usePatient";
+import { getAppVersion } from "@/utils/appVersion";
 import { localizedName } from "@/utils/localizedName";
 
 /**
@@ -30,6 +31,8 @@ export default function SettingsScreen() {
   const deleteAccount = useDeleteAccount();
 
   const account = profile.data?.account;
+  // Build-time constant; no need to memoize or re-read on render.
+  const appVersion = getAppVersion();
 
   const onSignOut = () => {
     Alert.alert(t("dashboard.signOutConfirm"), undefined, [
@@ -91,6 +94,27 @@ export default function SettingsScreen() {
     </Pressable>
   );
 
+  /**
+   * Read-only variant of `row` (QA MED-022): a plain View, not a Pressable, and no chevron.
+   * Both would promise a destination that does not exist. Shares `styles.row` so the About
+   * entry lines up with the Preferences rows above it.
+   */
+  const infoRow = (label: string, value: string) => (
+    <View
+      style={[
+        styles.row,
+        {
+          flexDirection: isRTL ? "row-reverse" : "row",
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <Text variant="title" style={{ flex: 1 }}>{label}</Text>
+      <Text variant="body" color="textMuted">{value}</Text>
+    </View>
+  );
+
   return (
     <Screen scroll padded edges={["top", "left", "right"]} contentStyle={{ maxWidth: contentMaxWidth, width: "100%", alignSelf: "center", paddingBottom: spacing.lg }} footer={<View style={{ marginHorizontal: -spacing.lg, marginBottom: -8 }}><StaticTabBar active="profile" /></View>}>
       <Text variant="h2" style={{ marginBottom: spacing.md }}>{t("settings.title")}</Text>
@@ -114,6 +138,16 @@ export default function SettingsScreen() {
       {row(t("settings.appearance"), appearanceValue, () => router.push("/settings/appearance"))}
       {row(t("settings.notifications"), null, () => router.push("/settings/notifications"))}
       {row(t("settings.medicalHistory"), null, () => router.push("/medical-history"))}
+
+      {/* About (QA MED-022) — the version was previously nowhere in the UI, so a tester or
+          support agent had no way to say which build they were looking at. Hidden entirely
+          when the config is unreadable rather than showing a placeholder. */}
+      {appVersion ? (
+        <>
+          <Text variant="label" color="textMuted" style={styles.section}>{t("settings.about")}</Text>
+          {infoRow(t("settings.appVersion"), appVersion)}
+        </>
+      ) : null}
 
       {/* Sign out / delete */}
       <View style={[styles.actions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>

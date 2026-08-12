@@ -25,6 +25,33 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
+// `@react-native-async-storage/async-storage` backs the query cache and the MED-010
+// fresh-install sentinel. Same in-memory shape as the SecureStore mock above — the point of
+// the sentinel is that these are two SEPARATE stores with different uninstall behaviour, so
+// they must not share one map here either.
+jest.mock("@react-native-async-storage/async-storage", () => {
+  const store = new Map();
+  return {
+    __esModule: true,
+    default: {
+      getItem: jest.fn((k) => Promise.resolve(store.has(k) ? store.get(k) : null)),
+      setItem: jest.fn((k, v) => {
+        store.set(k, String(v));
+        return Promise.resolve();
+      }),
+      removeItem: jest.fn((k) => {
+        store.delete(k);
+        return Promise.resolve();
+      }),
+      clear: jest.fn(() => {
+        store.clear();
+        return Promise.resolve();
+      }),
+      __store: store,
+    },
+  };
+});
+
 // Notifications: assert on calls, never hit the OS.
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),

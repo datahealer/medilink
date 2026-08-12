@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,12 +22,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { reportError } from "@/services/reporting";
+import { AUTH_ROUTE_SIGN_UP, crossLinkAction } from "@/utils/authNav";
 import { signInSchema, type SignInForm } from "@/utils/validation";
 
 export default function SignInScreen() {
   const { colors, spacing, isRTL } = useTheme();
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -150,11 +152,27 @@ export default function SignInScreen() {
     }
   };
 
+  /**
+   * QA MED-023 — "Create one" used replace(), which dropped THIS screen from the stack so
+   * Back from sign-up landed on the guest wall. The rule (and why it is not a blanket
+   * push) lives in utils/authNav.ts.
+   */
+  const goToSignUp = () => {
+    const routeNames = (navigation.getState()?.routes ?? []).map((r) => r.name);
+    if (crossLinkAction(routeNames, AUTH_ROUTE_SIGN_UP) === "back") {
+      router.back();
+    } else {
+      router.push("/auth/sign-up");
+    }
+  };
+
   return (
     <Screen scroll padded contentStyle={{ maxWidth: formMaxWidth, width: "100%", alignSelf: "center" }}>
       <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }, isRTL ? { marginEnd: -8 } : { marginStart: -8 }]}>
-        {/* Explicit fallback: sign-in↔sign-up cross-links use replace(), and a returning
-            user can land here as the stack root, so back would otherwise no-op. */}
+        {/* Explicit fallback: a returning user or a deep link can land here as the stack
+            root, where back() would no-op. Cross-links now push (QA MED-023), so in the
+            normal guest-wall flow canGoBack() is true and this resolves to the real
+            previous screen. */}
         <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))} />
       </View>
 
@@ -319,7 +337,9 @@ export default function SignInScreen() {
         <Text variant="body" color="textMuted">
           {t("signIn.noAccount")}{" "}
         </Text>
-        <Pressable onPress={() => router.replace("/auth/sign-up")} hitSlop={8} accessibilityRole="link">
+        {/* QA MED-023 — push so Back returns HERE, but pop if sign-up is already the
+            screen below us (user toggling), so the stack cannot grow. See utils/authNav.ts. */}
+        <Pressable onPress={goToSignUp} hitSlop={8} accessibilityRole="link">
           <Text variant="label" color="primary">
             {t("signIn.createOne")}
           </Text>

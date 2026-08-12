@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 
 /**
@@ -74,4 +75,73 @@ export async function setRememberedEmail(email: string | null): Promise<void> {
 export async function getRememberedEmail(): Promise<string | null> {
   const value = await SecureStore.getItemAsync(REMEMBERED_EMAIL_KEY);
   return value && value.trim() ? value : null;
+}
+
+/* ─────────────────────── FRESH-INSTALL DETECTION (QA MED-010) ───────────────────────
+ *
+ * After deleting the app and reinstalling from TestFlight, MediLink opened ALREADY SIGNED
+ * IN as the previous user. That was never an authentication bypass — the session was
+ * genuine, still within its validity window, and every screen stayed behind the (app)
+ * route gate. It is an iOS platform behaviour: SecureStore writes to the KEYCHAIN, and
+ * **keychain items survive app deletion by default**. On the next launch AuthProvider found
+ * a valid token and restored it, exactly as designed for a warm start.
+ *
+ * On a resold, shared or handed-over device that means a reinstall can surface the previous
+ * owner's health record. Per the product decision, a fresh install must always land on the
+ * Sign In / Create Account wall.
+ *
+ * ── WHY ASYNCSTORAGE IS THE MECHANISM, NOT A CONFIG FLAG ──
+ *
+ * The fix cannot live in SecureStore, because everything in SecureStore is precisely what
+ * survives. It needs a marker in storage that iOS DOES clear on uninstall, and AsyncStorage
+ * — plain app-container files — is exactly that. So:
+ *
+ *     sentinel ABSENT + keychain session PRESENT  →  this is a new INSTALL over old
+ *                                                    keychain state → sign out.
+ *     sentinel PRESENT                            →  a normal cold launch → restore.
+ *
+ * The asymmetry between the two stores IS the detector. Nothing else in the app can tell a
+ * reinstall from a relaunch.
+ *
+ * ── WHAT THIS DELIBERATELY DOES NOT DO ──
+ *
+ * `persistSession: true` in lib/supabase.ts is UNTOUCHED. Disabling it is the tempting
+ * one-line "fix" and it is wrong: it would drop the session on every background→foreground
+ * resume, breaking warm resume for everyone to address a once-per-install event. The
+ * sentinel is checked only in AuthProvider's cold-launch effect, which does not run on a
+ * warm resume, so normal persistence is completely unaffected.
+ *
+ * The sentinel is also NOT a security control — it is a privacy default. The security
+ * boundary is RLS plus the (app) gate, both unchanged.
+ *
+ * Android note: app data is normally cleared on uninstall there, so the sentinel is usually
+ * absent anyway and this path is a harmless no-op. It still earns its place, because
+ * Android auto-backup can restore both stores and produce the same stale-session shape.
+ */
+const INSTALL_SENTINEL_KEY = "medilink.installSentinel";
+
+/**
+ * True on the first launch of a NEW installation — including a reinstall that inherited
+ * keychain state from a previous one.
+ *
+ * Fails CLOSED: if AsyncStorage cannot be read we report "fresh", which signs the user out.
+ * The cost of a false positive is one extra sign-in; the cost of a false negative is
+ * exposing the previous owner's record.
+ */
+export async function isFreshInstall(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(INSTALL_SENTINEL_KEY)) === null;
+  } catch {
+    return true;
+  }
+}
+
+/** Record that this installation has launched, so subsequent cold launches restore normally. */
+export async function markInstalled(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(INSTALL_SENTINEL_KEY, "1");
+  } catch {
+    // Non-fatal. An unwritten sentinel means the next launch repeats the sign-out, which is
+    // the safe direction — never a crash on a cold start.
+  }
 }

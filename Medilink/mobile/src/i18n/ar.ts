@@ -1008,6 +1008,9 @@ export const ar: Messages = {
     deleteFailed: "تعذّر تنفيذ الحذف. يرجى المحاولة مرة أخرى.",
     exportComingSoon: "تصدير البيانات متاح في تحديث لاحق.",
     privacyComingSoon: "إعدادات الخصوصية والأمان متاحة في تحديث لاحق.",
+    // QA MED-022 — قسم "حول التطبيق". رقم الإصدار فقط دون رقم البناء.
+    about: "حول التطبيق",
+    appVersion: "إصدار التطبيق",
   },
   specialtyNames: {
     general: "عام",

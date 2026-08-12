@@ -1044,6 +1044,9 @@ export const en = {
     deleteFailed: "We couldn't process the deletion. Please try again.",
     exportComingSoon: "Data export opens in a later update.",
     privacyComingSoon: "Privacy & security controls open in a later update.",
+    // QA MED-022 — About section. Marketing version only, no build number.
+    about: "About",
+    appVersion: "App version",
   },
   // Curated specialty catalog labels, keyed by `specialties.slug` (Specialty.id).
   // English mirrors the DB `name`; ar.ts supplies Arabic. Freetext doctor
