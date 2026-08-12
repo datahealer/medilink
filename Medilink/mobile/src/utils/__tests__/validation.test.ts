@@ -43,7 +43,13 @@ describe("isValidCivilNumber", () => {
 
 describe("isValidOmanPhone", () => {
   it("accepts an 8-digit local number", () => {
-    expect(isValidOmanPhone("91111111")).toBe(true);
+    // Fixture changed from "91111111" (QA G3): a run of seven identical digits is now
+    // rejected as placeholder input, so it no longer represents an ordinary number here.
+    expect(isValidOmanPhone("50219384")).toBe(true);
+  });
+
+  it("rejects a long single-digit run, which the fixture above used to be (QA G3)", () => {
+    expect(isValidOmanPhone("91111111")).toBe(false);
   });
 
   it("treats empty as valid (optional field)", () => {
@@ -236,8 +242,15 @@ describe("isTrivialDigitSequence", () => {
   it("accepts ordinary numbers, including ones that merely start in sequence", () => {
     expect(isTrivialDigitSequence("91234567")).toBe(false);
     expect(isTrivialDigitSequence("12345679")).toBe(false); // breaks at the last digit
-    expect(isTrivialDigitSequence("11111112")).toBe(false); // nearly-uniform, still real
     expect(isTrivialDigitSequence("50219384")).toBe(false);
+  });
+
+  it("now rejects a long single-digit run — the 00000007 class (QA G3)", () => {
+    // "11111112" was previously asserted to be acceptable ("nearly-uniform, still real").
+    // That judgement is superseded: seven identical digits is the same shape as the
+    // 00000007 value QA reported, and both are now rejected by the approved run rule.
+    expect(isTrivialDigitSequence("11111112")).toBe(true);
+    expect(isTrivialDigitSequence("00000007")).toBe(true);
   });
 });
 

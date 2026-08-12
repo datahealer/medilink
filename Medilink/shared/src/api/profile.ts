@@ -1,7 +1,13 @@
 // PROFILE — RE-HOMED from HAMS `patients/me` + `me` routes → direct Supabase (RLS).
 // The patient identity spans two tables: `profiles` (account: name/phone/role) and
 // `patient_profiles` (clinical: dob/gender/blood group/address/emergency contact).
-import { normalizeHumanText, normalizeOptionalText, omanPhoneE164 } from "../utils/normalize";
+import {
+  detectPhoneCountry,
+  normalizeHumanText,
+  normalizeOptionalText,
+  omanPhoneE164,
+  phoneLocal,
+} from "../utils/normalize";
 import type { DB, Json, Row, Update } from "./client";
 import { getCurrentUserId } from "./client";
 
@@ -67,8 +73,17 @@ export async function updateMyProfile(db: DB, patch: ProfilePatch): Promise<MyPr
   // normalization instead of being discarded. Web's profile form has no phone validation
   // yet, and silently nulling a field a user typed into would be worse than storing it
   // verbatim. Recognisable numbers become consistent; nothing else is destroyed.
+  //
+  // COUNTRY-AWARE (QA G2). This used to be `omanPhoneE164(...)` unconditionally, so a value
+  // that was already a valid non-Oman E.164 — e.g. `+919876543210` from the mobile client —
+  // failed the Oman conversion and fell through to plain-text normalization. Now a recognised
+  // E.164 for ANY supported country is passed through verbatim, and only a bare local number
+  // is canonicalised as Oman (which is what web's unvalidated form still sends).
   if (patch.phone !== undefined) {
-    accountPatch.phone = omanPhoneE164(patch.phone) ?? normalizeOptionalText(patch.phone);
+    const already = detectPhoneCountry(patch.phone);
+    accountPatch.phone = already
+      ? `+${already.cc}${phoneLocal(patch.phone, already)}`
+      : (omanPhoneE164(patch.phone) ?? normalizeOptionalText(patch.phone));
   }
 
   const patientPatch: Update<"patient_profiles"> = {};

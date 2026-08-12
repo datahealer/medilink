@@ -1,9 +1,12 @@
 import { z } from "zod";
 import {
+  DEFAULT_PHONE_COUNTRY,
   normalizeEmail,
   normalizeHumanText,
   omanPhoneDigits,
   omanPhoneLocal,
+  PHONE_COUNTRIES,
+  type PhoneCountry,
 } from "@medilink/shared/mobile";
 
 import type { MessageKey } from "@/i18n";
@@ -34,21 +37,84 @@ function isAllSameDigit(digits: string): boolean {
   return digits.length > 1 && /^(\d)\1+$/.test(digits);
 }
 
+/**
+ * A strict consecutive run, ascending or descending — 12345678, 87654321.
+ *
+ * Steps are compared MODULO 10 so the 9→0 wrap does not break the pattern. Without that,
+ * `1234567890` (a 10-digit field's most obvious placeholder) escaped: every step is +1 until
+ * 9→0, which is -9. Wrapping also catches `7890123456` and `0987654321`. A real subscriber
+ * number that happens to be ten consecutive digits mod 10 is vanishingly unlikely — and
+ * would read as fake to a human anyway.
+ */
 function isSequentialRun(digits: string): boolean {
   if (digits.length < 2) return false;
   let ascending = true;
   let descending = true;
   for (let i = 1; i < digits.length; i++) {
-    const step = digits.charCodeAt(i) - digits.charCodeAt(i - 1);
-    if (step !== 1) ascending = false;
-    if (step !== -1) descending = false;
+    const prev = digits.charCodeAt(i - 1) - 48;
+    const curr = digits.charCodeAt(i) - 48;
+    if ((prev + 1) % 10 !== curr) ascending = false;
+    if ((prev + 9) % 10 !== curr) descending = false;
   }
   return ascending || descending;
 }
 
-/** True for placeholder input like 00000000, 11111111, 12345678, 87654321. */
+/* ── EXTENSION: the 00000007 class ───────────────────────────────────────────────────
+ *
+ * The two rules above only catch a value that is trivial along its WHOLE length, so
+ * `00000007` slipped through: six zeros then a 7 is neither all-identical nor a strict run.
+ * QA found it; the same hole passed `00000001`, `10000000` and `12121212`.
+ *
+ * Two more shapes, both still structurally obvious placeholders and neither country-specific:
+ *
+ *   • a RUN of >= 6 identical digits anywhere  → 00000007, 00000001, 10000000, 90000000
+ *   • period-2 alternation (ABABAB…, A != B)   → 12121212, 45454545
+ *
+ * The run threshold is ABSOLUTE (6), not proportional. In an 8-digit field it means at least
+ * three quarters of the value is one repeated digit; in a 10-digit Indian number it still
+ * catches 9000000000 while leaving 9876500000 (a 5-zero run) alone. A proportional threshold
+ * would have to be justified per length, and there is no source for that.
+ *
+ * STILL NO CHECKSUM AND STILL NO OPERATOR-PREFIX RULE. Both remain unsourced, and the
+ * prefix rule is now measured as actively harmful: of the 8-digit local numbers in
+ * production, leading digits include 0, 2, 5 and 8 as well as 9 — a `/^[79]/` rule would
+ * break 5 of 12 existing rows.
+ */
+const MIN_REPEATED_RUN = 6;
+
+function hasLongRepeatedRun(digits: string, minRun = MIN_REPEATED_RUN): boolean {
+  let run = 1;
+  for (let i = 1; i < digits.length; i++) {
+    run = digits[i] === digits[i - 1] ? run + 1 : 1;
+    if (run >= minRun) return true;
+  }
+  return false;
+}
+
+function isPeriod2Alternating(digits: string): boolean {
+  // Needs at least two full periods to be a "pattern" rather than a coincidence.
+  if (digits.length < 4) return false;
+  if (digits[0] === digits[1]) return false; // that is all-identical territory
+  for (let i = 2; i < digits.length; i++) {
+    if (digits[i] !== digits[i % 2]) return false;
+  }
+  return true;
+}
+
+/**
+ * True for placeholder input: 00000000, 11111111, 12345678, 87654321, and (added after QA
+ * reported 00000007) long single-digit runs and period-2 alternations.
+ *
+ * Applies to identifiers a HUMAN types — civil number and phone. It must NOT be applied to a
+ * server-generated OTP, where 000000 and 123456 are legitimate codes.
+ */
 export function isTrivialDigitSequence(digits: string): boolean {
-  return isAllSameDigit(digits) || isSequentialRun(digits);
+  return (
+    isAllSameDigit(digits) ||
+    isSequentialRun(digits) ||
+    hasLongRepeatedRun(digits) ||
+    isPeriod2Alternating(digits)
+  );
 }
 
 // Oman civil number (national ID) — 8 digits. Optional field: empty is allowed;
@@ -66,10 +132,18 @@ export type CivilNumberProblem = "format" | "trivial";
  * Split from the boolean so the UI can say WHICH rule failed: "enter 8 digits" and "that
  * is not a real civil number" are different corrections for the user (QA MED-012).
  */
-export function civilNumberProblem(value: string): CivilNumberProblem | null {
+export function civilNumberProblem(
+  value: string,
+  opts?: { grandfathered?: boolean }
+): CivilNumberProblem | null {
   const v = value.trim();
   if (v === "") return null;
   if (!CIVIL_NUMBER_RE.test(v)) return "format";
+  // Same lockout reasoning as `nameProblem`: a stored value may predate the dummy rules, and
+  // enforcing them against a field the user has not touched would make the whole screen
+  // unsaveable — they could not even change their date of birth. The format rule always
+  // applied, so it stays; the dummy rules engage the moment they edit the field.
+  if (opts?.grandfathered) return null;
   if (isTrivialDigitSequence(v)) return "trivial";
   return null;
 }
@@ -263,13 +337,37 @@ export type OmanPhoneProblem = "format" | "trivial";
  * migration plan for existing rows — most likely the same `grandfathered` treatment the
  * person-name rule uses. Documented rather than guessed.
  */
-export function omanPhoneProblem(value: string): OmanPhoneProblem | null {
+/**
+ * Validate a LOCAL phone number against a specific country's rule (QA G2).
+ *
+ * The country is a parameter rather than an assumption. Oman's rule is unchanged — exactly 8
+ * digits — and India's is its own exactly-10 rule, so supporting an Indian test number cannot
+ * loosen anything for an Omani patient. A 10-digit Indian number entered while the field is
+ * on Oman fails "format"; it is never truncated into a valid-looking Oman number.
+ *
+ * `grandfathered` skips only the dummy rules, never the length rule, for a value the user has
+ * not edited — see `civilNumberProblem` for why.
+ */
+export function phoneProblem(
+  value: string,
+  country: PhoneCountry = DEFAULT_PHONE_COUNTRY,
+  opts?: { grandfathered?: boolean }
+): OmanPhoneProblem | null {
   const v = value.trim();
   if (v === "") return null;
-  if (!OMAN_PHONE.test(v)) return "format";
-  // 00000000, 11111111, 12345678, 87654321 … (QA MED-013)
+  if (!new RegExp(`^[0-9]{${country.localLength}}$`).test(v)) return "format";
+  if (opts?.grandfathered) return null;
+  // 00000000, 11111111, 12345678, 87654321, 00000007, 12121212 … (QA MED-013 + G2)
   if (isTrivialDigitSequence(v)) return "trivial";
   return null;
+}
+
+/** Oman-bound wrapper. Kept because most call sites are Oman-only and read better this way. */
+export function omanPhoneProblem(
+  value: string,
+  opts?: { grandfathered?: boolean }
+): OmanPhoneProblem | null {
+  return phoneProblem(value, PHONE_COUNTRIES.OM, opts);
 }
 
 /** Empty allowed (optional) OR a plausible Oman 8-digit local number. */

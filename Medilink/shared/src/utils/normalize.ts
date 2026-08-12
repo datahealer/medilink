@@ -169,6 +169,158 @@ export function normalizeDigits(input: string | null | undefined): string {
  * Re-running either is a no-op, which is what stops `+968+96891234567`.
  */
 
+/* ───────────────────── COUNTRY-AWARE PHONE NUMBERS (QA G2) ─────────────────────
+ *
+ * THE BUG THIS EXISTS TO FIX. Every helper below used to assume Oman. `omanPhoneLocal`
+ * ended with `digits.slice(-8)`, so a real Indian number came back as its LAST 8 DIGITS:
+ *
+ *     +919876543210  --load-->  76543210  --save-->  +96876543210
+ *
+ * Those 8 digits then passed validation (8 digits, not a dummy), so no error was shown and
+ * a patient who edited their NAME had their phone silently rewritten to a different, wrong
+ * number. Measured against production: 12 ACTIVE patient profiles hold +91 numbers, so this
+ * was corrupting real contact details, not just failing a QA case.
+ *
+ * WHY A REGISTRY AND NOT A SECOND SET OF `indiaPhone*` HELPERS. A parallel family would put
+ * the country choice at every call site, which is exactly how the Oman assumption spread in
+ * the first place. One table, and the country becomes a parameter.
+ *
+ * DETECTION IS BY (calling code + TOTAL length), not by prefix alone. `+968` + 8 = 11 digits
+ * and `+91` + 10 = 12 digits, so the two cannot collide. A bare 8-digit Oman number that
+ * happens to start "91…" is length 8, matches neither, and is therefore treated as a local
+ * number in the caller's country rather than mis-detected as India.
+ *
+ * UNRECOGNISED VALUES RETURN null / "" AND ARE NEVER RESHAPED. The 4 malformed +91 rows in
+ * production (91 + 9, + 11, + 12 digits) are not guessable, so nothing here tries: callers
+ * leave the field empty and omit it from the write, which preserves the stored value
+ * verbatim. Repairing that data is a separate, explicitly-approved operation.
+ */
+
+export type PhoneCountryIso = "OM" | "IN";
+
+export interface PhoneCountry {
+  iso: PhoneCountryIso;
+  /** E.164 calling code with the leading plus, e.g. "+968". */
+  dialCode: string;
+  /** Calling code digits only, e.g. "968". */
+  cc: string;
+  /** Exact number of subscriber digits after the calling code. */
+  localLength: number;
+}
+
+/**
+ * Supported countries. Oman is production; India exists so QA can test a real Indian number
+ * WITHOUT weakening Oman's rule — each country validates against its own length.
+ */
+export const PHONE_COUNTRIES: Record<PhoneCountryIso, PhoneCountry> = {
+  OM: { iso: "OM", dialCode: "+968", cc: "968", localLength: 8 },
+  IN: { iso: "IN", dialCode: "+91", cc: "91", localLength: 10 },
+};
+
+/** Oman — the product default. Nothing changes for an Oman patient. */
+export const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES.OM;
+
+/** Longest calling code first, so a longer code can never be shadowed by a shorter one. */
+const COUNTRIES_BY_CC_LENGTH: readonly PhoneCountry[] = Object.values(PHONE_COUNTRIES).sort(
+  (a, b) => b.cc.length - a.cc.length
+);
+
+/** The country whose dial code this is (accepts "+968" or "968"), or `null`. */
+export function phoneCountryForDialCode(dialCode: string | null | undefined): PhoneCountry | null {
+  const cc = normalizeDigits(dialCode);
+  return COUNTRIES_BY_CC_LENGTH.find((c) => c.cc === cc) ?? null;
+}
+
+/**
+ * Which country a STORED value belongs to, or `null` when it matches none.
+ *
+ * `null` is meaningful and must not be coerced to Oman by the caller: it means "do not
+ * touch this value". Requires an exact calling-code + local-length match, so a truncated or
+ * over-long number is reported as unknown rather than being forced into a country.
+ */
+export function detectPhoneCountry(stored: string | null | undefined): PhoneCountry | null {
+  const digits = normalizeDigits(stored);
+  if (!digits) return null;
+  return (
+    COUNTRIES_BY_CC_LENGTH.find(
+      (c) => digits.startsWith(c.cc) && digits.length === c.cc.length + c.localLength
+    ) ?? null
+  );
+}
+
+/**
+ * Exact local subscriber digits for `country`, or `""`.
+ *
+ * NEVER truncates: a value that is not either bare-local or this country's full E.164
+ * returns `""`, which is what stops the +91 → last-8-digits corruption.
+ */
+export function phoneLocal(
+  input: string | null | undefined,
+  country: PhoneCountry = DEFAULT_PHONE_COUNTRY
+): string {
+  const digits = normalizeDigits(input);
+  if (digits.length === country.localLength) return digits;
+  if (digits.startsWith(country.cc) && digits.length === country.cc.length + country.localLength) {
+    return digits.slice(country.cc.length);
+  }
+  return "";
+}
+
+/**
+ * Digits with this country's calling code removed, NOT length-capped — the honest input for
+ * a validator, so 11 digits stay 11 and can be rejected instead of silently truncated.
+ */
+export function phoneDigits(
+  input: string | null | undefined,
+  country: PhoneCountry = DEFAULT_PHONE_COUNTRY
+): string {
+  const digits = normalizeDigits(input);
+  if (digits.length > country.localLength && digits.startsWith(country.cc)) {
+    return digits.slice(country.cc.length);
+  }
+  return digits;
+}
+
+/** Progressive keystroke sanitiser: folds Arabic-Indic, drops non-digits, caps at the country length. */
+export function phoneInput(
+  input: string | null | undefined,
+  country: PhoneCountry = DEFAULT_PHONE_COUNTRY
+): string {
+  return phoneDigits(input, country).slice(0, country.localLength);
+}
+
+/**
+ * Does this value CLAIM to be another country's E.164, even if malformed?
+ *
+ * `detectPhoneCountry` requires an exact length, so it reports `null` for the 4 malformed
+ * `+91` rows in production (91 + 9, + 11, + 12 digits). Those would then fall through to
+ * Oman's legacy-tolerant reader and DISPLAY as a truncated 8-digit number — not written
+ * anywhere, but still misrepresenting the patient's number back to them.
+ *
+ * Three conditions together, because any two alone would misfire:
+ *   • an explicit leading "+" — the value is asserting a country code
+ *   • digits begin with a KNOWN calling code that is not the one asked for
+ *   • longer than the target's local length
+ *
+ * The last two matter: a bare Oman number like `91234567` also begins with "91", so without
+ * the "+" requirement and the length test this would reject legitimate Oman input.
+ */
+function claimsForeignDialCode(input: string | null | undefined, country: PhoneCountry): boolean {
+  if (typeof input !== "string" || !input.trim().startsWith("+")) return false;
+  const digits = normalizeDigits(input);
+  if (digits.length <= country.localLength) return false;
+  return COUNTRIES_BY_CC_LENGTH.some((c) => c.iso !== country.iso && digits.startsWith(c.cc));
+}
+
+/** Local digits → canonical E.164 for `country`, or `null` when the length is wrong. */
+export function phoneE164(
+  input: string | null | undefined,
+  country: PhoneCountry = DEFAULT_PHONE_COUNTRY
+): string | null {
+  const local = phoneLocal(input, country);
+  return local.length === country.localLength ? `${country.dialCode}${local}` : null;
+}
+
 /** Oman's E.164 country calling code. */
 export const OMAN_DIAL_CODE = "+968";
 const OMAN_CC = "968";
@@ -184,12 +336,28 @@ const OMAN_LOCAL_LENGTH = 8;
  * Returns `""` when nothing plausible is present, so the field shows empty rather than junk.
  */
 export function omanPhoneLocal(input: string | null | undefined): string {
+  // QA G2 — THE FIX. The tolerant `slice(-8)` below is what mangled a foreign number into a
+  // plausible-looking Oman one. Any value that is recognisably ANOTHER country's E.164 is
+  // refused outright, so it can never reach the truncation. `""` tells the caller "not an
+  // Oman number" — the field stays empty and the write is omitted, leaving the stored value
+  // untouched. Detection needs an exact cc + length match, so this cannot swallow a
+  // legitimate Oman value.
+  const detected = detectPhoneCountry(input);
+  if (detected && detected.iso !== "OM") return "";
+  // Also refuse a MALFORMED foreign number (+91 with the wrong digit count). It detects as
+  // null, so without this it would reach the trailing-8 fallback and display a truncated
+  // number back to the patient as if it were theirs.
+  if (claimsForeignDialCode(input, PHONE_COUNTRIES.OM)) return "";
+
   let digits = normalizeDigits(input);
   // Drop the country code only when doing so still leaves a full local number — otherwise
   // a legitimate local number that happens to begin "968…" would be truncated.
   if (digits.length > OMAN_LOCAL_LENGTH && digits.startsWith(OMAN_CC)) {
     digits = digits.slice(OMAN_CC.length);
   }
+  // Still tolerant for OMAN shapes only: legacy emergency-contact strings really are stored
+  // as "Name · +968 9111 1111", and a name containing a digit shifts the offset, so the
+  // trailing-8 fallback is what loads those correctly (QA #3 back-compat).
   return digits.length >= OMAN_LOCAL_LENGTH ? digits.slice(-OMAN_LOCAL_LENGTH) : "";
 }
 

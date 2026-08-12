@@ -2,7 +2,13 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { omanPhoneE164 } from "@medilink/shared/mobile";
+import {
+  DEFAULT_PHONE_COUNTRY,
+  detectPhoneCountry,
+  normalizeDigits,
+  phoneE164,
+  phoneLocal,
+} from "@medilink/shared/mobile";
 import type { BloodGroup, Gender } from "@/data/types";
 
 import {
@@ -40,6 +46,7 @@ import {
   nameErrorKey,
   normalizeMedicalTag,
   omanPhoneProblem,
+  phoneProblem,
 } from "@/utils/validation";
 
 const GENDERS: { value: Gender; key: "genderMale" | "genderFemale" | "genderOther" }[] = [
@@ -68,11 +75,34 @@ export default function EditProfileScreen() {
   // Captured once, alongside the seed above, so "has the user edited the name?" is a value
   // comparison rather than a touched-flag that a programmatic set could desync.
   const [initialFullName] = useState(account?.full_name ?? "");
-  // Stored canonically as +968XXXXXXXX; the editable field holds the 8 LOCAL digits.
-  // THIS SEED IS THE MED-007 SAVE BLOCKER: it used to load the raw column value, so a
-  // normally-registered patient got "+96891234567" in a field validated by /^[0-9]{8}$/ —
-  // phoneError was permanently set and onSave() returned early on a field they never touched.
-  const [phone, setPhone] = useState(extractOmanLocalPhone(account?.phone ?? ""));
+  /* PHONE — country-aware seed (QA G2).
+   *
+   * Stored canonically as E.164; the editable field holds only the LOCAL digits.
+   *
+   * The original seed used `extractOmanLocalPhone` unconditionally, which for a +91 number
+   * returned its LAST 8 DIGITS. Those 8 digits validated clean, so no error appeared, and
+   * saving any other field rewrote the column to a wrong +968 number — corrupting 12 real
+   * patient records. The country is now DETECTED from the stored value and everything
+   * downstream (display, validation, write-back) follows that detection.
+   *
+   * Unrecognised values (the 4 malformed +91 rows) detect as null, seed empty, and are
+   * excluded from the write below — so they are preserved exactly as stored.
+   */
+  const [phoneCountry] = useState(
+    () => detectPhoneCountry(account?.phone ?? "") ?? DEFAULT_PHONE_COUNTRY
+  );
+  const [phone, setPhone] = useState(() => {
+    const stored = account?.phone ?? "";
+    const detected = detectPhoneCountry(stored);
+    // Oman keeps the legacy-tolerant reader: real rows exist as bare digits and as
+    // "Name · +968 9111 1111". A detected foreign number uses the strict exact-length reader.
+    return detected && detected.iso !== "OM"
+      ? phoneLocal(stored, detected)
+      : extractOmanLocalPhone(stored);
+  });
+  // Value comparison, not a touched flag — same approach as `initialFullName`, so a
+  // programmatic set cannot desync it.
+  const [initialPhone] = useState(phone);
   const [dob, setDob] = useState(patient?.date_of_birth ?? "");
   const [gender, setGender] = useState<Gender | undefined>(patient?.gender ?? undefined);
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | undefined>(
@@ -80,12 +110,20 @@ export default function EditProfileScreen() {
   );
   const [address, setAddress] = useState(patient?.address ?? "");
   // Legacy values may be "Name · +968 …"; show the extracted 8-digit number (QA #3 back-compat).
+  // Emergency contact is an Oman-only field and is stored as bare local digits, unlike
+  // `profiles.phone` which is E.164 — that existing difference is preserved here.
   const [emergency, setEmergency] = useState(extractOmanLocalPhone(patient?.emergency_contact ?? ""));
+  const [initialEmergency] = useState(emergency);
   const [civilNumber, setCivilNumber] = useState(patient?.civil_number ?? "");
+  const [initialCivilNumber] = useState(patient?.civil_number ?? "");
   // QA MED-012: distinguish "not 8 digits" from "8 digits but obviously fake" (00000000,
   // 11111111, 12345678). Telling someone who typed exactly 8 digits to "enter 8 digits"
   // gives them nothing to act on.
-  const civilProblem = civilNumberProblem(civilNumber);
+  // Grandfathered until edited (QA G3): the dummy rules are newer than some stored values, and
+  // enforcing them on an untouched field would block saving unrelated changes.
+  const civilProblem = civilNumberProblem(civilNumber, {
+    grandfathered: civilNumber === initialCivilNumber,
+  });
   const civilError = civilProblem
     ? t(civilProblem === "trivial" ? "validation.civilNumberTrivial" : "validation.civilNumber")
     : undefined;
@@ -96,13 +134,17 @@ export default function EditProfileScreen() {
   const nameKey = nameErrorKey(fullName, { grandfathered: fullName === initialFullName });
   const nameError = nameKey ? t(nameKey) : undefined;
   const dobError = isValidDob(dob) ? undefined : t("validation.dob");
-  // QA MED-013: same split for phone numbers.
-  const phoneProblemKind = omanPhoneProblem(phone);
+  // QA MED-013 / G2: validated against the DETECTED country's rule, not Oman's by assumption.
+  const phoneProblemKind = phoneProblem(phone, phoneCountry, {
+    grandfathered: phone === initialPhone,
+  });
   const phoneError = phoneProblemKind
     ? t(phoneProblemKind === "trivial" ? "validation.phoneTrivial" : "validation.phone")
     : undefined;
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
-  const emergencyProblem = omanPhoneProblem(emergency);
+  const emergencyProblem = omanPhoneProblem(emergency, {
+    grandfathered: emergency === initialEmergency,
+  });
   const emergencyError = emergencyProblem
     ? t(emergencyProblem === "trivial" ? "validation.phoneTrivial" : "validation.phone")
     : undefined;
@@ -187,13 +229,23 @@ export default function EditProfileScreen() {
     update.mutate(
       {
         full_name: fullName.trim(),
-        // Re-attach the country code: field holds local digits, column holds E.164.
-        phone: omanPhoneE164(phone) ?? "",
+        /* QA G2 — PHONE IS OMITTED UNLESS THE USER ACTUALLY EDITED IT.
+         *
+         * `updateMyProfile` only writes keys that are present, so leaving `phone` out is a
+         * STRUCTURAL guarantee that an untouched number cannot be rewritten — stronger than
+         * relying on the round-trip being lossless. This is what protects the 4 malformed
+         * +91 rows that seed as empty: they are not guessable, so they are not touched.
+         *
+         * When the user HAS edited it, the country code re-attached is the DETECTED one, so
+         * an Indian number stays +91 instead of becoming +968.
+         */
+        ...(phone !== initialPhone ? { phone: phoneE164(phone, phoneCountry) ?? "" } : {}),
         date_of_birth: dob.trim() || null,
         gender: gender ?? null,
         blood_group: bloodGroup ?? "unknown",
         address: address.trim() || null,
-        emergency_contact: emergency.trim() || null,
+        // Same omit-unless-edited rule, for the same reason.
+        ...(emergency !== initialEmergency ? { emergency_contact: emergency.trim() || null } : {}),
         civil_number: civilNumber.trim() || null,
       },
       {
@@ -302,7 +354,7 @@ export default function EditProfileScreen() {
         // value sits exactly at `maxLength` hits a React Native reconciliation bug where
         // edits to the final character (delete/replace) get reverted. Slicing here keeps
         // the field fully JS-controlled so every digit stays editable. (F2)
-        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, "").slice(0, CIVIL_NUMBER_LENGTH))}
+        onChangeText={(v) => setCivilNumber(normalizeDigits(v).slice(0, CIVIL_NUMBER_LENGTH))}
         keyboardType="number-pad"
         placeholder={t("profile.civilNumberPlaceholder")}
         error={civilError}

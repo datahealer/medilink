@@ -1,6 +1,6 @@
 import React, { forwardRef } from "react";
 import { StyleSheet, View, type TextInput } from "react-native";
-import { omanPhoneInput } from "@medilink/shared/mobile";
+import { DEFAULT_PHONE_COUNTRY, phoneCountryForDialCode, phoneInput } from "@medilink/shared/mobile";
 
 import { useTheme } from "@/hooks/useTheme";
 import { TextField, type TextFieldProps } from "./TextField";
@@ -22,10 +22,18 @@ export interface PhoneFieldProps extends Omit<TextFieldProps, "leading" | "keybo
  *
  * ── SANITISATION LIVES HERE, NOT IN EACH SCREEN (QA MED-007) ──
  *
- * Every keystroke and paste is filtered through `omanPhoneInput`: Arabic-Indic digits are
- * folded to ASCII, non-digits are dropped, a pasted country code is removed, and the result
- * is capped at 8. So `#`, `;`, `*`, `+`, letters and emoji cannot enter the value even
- * though a soft keyboard or the clipboard may offer them.
+ * Every keystroke and paste is filtered through `phoneInput`: Arabic-Indic digits are folded
+ * to ASCII, non-digits are dropped, a pasted country code is removed, and the result is
+ * capped at the COUNTRY's local length. So `#`, `;`, `*`, `+`, letters and emoji cannot enter
+ * the value even though a soft keyboard or the clipboard may offer them.
+ *
+ * ── THE CAP FOLLOWS `dialCode` (QA G2) ──
+ *
+ * It used to be hardcoded to Oman's 8 regardless of the dial code shown, so this component
+ * physically could not hold a 10-digit Indian number even when told it was rendering +91.
+ * The country is now resolved from `dialCode`, and an unrecognised code falls back to Oman
+ * rather than to "no limit" — a silent uncapped field is how unvalidated input reaches the
+ * database.
  *
  * Two deliberate choices:
  *  • `number-pad`, not `phone-pad` — the phone pad offers `+ * # ,`, which this field can
@@ -41,13 +49,14 @@ export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneF
   ref
 ) {
   const { colors, isRTL } = useTheme();
+  const country = phoneCountryForDialCode(dialCode) ?? DEFAULT_PHONE_COUNTRY;
   return (
     <TextField
       ref={ref}
       keyboardType="number-pad"
       autoComplete="tel"
       textContentType="telephoneNumber"
-      onChangeText={onChangeText ? (raw) => onChangeText(omanPhoneInput(raw)) : undefined}
+      onChangeText={onChangeText ? (raw) => onChangeText(phoneInput(raw, country)) : undefined}
       leading={
         <View
           style={[

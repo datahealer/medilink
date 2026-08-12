@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { omanPhoneE164 } from "@medilink/shared/mobile";
+import { normalizeDigits, omanPhoneE164 } from "@medilink/shared/mobile";
 import type { BloodGroup, Gender } from "@/data/types";
 
 import { AppHeader, Button, Chip, DateField, PhoneField, Screen, Text, TextField } from "@/components/ui";
@@ -180,7 +180,7 @@ export default function SetupScreen() {
         value={civilNumber}
         // Clamp length in JS (not via native `maxLength`) to avoid the controlled-input
         // boundary bug that makes the last digit un-editable. See edit-profile.tsx. (F2)
-        onChangeText={(v) => setCivilNumber(v.replace(/[^0-9]/g, "").slice(0, CIVIL_NUMBER_LENGTH))}
+        onChangeText={(v) => setCivilNumber(normalizeDigits(v).slice(0, CIVIL_NUMBER_LENGTH))}
         keyboardType="number-pad"
         placeholder={t("profile.civilNumberPlaceholder")}
         error={civilError}
