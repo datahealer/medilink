@@ -11,6 +11,7 @@ import {
   Checkbox,
   Icon,
   PasswordField,
+  PhoneField,
   Screen,
   Text,
   TextField,
@@ -24,6 +25,15 @@ import { useI18n } from "@/i18n";
 import { reportError } from "@/services/reporting";
 import { AUTH_ROUTE_SIGN_UP, crossLinkAction } from "@/utils/authNav";
 import { signInSchema, type SignInForm } from "@/utils/validation";
+import {
+  DEFAULT_PHONE_COUNTRY,
+  PHONE_COUNTRIES,
+  phoneE164,
+  type PhoneCountry,
+} from "@medilink/shared/mobile";
+
+/** Countries whose numbers may be used to sign in. Mirrors the backend allow-list. */
+const PHONE_LOGIN_COUNTRIES: PhoneCountry[] = [PHONE_COUNTRIES.OM, PHONE_COUNTRIES.IN];
 
 export default function SignInScreen() {
   const { colors, spacing, isRTL } = useTheme();
@@ -38,6 +48,8 @@ export default function SignInScreen() {
   // (blocked on an SMS provider — plan F4 §5); Email OTP is the live path.
   const [channel, setChannel] = useState<"email" | "phone">("email");
   const [sendingCode, setSendingCode] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState<PhoneCountry>(DEFAULT_PHONE_COUNTRY);
+  const [phoneLocal, setPhoneLocal] = useState("");
 
   const {
     control,
@@ -196,7 +208,7 @@ export default function SignInScreen() {
         </View>
       ) : null}
 
-      {/* F5: Email / Mobile identifier selector. Mobile is disabled until SMS is live. */}
+      {/* F5: Email / Mobile identifier selector. */}
       <View style={[styles.segment, { borderColor: colors.border, marginBottom: spacing.md, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Pressable
           onPress={() => setChannel("email")}
@@ -209,17 +221,102 @@ export default function SignInScreen() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => setFormError(t("signIn.phoneComingSoon"))}
-          disabled
+          onPress={() => {
+            setChannel("phone");
+            setFormError(null);
+          }}
           accessibilityRole="button"
-          accessibilityState={{ disabled: true, selected: false }}
-          style={[styles.segmentBtn, { opacity: 0.5 }]}
+          accessibilityState={{ selected: channel === "phone" }}
+          style={[styles.segmentBtn, channel === "phone" && { backgroundColor: colors.primary }]}
         >
-          <Text variant="label" color="textMuted">
+          <Text variant="label" style={{ color: channel === "phone" ? "#FFFFFF" : colors.textMuted }}>
             {t("signIn.identifierPhone")}
           </Text>
         </Pressable>
       </View>
+
+      {/* PHONE LOGIN — passwordless, for accounts that have a VERIFIED number attached
+          (Settings → Mobile number). Delivery is Twilio Verify configured as Supabase's SMS
+          provider, so this stays a pure Supabase Auth call and yields a normal session.
+
+          Existing accounts only: `shouldCreateUser: false` is set in shared/api/auth.ts, so
+          this can never create a phone-only user — which matters because `profiles.email`
+          is NOT NULL and such a signup would fail at the provisioning trigger. */}
+      {channel === "phone" ? (
+        <View style={{ marginBottom: spacing.md }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginBottom: spacing.sm }}>
+            {PHONE_LOGIN_COUNTRIES.map((c) => (
+              <Pressable
+                key={c.iso}
+                onPress={() => {
+                  setPhoneCountry(c);
+                  // Clear on switch — 8 Oman digits are not the first 8 of an Indian
+                  // number, and carrying them across produces a plausible wrong number.
+                  setPhoneLocal("");
+                  setFormError(null);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: c.iso === phoneCountry.iso }}
+                style={[
+                  styles.segmentBtn,
+                  {
+                    flex: 0,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: c.iso === phoneCountry.iso ? colors.primary : colors.border,
+                    backgroundColor: c.iso === phoneCountry.iso ? colors.primary : "transparent",
+                  },
+                ]}
+              >
+                <Text variant="label" style={{ color: c.iso === phoneCountry.iso ? "#FFFFFF" : colors.textMuted }}>
+                  {c.dialCode}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <PhoneField
+            label={t("signIn.identifierPhone")}
+            dialCode={phoneCountry.dialCode}
+            value={phoneLocal}
+            onChangeText={(v) => {
+              setPhoneLocal(v);
+              if (formError) setFormError(null);
+            }}
+          />
+
+          <Text variant="caption" color="textMuted" style={{ marginTop: spacing.xs }}>
+            {t("signIn.sendCodeHintPhone")}
+          </Text>
+
+          <View style={{ height: spacing.md }} />
+          <Button
+            label={t("signIn.sendCode")}
+            loading={sendingCode}
+            onPress={async () => {
+              setFormError(null);
+              // Normalised here so a malformed number never costs an SMS; the server
+              // re-normalises and re-validates regardless.
+              const e164 = phoneE164(phoneLocal, phoneCountry);
+              if (!e164) {
+                setFormError(t("validation.phone"));
+                return;
+              }
+              setSendingCode(true);
+              const res = await repositories.auth.sendPhoneLoginOtp(e164);
+              setSendingCode(false);
+              // Enumeration-safe: an unknown number still routes to the OTP screen with
+              // neutral copy — only rate-limit / network failures stop the flow.
+              if (!res.ok) {
+                setFormError(t(res.messageKey ?? "errors.unknown"));
+                return;
+              }
+              router.push(`/auth/otp?flow=phone&target=${encodeURIComponent(e164)}`);
+            }}
+          />
+        </View>
+      ) : null}
 
       <Controller
         control={control}

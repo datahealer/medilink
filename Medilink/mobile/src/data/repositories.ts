@@ -56,6 +56,23 @@ export interface AuthRepository {
   sendLoginOtp(email: string): Promise<AuthResult>;
   /** F5 — verify the email login code; establishes the session on success. */
   verifyLoginOtp(code: string, email: string): Promise<AuthResult>;
+  /**
+   * PHONE OTP. Every `phone` is canonical E.164 (`+968…` / `+91…`) — normalise at the
+   * screen with `phoneE164`, never inside these methods.
+   *
+   * Delivery is Twilio Verify configured as Supabase's SMS provider; the app holds no
+   * Twilio credential. Login is EXISTING ACCOUNTS ONLY (`shouldCreateUser: false`):
+   * phone-only signup is blocked by `profiles.email NOT NULL`.
+   */
+  sendPhoneLoginOtp(phone: string): Promise<AuthResult>;
+  /** Verify the SMS login code; establishes a full Supabase session on success. */
+  verifyPhoneLoginOtp(code: string, phone: string): Promise<AuthResult>;
+  /** Attach/change the signed-in user's phone — sends an SMS to the NEW number. */
+  startPhoneLink(phone: string): Promise<AuthResult>;
+  /** Confirm the attach/change, then mirror it into `profiles.phone{,_verified}`. */
+  verifyPhoneLink(code: string, phone: string): Promise<AuthResult>;
+  /** Real confirmation state from `auth.users.phone_confirmed_at`, not the mirror. */
+  getPhoneConfirmation(): Promise<{ phone: string | null; confirmed: boolean }>;
   requestPasswordReset(identifier: string): Promise<AuthResult>;
   resetPassword(password: string): Promise<AuthResult>;
   googleSignIn(): Promise<AuthResult>;

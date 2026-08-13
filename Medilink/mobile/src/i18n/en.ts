@@ -372,8 +372,31 @@ export const en = {
     identifierPhone: "Mobile",
     sendCode: "Send code",
     sendCodeHint: "We'll email you a 6-digit login code if an account exists.",
+    // Same neutral wording as the email hint: never confirm whether a number is registered.
+    sendCodeHintPhone: "We'll text you a 6-digit login code if an account exists.",
     orPassword: "or sign in with password",
     phoneComingSoon: "Mobile login is coming soon.",
+  },
+  /**
+   * Phone linking. Kept separate from `signIn` because these strings belong to the
+   * Settings flow, where the user is already authenticated.
+   */
+  phone: {
+    title: "Mobile number",
+    subtitle: "Verify your mobile number so clinics can reach you and you can sign in with it.",
+    current: "Current number",
+    notAdded: "Not added yet",
+    verified: "Verified",
+    unverified: "Not verified",
+    label: "Mobile number",
+    send: "Send code",
+    change: "Change number",
+    successTitle: "Number verified",
+    successBody: "Your mobile number is now verified and can be used to sign in.",
+    // A different account already owns this number. Deliberately does not say WHICH —
+    // that would confirm the existence of another account for a given number.
+    errorAlreadyLinked: "That number is already linked to another account.",
+    errorUnsupportedCountry: "We only support Oman (+968) and India (+91) numbers right now.",
   },
   signUp: {
     title: "Create account",

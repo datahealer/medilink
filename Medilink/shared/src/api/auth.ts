@@ -87,8 +87,8 @@ export async function resendSignupOtp(db: DB, email: string): Promise<void> {
  * unknown email without sending a code, so the UI shows a neutral "if an account
  * exists, a code was sent" message (see F5 §7).
  *
- * Phone OTP is intentionally NOT implemented here — it is blocked on an SMS provider
- * (plan F4 §5); the sign-in UI keeps the Mobile option feature-flagged off.
+ * The phone counterpart lives below (`signInWithPhoneOtp`) — same GoTrue endpoint,
+ * different channel.
  */
 export async function signInWithEmailOtp(db: DB, email: string): Promise<void> {
   const { error } = await db.auth.signInWithOtp({
@@ -96,6 +96,140 @@ export async function signInWithEmailOtp(db: DB, email: string): Promise<void> {
     options: { shouldCreateUser: false },
   });
   if (error) throw error;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHONE OTP — Supabase Auth remains the ONLY identity and session provider.
+//
+// Delivery is Twilio Verify, configured as Supabase's SMS provider in the Supabase
+// dashboard. That is the whole integration: NO Twilio SDK, NO Twilio credential and NO
+// backend route exists in this repository, and none should ever be added here. GoTrue
+// calls Twilio; we call GoTrue. If a Twilio Account SID or Auth Token ever appears in
+// this file, the architecture has been broken.
+//
+// ── THREE FLOWS, THREE `verifyOtp` TYPES ──
+//
+// Getting the `type` wrong is the single most likely way this integration fails, because
+// GoTrue returns a generic "Token has expired or is invalid" for a type mismatch:
+//
+//   login       signInWithOtp({ phone })   → verifyOtp({ type: "sms" })
+//   link/change updateUser({ phone })      → verifyOtp({ type: "phone_change" })
+//   signup      (NOT IMPLEMENTED — see below)
+//
+// ── WHY NOT `linkIdentity()` ──
+//
+// `linkIdentity()` links an **OAuth** identity (it takes `{ provider }` and drives PKCE).
+// Phone is not an OAuth identity — there is no authorization server and no redirect — so
+// it cannot attach a number. `updateUser({ phone })` is the sanctioned mechanism, and it
+// is unaffected by the `enable_manual_linking` flag (which gates `linkIdentity` only).
+//
+// ── WHY PHONE-ONLY SIGNUP IS ABSENT ──
+//
+// `public.profiles.email` is NOT NULL (migration 20260429000002), and both provisioning
+// triggers insert `NEW.email` verbatim. A phone-only signup leaves `auth.users.email`
+// NULL, so the trigger raises 23502 and the entire signup transaction rolls back. Every
+// function below therefore passes `shouldCreateUser: false`: the guarantee is enforced
+// HERE, in code, not only by the dashboard's "enable phone signup" toggle — a toggle can
+// be flipped by accident, and the failure mode would be an unusable half-created account.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Reject anything that is not already canonical E.164.
+ *
+ * Normalisation is the CALLER's job (`phoneE164` in utils/normalize.ts, which is
+ * country-aware for +968 and +91). This is a boundary assertion, not a converter: a
+ * silently-coerced number is how a patient ends up receiving someone else's code, and
+ * GoTrue's own error for a malformed number is too vague to debug from a bug report.
+ */
+function assertE164(phone: string): string {
+  const value = phone.trim();
+  if (!/^\+[1-9]\d{7,14}$/.test(value)) {
+    throw new Error(`Phone number must be E.164 (e.g. +96891234567): received "${value}"`);
+  }
+  return value;
+}
+
+/**
+ * PHONE LOGIN — send a 6-digit SMS code to an EXISTING account.
+ *
+ * Enumeration-safe by the same mechanism as the email flow: `shouldCreateUser: false`
+ * makes GoTrue return success for an unknown number without sending anything, so the UI
+ * can show one neutral "if an account exists, a code was sent" message either way.
+ *
+ * Verify with `verifyPhoneOtp` (`type: "sms"`).
+ */
+export async function signInWithPhoneOtp(db: DB, phone: string): Promise<void> {
+  const { error } = await db.auth.signInWithOtp({
+    phone: assertE164(phone),
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw error;
+}
+
+/**
+ * PHONE LOGIN — verify the SMS code. On success GoTrue mints a full session
+ * (access + refresh token) on `db`, identical in every respect to an email session, so
+ * session restore, Remember Me, RLS and the `(app)` route gate all behave unchanged.
+ */
+export async function verifyPhoneOtp(
+  db: DB,
+  input: { phone: string; token: string }
+): Promise<{ user: User | null; session: Session | null }> {
+  const { data, error } = await db.auth.verifyOtp({
+    phone: assertE164(input.phone),
+    // Same rule as the email OTP: strip whitespace only. Users paste "123 456" out of an
+    // SMS and the digits are the entire token.
+    token: input.token.replace(/\s+/g, ""),
+    type: "sms",
+  });
+  if (error) throw error;
+  return { user: data.user, session: data.session };
+}
+
+/**
+ * ── WHY THERE IS NO `startPhoneChange` / `verifyPhoneChange` HERE ──
+ *
+ * ATTACHING a phone to an existing account is deliberately NOT done from the client, and
+ * the client-side `updateUser({ phone })` + `verifyOtp({ type: "phone_change" })` pair was
+ * written and then REMOVED. Supabase documents the reason:
+ *
+ *   • `updateUser({ phone })` stages the number in `auth.users.phone_change`, not `phone`.
+ *   • `auth.users.phone` is UNIQUE; **`phone_change` is not.**
+ *   • At verification GoTrue resolves the user by SEARCHING `phone_change` for the
+ *     submitted number — not by the active session — and updates the FIRST match.
+ *
+ * So an abandoned attempt by user A on a number, followed by a genuine attempt by its real
+ * owner B, can confirm that number onto A's account. Supabase's own guidance ("Phone linked
+ * to incorrect user ID") is server-side cleanup of stale rows and states there is no
+ * client-side workaround. For an app holding PHI that is not an acceptable base to build on.
+ *
+ * MediLink therefore links phones through `POST /api/auth/phone/{start,check}`, which uses
+ * Twilio Verify plus `admin.updateUserById(id, { phone, phone_confirm: true })` — an ATOMIC
+ * write to an EXPLICIT user id that never touches `phone_change`. See
+ * `backend/src/app/api/auth/phone/` and `mobile/src/services/authService.ts`.
+ *
+ * LOGIN is unaffected and stays client-side (`signInWithPhoneOtp` / `verifyPhoneOtp` above):
+ * that path never writes `phone_change`.
+ */
+
+/**
+ * Is the CURRENT user's phone number confirmed by Supabase itself?
+ *
+ * Reads `auth.users.phone_confirmed_at` — the source of truth. `profiles.phone_verified`
+ * is a mirror that exists for RLS and display, and the two can drift (the retired
+ * `verify-otp` backend route set the mirror without any real SMS ever being sent, so
+ * legacy rows may claim verification that never happened).
+ */
+export async function getPhoneConfirmation(
+  db: DB
+): Promise<{ phone: string | null; confirmed: boolean }> {
+  const { data, error } = await db.auth.getUser();
+  if (error || !data.user) return { phone: null, confirmed: false };
+  const user = data.user as User & { phone_confirmed_at?: string | null };
+  return {
+    phone: user.phone ? `+${String(user.phone).replace(/^\+/, "")}` : null,
+    confirmed: !!user.phone_confirmed_at,
+  };
 }
 
 /**

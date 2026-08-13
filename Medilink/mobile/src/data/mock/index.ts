@@ -385,6 +385,8 @@ let currentUser: SessionUser | null = null;
  * the whole point of the restore-only flow.
  */
 let mockAccountStatus: AccountStatus = "active";
+/** Mock mirror of auth.users.phone_confirmed_at, flipped by verifyPhoneLink. */
+let mockPhoneConfirmed = false;
 const listeners = new Set<(u: SessionUser | null) => void>();
 const notify = () => listeners.forEach((l) => l(currentUser));
 
@@ -413,6 +415,31 @@ const authRepo: AuthRepository = {
     currentUser = MOCK_USER;
     notify();
     return delay({ ok: true });
+  },
+  // ── PHONE OTP (mock) ──
+  // Present so the screens are reachable with no backend and no Twilio spend. These MUST
+  // exist: `hybridRepositories` spreads `...mockRepositories`, so an unimplemented method
+  // would resolve to `undefined` and crash the screen rather than fall back visibly.
+  async sendPhoneLoginOtp() {
+    return delay({ ok: true, messageKey: "otp.sent" });
+  },
+  async verifyPhoneLoginOtp() {
+    // Any 6-digit code flips to the authed mock session, mirroring verifyLoginOtp.
+    currentUser = MOCK_USER;
+    notify();
+    return delay({ ok: true });
+  },
+  async startPhoneLink() {
+    return delay({ ok: true, messageKey: "otp.sent" });
+  },
+  async verifyPhoneLink(_code: string, phone: string) {
+    // Mirror the real flow's side-effect so the mock phone screen shows a verified badge.
+    profile.account = { ...profile.account!, phone };
+    mockPhoneConfirmed = true;
+    return delay({ ok: true });
+  },
+  async getPhoneConfirmation() {
+    return delay({ phone: profile.account?.phone ?? null, confirmed: mockPhoneConfirmed });
   },
   async requestPasswordReset() {
     return delay({ ok: true, messageKey: "forgot.emailSent" });

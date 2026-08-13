@@ -122,6 +122,7 @@ export default function AppLayout() {
       <Stack.Screen name="family/add" />
       <Stack.Screen name="family/[id]" />
       <Stack.Screen name="patient-switcher" />
+      <Stack.Screen name="settings/phone" />
       {/* Filters presents as a true bottom sheet — partial-height detents + grabber
           (PDF p18). Falls back to a slide-up modal where formSheet is unsupported. */}
       <Stack.Screen

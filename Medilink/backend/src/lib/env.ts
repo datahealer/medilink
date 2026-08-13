@@ -60,6 +60,25 @@ export const OPTIONAL_ENV: Record<string, string> = {
   THAWANI_WEBHOOK_SECRET: "enables webhook HMAC verification; unset skips it (the Thawani re-query stays authoritative)",
   THAWANI_WEBHOOK_SIGNATURE_HEADER: 'signature header name; defaults to "thawani-signature"',
 
+  // ── Phone verification (Twilio Verify) ──
+  //
+  // Used ONLY by POST /api/auth/phone/{start,check}, which link a verified phone number to
+  // an existing account. Phone LOGIN does not read these: it runs client-side through
+  // Supabase Auth, whose own Twilio Verify credentials live in the Supabase dashboard.
+  //
+  // Absence disables phone LINKING and nothing else — sign-in, signup, email OTP, payments
+  // and appointments are unaffected, which is why these are optional rather than boot-required.
+  //
+  // TWILIO_AUTH_TOKEN is a FULL-ACCOUNT credential: server-only, never EXPO_PUBLIC_/
+  // NEXT_PUBLIC_, never committed, never logged (see lib/twilio/verifyConfig.ts, which is
+  // the only module that touches it and never returns it).
+  TWILIO_ACCOUNT_SID: "Twilio account identifier (AC…) — phone linking fails without it",
+  TWILIO_AUTH_TOKEN:
+    "Twilio auth token — SERVER ONLY, full account authority. Never in a client bundle, " +
+    "a log line or git. An API Key SID/Secret pair may be substituted if preferred",
+  TWILIO_VERIFY_SERVICE_SID:
+    "Twilio Verify service (VA…) that owns the OTP template, code length and attempt limits",
+
   // ── AI (Groq) ──
   GROQ_API_KEY: "all four AI routes return a graceful 5xx without it — never fabricated data",
   GROQ_MODEL: "overrides the chat model; defaults to llama-3.3-70b-versatile",

@@ -137,6 +137,9 @@ export default function SettingsScreen() {
       {row(t("settings.language"), locale === "ar" ? "العربية" : "English", () => router.push("/language"))}
       {row(t("settings.appearance"), appearanceValue, () => router.push("/settings/appearance"))}
       {row(t("settings.notifications"), null, () => router.push("/settings/notifications"))}
+      {/* Verify / change the mobile number. Verification runs server-side — see
+          app/(app)/settings/phone.tsx for why it is not a client updateUser({phone}). */}
+      {row(t("phone.title"), null, () => router.push("/settings/phone"))}
       {row(t("settings.medicalHistory"), null, () => router.push("/medical-history"))}
 
       {/* About (QA MED-022) — the version was previously nowhere in the UI, so a tester or

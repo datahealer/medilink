@@ -89,6 +89,13 @@ const authRepo: AuthRepository = {
   verifyOtp: (code, email) => authService.verifyOtp(code, email),
   sendLoginOtp: (email) => authService.sendLoginOtp(email),
   verifyLoginOtp: (code, email) => authService.verifyLoginOtp(code, email),
+  // Phone OTP — Supabase Auth + Twilio Verify (configured dashboard-side). No Twilio
+  // credential or SDK in this repository.
+  sendPhoneLoginOtp: (phone) => authService.sendPhoneLoginOtp(phone),
+  verifyPhoneLoginOtp: (code, phone) => authService.verifyPhoneLoginOtp(code, phone),
+  startPhoneLink: (phone) => authService.startPhoneLink(phone),
+  verifyPhoneLink: (code, phone) => authService.verifyPhoneLink(code, phone),
+  getPhoneConfirmation: () => authService.getPhoneConfirmation(),
   requestPasswordReset: (id) => authService.requestPasswordReset(id),
   resetPassword: (pw) => authService.resetPassword(pw),
   googleSignIn: () => authService.googleSignIn(),

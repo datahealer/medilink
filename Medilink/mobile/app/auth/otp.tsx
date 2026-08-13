@@ -17,10 +17,21 @@ export default function OtpScreen() {
   const { formMaxWidth } = useResponsive();
   const { t } = useI18n();
   const { target, email, flow } = useLocalSearchParams<{ target?: string; email?: string; flow?: string }>();
-  // `flow=recovery` = password-reset OTP; `flow=login` = passwordless email login
-  // (F5); default is signup confirmation.
+  // `flow=recovery`  password-reset OTP
+  // `flow=login`     passwordless EMAIL login (F5)
+  // `flow=phone`     passwordless PHONE login — Supabase Auth → Twilio Verify → session
+  // `flow=phoneLink` verify a phone for the SIGNED-IN account — goes to the BACKEND, which
+  //                  runs Twilio Verify and writes auth.users.phone with the Admin API.
+  //                  Never `updateUser({phone})`: that stages into `phone_change`, which
+  //                  GoTrue resolves by search rather than by session and can attach a
+  //                  number to the wrong account.
+  // default          signup confirmation
   const isRecovery = flow === "recovery";
   const isLogin = flow === "login";
+  const isPhoneLogin = flow === "phone";
+  const isPhoneLink = flow === "phoneLink";
+  // Both phone flows carry the E.164 number in `target`; email flows carry `email`.
+  const phone = isPhoneLogin || isPhoneLink ? (target ?? "") : "";
   // Prefer the display target; fall back to the email, then a generic phrase.
   const shownTarget = (target || email || "").trim();
 
@@ -43,16 +54,27 @@ export default function OtpScreen() {
       return;
     }
     setLoading(true);
-    // Login goes through the repository (mock-mode aware); signup/recovery keep the
-    // existing authService path.
-    const res = isLogin
-      ? await repositories.auth.verifyLoginOtp(code, email ?? "")
-      : await authService.verifyOtp(code, email, isRecovery ? "recovery" : "signup");
+    // Login + phone flows go through the repository (mock-mode aware); signup/recovery
+    // keep the existing authService path.
+    const res = isPhoneLink
+      ? await repositories.auth.verifyPhoneLink(code, phone)
+      : isPhoneLogin
+        ? await repositories.auth.verifyPhoneLoginOtp(code, phone)
+        : isLogin
+          ? await repositories.auth.verifyLoginOtp(code, email ?? "")
+          : await authService.verifyOtp(code, email, isRecovery ? "recovery" : "signup");
     setLoading(false);
     if (res.ok) {
-      // Login / Signup: session established → dashboard.
+      // phoneLink: the user was ALREADY signed in — this only attached a number, so send
+      //   them back where they came from rather than re-entering the app at the dashboard.
       // Recovery: a recovery session is now active → set the new password.
-      router.replace(isRecovery ? "/auth/reset-password" : "/dashboard");
+      // Login / phone login / signup: session established → dashboard.
+      if (isPhoneLink) {
+        if (router.canGoBack()) router.back();
+        else router.replace("/settings/phone");
+      } else {
+        router.replace(isRecovery ? "/auth/reset-password" : "/dashboard");
+      }
     } else {
       setFormError(t(res.messageKey ?? "errors.unknown"));
     }
@@ -61,13 +83,19 @@ export default function OtpScreen() {
   const resend = async () => {
     if (secondsLeft > 0) return;
     setFormError(null);
-    // Recovery re-issues the reset email; login re-sends the email login code;
+    // Recovery re-issues the reset email; login re-sends the email login code; the phone
+    // flows re-POST to the same start endpoint (Twilio Verify re-sends on a repeat call,
+    // under its own per-number throttle, which is why there is no separate resend route);
     // signup re-sends the confirmation OTP.
-    const res = isRecovery
-      ? await authService.requestPasswordReset(email ?? "")
-      : isLogin
-        ? await repositories.auth.sendLoginOtp(email ?? "")
-        : await authService.sendOtp(email);
+    const res = isPhoneLink
+      ? await repositories.auth.startPhoneLink(phone)
+      : isPhoneLogin
+        ? await repositories.auth.sendPhoneLoginOtp(phone)
+        : isRecovery
+          ? await authService.requestPasswordReset(email ?? "")
+          : isLogin
+            ? await repositories.auth.sendLoginOtp(email ?? "")
+            : await authService.sendOtp(email);
     if (!res.ok) setFormError(t(res.messageKey ?? "errors.unknown"));
     setSecondsLeft(RESEND_SECONDS);
     setCode("");
