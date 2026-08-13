@@ -584,6 +584,14 @@ interface FacilityRowLoose {
   rating: number | null;
   review_count: number | null;
   doctors?: { id: string }[] | null;
+  // All present in facilities.DETAIL_SELECT and previously discarded by the mapper.
+  cover_photo_url?: string | null;
+  logo_url?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  description?: string | null;
+  services?: string[] | null;
+  working_hours?: unknown;
 }
 
 /** Loose shape of a row from api.facilities.nearbyFacilities (get_nearby_facilities RPC). */
@@ -596,6 +604,12 @@ interface NearbyFacilityRow {
   distance_km: number | null;
   latitude: number | null;
   longitude: number | null;
+  // Already in the RPC's RETURNS TABLE (20260723000000) and already being sent over the
+  // wire — they were simply not declared here, so the mapper dropped them.
+  review_count?: number | null;
+  cover_photo_url?: string | null;
+  phone?: string | null;
+  services?: string[] | null;
 }
 
 function mapNearbyToClinic(f: NearbyFacilityRow): Clinic {
@@ -608,6 +622,12 @@ function mapNearbyToClinic(f: NearbyFacilityRow): Clinic {
     distance_km: f.distance_km ?? undefined,
     latitude: f.latitude ?? null,
     longitude: f.longitude ?? null,
+    // `?? null` rather than `?? 0`: a clinic with no reviews and a clinic whose review
+    // count we did not receive are different facts, and only the first may be shown.
+    review_count: f.review_count ?? null,
+    cover_photo_url: f.cover_photo_url ?? null,
+    phone: f.phone ?? null,
+    services: f.services ?? null,
   };
 }
 
@@ -622,6 +642,16 @@ function mapFacilityToClinic(f: FacilityRowLoose): Clinic {
     doctors_count: Array.isArray(f.doctors) ? f.doctors.length : undefined,
     rating: f.rating ?? 0,
     featured: true,
+    // Detail fields — nullable, never defaulted to a number, so the clinic screen can tell
+    // "no reviews yet" apart from "the backend did not send a review count".
+    review_count: f.review_count ?? null,
+    cover_photo_url: f.cover_photo_url ?? null,
+    logo_url: f.logo_url ?? null,
+    phone: f.phone ?? null,
+    website: f.website ?? null,
+    description: f.description ?? null,
+    services: f.services ?? null,
+    working_hours: f.working_hours ?? null,
   };
 }
 

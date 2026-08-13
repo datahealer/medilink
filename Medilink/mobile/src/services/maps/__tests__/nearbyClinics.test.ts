@@ -57,12 +57,22 @@ describe("6. the patient's coordinates are what get queried", () => {
 });
 
 describe("7. ordering stays server-side", () => {
-  it("does NOT recompute distance on the client", () => {
-    // A local haversine would silently diverge from PostGIS and break the ordering claim.
-    expect(src).not.toMatch(/haversine/i);
-    expect(src).not.toMatch(/Math\.asin/);
+  it("does NOT recompute the DISPLAYED distance on the client", () => {
+    // The guarantee: what the patient reads, and the order they read it in, come from
+    // PostGIS. A locally-computed display distance would silently diverge from the RPC.
+    //
+    // `haversineKm` IS now imported, for exactly one thing: deciding whether offering a
+    // Transit chip is honest for this journey (`journeyKm`). That value is never rendered
+    // and never sorted on, which is what the two assertions below pin down.
+    expect(src).toMatch(/const journeyKm =/);
+    expect(src).not.toMatch(/distance_km\s*=/); // never assigned locally
+    expect(src).not.toMatch(/Math\.asin/); // no hand-rolled haversine in the screen
     expect(src).not.toMatch(/6371/);
-    expect(src).not.toMatch(/toRad/);
+    // The only value fed to the distance formatter is the server's own field.
+    expect(src).toMatch(/formatDistanceKm\(active\?\.distance_km\)/);
+    // journeyKm feeds the mode list and nothing else.
+    expect(src).toMatch(/travelModesFor\(Platform\.OS, journeyKm\)/);
+    expect(src).not.toMatch(/formatDistanceKm\(journeyKm\)/);
   });
 
   it("does NOT re-sort the RPC result", () => {
@@ -98,9 +108,12 @@ describe("9. clinic selection routes to the details screen", () => {
 
 describe("10. directions remain available as a separate action", () => {
   it("keeps the native handoff helpers", () => {
-    expect(src).toMatch(/nativeDirectionsUrl/);
-    expect(src).toMatch(/webDirectionsUrl/);
+    // `nativeDirectionsUrl`/`webDirectionsUrl` were replaced by one ordered fallback chain
+    // that also carries the origin and the travel mode — see directions.test.ts.
+    expect(src).toMatch(/directionsUrlChain\(Platform\.OS/);
     expect(src).toMatch(/isValidTarget/);
+    // Coordinate validation still gates the handoff, so a null geo cannot open "NaN,NaN".
+    expect(src).toMatch(/if \(!isValidTarget\(destination\)\) return;/);
   });
 
   it("exposes directions as its own control", () => {
@@ -128,18 +141,36 @@ describe("8. the screen never persists the coordinate", () => {
     expect(src).not.toMatch(/reportError/);
   });
 
-  it("the only outbound use of the coordinate is the nearby-clinics query", () => {
+  it("the coordinate leaves the device only via the nearby query and the directions handoff", () => {
     const uses = src.match(/location\.coords/g) ?? [];
-    // origin lat, origin lng, userLocation guard, lat, lng, accuracy — and nothing else.
-    expect(uses.length).toBeLessThanOrEqual(8);
+    // origin lat/lng, userLocation guard + lat/lng/accuracy, directionsOrigin guard +
+    // lat/lng — and nothing else. Both consumers are explicitly approved.
+    expect(uses.length).toBeLessThanOrEqual(12);
     expect(src).toMatch(/useNearbyClinics\(origin\b/);
+    // The directions origin is the REAL fix, never the Muscat discovery anchor.
+    expect(src).toMatch(/const directionsOrigin = location\.hasLocation && location\.coords/);
+    expect(src).not.toMatch(/origin:\s*\{\s*latitude:\s*MUSCAT/);
   });
 });
 
 describe("overlapping-marker de-overlap (audit finding)", () => {
-  it("spreads only EXACT duplicates, at render time", () => {
-    expect(src).toMatch(/spreadCoincident/);
-    expect(src).toMatch(/DEDUPE_OFFSET_M/);
+  /**
+   * De-overlap MOVED, deliberately: it now lives in `services/maps/leafletBridge` and is
+   * applied by `OsmMapView`, because the offset has to be computed from the RENDERED zoom
+   * and only the map component knows that. The fixed 20 m version that used to live in the
+   * screen was 0.009 px at the zoom that frames all of Oman — invisible in exactly the
+   * out-of-coverage view where the stacked Ruwi pins were reported. See nearbyPolicy.test.ts.
+   */
+  const view = fs.readFileSync(
+    path.join(__dirname, "..", "..", "..", "components", "ui", "OsmMapView.tsx"),
+    "utf8"
+  );
+
+  it("spreads only EXACT duplicates, at render time, against the live zoom", () => {
+    expect(view).toMatch(/spreadCoincident\(markers, zoom\)/);
+    const bridge = fs.readFileSync(path.join(__dirname, "..", "leafletBridge.ts"), "utf8");
+    expect(bridge).toMatch(/export function spreadCoincident/);
+    expect(bridge).toMatch(/DEDUPE_SEPARATION_PX/);
   });
 
   it("does not mutate clinic data or the distance used for ordering", () => {

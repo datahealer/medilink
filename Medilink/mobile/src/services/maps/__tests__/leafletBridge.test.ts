@@ -1,18 +1,29 @@
 import {
   buildLeafletHtml,
+  buildStateScript,
   deltaToZoom,
   encodeJson,
   parseMapMessage,
   sanitizeMarkers,
 } from "../leafletBridge";
 import { LEAFLET_CDN, OSM_STANDARD } from "../tiles";
-import type { MapMarker } from "../types";
+import type { MapMarker, UserLocation } from "../types";
 
 const COLORS = { primary: "#2E1A47", accent: "#6E4AA0", surface: "#FFFFFF", text: "#241338" };
 const CAMERA = { latitude: 23.588, longitude: 58.3829, latitudeDelta: 0.35, longitudeDelta: 0.35 };
 
-function html(markers: MapMarker[] = [], dark = false) {
-  return buildLeafletHtml({ camera: CAMERA, markers, tiles: OSM_STANDARD, dark, colors: COLORS });
+/**
+ * The document no longer carries markers, the camera or the patient pin. Those now reach
+ * the LIVE page through `buildStateScript` → `__mlApply`, so that selecting a clinic stops
+ * reloading the WebView and destroying the user's pan. Assertions about DATA therefore
+ * target `state()`; assertions about the DOCUMENT still target `html()`.
+ */
+function html(dark = false) {
+  return buildLeafletHtml({ tiles: OSM_STANDARD, dark, colors: COLORS });
+}
+
+function state(markers: MapMarker[] = [], userLocation: UserLocation | null = null) {
+  return buildStateScript({ markers, userLocation, fit: [], fitToken: 1, camera: CAMERA });
 }
 
 /**
@@ -131,7 +142,7 @@ describe("parseMapMessage", () => {
 describe("buildLeafletHtml", () => {
   it("embeds a hostile clinic name without breaking out of the script", () => {
     const payload = "</script><script>alert(1)</script>";
-    const doc = html([{ id: "x", latitude: 23.5, longitude: 58.4, title: payload }]);
+    const doc = state([{ id: "x", latitude: 23.5, longitude: 58.4, title: payload }]);
 
     // The security property is that the payload cannot become MARKUP. Its angle brackets
     // are escaped, so it stays inert text inside a JSON string literal — the substring
@@ -139,11 +150,20 @@ describe("buildLeafletHtml", () => {
     expect(doc).toContain("\\u003c/script\\u003e");
     expect(doc).not.toContain(payload);
 
-    // Only the two <script> tags the template itself declares — no injected third.
-    expect(doc.match(/<script/g)).toHaveLength(2);
-    // And no executable close-tag/handler forms reached the document.
+    // The injected script must contain NO raw markup at all — it is evaluated inside the
+    // live page, so an unescaped tag here would be just as dangerous as one in the document.
+    expect(doc).not.toMatch(/<script/);
     expect(doc).not.toMatch(/<\/script>\s*<script>alert/);
     expect(doc).not.toMatch(/onerror\s*=\s*["']?alert/);
+  });
+
+  it("the DOCUMENT itself declares exactly two script tags and carries no clinic data", () => {
+    const doc = html();
+    expect(doc.match(/<script/g)).toHaveLength(2);
+    // The regression this guards: markers used to be baked into the HTML, which is why a
+    // selection change reloaded the map.
+    expect(doc).not.toContain('"markers"');
+    expect(doc).not.toContain('"fitToken"');
   });
 
   it("references the pinned, SRI-verified Leaflet assets", () => {
@@ -163,41 +183,31 @@ describe("buildLeafletHtml", () => {
   });
 
   it("contains no Google endpoint of any kind", () => {
-    const doc = html([{ id: "a", latitude: 23.5, longitude: 58.4, title: "A" }]);
+    const doc = html();
     expect(doc).not.toMatch(/google/i);
     expect(doc).not.toMatch(/googleapis/i);
     expect(doc).not.toMatch(/gstatic/i);
   });
 
   it("applies the dark tile filter only in dark mode", () => {
-    expect(html([], true)).toContain('<body class="dark"');
-    expect(html([], false)).toContain('<body class=""');
+    expect(html(true)).toContain('<body class="dark"');
+    expect(html(false)).toContain('<body class=""');
   });
 
   it("renders marker payloads and never uses innerHTML for text", () => {
-    const doc = html([
+    const script = state([
       { id: "c1", latitude: 23.5, longitude: 58.4, title: "Al Noor", subtitle: "Ruwi" },
     ]);
-    expect(doc).toContain('"id":"c1"');
-    expect(doc).toContain("Al Noor");
-    expect(doc).toContain("textContent");
-    // Titles/subtitles must never be assigned through innerHTML.
-    expect(doc).not.toMatch(/innerHTML\s*=\s*[^;]*title/);
+    expect(script).toContain('"id":"c1"');
+    expect(script).toContain("Al Noor");
+    // Titles reach the DOM through Leaflet's `title`/`alt` marker options, which are set as
+    // attributes — the document never assigns marker text through innerHTML.
+    expect(html()).not.toMatch(/innerHTML\s*=\s*[^;]*title/);
   });
 
   it("includes the patient marker only when a location is supplied", () => {
-    const without = html();
-    expect(without).toContain('"user":null');
-
-    const withUser = buildLeafletHtml({
-      camera: CAMERA,
-      markers: [],
-      tiles: OSM_STANDARD,
-      dark: false,
-      colors: COLORS,
-      userLocation: { latitude: 23.6, longitude: 58.4, accuracyM: 25 },
-    });
-    expect(withUser).toContain('"accuracyM":25');
+    expect(state()).toContain('"user":null');
+    expect(state([], { latitude: 23.6, longitude: 58.4, accuracyM: 25 })).toContain('"accuracyM":25');
   });
 
   it("fails visibly when Leaflet cannot load", () => {

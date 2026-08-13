@@ -61,4 +61,31 @@ export type MapMessage =
   | { type: "ready" }
   | { type: "markerPress"; id: string }
   | { type: "mapPress" }
+  /**
+   * The rendered zoom settled. Drives zoom-aware de-overlap: a fixed 20 m offset is
+   * 0.009 px at the zoom that frames all of Oman, so coincident pins need a separation
+   * recomputed in METRES-PER-PIXEL terms every time the zoom changes.
+   */
+  | { type: "zoom"; zoom: number }
+  /** The user dragged the map. Suppresses any further automatic recentring. */
+  | { type: "userPan" }
   | { type: "error"; message: string };
+
+/**
+ * One imperative update pushed into the live page. Replaces rebuilding the whole HTML
+ * document, which reloaded the WebView and destroyed the user's pan/zoom on every
+ * selection change.
+ */
+export interface MapState {
+  markers: MapMarker[];
+  userLocation?: UserLocation | null;
+  /**
+   * Points to frame. Applied ONLY when `fitToken` changes, so the camera moves on the
+   * four approved triggers and never because a marker was tapped.
+   */
+  fit: [number, number][];
+  /** Monotonic counter. A new value is the sole permission to move the camera. */
+  fitToken: number;
+  /** Where to sit when `fit` has fewer than two points. */
+  camera: MapCamera;
+}

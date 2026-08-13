@@ -676,6 +676,17 @@ export const en = {
     doctors: "Doctors",
     noDoctorsTitle: "No doctors listed",
     noDoctorsBody: "This clinic has no bookable doctors yet.",
+    // Detail fields. Every one is rendered ONLY when the backend actually returned it —
+    // these labels never appear next to an invented or zero value.
+    reviewsCount: "{count} reviews",
+    doctorsCount: "{count} doctors",
+    about: "About",
+    services: "Services",
+    hours: "Opening hours",
+    contact: "Contact",
+    phone: "Call",
+    website: "Website",
+    address: "Address",
   },
   filters: {
     title: "Filters",
@@ -738,6 +749,15 @@ export const en = {
     nearestIsFar: "No clinics within 50 km — showing the nearest to you",
     // Replaces a bare "0 km", which reads as a bug even when it is arithmetically true.
     distanceVeryClose: "Less than 0.1 km away",
+    // Camera control — the only affordance that moves the map back to the patient.
+    recentre: "Recentre on my location",
+    // Travel modes. Cycle is Android-only (the Apple Maps URL scheme has no bicycle flag)
+    // and Transit is hidden for journeys no transit network could serve.
+    travelMode: "Travel mode",
+    modeDrive: "Drive",
+    modeWalk: "Walk",
+    modeCycle: "Cycle",
+    modeTransit: "Transit",
     viewClinic: "View clinic",
   },
   doctor: {

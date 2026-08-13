@@ -486,6 +486,23 @@ export interface Clinic {
   /** Real coordinates for the Map View (PDF p19); null when the facility has no geo. */
   latitude?: number | null;
   longitude?: number | null;
+  /**
+   * Optional detail fields. All of these already exist in `facilities` and were being
+   * fetched and then DISCARDED by the mappers — the clinic screen showed a name and a
+   * rating while the backend was returning a photo, a phone number and a description.
+   *
+   * Every one is optional and nullable on purpose: the UI renders a field only when it is
+   * genuinely present. A missing rating must never surface as "0".
+   */
+  cover_photo_url?: string | null;
+  logo_url?: string | null;
+  review_count?: number | null;
+  phone?: string | null;
+  website?: string | null;
+  description?: string | null;
+  services?: string[] | null;
+  /** Free-shape JSONB from HAMS; rendered only when it parses to day → hours strings. */
+  working_hours?: unknown;
 }
 
 /** Filters bottom sheet (PDF p18). */

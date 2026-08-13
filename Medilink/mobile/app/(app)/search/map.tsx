@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
@@ -21,10 +21,13 @@ import { useCurrentLocation } from "@/hooks/useCurrentLocation";
 import { useNearbyClinics } from "@/hooks/queries/useDiscovery";
 import { coverageFor, formatDistanceKm } from "@/services/maps/nearby";
 import {
+  DEFAULT_TRAVEL_MODE,
+  directionsUrlChain,
   isValidTarget,
-  nativeDirectionsUrl,
-  webDirectionsUrl,
+  travelModesFor,
+  type TravelMode,
 } from "@/services/maps/directions";
+import { haversineKm } from "@/services/maps/leafletBridge";
 import type { MapCamera, MapMarker, UserLocation } from "@/services/maps/types";
 import type { Clinic } from "@/data/types";
 
@@ -47,55 +50,12 @@ const FALLBACK_CAMERA: MapCamera = {
 const LOCATED_DELTA = 0.12;
 
 /**
- * Pull byte-identical markers apart so every one of them can be tapped (audit finding).
- *
- * Three verified clinics in Ruwi share the coordinate 23.588,58.3829 — which is exactly the
- * MUSCAT constant above, i.e. a geocoder that fell back to the city centre rather than three
- * clinics that genuinely occupy one point. Leaflet stacks them, so only the topmost pin was
- * reachable and the other two were invisible and unselectable.
- *
- * This spreads a duplicate group evenly around a ~20 m circle. Deliberately:
- *   • RENDER-ONLY — the repository, the RPC and the database are untouched. `distance_km`
- *     still comes from the server and is unchanged, so ordering cannot drift.
- *   • DETERMINISTIC — the angle comes from the index, so a pin does not hop between renders.
- *   • ~20 m — smaller than the positional error already present in the data, and invisible
- *     at any zoom where you would read a clinic name.
- *   • EXACT duplicates only. Clinics 50 m apart are left exactly where they are.
- *
- * This is a legibility workaround, not a data fix. Correcting those three coordinates is a
- * separate, explicitly-approved data operation.
+ * Coincident-pin de-overlap now lives in `services/maps/leafletBridge.spreadCoincident`,
+ * because it has to scale with the RENDERED zoom and only `OsmMapView` knows that. The old
+ * copy here offset duplicates by a constant 20 m, which is 0.009 px at the zoom that frames
+ * all of Oman — so the three Ruwi clinics stayed perfectly stacked in exactly the
+ * out-of-coverage view where the problem was reported.
  */
-const DEDUPE_OFFSET_M = 20;
-function spreadCoincident(pins: MapMarker[]): MapMarker[] {
-  const groups = new Map<string, MapMarker[]>();
-  for (const p of pins) {
-    const key = `${p.latitude},${p.longitude}`;
-    const g = groups.get(key);
-    if (g) g.push(p);
-    else groups.set(key, [p]);
-  }
-
-  const out: MapMarker[] = [];
-  for (const group of groups.values()) {
-    const only = group.length === 1 ? group[0] : undefined;
-    if (only) {
-      out.push(only);
-      continue;
-    }
-    // 1 degree of latitude ≈ 111,320 m; longitude shrinks by cos(latitude).
-    const latDeg = DEDUPE_OFFSET_M / 111_320;
-    group.forEach((p, i) => {
-      const angle = (2 * Math.PI * i) / group.length;
-      const lngDeg = latDeg / Math.max(Math.cos((p.latitude * Math.PI) / 180), 0.01);
-      out.push({
-        ...p,
-        latitude: p.latitude + latDeg * Math.sin(angle),
-        longitude: p.longitude + lngDeg * Math.cos(angle),
-      });
-    });
-  }
-  return out;
-}
 
 /** Map View (PDF p19): real map with nearby-clinic markers + a bottom clinic card. */
 export default function MapViewScreen() {
@@ -137,6 +97,27 @@ export default function MapViewScreen() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [travelMode, setTravelMode] = useState<TravelMode>(DEFAULT_TRAVEL_MODE);
+
+  /**
+   * ── THE CAMERA CONTRACT ──
+   *
+   * The map moves ONLY when this token changes. `OsmMapView` compares it against the last
+   * value it applied, so every other update — a marker tap, a search keystroke, a re-render
+   * — leaves the camera exactly where the user put it.
+   *
+   * Bumped on precisely four events, and nothing else:
+   *   1. initial load                (token starts at 0 and the page applies it once)
+   *   2. first successful fix        (effect on `hasLocation`)
+   *   3. coverage-mode transition    (effect on `outOfCoverage`)
+   *   4. explicit "locate me"        (the recentre control)
+   *
+   * Expressing it as a token rather than a boolean matters: "recentre me again" is a NEW
+   * event even though the inputs are identical, and only a monotonic counter can say that.
+   */
+  const [fitToken, setFitToken] = useState(0);
+  const bumpFit = useCallback(() => setFitToken((n) => n + 1), []);
+  const [hasPanned, setHasPanned] = useState(false);
 
   /** Everything the proximity RPC returned, before the search box narrows it. */
   const all = useMemo(() => query.data ?? [], [query.data]);
@@ -212,21 +193,24 @@ export default function MapViewScreen() {
    */
   const distance = outOfCoverage ? null : formatDistanceKm(active?.distance_km);
 
-  /** Markers for the map surface, derived from the same clinic list as the card. */
+  /**
+   * Markers for the map surface, derived from the same clinic list as the card.
+   *
+   * De-overlap is NOT applied here any more — `OsmMapView` does it against the rendered
+   * zoom, which is the only place that knows how many metres a pixel is worth.
+   */
   const markers: MapMarker[] = useMemo(
     () =>
-      spreadCoincident(
-        clinics
-          .filter((c) => c.latitude != null && c.longitude != null)
-          .map((c) => ({
-            id: c.id,
-            latitude: c.latitude as number,
-            longitude: c.longitude as number,
-            title: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
-            subtitle: c.area,
-            selected: c.id === active?.id,
-          }))
-      ),
+      clinics
+        .filter((c) => c.latitude != null && c.longitude != null)
+        .map((c) => ({
+          id: c.id,
+          latitude: c.latitude as number,
+          longitude: c.longitude as number,
+          title: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
+          subtitle: c.area,
+          selected: c.id === active?.id,
+        })),
     [clinics, active?.id, isRTL]
   );
 
@@ -292,25 +276,116 @@ export default function MapViewScreen() {
   const openClinic = (c: Clinic) => router.push(`/clinics/${c.id}`);
 
   /**
-   * Hand off to the platform's own map app — Apple Maps on iOS, the `geo:` chooser on
-   * Android — with an OpenStreetMap web fallback. No Google dependency, and no API key.
+   * ── CAMERA TRIGGER 2: first successful fix ──
+   * Frames the patient the moment we learn where they are, and never again for the same
+   * fix. A later position update does not re-trigger, so a GPS jitter cannot yank the map
+   * out from under a user who is reading it.
+   */
+  useEffect(() => {
+    if (location.hasLocation) bumpFit();
+  }, [location.hasLocation, bumpFit]);
+
+  /**
+   * ── CAMERA TRIGGER 3: coverage transition ──
+   * Entering or leaving the out-of-coverage fallback changes WHICH clinics are on screen
+   * and what the camera should frame, so it is the one data change that legitimately moves
+   * the map.
+   */
+  useEffect(() => {
+    bumpFit();
+  }, [outOfCoverage, bumpFit]);
+
+  /** ── CAMERA TRIGGER 4: explicit "locate me". Also re-requests if we have no fix yet. */
+  const recentre = useCallback(() => {
+    if (!location.hasLocation) void location.request();
+    setHasPanned(false);
+    bumpFit();
+  }, [location, bumpFit]);
+
+  /**
+   * DIRECTIONS ORIGIN — the patient's REAL coordinates, and nothing else.
+   *
+   * This reads `location.coords`, never the Muscat constant. The two are not
+   * interchangeable and the distinction is the whole point of this screen: Muscat is a
+   * DISCOVERY anchor used to ask "what clinics exist" when the patient is out of coverage.
+   * Routing a patient in India from Muscat would be confidently wrong.
+   *
+   * `null` when there is no fix, which makes the maps app use its own current location —
+   * still the device's real position, never a value we guessed.
+   */
+  const directionsOrigin = location.hasLocation && location.coords
+    ? { latitude: location.coords.latitude, longitude: location.coords.longitude }
+    : null;
+
+  /**
+   * Straight-line origin→destination distance, used ONLY to decide whether offering a
+   * Transit chip is honest. Not shown to the patient and not a route.
+   */
+  const journeyKm =
+    directionsOrigin && active?.latitude != null && active?.longitude != null
+      ? haversineKm(
+          { latitude: directionsOrigin.latitude, longitude: directionsOrigin.longitude },
+          { latitude: active.latitude, longitude: active.longitude }
+        )
+      : null;
+
+  /** Modes this platform can actually honour for this journey. */
+  const modes = useMemo(() => travelModesFor(Platform.OS, journeyKm), [journeyKm]);
+
+  /** Keep the selection valid when the available modes change (e.g. Transit disappears). */
+  useEffect(() => {
+    if (!modes.includes(travelMode)) setTravelMode(DEFAULT_TRAVEL_MODE);
+  }, [modes, travelMode]);
+
+  /**
+   * Hand off to the platform's own map app, carrying the real origin, the clinic and the
+   * chosen travel mode. Google Maps URLs and Apple Maps URLs are public schemes: no API
+   * key, no developer project, no billing. The chain falls back in order until one opens.
    */
   const openDirections = (c: Clinic) => {
-    const target = {
+    const destination = {
       latitude: c.latitude as number,
       longitude: c.longitude as number,
       label: localizedName(c.name, c.name_ar, c.name_ar_status, isRTL),
     };
-    if (!isValidTarget(target)) return;
+    if (!isValidTarget(destination)) return;
 
-    Linking.openURL(nativeDirectionsUrl(Platform.OS, target)).catch(() => {
-      // No map app installed (or an unexpected platform) — fall back to the web.
-      Linking.openURL(webDirectionsUrl(target)).catch(() => Alert.alert(t("map.loadError")));
+    const chain = directionsUrlChain(Platform.OS, {
+      destination,
+      origin: directionsOrigin,
+      mode: travelMode,
     });
+
+    const tryNext = (i: number): void => {
+      const url = chain[i];
+      if (!url) {
+        Alert.alert(t("map.loadError"));
+        return;
+      }
+      Linking.openURL(url).catch(() => tryNext(i + 1));
+    };
+    tryNext(0);
+  };
+
+  const MODE_LABEL: Record<TravelMode, string> = {
+    drive: t("map.modeDrive"),
+    walk: t("map.modeWalk"),
+    cycle: t("map.modeCycle"),
+    transit: t("map.modeTransit"),
+  };
+  const MODE_EMOJI: Record<TravelMode, string> = {
+    drive: "🚗",
+    walk: "🚶",
+    cycle: "🚲",
+    transit: "🚆",
   };
 
   return (
-    <Screen scroll={false} padded={false} edges={["top", "left", "right", "bottom"]}>
+    // `dismissKeyboardOnTap={false}` is REQUIRED here, not cosmetic. Screen otherwise wraps
+    // its children in a TouchableWithoutFeedback, and that ancestor claims the touch
+    // responder — which, combined with the WebView not asking its parents to keep out,
+    // stopped the map being draggable on a physical Android device.
+    <Screen scroll={false} padded={false} dismissKeyboardOnTap={false} edges={["top", "left", "right", "bottom"]}>
       {/* Search header */}
       <View style={[styles.header, { paddingHorizontal: spacing.lg, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")}>
@@ -337,10 +412,33 @@ export default function MapViewScreen() {
           // patient is thousands of kilometres from every clinic. Framing and drawing are
           // separate decisions — see selectFitPoints.
           frameWithUser={!outOfCoverage}
+          // The camera moves only when this changes. Marker taps do not change it.
+          fitToken={fitToken}
+          // Selecting a clinic updates the card and the pin state. It does NOT recentre.
           onMarkerPress={setSelectedId}
+          onUserPan={() => setHasPanned(true)}
           onError={setMapError}
           testID="osm-map"
         />
+
+        {/* Recentre — the ONLY control that moves the camera back to the patient, and the
+            fourth and last camera trigger. Shown once we have a fix and the user has moved
+            the map, so it appears exactly when it is useful and never nags. */}
+        {location.hasLocation && hasPanned ? (
+          <Pressable
+            onPress={recentre}
+            accessibilityRole="button"
+            accessibilityLabel={t("map.recentre")}
+            hitSlop={8}
+            style={[
+              styles.recentre,
+              isRTL ? { left: spacing.lg } : { right: spacing.lg },
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Icon name="location" size={20} tint={colors.primary} />
+          </Pressable>
+        ) : null}
 
         {/* Leaflet or the tile server was unreachable — say so instead of showing a
             blank rectangle the user can't interpret. */}
@@ -447,7 +545,11 @@ export default function MapViewScreen() {
                 <Text variant="caption" color="textMuted">
                   {num(
                     [
-                      `★ ${active.rating}`,
+                      // `rating` defaults to 0 in the mapper, so a clinic with no rating
+                      // would read "★ 0" — worse than saying nothing. Only show a real one.
+                      active.rating > 0 ? `★ ${active.rating}` : null,
+                      // Reviews are shown only when the backend actually sent a count.
+                      active.review_count ? t("clinic.reviewsCount", { count: active.review_count }) : null,
                       // Unit via i18n so Arabic reads "٤٫٦ كم", not "٤٫٦ km". `veryClose`
                       // is a whole phrase, not a number + unit — "0 km" is not what a
                       // patient standing outside the clinic should be told.
@@ -466,7 +568,53 @@ export default function MapViewScreen() {
             </View>
           </Card>
 
-          {/* Directions kept as a SEPARATE action — same native handoff as before. */}
+          {/* Travel-mode selector. Only modes the chosen provider can actually honour are
+              offered — Cycle is absent on iOS because the Apple Maps URL scheme has no
+              bicycle flag, and Transit disappears for journeys no transit network serves.
+              Showing a chip we cannot deliver would be a lie the maps app has to break. */}
+          <View
+            style={[styles.modes, { flexDirection: isRTL ? "row-reverse" : "row", paddingTop: spacing.sm }]}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t("map.travelMode")}
+          >
+            {modes.map((m) => {
+              const on = m === travelMode;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => setTravelMode(m)}
+                  hitSlop={6}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={MODE_LABEL[m]}
+                  style={[
+                    styles.modeChip,
+                    {
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      backgroundColor: on ? colors.primary : colors.surface,
+                      borderColor: on ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text variant="caption" style={{ color: on ? colors.textOnPrimary : colors.text }}>
+                    {MODE_EMOJI[m]}
+                  </Text>
+                  <Text
+                    variant="caption"
+                    style={[
+                      { color: on ? colors.textOnPrimary : colors.text },
+                      isRTL ? { marginEnd: 4 } : { marginStart: 4 },
+                    ]}
+                  >
+                    {MODE_LABEL[m]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Directions is an EXPLICIT action, never the card body. The origin is the
+              patient's real GPS fix — never the Muscat discovery anchor. */}
           <Pressable
             onPress={() => openDirections(active)}
             hitSlop={8}
@@ -505,4 +653,25 @@ const styles = StyleSheet.create({
   overlay: { alignItems: "center", justifyContent: "center" },
   cardRow: { alignItems: "center" },
   directions: { alignItems: "center" },
+  modes: { alignItems: "center", gap: 8, flexWrap: "wrap" },
+  modeChip: {
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    // 32px + the row's own padding clears the 44dp target with hitSlop.
+    minHeight: 32,
+  },
+  /** Floating recentre control, kept clear of the attribution strip. */
+  recentre: {
+    position: "absolute",
+    bottom: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
