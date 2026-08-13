@@ -132,7 +132,9 @@ describe("E.164 for BOTH supported countries", () => {
   it("a dial code resolves to its country, and an unknown one falls back to Oman", () => {
     expect(phoneCountryForDialCode("+968")?.iso).toBe("OM");
     expect(phoneCountryForDialCode("+91")?.iso).toBe("IN");
-    expect(phoneCountryForDialCode("+1")).toBeNull();
+    // +49 Germany is genuinely outside the registry. (+1 was the old example here and is
+    // now US/Canada — see the +1 note on PHONE_COUNTRIES.)
+    expect(phoneCountryForDialCode("+49")).toBeNull();
     expect(DEFAULT_PHONE_COUNTRY.iso).toBe("OM");
   });
 
@@ -229,8 +231,14 @@ describe("localization", () => {
 
   it("the Arabic strings are Arabic, not an English fallback", () => {
     for (const key of ["errorAlreadyLinked", "errorUnsupportedCountry", "successTitle"]) {
-      const line = ar.split(/\r?\n/).find((l) => l.includes(`${key}:`)) ?? "";
-      expect(line).toMatch(/[؀-ۿ]/);
+      // The key line PLUS the next one: a long value is wrapped onto its own line by the
+      // formatter, and a lookup that only read the key's line reported a real Arabic string
+      // as a missing translation.
+      const lines = ar.split(/\r?\n/);
+      const i = lines.findIndex((l) => l.includes(`${key}:`));
+      expect(i).toBeGreaterThan(-1);
+      const value = `${lines[i]}\n${lines[i + 1] ?? ""}`;
+      expect(value).toMatch(/[؀-ۿ]/);
     }
   });
 

@@ -9,7 +9,7 @@ import {
   Button,
   Checkbox,
   PasswordField,
-  PhoneField,
+  CountryPhoneField,
   Screen,
   Text,
   TextField,
@@ -19,9 +19,10 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { authService } from "@/services/authService";
 import { AUTH_ROUTE_SIGN_IN, crossLinkAction } from "@/utils/authNav";
-import { signUpSchema, type SignUpForm } from "@/utils/validation";
+import { phoneProblem, signUpSchema, type SignUpForm } from "@/utils/validation";
+import { DEFAULT_PHONE_COUNTRY, type PhoneCountry } from "@medilink/shared/mobile";
 
-const DIAL_CODE = "+968";
+
 
 export default function SignUpScreen() {
   const { spacing, isRTL } = useTheme();
@@ -30,10 +31,20 @@ export default function SignUpScreen() {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  /**
+   * Selected dial-code country. Was a hardcoded `+968`, which made every non-Omani patient
+   * either unable to sign up or silently stored under the wrong country code.
+   *
+   * Oman stays the DEFAULT — it is the production market — it is simply no longer the only
+   * option.
+   */
+  const [country, setCountry] = useState<PhoneCountry>(DEFAULT_PHONE_COUNTRY);
 
   const {
     control,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema(t)),
@@ -49,14 +60,33 @@ export default function SignUpScreen() {
     mode: "onTouched",
   });
 
+  /**
+   * THE PRECISE PHONE RULE, applied against the country the user actually picked.
+   *
+   * The zod schema can only enforce a coarse 8–11 digit bound, because it is built once at
+   * mount and cannot see a country that changes at runtime. `phoneProblem` is the real rule
+   * and it is the SAME function edit-profile has always used — not a second validator.
+   *
+   * Without this, picking India and typing 8 digits would pass the form and produce a
+   * malformed +91 number.
+   */
+  const phoneValue = watch("phone") ?? "";
+  const phoneProblemKind = phoneProblem(phoneValue, country);
+  const phoneCountryError = phoneProblemKind
+    ? t(phoneProblemKind === "trivial" ? "validation.phoneTrivial" : "validation.phone")
+    : undefined;
+
   const onSubmit = async (values: SignUpForm) => {
     setFormError(null);
+    // Belt and braces: handleSubmit already ran the schema, but the per-country length is
+    // checked here, so it must also gate the submit rather than only colouring the field.
+    if (phoneProblem(values.phone, country)) return;
     setLoading(true);
     const res = await authService.signUp({
       fullName: values.fullName,
       email: values.email,
       phone: values.phone,
-      dialCode: DIAL_CODE,
+      dialCode: country.dialCode,
       password: values.password,
     });
     setLoading(false);
@@ -143,16 +173,27 @@ export default function SignUpScreen() {
         control={control}
         name="phone"
         render={({ field: { onChange, onBlur, value } }) => (
-          <PhoneField
-            label={t("signUp.phone")}
-            dialCode={DIAL_CODE}
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            error={errors.phone?.message}
-            placeholder="9000 0000"
-            containerStyle={{ marginBottom: spacing.md }}
-          />
+          <View style={{ marginBottom: spacing.md }}>
+            <CountryPhoneField
+              label={t("signUp.phone")}
+              country={country}
+              onCountryChange={(c) => {
+                setCountry(c);
+                // Clear on switch. Eight Oman digits are not the first eight of a ten-digit
+                // Indian number, so carrying them across would produce a plausible-looking
+                // WRONG number that passes every length check.
+                setValue("phone", "", { shouldValidate: false, shouldDirty: true });
+              }}
+              value={value}
+              onChangeText={(local) => {
+                onChange(local);
+                onBlur();
+              }}
+              // Schema error (empty/absurd) OR the precise per-country length error.
+              error={errors.phone?.message ?? phoneCountryError}
+              testID="signup-phone"
+            />
+          </View>
         )}
       />
       <Controller

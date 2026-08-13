@@ -20,6 +20,7 @@ import {
   ErrorState,
   Icon,
   LoadingState,
+  CountryPhoneField,
   PhoneField,
   Screen,
   Text,
@@ -88,8 +89,21 @@ export default function EditProfileScreen() {
    * Unrecognised values (the 4 malformed +91 rows) detect as null, seed empty, and are
    * excluded from the write below — so they are preserved exactly as stored.
    */
-  const [phoneCountry] = useState(
+  const [phoneCountry, setPhoneCountry] = useState(
     () => detectPhoneCountry(account?.phone ?? "") ?? DEFAULT_PHONE_COUNTRY
+  );
+  /**
+   * A STORED number whose country we cannot identify.
+   *
+   * Previously this fell through to `?? DEFAULT_PHONE_COUNTRY` and the screen silently
+   * claimed the number was Omani — which is precisely the "silently assume Oman" behaviour
+   * that produced the +91 truncation. The country still falls back to Oman so the picker has
+   * something to render, but the user is TOLD the stored value could not be mapped and is
+   * asked to pick a country and re-enter it. Nothing is written unless they do (see the
+   * `phone !== initialPhone` guard on the patch), so the malformed row is preserved as-is.
+   */
+  const [storedCountryUnknown] = useState(
+    () => !!(account?.phone ?? "").trim() && detectPhoneCountry(account?.phone ?? "") === null
   );
   const [phone, setPhone] = useState(() => {
     const stored = account?.phone ?? "";
@@ -140,7 +154,11 @@ export default function EditProfileScreen() {
   });
   const phoneError = phoneProblemKind
     ? t(phoneProblemKind === "trivial" ? "validation.phoneTrivial" : "validation.phone")
-    : undefined;
+    : // Only while the field is still untouched: once they type, the length rule for the
+      // country they picked is the more useful message.
+      storedCountryUnknown && phone === initialPhone
+      ? t("phoneCountry.unknown")
+      : undefined;
   // Emergency contact is a phone number now (QA #3): optional, Oman 8-digit when set.
   const emergencyProblem = omanPhoneProblem(emergency, {
     grandfathered: emergency === initialEmergency,
@@ -400,18 +418,28 @@ export default function EditProfileScreen() {
         ))}
       </View>
 
-      {/* Phone — PhoneField, not a raw TextField (QA MED-007). The old input had
-          `keyboardType="phone-pad"` with no maxLength and no sanitisation, so `#`, `;`, `*`
-          and 9+ digits reached the database. PhoneField holds the 8 local digits; +968 is
-          rendered as a prefix and re-attached on save. */}
-      <PhoneField
-        label={t("profile.phone")}
-        value={phone}
-        onChangeText={setPhone}
-        error={phoneError}
-        placeholder="9000 0000"
-        containerStyle={{ marginTop: spacing.md, marginBottom: spacing.md }}
-      />
+      {/* Phone — CountryPhoneField, not a raw TextField (QA MED-007) and no longer a
+          +968-only PhoneField. The dial code used to be hardcoded, so a patient with an
+          Indian, UAE or UK number had no way to enter it correctly. The field still holds
+          LOCAL digits only; the code is picked, shown, and re-attached with `phoneE164` on
+          save. The country is seeded from the STORED number (see detectPhoneCountry above),
+          so reopening this screen shows the right flag. */}
+      <View style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
+        <CountryPhoneField
+          label={t("profile.phone")}
+          country={phoneCountry}
+          onCountryChange={(c) => {
+            setPhoneCountry(c);
+            // Clear on switch — 8 Oman digits are not the first 8 of a 10-digit Indian
+            // number, and keeping them would produce a valid-LOOKING wrong number.
+            setPhone("");
+          }}
+          value={phone}
+          onChangeText={setPhone}
+          error={phoneError}
+          testID="profile-phone"
+        />
+      </View>
       <TextField
         label={t("profile.address")}
         value={address}

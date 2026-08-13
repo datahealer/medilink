@@ -32,6 +32,7 @@ export { FamilyMemberCard } from "./FamilyMemberCard";
 export { TextField } from "./TextField";
 export { DateField } from "./DateField";
 export { PasswordField } from "./PasswordField";
+export { CountryPhoneField } from "./CountryPhoneField";
 export { PhoneField } from "./PhoneField";
 export { Screen } from "./Screen";
 export { Logo } from "./Logo";

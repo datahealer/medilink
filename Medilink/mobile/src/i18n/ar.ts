@@ -361,6 +361,14 @@ export const ar: Messages = {
     orPassword: "أو سجّل الدخول بكلمة المرور",
     phoneComingSoon: "تسجيل الدخول عبر الجوال قريبًا.",
   },
+  phoneCountry: {
+    title: "اختر الدولة",
+    searchPlaceholder: "ابحث عن دولة أو رمز",
+    noResults: "لا توجد دولة مطابقة لهذا البحث.",
+    selectLabel: "رمز الدولة، الحالي {country}",
+    selectHint: "يفتح قائمة الدول",
+    unknown: "دولة هذا الرقم غير مدعومة. اختر دولة وأعد إدخال الرقم.",
+  },
   phone: {
     title: "رقم الجوال",
     subtitle: "وثّق رقم جوالك ليتمكن الأطباء من الوصول إليك ولتتمكن من تسجيل الدخول به.",
@@ -374,7 +382,8 @@ export const ar: Messages = {
     successTitle: "تم توثيق الرقم",
     successBody: "أصبح رقم جوالك موثّقًا ويمكنك استخدامه لتسجيل الدخول.",
     errorAlreadyLinked: "هذا الرقم مرتبط بحساب آخر.",
-    errorUnsupportedCountry: "ندعم حاليًا أرقام سلطنة عُمان (+٩٦٨) والهند (+٩١) فقط.",
+    errorUnsupportedCountry:
+      "توثيق الهاتف غير متاح لهذه الدولة بعد. المدعوم حاليًا: سلطنة عُمان (+٩٦٨) والهند (+٩١).",
   },
   signUp: {
     title: "إنشاء حساب",

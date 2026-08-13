@@ -134,7 +134,10 @@ describe("phone country registry", () => {
     expect(phoneCountryForDialCode("+968")?.iso).toBe("OM");
     expect(phoneCountryForDialCode("968")?.iso).toBe("OM");
     expect(phoneCountryForDialCode("+91")?.iso).toBe("IN");
-    expect(phoneCountryForDialCode("+1")).toBeNull();
+    // +1 used to stand in for "unsupported" here; it is now the US/Canada code. Germany is
+    // genuinely absent from the registry, so it is the honest example of an unknown code.
+    expect(phoneCountryForDialCode("+49")).toBeNull();
+    expect(phoneCountryForDialCode("+33")).toBeNull();
   });
 
   it("detects by calling code AND total length, so the two cannot collide", () => {

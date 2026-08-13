@@ -7,8 +7,16 @@ import { TextField, type TextFieldProps } from "./TextField";
 import { Text } from "./Text";
 
 export interface PhoneFieldProps extends Omit<TextFieldProps, "leading" | "keyboardType"> {
-  /** Country dial code shown as a prefix. Reusable — swap for a picker later. */
+  /** Country dial code. Drives BOTH the prefix shown and the length cap applied. */
   dialCode?: string;
+  /**
+   * Render the dial-code prefix inside the field. Default `true`.
+   *
+   * `false` when the caller already shows the code — `CountryPhoneField` puts it on the
+   * country trigger to the left, and repeating it here would read as "+968 +968". The cap
+   * still follows `dialCode` either way: hiding the prefix must never mean losing the rule.
+   */
+  showDialCode?: boolean;
 }
 
 /**
@@ -45,7 +53,7 @@ export interface PhoneFieldProps extends Omit<TextFieldProps, "leading" | "keybo
  * TODO: replace the static prefix with a CountryCodePicker (search + flags).
  */
 export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneField(
-  { dialCode = "+968", onChangeText, ...rest },
+  { dialCode = "+968", showDialCode = true, onChangeText, ...rest },
   ref
 ) {
   const { colors, isRTL } = useTheme();
@@ -58,6 +66,7 @@ export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneF
       textContentType="telephoneNumber"
       onChangeText={onChangeText ? (raw) => onChangeText(phoneInput(raw, country)) : undefined}
       leading={
+        !showDialCode ? null : (
         <View
           style={[
             styles.prefix,
@@ -74,6 +83,7 @@ export const PhoneField = forwardRef<TextInput, PhoneFieldProps>(function PhoneF
             {dialCode}
           </Text>
         </View>
+        )
       }
       {...rest}
     />

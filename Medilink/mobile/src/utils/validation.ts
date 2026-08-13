@@ -3,7 +3,9 @@ import {
   DEFAULT_PHONE_COUNTRY,
   normalizeEmail,
   normalizeHumanText,
-  omanPhoneDigits,
+  detectPhoneCountry,
+  normalizeDigits,
+  phoneLocal,
   omanPhoneLocal,
   PHONE_COUNTRIES,
   type PhoneCountry,
@@ -14,8 +16,18 @@ import type { MessageKey } from "@/i18n";
 /** Localised translate fn passed in from a screen (keeps Zod messages in i18n). */
 type T = (key: MessageKey) => string;
 
-// Oman mobile numbers are 8 digits (the +968 country code is shown separately).
-const OMAN_PHONE = /^[0-9]{8}$/;
+/**
+ * Coarse bounds for the signup form's phone field, spanning every supported country's
+ * subscriber length (Oman/Qatar/Kuwait/Bahrain 8 … China 11). Derived from the registry so
+ * adding a country cannot leave this stale.
+ *
+ * These are NOT the real rule — `phoneProblem(value, country)` is, and the screen applies it
+ * against the country the user actually picked. These bounds only stop an empty or absurd
+ * value reaching that check.
+ */
+const LOCAL_PHONE_LENGTHS = Object.values(PHONE_COUNTRIES).map((c) => c.localLength);
+export const MIN_LOCAL_PHONE_DIGITS = Math.min(...LOCAL_PHONE_LENGTHS);
+export const MAX_LOCAL_PHONE_DIGITS = Math.max(...LOCAL_PHONE_LENGTHS);
 
 /* ──────────────────── TRIVIAL / DUMMY NUMERIC IDENTIFIERS (QA MED-012, MED-013) ───────
  *
@@ -471,16 +483,42 @@ export const signUpSchema = (t: T) =>
     // than reaching the database. Arabic and mixed-script names pass — see personName.
     fullName: personName(t),
     email: email(t),
-    // `omanPhoneDigits`, NOT `omanPhoneInput` (QA MED-007). Both fold Arabic-Indic digits
-    // (an ASCII-only `\D` strip silently emptied the field for anyone typing ٩١٢…) and drop
-    // a pasted +968 so a correct number is not rejected for including its country code.
-    // But only `omanPhoneInput` truncates to 8, and a VALIDATOR must never truncate: that
-    // would turn a 9-digit typo into a valid-looking wrong number. Here 9 digits stay 9 and
-    // are rejected below. The 8-char cap belongs to PhoneField, where the user can see it.
+    // `normalizeDigits`, NOT `phoneInput` (QA MED-007). Both fold Arabic-Indic digits (an
+    // ASCII-only `\D` strip silently emptied the field for anyone typing ٩١٢…), but only
+    // `phoneInput` TRUNCATES to the country length — and a validator must never truncate,
+    // or a 9-digit typo becomes a valid-looking wrong number. Here 9 digits stay 9 and are
+    // rejected by the per-country rule. The length cap belongs to PhoneField, where the
+    // user can see the field refuse the keystroke.
+    //
+    // COARSE gate only. The exact per-country length is checked in the SCREEN via
+    // `phoneProblem(value, country)`, because the country is runtime state that the user
+    // changes with the picker and a zod schema built once at mount cannot see it.
+    //
+    // That is not a second validation system — it is the SAME `phoneProblem` function
+    // edit-profile has always used, and it is the precise gate. This rule exists so an
+    // empty or obviously-malformed field still fails at the form level.
+    //
+    // `phoneDigits`, NOT `phoneInput` (QA MED-007): both fold Arabic-Indic digits and drop
+    // a pasted dial code, but only `phoneInput` truncates — and a VALIDATOR must never
+    // truncate, or an 11-digit typo becomes a valid-looking wrong number.
     phone: z
       .string()
-      .transform(omanPhoneDigits)
-      .pipe(z.string().regex(OMAN_PHONE, t("validation.phone"))),
+      // Country-agnostic dial-code stripper, preserving MED-007's paste behaviour for EVERY
+      // supported country rather than only Oman. `detectPhoneCountry` requires an exact
+      // calling-code + length match, so "+96891111111" yields "91111111" while a bare
+      // 9-digit typo stays 9 digits and is rejected by `phoneProblem` in the screen — it is
+      // never truncated into a valid-looking wrong number.
+      .transform((v) => {
+        const digits = normalizeDigits(v);
+        const detected = detectPhoneCountry(digits);
+        return detected ? phoneLocal(digits, detected) : digits;
+      })
+      .pipe(
+        z
+          .string()
+          .min(MIN_LOCAL_PHONE_DIGITS, t("validation.phone"))
+          .max(MAX_LOCAL_PHONE_DIGITS, t("validation.phone"))
+      ),
     password: password(t),
     acceptTerms: z.literal(true, {
       errorMap: () => ({ message: t("validation.terms") }),

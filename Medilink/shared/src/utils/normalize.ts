@@ -196,7 +196,21 @@ export function normalizeDigits(input: string | null | undefined): string {
  * verbatim. Repairing that data is a separate, explicitly-approved operation.
  */
 
-export type PhoneCountryIso = "OM" | "IN";
+export type PhoneCountryIso =
+  | "OM"
+  | "IN"
+  | "US"
+  | "CA"
+  | "GB"
+  | "AU"
+  | "CN"
+  | "AE"
+  | "SA"
+  | "QA"
+  | "KW"
+  | "BH"
+  | "PK"
+  | "BD";
 
 export interface PhoneCountry {
   iso: PhoneCountryIso;
@@ -206,16 +220,99 @@ export interface PhoneCountry {
   cc: string;
   /** Exact number of subscriber digits after the calling code. */
   localLength: number;
+  /** English display name for the picker. */
+  name: string;
+  /** Arabic display name — the picker is searchable in both locales. */
+  nameAr: string;
+  /** Regional-indicator flag emoji. Presentation only; never parsed. */
+  flag: string;
 }
 
 /**
- * Supported countries. Oman is production; India exists so QA can test a real Indian number
- * WITHOUT weakening Oman's rule — each country validates against its own length.
+ * Supported countries for phone entry.
+ *
+ * ── WHY A FIXED `localLength` IS STILL CORRECT AT 14 COUNTRIES ──
+ *
+ * Every country here has a fixed-length MOBILE subscriber number, which is the only kind a
+ * patient gives a clinic. That is what lets `phoneE164`, `phoneLocal`, `phoneInput` and
+ * `phoneProblem` stay exactly as they were — the registry grew, the algorithms did not.
+ * Adding a country with variable-length numbers (e.g. Germany) would require changing this
+ * shape to a range, and that is a deliberate future decision, not an accident waiting to
+ * happen.
+ *
+ * ── ORDER MATTERS FOR +1 ──
+ *
+ * The United States and Canada share calling code +1 with the same 10-digit length. Their
+ * E.164 output is therefore IDENTICAL, so nothing about storage, validation or delivery is
+ * ambiguous — only the flag shown. Telling them apart needs an NANP area-code table, which
+ * would be a second, much larger registry for a purely cosmetic gain.
+ *
+ * So detection is deliberately DETERMINISTIC rather than clever: the first +1 entry wins,
+ * and US is declared first. A Canadian patient may pick 🇨🇦 in the selector and see 🇺🇸 when
+ * they reopen the screen; their number is stored and delivered correctly either way. This is
+ * documented and pinned by a test rather than left as a surprise.
+ *
+ * ── ORDER ALSO MATTERS FOR PREFIX SHADOWING ──
+ *
+ * `COUNTRIES_BY_CC_LENGTH` below re-sorts by calling-code length so "968" is always tested
+ * before "96"-style shorter codes and "880" before "88". Without that, a short code could
+ * swallow a longer one and silently mis-country a number.
  */
 export const PHONE_COUNTRIES: Record<PhoneCountryIso, PhoneCountry> = {
-  OM: { iso: "OM", dialCode: "+968", cc: "968", localLength: 8 },
-  IN: { iso: "IN", dialCode: "+91", cc: "91", localLength: 10 },
+  // Oman first: the production market and the default.
+  OM: { iso: "OM", dialCode: "+968", cc: "968", localLength: 8, name: "Oman", nameAr: "عُمان", flag: "🇴🇲" },
+  IN: { iso: "IN", dialCode: "+91", cc: "91", localLength: 10, name: "India", nameAr: "الهند", flag: "🇮🇳" },
+  // US BEFORE CA — see the +1 note above. Changing this order changes which flag a stored
+  // +1 number displays.
+  US: { iso: "US", dialCode: "+1", cc: "1", localLength: 10, name: "United States", nameAr: "الولايات المتحدة", flag: "🇺🇸" },
+  CA: { iso: "CA", dialCode: "+1", cc: "1", localLength: 10, name: "Canada", nameAr: "كندا", flag: "🇨🇦" },
+  GB: { iso: "GB", dialCode: "+44", cc: "44", localLength: 10, name: "United Kingdom", nameAr: "المملكة المتحدة", flag: "🇬🇧" },
+  AU: { iso: "AU", dialCode: "+61", cc: "61", localLength: 9, name: "Australia", nameAr: "أستراليا", flag: "🇦🇺" },
+  CN: { iso: "CN", dialCode: "+86", cc: "86", localLength: 11, name: "China", nameAr: "الصين", flag: "🇨🇳" },
+  AE: { iso: "AE", dialCode: "+971", cc: "971", localLength: 9, name: "United Arab Emirates", nameAr: "الإمارات العربية المتحدة", flag: "🇦🇪" },
+  SA: { iso: "SA", dialCode: "+966", cc: "966", localLength: 9, name: "Saudi Arabia", nameAr: "السعودية", flag: "🇸🇦" },
+  QA: { iso: "QA", dialCode: "+974", cc: "974", localLength: 8, name: "Qatar", nameAr: "قطر", flag: "🇶🇦" },
+  KW: { iso: "KW", dialCode: "+965", cc: "965", localLength: 8, name: "Kuwait", nameAr: "الكويت", flag: "🇰🇼" },
+  BH: { iso: "BH", dialCode: "+973", cc: "973", localLength: 8, name: "Bahrain", nameAr: "البحرين", flag: "🇧🇭" },
+  PK: { iso: "PK", dialCode: "+92", cc: "92", localLength: 10, name: "Pakistan", nameAr: "باكستان", flag: "🇵🇰" },
+  BD: { iso: "BD", dialCode: "+880", cc: "880", localLength: 10, name: "Bangladesh", nameAr: "بنغلاديش", flag: "🇧🇩" },
 };
+
+/**
+ * Selector order: Oman and India first (the two markets that actually matter today), then
+ * the rest alphabetically. Declaration order in the record above is authoritative for
+ * DETECTION; this list is authoritative for DISPLAY.
+ */
+export const PHONE_COUNTRY_LIST: readonly PhoneCountry[] = [
+  PHONE_COUNTRIES.OM,
+  PHONE_COUNTRIES.IN,
+  ...Object.values(PHONE_COUNTRIES)
+    .filter((c) => c.iso !== "OM" && c.iso !== "IN")
+    .sort((a, b) => a.name.localeCompare(b.name)),
+];
+
+/**
+ * Free-text search over the country list, for the picker.
+ *
+ * Matches the English name, the Arabic name, the ISO code and the dial code, so a user can
+ * type "oman", "عمان", "OM", "968" or "+968" and find the same row. Dial-code matching
+ * ignores the "+" because a number pad may not offer one.
+ */
+export function searchPhoneCountries(
+  query: string | null | undefined,
+  list: readonly PhoneCountry[] = PHONE_COUNTRY_LIST
+): readonly PhoneCountry[] {
+  const q = (query ?? "").trim().toLowerCase();
+  if (!q) return list;
+  const qDigits = normalizeDigits(q);
+  return list.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.nameAr.includes(q) ||
+      c.iso.toLowerCase() === q ||
+      (qDigits.length > 0 && c.cc.startsWith(qDigits))
+  );
+}
 
 /** Oman — the product default. Nothing changes for an Oman patient. */
 export const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES.OM;

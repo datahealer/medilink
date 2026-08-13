@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import {
   CIVIL_NUMBER_LENGTH,
   civilNumberProblem,
@@ -8,9 +10,11 @@ import {
   isValidName,
   isValidOmanPhone,
   omanPhoneProblem,
+  phoneProblem,
   signInSchema,
   signUpSchema,
 } from "../validation";
+import { PHONE_COUNTRIES } from "@medilink/shared/mobile";
 
 /** Zod messages are injected from i18n; echo the key so assertions stay readable. */
 const t = ((key: string) => key) as unknown as Parameters<typeof signInSchema>[0];
@@ -200,12 +204,32 @@ describe("signUpSchema — password policy mirrors the backend", () => {
     expect(signUpSchema(t).safeParse({ ...base, acceptTerms: false, password: "Abcdef1!" }).success).toBe(false);
   });
 
-  it("requires an 8-digit Oman phone", () => {
-    // 9 digits is a typo and must still be rejected — the schema deliberately does NOT
-    // truncate to 8 (that would store a different number than the user typed). The 8-char
-    // cap lives in PhoneField, where the user sees the field refuse the keystroke.
-    expect(signUpSchema(t).safeParse({ ...base, phone: "912345678", password: "Abcdef1!" }).success).toBe(false);
+  it("applies a COARSE length gate — the per-country rule lives in the screen", () => {
+    // BEHAVIOUR SPLIT (multi-country phone entry). The schema is built once at mount and
+    // cannot see the country the user picks at runtime, so it now enforces only the bounds
+    // spanning every supported country (8 … 11 digits). The EXACT per-country length is
+    // enforced by `phoneProblem(value, country)` in sign-up.tsx — the same function
+    // edit-profile has always used, not a second validator.
+    //
+    // Below the floor and above the ceiling are still rejected here.
     expect(signUpSchema(t).safeParse({ ...base, phone: "9123456", password: "Abcdef1!" }).success).toBe(false);
+    expect(signUpSchema(t).safeParse({ ...base, phone: "123456789012", password: "Abcdef1!" }).success).toBe(false);
+    // 9 digits is now in-range for the schema (Australia is 9) …
+    expect(signUpSchema(t).safeParse({ ...base, phone: "912345678", password: "Abcdef1!" }).success).toBe(true);
+  });
+
+  it("…and 9 digits is STILL rejected for Oman by the rule that now owns it", () => {
+    // The guarantee did not weaken, it moved. This is the check sign-up.tsx runs and gates
+    // submit on, so a 9-digit Oman number cannot be submitted.
+    expect(phoneProblem("912345678", PHONE_COUNTRIES.OM)).toBe("format");
+    expect(phoneProblem("91234567", PHONE_COUNTRIES.OM)).toBeNull();
+    // …and the screen genuinely wires it, rather than merely colouring the field.
+    const signUp = fs.readFileSync(
+      path.join(__dirname, "..", "..", "..", "app", "auth", "sign-up.tsx"),
+      "utf8"
+    );
+    expect(signUp).toMatch(/phoneProblem\(phoneValue, country\)/);
+    expect(signUp).toMatch(/if \(phoneProblem\(values\.phone, country\)\) return;/);
   });
 
   it("ACCEPTS a pasted full E.164 number by dropping its country code (QA MED-007)", () => {

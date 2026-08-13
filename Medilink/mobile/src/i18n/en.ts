@@ -381,6 +381,16 @@ export const en = {
    * Phone linking. Kept separate from `signIn` because these strings belong to the
    * Settings flow, where the user is already authenticated.
    */
+  /** Country picker used by CountryPhoneField (sign-up, edit profile). */
+  phoneCountry: {
+    title: "Select country",
+    searchPlaceholder: "Search country or code",
+    noResults: "No countries match that search.",
+    selectLabel: "Country code, currently {country}",
+    selectHint: "Opens the country list",
+    // Shown when a STORED number matches no supported country — never silently assume Oman.
+    unknown: "This number's country isn't supported. Pick a country and re-enter the number.",
+  },
   phone: {
     title: "Mobile number",
     subtitle: "Verify your mobile number so clinics can reach you and you can sign in with it.",
@@ -396,7 +406,11 @@ export const en = {
     // A different account already owns this number. Deliberately does not say WHICH —
     // that would confirm the existence of another account for a given number.
     errorAlreadyLinked: "That number is already linked to another account.",
-    errorUnsupportedCountry: "We only support Oman (+968) and India (+91) numbers right now.",
+    // Verification scope, NOT number scope: a patient may STORE any of the 14 supported
+    // countries on their profile, but SMS verification is enabled for Oman and India only.
+    // Widening it is a cost + telecom-compliance decision, not a code change.
+    errorUnsupportedCountry:
+      "Phone verification isn't available for this country yet. Oman (+968) and India (+91) are supported.",
   },
   signUp: {
     title: "Create account",
