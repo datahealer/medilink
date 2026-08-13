@@ -708,8 +708,15 @@ export const en = {
     // Distinct from emptyTitle: this is "we don't serve where you are", not "your search
     // matched nothing". Showing the nearest Omani clinic to someone 1,800 km away would be
     // noise dressed up as a result.
+    // Full-screen empty state — reached ONLY when there is no eligible clinic anywhere,
+    // not merely none near the patient. Out of coverage now shows the national list on a
+    // live map instead of a blank screen.
     outOfCoverageTitle: "No clinics in your area",
     outOfCoverageBody: "MediLink clinics are in Oman. We couldn't find any near your location.",
+    // In-map notice shown ALONGSIDE the national clinic list. First line states the fact
+    // about the patient; second states what they are looking at. Neither claims proximity.
+    outOfCoverageNoticeTitle: "No MediLink clinics near your location",
+    outOfCoverageNoticeBody: "Showing MediLink clinics in Oman.",
     tilesError: "Couldn't load the map. Check your connection and try again.",
     // Location states. Each one is a DIFFERENT user action, which is why they are not one
     // generic string: re-prompting cannot fix a system-wide toggle, and iOS will not

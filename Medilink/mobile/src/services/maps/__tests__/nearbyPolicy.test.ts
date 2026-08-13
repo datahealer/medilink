@@ -161,6 +161,43 @@ describe("camera — the patient's position wins, and the map cannot zoom to a c
     expect(fit).toEqual([]);
   });
 
+  it("includeUser:false frames the clinics ALONE — the out-of-coverage fallback", () => {
+    const fit = selectFitPoints(
+      OMAN_MARKERS,
+      { latitude: DELHI.latitude, longitude: DELHI.longitude },
+      { includeUser: false }
+    );
+    // Every clinic is framed…
+    expect(fit.length).toBe(OMAN_MARKERS.length);
+    // …and the patient's India coordinate appears nowhere in the bounds.
+    expect(fit.map((p) => p[0])).not.toContain(DELHI.latitude);
+    expect(fit.map((p) => p[1])).not.toContain(DELHI.longitude);
+  });
+
+  it("includeUser:false does not silently discard far-apart clinics", () => {
+    // Salalah is 854 km from Ruwi. With the patient excluded there is no proximity filter
+    // left to apply, so the national set must survive intact.
+    const national = [...OMAN_MARKERS, marker("salalah", SALALAH), marker("sohar", SOHAR)];
+    const fit = selectFitPoints(national, { latitude: DELHI.latitude, longitude: DELHI.longitude }, {
+      includeUser: false,
+    });
+    expect(fit.length).toBe(national.length);
+    expect(fit.map((p) => p[0])).toContain(SALALAH.latitude);
+  });
+
+  it("defaults to including the user, so in-coverage framing is unchanged", () => {
+    const near = { latitude: 23.61, longitude: 58.44 };
+    expect(selectFitPoints(OMAN_MARKERS, near)).toEqual(
+      selectFitPoints(OMAN_MARKERS, near, { includeUser: true })
+    );
+  });
+
+  it("a custom maxKm still works through the options object", () => {
+    const near = { latitude: 23.61, longitude: 58.44 };
+    // Ruwi/Ghala/Khoudh are all within ~28 km; a 1 km radius admits none of them.
+    expect(selectFitPoints(OMAN_MARKERS, near, { maxKm: 1 })).toEqual([]);
+  });
+
   it("frames the patient together with clinics that are genuinely near them", () => {
     const fit = selectFitPoints(OMAN_MARKERS, { latitude: 23.61, longitude: 58.44 });
     expect(fit.length).toBe(OMAN_MARKERS.length + 1);
@@ -195,6 +232,23 @@ describe("camera — the patient's position wins, and the map cannot zoom to a c
     expect(FIT_USER_MAX_KM).toBe(150);
     expect(haversineKm(RUWI, FIRQ)).toBeLessThan(FIT_USER_MAX_KM);
     expect(haversineKm(RUWI, SOHAR)).toBeGreaterThan(FIT_USER_MAX_KM);
+  });
+
+  it("buildLeafletHtml honours frameWithUser:false — India never enters the payload bounds", () => {
+    const html = buildLeafletHtml({
+      camera: { latitude: 23.588, longitude: 58.3829, latitudeDelta: 0.35, longitudeDelta: 0.35 },
+      markers: OMAN_MARKERS,
+      tiles: { urlTemplate: "u", attributionHtml: "a", maxZoom: 19, supportsDarkFilter: true },
+      dark: false,
+      userLocation: { latitude: DELHI.latitude, longitude: DELHI.longitude, accuracyM: 30 },
+      frameWithUser: false,
+      colors: { primary: "#1", accent: "#2", surface: "#3", text: "#4" },
+    });
+    const fit = JSON.parse(/"fit":(\[.*?\]\])/.exec(html)?.[1] ?? "[]");
+    expect(fit.length).toBe(OMAN_MARKERS.length);
+    expect(JSON.stringify(fit)).not.toContain(String(DELHI.latitude));
+    // The pin itself is still DRAWN — we hide it from framing, we do not delete it.
+    expect(html).toContain(`"user":{"latitude":${DELHI.latitude}`);
   });
 
   it("the page carries a hard zoom floor as a second line of defence", () => {
@@ -301,8 +355,8 @@ describe("the map screen actually asks for a location", () => {
     expect(src).toMatch(/action:\s*"request"/);
   });
 
-  it("shows an out-of-coverage empty state instead of one far-away clinic", () => {
-    expect(src).toMatch(/coverage === "outOfCoverage"/);
+  it("keeps the out-of-coverage and far states distinct", () => {
+    expect(src).toMatch(/outOfCoverage\s*=\s*coverage === "outOfCoverage"/);
     expect(src).toContain("map.outOfCoverageTitle");
     expect(src).toContain("map.nearestIsFar");
   });
@@ -311,6 +365,117 @@ describe("the map screen actually asks for a location", () => {
     expect(src).not.toMatch(/\.slice\(/);
     expect(src).not.toMatch(/\.sort\(/);
     expect(src).not.toMatch(/6371/);
+  });
+});
+
+describe("out-of-coverage fallback — the map stays visible and useful", () => {
+  const MAP = fs.readFileSync(
+    path.join(__dirname, "..", "..", "..", "..", "app", "(app)", "search", "map.tsx"),
+    "utf8"
+  );
+  const src = MAP.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  it("REGRESSION: the clinic list is no longer emptied when out of coverage", () => {
+    // The exact line that blanked the screen: `if (coverage === "outOfCoverage") return [];`
+    // inside the clinics useMemo.
+    expect(src).not.toMatch(/if \(coverage === "outOfCoverage"\) return \[\];/);
+    expect(src).not.toMatch(/outOfCoverage\) return \[\]/);
+  });
+
+  it("sources the fallback from the SAME RPC with the Muscat origin, gated on out-of-coverage", () => {
+    expect(src).toMatch(
+      /useNearbyClinics\(\s*\{\s*lat:\s*MUSCAT\.lat,\s*lng:\s*MUSCAT\.lng\s*\},\s*\{\s*enabled:\s*outOfCoverage\s*\}\s*\)/
+    );
+    // No second endpoint, no hand-rolled clinic list, no seeded data.
+    expect(src).not.toMatch(/apiFetch/);
+    expect(src).not.toMatch(/mockRepositories|mock\./);
+  });
+
+  it("swaps the SOURCE of the markers, not their existence", () => {
+    expect(src).toMatch(/outOfCoverage \? \(fallbackQuery\.data \?\? \[\]\) : all/);
+    // Markers still derive from `clinics`, which still derives from `source`.
+    expect(src).toMatch(/return source\.filter\(/);
+  });
+
+  it("does not fire the fallback query until the primary one has actually answered", () => {
+    expect(src).toMatch(/query\.isSuccess\s*\?\s*coverageFor/);
+  });
+
+  it("frames the clinics ALONE — the India coordinate is excluded from the bounds", () => {
+    expect(src).toMatch(/frameWithUser=\{!outOfCoverage\}/);
+  });
+
+  it("anchors the camera on a clinic, never on the patient, when out of coverage", () => {
+    expect(src).toMatch(/const camera: MapCamera = outOfCoverage/);
+    expect(src).toMatch(/anchorClinic/);
+  });
+
+  it("never converts the patient's position into a fake Oman location", () => {
+    // userLocation is still derived ONLY from a real fix — the fallback origin is used for
+    // the QUERY, never written back into the pin.
+    expect(src).toMatch(/const userLocation: UserLocation \| null =\s*location\.hasLocation && location\.coords/);
+    expect(src).not.toMatch(/userLocation\s*=\s*\{[^}]*MUSCAT/);
+  });
+
+  it("shows the required two-line notice", () => {
+    expect(src).toContain("map.outOfCoverageNoticeTitle");
+    expect(src).toContain("map.outOfCoverageNoticeBody");
+    expect(src).toMatch(/outOfCoverage && clinics\.length > 0/);
+  });
+
+  it("NO misleading proximity wording in fallback mode", () => {
+    // The footer must not fall through to "Sorted by distance from you".
+    expect(src).toMatch(/\{outOfCoverage\s*\?\s*t\("map\.outOfCoverageNoticeBody"\)/);
+  });
+
+  it("NO misleading distance: the Muscat-relative value is suppressed entirely", () => {
+    expect(src).toMatch(/const distance = outOfCoverage \? null : formatDistanceKm\(/);
+  });
+
+  it("keeps search working over the fallback set", () => {
+    expect(src).toMatch(/source\.filter\(\s*\(c\) =>\s*c\.name\.toLowerCase\(\)\.includes\(q\)/);
+    // Search is applied AFTER the source is chosen, so it narrows whichever set is in play.
+    expect(src.indexOf("const source: Clinic[]")).toBeLessThan(src.indexOf("return source.filter("));
+  });
+
+  it("still shows a real empty state when the backend has no clinic at all", () => {
+    expect(src).toMatch(/outOfCoverage && source\.length === 0/);
+    expect(src).toContain("map.emptyTitle");
+  });
+
+  it("waits for, and can retry, the fallback query", () => {
+    expect(src).toMatch(/fallbackQuery\.isLoading/);
+    expect(src).toMatch(/fallbackQuery\.isError/);
+    expect(src).toMatch(/fallbackQuery\.refetch\(\)/);
+  });
+
+  it("REGRESSION: markers, spreading, tap-through and directions are untouched", () => {
+    expect(src).toMatch(/spreadCoincident\(/);
+    expect(src).toMatch(/onMarkerPress=\{setSelectedId\}/);
+    expect(src).toMatch(/router\.push\(`\/clinics\/\$\{c\.id\}`\)/);
+    expect(src).toMatch(/<Card onPress=\{\(\) => openClinic\(active\)\}/);
+    expect(src).toMatch(/onPress=\{\(\) => openDirections\(active\)\}/);
+    expect(src).toMatch(/nativeDirectionsUrl/);
+    expect(src).toMatch(/webDirectionsUrl/);
+  });
+
+  it("REGRESSION: the denied / services-disabled Muscat fallback is unchanged", () => {
+    expect(src).toMatch(/:\s*\{\s*lat:\s*MUSCAT\.lat,\s*lng:\s*MUSCAT\.lng\s*\}/);
+    expect(src).toContain("map.nearMuscat");
+    expect(src).toContain("map.locationDeniedBody");
+    expect(src).toContain("map.locationServicesOffBody");
+    expect(src).toMatch(/Linking\.openSettings\(\)/);
+  });
+
+  it("REGRESSION: privacy rules hold — no persistence, no logging of the coordinate", () => {
+    expect(src).not.toMatch(/AsyncStorage/);
+    expect(src).not.toMatch(/SecureStore/);
+    expect(src).not.toMatch(/console\./);
+    expect(src).not.toMatch(/reportError/);
+  });
+
+  it("mirrors the notice for RTL", () => {
+    expect(src).toMatch(/textAlign: isRTL \? "right" : "left"/);
   });
 });
 
@@ -323,6 +488,8 @@ describe("localization parity for the new copy", () => {
   it.each([
     "outOfCoverageTitle",
     "outOfCoverageBody",
+    "outOfCoverageNoticeTitle",
+    "outOfCoverageNoticeBody",
     "nearestIsFar",
     "distanceVeryClose",
   ])("%s exists in both catalogs", (key) => {
@@ -330,8 +497,19 @@ describe("localization parity for the new copy", () => {
     expect(ar).toContain(`${key}:`);
   });
 
+  it("the notice copy says exactly what the product asked for", () => {
+    expect(en).toContain('outOfCoverageNoticeTitle: "No MediLink clinics near your location"');
+    expect(en).toContain('outOfCoverageNoticeBody: "Showing MediLink clinics in Oman."');
+  });
+
   it("the Arabic strings are Arabic, not an English fallback", () => {
-    for (const key of ["outOfCoverageTitle", "nearestIsFar", "distanceVeryClose"]) {
+    for (const key of [
+      "outOfCoverageTitle",
+      "outOfCoverageNoticeTitle",
+      "outOfCoverageNoticeBody",
+      "nearestIsFar",
+      "distanceVeryClose",
+    ]) {
       const line = ar.split(/\r?\n/).find((l) => l.includes(`${key}:`)) ?? "";
       expect(line).toMatch(/[؀-ۿ]/);
     }

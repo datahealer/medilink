@@ -12,6 +12,13 @@ export interface OsmMapViewProps {
   markers: MapMarker[];
   /** Patient position, when location permission has been granted. */
   userLocation?: UserLocation | null;
+  /**
+   * Should the patient's pin influence the camera? Defaults to `true`. Set `false` when the
+   * pin is real but irrelevant to framing — the out-of-coverage fallback, where the patient
+   * is thousands of kilometres from every clinic and fitting both would zoom the map out
+   * until the clinics are invisible. The pin is still drawn.
+   */
+  frameWithUser?: boolean;
   onMarkerPress?: (id: string) => void;
   onMapPress?: () => void;
   /** Fired once Leaflet has rendered, or with a reason when it could not. */
@@ -36,6 +43,7 @@ export function OsmMapView({
   camera,
   markers,
   userLocation,
+  frameWithUser = true,
   onMarkerPress,
   onMapPress,
   onReady,
@@ -64,6 +72,7 @@ export function OsmMapView({
         tiles: activeTileSource(),
         dark: scheme === "dark",
         userLocation: userLocation ?? null,
+        frameWithUser,
         colors: {
           primary: colors.primary,
           accent: colors.primaryMuted,
@@ -82,6 +91,7 @@ export function OsmMapView({
       userLocation?.latitude,
       userLocation?.longitude,
       userLocation?.accuracyM,
+      frameWithUser,
       scheme,
       colors.primary,
       colors.primaryMuted,

@@ -33,9 +33,20 @@ describe("6. the patient's coordinates are what get queried", () => {
     expect(src).toMatch(/useNearbyClinics\(origin\b/);
   });
 
-  it("REGRESSION: no longer passes the Muscat constant as the search origin", () => {
-    // The exact bug: useNearbyClinics({ lat: MUSCAT.lat, lng: MUSCAT.lng }).
-    expect(src).not.toMatch(/useNearbyClinics\(\s*\{\s*lat:\s*MUSCAT\.lat/);
+  it("REGRESSION: the PRIMARY query is never anchored to the Muscat constant", () => {
+    // The original bug: `const query = useNearbyClinics({ lat: MUSCAT.lat, lng: MUSCAT.lng })`
+    // — the proximity search itself hardcoded to a city.
+    //
+    // This can no longer be a blanket ban on the literal, because the out-of-coverage
+    // fallback deliberately queries the national list from that same centroid. The
+    // distinction that matters is WHICH query: the primary one must take `origin`, and any
+    // Muscat-anchored call must be the fallback, which is gated on `enabled: outOfCoverage`
+    // and can therefore never serve as the proximity search.
+    expect(src).toMatch(/const query = useNearbyClinics\(origin\b/);
+    const muscatCalls = src.match(/useNearbyClinics\(\s*\{\s*lat:\s*MUSCAT\.lat[\s\S]*?\)\s*;/g) ?? [];
+    for (const call of muscatCalls) {
+      expect(call).toMatch(/enabled:\s*outOfCoverage/);
+    }
   });
 
   it("keeps MUSCAT only as a fallback origin, reachable when there is no fix", () => {

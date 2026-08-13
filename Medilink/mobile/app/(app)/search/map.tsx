@@ -138,29 +138,64 @@ export default function MapViewScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  /** Everything the RPC returned, before the search box narrows it. */
+  /** Everything the proximity RPC returned, before the search box narrows it. */
   const all = useMemo(() => query.data ?? [], [query.data]);
 
   /**
    * How far the patient actually is from the nearest clinic — read off the FIRST row,
    * because the RPC already ordered by distance ascending and this screen never re-sorts.
+   *
+   * Gated on `isSuccess` so an in-flight query is never mistaken for "nothing found": the
+   * row set is empty while loading, and treating that as out-of-coverage would fire the
+   * fallback query below on every open.
    */
-  const coverage = coverageFor(all[0]?.distance_km, location.hasLocation);
+  const coverage = query.isSuccess
+    ? coverageFor(all[0]?.distance_km, location.hasLocation)
+    : "unknown";
+  const outOfCoverage = coverage === "outOfCoverage";
 
   /**
-   * Out of coverage: the nearest clinic is further away than any patient would call
-   * "near me", so we show nothing rather than one arbitrary clinic on the other side of a
-   * sea. Rows are withheld only from the LIST — never dropped from the query — so the
-   * decision is visible here and reversible in one place.
+   * ── OUT-OF-COVERAGE FALLBACK ──
+   *
+   * The patient has a real fix, and there is nothing near them. Measured against
+   * production: a device in Delhi is ~2,900 km from the nearest Omani clinic, so the
+   * proximity query returns ZERO rows — which is why this screen previously went blank.
+   * Suppressing the list was only half of it; there was also genuinely nothing to draw.
+   *
+   * So we ask a second question — "what clinics does MediLink have at all?" — using the
+   * SAME RPC with the Muscat centroid as origin, which is exactly the call this screen
+   * already makes when location permission is denied. No new endpoint, no new query
+   * shape, no fabricated clinics. It runs ONLY when the first answer was "none near you".
+   *
+   * CRITICAL: the `distance_km` on these rows is measured FROM MUSCAT, not from the
+   * patient. It is never displayed — see `distance` below. Presenting a Muscat-relative
+   * distance as the patient's own is precisely the class of bug this screen has already
+   * been fixed for once.
    */
+  const fallbackQuery = useNearbyClinics(
+    { lat: MUSCAT.lat, lng: MUSCAT.lng },
+    { enabled: outOfCoverage }
+  );
+
+  /**
+   * The clinic set this screen is showing, and what it MEANS. Out of coverage it is the
+   * national list; otherwise it is the patient's neighbourhood.
+   */
+  // Memoised so the `?? []` does not mint a fresh array on every render and invalidate the
+  // marker/search memos below it.
+  const source: Clinic[] = useMemo(
+    () => (outOfCoverage ? (fallbackQuery.data ?? []) : all),
+    [outOfCoverage, fallbackQuery.data, all]
+  );
+
+  /** Search narrows whichever set is in play — it must keep working in fallback mode too. */
   const clinics = useMemo(() => {
-    if (coverage === "outOfCoverage") return [];
     const q = search.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(
+    if (!q) return source;
+    return source.filter(
       (c) => c.name.toLowerCase().includes(q) || (c.area ?? "").toLowerCase().includes(q)
     );
-  }, [all, search, coverage]);
+  }, [source, search]);
 
   const active: Clinic | undefined = clinics.find((c) => c.id === selectedId) ?? clinics[0];
 
@@ -169,8 +204,13 @@ export default function MapViewScreen() {
    * rounded up to look better. `veryClose` replaces the bare "0 km" that the old Muscat
    * origin produced on every open, because three Ruwi clinics are stored at exactly the
    * Muscat fallback coordinate.
+   *
+   * SUPPRESSED ENTIRELY in fallback mode. Those rows are Muscat-relative; the honest
+   * options were "hide it" or "invent a patient-relative distance", and inventing one
+   * means a second RPC round-trip to state something the patient already knows — that the
+   * clinics are in another country. The card shows the rating alone.
    */
-  const distance = formatDistanceKm(active?.distance_km);
+  const distance = outOfCoverage ? null : formatDistanceKm(active?.distance_km);
 
   /** Markers for the map surface, derived from the same clinic list as the card. */
   const markers: MapMarker[] = useMemo(
@@ -204,15 +244,37 @@ export default function MapViewScreen() {
         }
       : null;
 
-  /** Follow the patient once located; otherwise stay on the country-level fallback view. */
-  const camera: MapCamera = userLocation
-    ? {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: LOCATED_DELTA,
-        longitudeDelta: LOCATED_DELTA,
-      }
-    : FALLBACK_CAMERA;
+  /**
+   * CAMERA — three modes, stated explicitly rather than emerging from a chain of ternaries:
+   *
+   *   1. Located and in coverage → centre on the patient at city zoom. `selectFitPoints`
+   *      then widens just enough to include the clinics near them.
+   *   2. Out of coverage         → the patient is irrelevant to framing. Anchor on the
+   *      nearest clinic in the national list (the RPC ordered it, so `[0]` is a real
+   *      anchor, not an arbitrary pick) and let `fitBounds` frame the whole set. The
+   *      anchor matters for the one-clinic case, where `selectFitPoints` returns `[]` by
+   *      design and this value is the final word — without it the camera would sit on the
+   *      patient's own country with every marker off-screen.
+   *   3. No fix at all           → the country-level Muscat view, unchanged.
+   */
+  const anchorClinic = clinics.find((c) => c.latitude != null && c.longitude != null);
+  const camera: MapCamera = outOfCoverage
+    ? anchorClinic
+      ? {
+          latitude: anchorClinic.latitude as number,
+          longitude: anchorClinic.longitude as number,
+          latitudeDelta: FALLBACK_CAMERA.latitudeDelta,
+          longitudeDelta: FALLBACK_CAMERA.longitudeDelta,
+        }
+      : FALLBACK_CAMERA
+    : userLocation
+      ? {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: LOCATED_DELTA,
+          longitudeDelta: LOCATED_DELTA,
+        }
+      : FALLBACK_CAMERA;
 
   /** Which explanatory line to show, keyed off WHY we have no position. */
   const locationNotice: { body: string; action: "request" | "settings" } | null =
@@ -271,6 +333,10 @@ export default function MapViewScreen() {
           camera={camera}
           markers={markers}
           userLocation={userLocation}
+          // The pin stays REAL and stays drawn; it just stops dragging the camera when the
+          // patient is thousands of kilometres from every clinic. Framing and drawing are
+          // separate decisions — see selectFitPoints.
+          frameWithUser={!outOfCoverage}
           onMarkerPress={setSelectedId}
           onError={setMapError}
           testID="osm-map"
@@ -284,25 +350,52 @@ export default function MapViewScreen() {
           </View>
         ) : null}
 
-        {!locationSettled || query.isLoading ? (
+        {!locationSettled || query.isLoading || fallbackQuery.isLoading ? (
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
             <LoadingState />
           </View>
-        ) : query.isError ? (
+        ) : query.isError || fallbackQuery.isError ? (
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
-            <ErrorState message={t("map.loadError")} onRetry={() => query.refetch()} />
+            <ErrorState
+              message={t("map.loadError")}
+              onRetry={() => void (outOfCoverage ? fallbackQuery.refetch() : query.refetch())}
+            />
           </View>
         ) : clinics.length === 0 ? (
+          /* The ONLY remaining full-screen state. Out of coverage no longer lands here —
+             it now shows the national clinic list on a live map — so reaching this means
+             either the search matched nothing or the backend genuinely has no eligible
+             clinic to offer. Those are different sentences. */
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
-            {/* Two genuinely different empty states: "we don't serve where you are" is not
-                the same message as "nothing matched your search". */}
             <EmptyState
-              title={coverage === "outOfCoverage" ? t("map.outOfCoverageTitle") : t("map.emptyTitle")}
-              body={coverage === "outOfCoverage" ? t("map.outOfCoverageBody") : t("map.emptyBody")}
+              title={outOfCoverage && source.length === 0 ? t("map.outOfCoverageTitle") : t("map.emptyTitle")}
+              body={outOfCoverage && source.length === 0 ? t("map.outOfCoverageBody") : t("map.emptyBody")}
             />
           </View>
         ) : null}
       </View>
+
+      {/* Out-of-coverage notice. Two sentences, deliberately: the first states the fact
+          about the patient's location, the second states what they are looking at instead.
+          No action button — there is nothing the patient can do about being in another
+          country, and offering "Open Settings" here would imply otherwise. Mutually
+          exclusive with the location notice below (that one only renders without a fix). */}
+      {outOfCoverage && clinics.length > 0 ? (
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
+          <Card padded>
+            <Text variant="label" style={{ textAlign: isRTL ? "right" : "left" }}>
+              {t("map.outOfCoverageNoticeTitle")}
+            </Text>
+            <Text
+              variant="caption"
+              color="textMuted"
+              style={{ paddingTop: 2, textAlign: isRTL ? "right" : "left" }}
+            >
+              {t("map.outOfCoverageNoticeBody")}
+            </Text>
+          </Card>
+        </View>
+      ) : null}
 
       {/* Location notice — explains WHERE the distances are measured from, and offers the
           one action that can actually change it. Never claims Muscat is the patient. */}
@@ -387,14 +480,17 @@ export default function MapViewScreen() {
             </Text>
           </Pressable>
 
-          {/* Removes the ambiguity in "4.6 km" — from where? And when the nearest clinic
-              is well outside "near me", says so instead of letting the title imply it. */}
+          {/* Removes the ambiguity in "4.6 km" — from where? Out of coverage there is no
+              distance on the card at all, so this line says what the list IS instead of
+              what it is sorted by. It must never read "from you" there. */}
           <Text variant="caption" color="textMuted" style={{ paddingTop: 4 }}>
-            {coverage === "far"
-              ? t("map.nearestIsFar")
-              : location.hasLocation
-                ? t("map.nearYou")
-                : t("map.nearMuscat")}
+            {outOfCoverage
+              ? t("map.outOfCoverageNoticeBody")
+              : coverage === "far"
+                ? t("map.nearestIsFar")
+                : location.hasLocation
+                  ? t("map.nearYou")
+                  : t("map.nearMuscat")}
           </Text>
         </View>
       ) : null}

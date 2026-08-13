@@ -112,15 +112,28 @@ export const FIT_MIN_ZOOM = 4;
  *
  * Returns `[]` to mean "do not call fitBounds"; a single point is also `[]`, since fitting
  * one coordinate slams the map to maximum zoom.
+ *
+ * ── `includeUser: false` ──
+ *
+ * Out-of-coverage fallback. The patient is genuinely somewhere we do not serve (measured:
+ * a device in Delhi is ~2,900 km from the nearest Omani clinic), and we are showing the
+ * Oman clinics anyway so the screen is not blank. Framing must then ignore the patient
+ * COMPLETELY — including them is the Arabian Sea bug by another route, and the
+ * "clinics near you" filter below would drop every marker and leave the camera on India.
+ *
+ * This is a caller decision, not something to infer from distance: the caller already
+ * knows the coverage state, and inferring it here would put the same rule in two places.
  */
 export function selectFitPoints(
   markers: MapMarker[],
   user?: UserLocation | null,
-  maxKm: number = FIT_USER_MAX_KM
+  options?: { maxKm?: number; includeUser?: boolean }
 ): [number, number][] {
+  const maxKm = options?.maxKm ?? FIT_USER_MAX_KM;
+  const includeUser = options?.includeUser ?? true;
   const valid = sanitizeMarkers(markers);
 
-  if (!user || !Number.isFinite(user.latitude) || !Number.isFinite(user.longitude)) {
+  if (!includeUser || !user || !Number.isFinite(user.latitude) || !Number.isFinite(user.longitude)) {
     return valid.length > 1 ? valid.map((m) => [m.latitude, m.longitude]) : [];
   }
 
@@ -165,6 +178,13 @@ export interface LeafletHtmlOptions {
   dark: boolean;
   /** Patient position, when available. */
   userLocation?: UserLocation | null;
+  /**
+   * Whether the patient's pin takes part in the camera framing. `false` in the
+   * out-of-coverage fallback, where the pin is still DRAWN at its real coordinates but the
+   * camera frames the Oman clinics alone. Drawing and framing are separate concerns and
+   * this is the seam between them.
+   */
+  frameWithUser?: boolean;
   /** Theme colours so pins match the app palette. */
   colors: { primary: string; accent: string; surface: string; text: string };
 }
@@ -174,7 +194,7 @@ export interface LeafletHtmlOptions {
  * assets — there is no application JavaScript served from a third party.
  */
 export function buildLeafletHtml(options: LeafletHtmlOptions): string {
-  const { camera, markers, tiles, dark, userLocation, colors } = options;
+  const { camera, markers, tiles, dark, userLocation, colors, frameWithUser } = options;
 
   const payload = encodeJson({
     center: [camera.latitude, camera.longitude],
@@ -183,7 +203,7 @@ export function buildLeafletHtml(options: LeafletHtmlOptions): string {
     user: userLocation ?? null,
     // Precomputed in JS (pure + unit-tested) rather than in the page, so the camera rule
     // is provable without standing up a WebView. `[]` means "keep setView".
-    fit: selectFitPoints(markers, userLocation),
+    fit: selectFitPoints(markers, userLocation, { includeUser: frameWithUser ?? true }),
     minZoom: FIT_MIN_ZOOM,
     tiles: {
       url: tiles.urlTemplate,
