@@ -65,6 +65,29 @@ export interface CurrentLocation {
 }
 
 /**
+ * Is this a coordinate a real receiver produced, or a placeholder?
+ *
+ * `typeof === "number" && !NaN` was not enough. Some Android location stacks emit
+ * **(0, 0)** before the first real fix — "Null Island", a point in the Gulf of Guinea. It
+ * is a perfectly valid number pair, so it passed every previous check, was reported as
+ * `granted`, and would have been sent to `get_nearby_facilities` as the patient's home
+ * coordinate and drawn as their "you are here" pin in the Atlantic.
+ *
+ * Exactly (0, 0) is rejected because no patient of an Omani clinic network is there, and a
+ * sentinel that survives into a proximity query is worse than admitting we have no fix.
+ * Out-of-range values are rejected for the same reason: Leaflet will happily draw a marker
+ * at latitude 400 and the map becomes nonsense.
+ */
+export function isUsableFix(lat: unknown, lng: unknown): lat is number {
+  if (typeof lat !== "number" || typeof lng !== "number") return false;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
+  // The Null Island sentinel. A genuine fix within ~100 m of it is not a case we serve.
+  if (lat === 0 && lng === 0) return false;
+  return true;
+}
+
+/**
  * @param options.auto request once on mount. Default `false` — a screen should normally
  *   decide when to prompt, so the OS dialog is not the first thing a patient sees.
  */
@@ -121,7 +144,7 @@ export function useCurrentLocation(options?: { auto?: boolean }): CurrentLocatio
 
       const lat = position?.coords?.latitude;
       const lng = position?.coords?.longitude;
-      if (typeof lat !== "number" || typeof lng !== "number" || Number.isNaN(lat) || Number.isNaN(lng)) {
+      if (!isUsableFix(lat, lng)) {
         if (alive.current) {
           setCoords(null);
           setStatus("unavailable");

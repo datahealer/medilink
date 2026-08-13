@@ -51,6 +51,87 @@ export function sanitizeMarkers(markers: MapMarker[]): MapMarker[] {
   );
 }
 
+/**
+ * Framing distance ONLY. This is not, and must never become, the distance the patient
+ * reads: ordering and every displayed `distance_km` come from PostGIS via
+ * `get_nearby_facilities` and are never recomputed on the device. This haversine answers
+ * one local question — "is the patient's pin in the same region as this clinic's pin, or
+ * on another continent?" — which is a camera decision, not a clinical one.
+ */
+export function haversineKm(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number }
+): number {
+  const R = 6371.0088;
+  const rad = (x: number) => (x * Math.PI) / 180;
+  const dLat = rad(b.latitude - a.latitude);
+  const dLng = rad(b.longitude - a.longitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * How far a clinic may be from the patient and still be worth framing alongside them.
+ * Matches `NEARBY_RADIUS_M`'s sibling constant `NEAR_ME_KM` in spirit, but is intentionally
+ * looser: a clinic 120 km away is still a sensible thing to fit in view, whereas one 2,000
+ * km away is what produced the bug below.
+ */
+export const FIT_USER_MAX_KM = 150;
+
+/** Leaflet is never allowed to zoom out past this, whatever bounds it is handed. */
+export const FIT_MIN_ZOOM = 4;
+
+/**
+ * Which points `fitBounds` is allowed to frame.
+ *
+ * ── THE BUG THIS FIXES ──
+ *
+ * The page previously pushed EVERY marker plus the patient pin into one `bounds` array and
+ * called `map.fitBounds(bounds, { maxZoom: 15 })`. Two things were wrong with that.
+ *
+ * First, `maxZoom` clamps zooming IN, not OUT — there was no lower bound at all. Second,
+ * and worse, `fitBounds` runs AFTER `setView(DATA.center, DATA.zoom)`, so it silently
+ * overrode the camera the screen had carefully computed. The screen believed it was
+ * centred on the patient; Leaflet re-framed to whatever box contained everything.
+ *
+ * With a device outside Oman that combination produced the reported screenshot: Omani
+ * clinic pins on one side, the patient pin ~2,000 km away on the other, and a frame
+ * stretched across the Arabian Sea to fit both. At that zoom the seven Muscat-area clinics
+ * — which span about 28 km — fall inside a couple of pixels and read as a SINGLE marker,
+ * which is why "only one clinic" appeared to be returned when in fact seven were.
+ *
+ * ── THE RULE ──
+ *
+ * The patient's own position wins. When we have a fix, we frame the patient plus only the
+ * clinics genuinely near them; if none are, we return nothing and the caller's `setView`
+ * stands, keeping the camera exactly where the screen asked for it. With no fix there is
+ * no patient pin to argue with, so all markers are framed — that is the Muscat-fallback
+ * view, and it is correct.
+ *
+ * Returns `[]` to mean "do not call fitBounds"; a single point is also `[]`, since fitting
+ * one coordinate slams the map to maximum zoom.
+ */
+export function selectFitPoints(
+  markers: MapMarker[],
+  user?: UserLocation | null,
+  maxKm: number = FIT_USER_MAX_KM
+): [number, number][] {
+  const valid = sanitizeMarkers(markers);
+
+  if (!user || !Number.isFinite(user.latitude) || !Number.isFinite(user.longitude)) {
+    return valid.length > 1 ? valid.map((m) => [m.latitude, m.longitude]) : [];
+  }
+
+  const near = valid.filter((m) => haversineKm(m, user) <= maxKm);
+  if (near.length === 0) return [];
+  return [
+    [user.latitude, user.longitude],
+    ...near.map((m) => [m.latitude, m.longitude] as [number, number]),
+  ];
+}
+
 /** Parse a `postMessage` payload from the WebView. Returns null for anything unexpected. */
 export function parseMapMessage(raw: string): MapMessage | null {
   let parsed: unknown;
@@ -100,6 +181,10 @@ export function buildLeafletHtml(options: LeafletHtmlOptions): string {
     zoom: deltaToZoom(camera.latitudeDelta),
     markers: sanitizeMarkers(markers),
     user: userLocation ?? null,
+    // Precomputed in JS (pure + unit-tested) rather than in the page, so the camera rule
+    // is provable without standing up a WebView. `[]` means "keep setView".
+    fit: selectFitPoints(markers, userLocation),
+    minZoom: FIT_MIN_ZOOM,
     tiles: {
       url: tiles.urlTemplate,
       attribution: tiles.attributionHtml,
@@ -164,7 +249,9 @@ export function buildLeafletHtml(options: LeafletHtmlOptions): string {
   }
 
   function render() {
-    var map = L.map("map", { zoomControl: false, attributionControl: true })
+    // minZoom is a hard floor: no bounds, however wrong, can zoom the map out to a
+    // continental frame again.
+    var map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: DATA.minZoom })
       .setView(DATA.center, DATA.zoom);
 
     L.control.zoom({ position: "topright" }).addTo(map);
@@ -174,8 +261,6 @@ export function buildLeafletHtml(options: LeafletHtmlOptions): string {
       maxZoom: DATA.tiles.maxZoom,
       attribution: DATA.tiles.attribution,
     }).addTo(map);
-
-    var bounds = [];
 
     DATA.markers.forEach(function (m) {
       var icon = L.divIcon({
@@ -194,7 +279,6 @@ export function buildLeafletHtml(options: LeafletHtmlOptions): string {
       marker.bindPopup(content);
 
       marker.on("click", function () { post({ type: "markerPress", id: m.id }); });
-      bounds.push([m.latitude, m.longitude]);
     });
 
     if (DATA.user) {
@@ -214,12 +298,12 @@ export function buildLeafletHtml(options: LeafletHtmlOptions): string {
           color: DATA.colors.primary, weight: 1, opacity: 0.4, fillOpacity: 0.08,
         }).addTo(map);
       }
-      bounds.push([DATA.user.latitude, DATA.user.longitude]);
     }
 
-    // Frame everything when there is more than one point; a single pin keeps the
-    // requested zoom so the view doesn't slam to max on one clinic.
-    if (bounds.length > 1) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
+    // The framing decision was made in JS (selectFitPoints) — the page only applies it.
+    // An empty list means the requested setView stands, which is how the camera stays on
+    // the patient when no clinic is near enough to be worth framing with them.
+    if (DATA.fit.length > 1) map.fitBounds(DATA.fit, { padding: [48, 48], maxZoom: 15 });
 
     map.on("click", function () { post({ type: "mapPress" }); });
     post({ type: "ready" });

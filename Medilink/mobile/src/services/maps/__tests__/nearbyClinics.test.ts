@@ -27,8 +27,10 @@ describe("6. the patient's coordinates are what get queried", () => {
     expect(src).toMatch(/location\.hasLocation && location\.coords/);
     expect(src).toMatch(/lat:\s*location\.coords\.latitude/);
     expect(src).toMatch(/lng:\s*location\.coords\.longitude/);
-    // ...and that origin is what the query receives.
-    expect(src).toMatch(/useNearbyClinics\(origin\)/);
+    // ...and that origin is what the query receives. (The call now also carries an
+    // `enabled` gate — see nearbyPolicy.test.ts — so this matches the argument, not the
+    // whole call.)
+    expect(src).toMatch(/useNearbyClinics\(origin\b/);
   });
 
   it("REGRESSION: no longer passes the Muscat constant as the search origin", () => {
@@ -59,7 +61,10 @@ describe("7. ordering stays server-side", () => {
   });
 
   it("renders distance_km straight from the server row", () => {
-    expect(src).toMatch(/active\.distance_km/);
+    // Optional-chained since the card can render before a selection resolves, and passed
+    // through `formatDistanceKm`, which formats and never recomputes — see
+    // nearbyPolicy.test.ts for the value-preservation cases.
+    expect(src).toMatch(/active\??\.distance_km/);
   });
 
   it("the filter preserves order (filter, never reorder)", () => {
@@ -116,7 +121,7 @@ describe("8. the screen never persists the coordinate", () => {
     const uses = src.match(/location\.coords/g) ?? [];
     // origin lat, origin lng, userLocation guard, lat, lng, accuracy — and nothing else.
     expect(uses.length).toBeLessThanOrEqual(8);
-    expect(src).toMatch(/useNearbyClinics\(origin\)/);
+    expect(src).toMatch(/useNearbyClinics\(origin\b/);
   });
 });
 

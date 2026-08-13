@@ -705,6 +705,11 @@ export const en = {
     loadError: "Couldn't load nearby clinics.",
     emptyTitle: "No clinics found nearby",
     emptyBody: "Try widening your search or check back later.",
+    // Distinct from emptyTitle: this is "we don't serve where you are", not "your search
+    // matched nothing". Showing the nearest Omani clinic to someone 1,800 km away would be
+    // noise dressed up as a result.
+    outOfCoverageTitle: "No clinics in your area",
+    outOfCoverageBody: "MediLink clinics are in Oman. We couldn't find any near your location.",
     tilesError: "Couldn't load the map. Check your connection and try again.",
     // Location states. Each one is a DIFFERENT user action, which is why they are not one
     // generic string: re-prompting cannot fix a system-wide toggle, and iOS will not
@@ -722,6 +727,10 @@ export const en = {
     // Confirms WHERE the list is measured from, so distances are never ambiguous.
     nearYou: "Sorted by distance from you",
     nearMuscat: "Sorted by distance from Muscat",
+    // The nearest clinic is real and correctly measured, but too far to call "near me".
+    nearestIsFar: "No clinics within 50 km — showing the nearest to you",
+    // Replaces a bare "0 km", which reads as a bug even when it is arithmetically true.
+    distanceVeryClose: "Less than 0.1 km away",
     viewClinic: "View clinic",
   },
   doctor: {

@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { repositories } from "@/data";
+import { NEARBY_RADIUS_M } from "@/services/maps/nearby";
 
 /**
  * Read-only discovery data for the dashboard (recently-visited doctors, featured
@@ -58,11 +59,22 @@ export function useClinic(id: string) {
   });
 }
 
-/** Verified clinics near a point, with real coordinates (Map View, PDF p19). */
-export function useNearbyClinics(geo: { lat: number; lng: number; radiusM?: number }) {
-  const radiusM = geo.radiusM ?? 50000;
+/**
+ * Verified clinics near a point, with real coordinates (Map View, PDF p19).
+ *
+ * `enabled` matters here and is not optional plumbing: the map must NOT fire a query
+ * before the location attempt has settled, or it queries from the Muscat fallback, paints
+ * Omani pins, and then re-queries from the real position — which is how the screen came to
+ * show Muscat clinics and a patient pin thousands of kilometres away in the same frame.
+ */
+export function useNearbyClinics(
+  geo: { lat: number; lng: number; radiusM?: number },
+  options?: { enabled?: boolean }
+) {
+  const radiusM = geo.radiusM ?? NEARBY_RADIUS_M;
   return useQuery({
     queryKey: discoveryKeys.nearbyClinics(geo.lat, geo.lng, radiusM),
     queryFn: () => repositories.discovery.nearbyClinics({ ...geo, radiusM }),
+    enabled: options?.enabled ?? true,
   });
 }

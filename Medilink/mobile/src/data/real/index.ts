@@ -15,6 +15,7 @@ import { notifyAppointmentEmail } from "@/services/appointmentEmail";
 import { asText } from "@/utils/text";
 import { classifyNotification } from "@/utils/notifications";
 import { mimeFromName } from "@/utils/mime";
+import { NEARBY_RADIUS_M } from "@/services/maps/nearby";
 import type {
   AiRepository,
   AppointmentRepository,
@@ -671,7 +672,10 @@ const discoveryRepo: DiscoveryRepository = {
     const rows = (await api.facilities.nearbyFacilities(supabase, {
       lat: geo.lat,
       lng: geo.lng,
-      radiusM: geo.radiusM ?? 50000,
+      // One shared constant. This default and the hook's used to be two independent
+      // literal 50000s, and that radius was silently dropping 3 of the 10 discoverable
+      // clinics — see the rationale on NEARBY_RADIUS_M.
+      radiusM: geo.radiusM ?? NEARBY_RADIUS_M,
     })) as unknown as NearbyFacilityRow[];
     return rows.map(mapNearbyToClinic).filter((c) => c.latitude != null && c.longitude != null);
   },

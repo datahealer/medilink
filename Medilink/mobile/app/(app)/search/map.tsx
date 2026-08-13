@@ -19,6 +19,7 @@ import { useI18n } from "@/i18n";
 import { localizedName } from "@/utils/localizedName";
 import { useCurrentLocation } from "@/hooks/useCurrentLocation";
 import { useNearbyClinics } from "@/hooks/queries/useDiscovery";
+import { coverageFor, formatDistanceKm } from "@/services/maps/nearby";
 import {
   isValidTarget,
   nativeDirectionsUrl,
@@ -102,37 +103,74 @@ export default function MapViewScreen() {
   const { t, num } = useI18n();
 
   /**
-   * Real device position (QA map Phase 1/2). `auto: false` on purpose — the OS permission
-   * dialog should not be the first thing a patient sees on opening the map; they tap
-   * "Use my location" and the prompt follows their own action.
+   * Real device position.
+   *
+   * `auto: true`. The previous `auto: false` is the root cause of the reported bug: nothing
+   * in this screen ever called `request()` except a tap on the small "Use my location" text
+   * link, so on every open `status` stayed `idle`, `hasLocation` stayed false, and the
+   * origin below silently resolved to Muscat. A screen titled "Clinics near me" that never
+   * asks where you are cannot be right, and the deferred-prompt argument does not survive
+   * contact with it — the whole purpose of opening this screen is proximity, so the prompt
+   * IS the user's own action. The permission string is already declared in app.json.
    */
-  const location = useCurrentLocation();
+  const location = useCurrentLocation({ auto: true });
 
   /**
-   * THE SEARCH ORIGIN. This is the whole point of the change: the RPC is now queried from
-   * the patient's real coordinates when we have them, and only falls back to Muscat when we
-   * genuinely do not. `distance_km` and the ordering come back from PostGIS relative to
-   * whichever origin was sent — nothing is recomputed on the client.
+   * Has the location attempt finished, one way or another? Used to hold the query back.
+   *
+   * Without this the screen fires a Muscat-origin query on mount, renders Omani pins, and
+   * then re-queries when the fix lands — the transient state in which a patient outside
+   * Oman saw Muscat clinics and their own pin in the same frame.
+   */
+  const locationSettled = location.status !== "idle" && location.status !== "requesting";
+
+  /**
+   * THE SEARCH ORIGIN: the patient's real coordinates whenever we have them, and Muscat
+   * ONLY when we genuinely do not. `distance_km` and the ordering come back from PostGIS
+   * relative to whichever origin was sent — nothing is recomputed on the client.
    */
   const origin = location.hasLocation && location.coords
     ? { lat: location.coords.latitude, lng: location.coords.longitude }
     : { lat: MUSCAT.lat, lng: MUSCAT.lng };
 
-  const query = useNearbyClinics(origin);
+  const query = useNearbyClinics(origin, { enabled: locationSettled });
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
+  /** Everything the RPC returned, before the search box narrows it. */
+  const all = useMemo(() => query.data ?? [], [query.data]);
+
+  /**
+   * How far the patient actually is from the nearest clinic — read off the FIRST row,
+   * because the RPC already ordered by distance ascending and this screen never re-sorts.
+   */
+  const coverage = coverageFor(all[0]?.distance_km, location.hasLocation);
+
+  /**
+   * Out of coverage: the nearest clinic is further away than any patient would call
+   * "near me", so we show nothing rather than one arbitrary clinic on the other side of a
+   * sea. Rows are withheld only from the LIST — never dropped from the query — so the
+   * decision is visible here and reversible in one place.
+   */
   const clinics = useMemo(() => {
-    const all = query.data ?? [];
+    if (coverage === "outOfCoverage") return [];
     const q = search.trim().toLowerCase();
     if (!q) return all;
     return all.filter(
       (c) => c.name.toLowerCase().includes(q) || (c.area ?? "").toLowerCase().includes(q)
     );
-  }, [query.data, search]);
+  }, [all, search, coverage]);
 
   const active: Clinic | undefined = clinics.find((c) => c.id === selectedId) ?? clinics[0];
+
+  /**
+   * The distance the patient reads. Server value, formatted — never recomputed, never
+   * rounded up to look better. `veryClose` replaces the bare "0 km" that the old Muscat
+   * origin produced on every open, because three Ruwi clinics are stored at exactly the
+   * Muscat fallback coordinate.
+   */
+  const distance = formatDistanceKm(active?.distance_km);
 
   /** Markers for the map surface, derived from the same clinic list as the card. */
   const markers: MapMarker[] = useMemo(
@@ -246,7 +284,7 @@ export default function MapViewScreen() {
           </View>
         ) : null}
 
-        {query.isLoading ? (
+        {!locationSettled || query.isLoading ? (
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
             <LoadingState />
           </View>
@@ -256,7 +294,12 @@ export default function MapViewScreen() {
           </View>
         ) : clinics.length === 0 ? (
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.background }]}>
-            <EmptyState title={t("map.emptyTitle")} body={t("map.emptyBody")} />
+            {/* Two genuinely different empty states: "we don't serve where you are" is not
+                the same message as "nothing matched your search". */}
+            <EmptyState
+              title={coverage === "outOfCoverage" ? t("map.outOfCoverageTitle") : t("map.emptyTitle")}
+              body={coverage === "outOfCoverage" ? t("map.outOfCoverageBody") : t("map.emptyBody")}
+            />
           </View>
         ) : null}
       </View>
@@ -312,8 +355,14 @@ export default function MapViewScreen() {
                   {num(
                     [
                       `★ ${active.rating}`,
-                      // Unit via i18n so Arabic reads "٤٫٥٦ كم", not "٤٫٥٦ km".
-                      active.distance_km != null ? `${active.distance_km} ${t("common.km")}` : null,
+                      // Unit via i18n so Arabic reads "٤٫٦ كم", not "٤٫٦ km". `veryClose`
+                      // is a whole phrase, not a number + unit — "0 km" is not what a
+                      // patient standing outside the clinic should be told.
+                      distance == null
+                        ? null
+                        : distance.kind === "veryClose"
+                          ? t("map.distanceVeryClose")
+                          : `${distance.value} ${t("common.km")}`,
                     ]
                       .filter(Boolean)
                       .join("   ·   ")
@@ -338,9 +387,14 @@ export default function MapViewScreen() {
             </Text>
           </Pressable>
 
-          {/* Removes the ambiguity in "4.56 km" — from where? */}
+          {/* Removes the ambiguity in "4.6 km" — from where? And when the nearest clinic
+              is well outside "near me", says so instead of letting the title imply it. */}
           <Text variant="caption" color="textMuted" style={{ paddingTop: 4 }}>
-            {location.hasLocation ? t("map.nearYou") : t("map.nearMuscat")}
+            {coverage === "far"
+              ? t("map.nearestIsFar")
+              : location.hasLocation
+                ? t("map.nearYou")
+                : t("map.nearMuscat")}
           </Text>
         </View>
       ) : null}
