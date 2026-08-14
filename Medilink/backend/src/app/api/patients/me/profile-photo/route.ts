@@ -16,8 +16,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json(
-        { success: false, error: "No file uploaded" },
+      return NextResponse.json({ success: false, error: "No file uploaded" },
         { status: 400 }
       );
     }
@@ -110,7 +109,7 @@ export async function POST(req: NextRequest) {
     console.error("Profile photo upload error:", err);
 
     return NextResponse.json(
-      { success: false, error: err.message || "Upload failed" },
+      { success: false, error: "Upload failed" },
       { status: 500 }
     );
   }

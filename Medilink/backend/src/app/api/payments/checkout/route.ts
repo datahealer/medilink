@@ -4,6 +4,12 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
+import { serverErrorResponse } from "@/lib/http/serverError";
+import {
+  ThawaniCheckoutConfigError,
+  assertCheckoutConfigured,
+  buildCheckoutUrl,
+} from "@/lib/thawani/checkoutConfig";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,6 +17,10 @@ export async function POST(req: NextRequest) {
     const user = await getAal2UserOrThrow(supabaseAuth);
 
     const supabase = createServiceSupabase();
+
+    // Refuse a misconfigured deploy BEFORE creating a Thawani session, so we never leave an
+    // orphan session behind for a URL we cannot build. See lib/thawani/checkoutConfig.ts.
+    assertCheckoutConfigured(process.env);
 
     const body = await req.json();
     // BP-4 (C1 fix): the client-sent `amount` is IGNORED — the charged amount is
@@ -103,11 +113,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session ID missing" }, { status: 500 });
     }
 
-    // Env-driven Thawani checkout host (UAT vs production). Falls back to UAT so a
-    // missing env in dev doesn't break local testing; MUST be set to the production
-    // host (https://checkout.thawani.om) for a real-money deployment.
-    const checkoutBase = process.env.THAWANI_CHECKOUT_BASE_URL ?? "https://uatcheckout.thawani.om";
-    const checkoutUrl = `${checkoutBase}/pay/${sessionId}?key=${process.env.THAWANI_PUBLISHABLE_KEY}`;
+    // Hosted-checkout redirect URL. Validated, never interpolated blind — see
+    // lib/thawani/checkoutConfig.ts for why `?key=undefined` and a silent UAT fallback
+    // both reached production as an unexplained "404 Oops!" on Thawani's payment page.
+    // Throws ThawaniCheckoutConfigError, handled below as a 503.
+    const checkoutUrl = buildCheckoutUrl(process.env, sessionId);
 
     // 💾 UPSERT PAYMENT
     const { error: insertError } = await supabase
@@ -139,7 +149,20 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     const authRes = authErrorResponse(err);
     if (authRes) return authRes;
+
+    // Misconfiguration, not a patient error. The problem list names only variables and
+    // hosts (never a credential) and goes to the SERVER log, where an operator can act on
+    // it; the client gets a generic message because there is nothing it can do but retry
+    // later. 503 rather than 500: the service is unavailable until someone fixes config.
+    if (err instanceof ThawaniCheckoutConfigError) {
+      console.error("[payments/checkout] misconfigured:", err.problems.join("; "));
+      return NextResponse.json(
+        { error: "Payments are temporarily unavailable.", reason: "payment_unconfigured" },
+        { status: 503 }
+      );
+    }
+
     console.error("Checkout error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return serverErrorResponse(err, "payments/checkout");
   }
 }

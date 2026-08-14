@@ -23,8 +23,7 @@ export async function POST(
       .single();
 
     if (integrationError || !integration) {
-      return NextResponse.json(
-        { success: false, error: "Google not connected" },
+      return NextResponse.json({ error: "Google not connected" },
         { status: 400 }
       );
     }
@@ -129,7 +128,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error: err.message || "Google event failed",
+        error: "Google event failed",
       },
       { status: 500 }
     );

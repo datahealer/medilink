@@ -35,8 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!email && !phone) {
-      return NextResponse.json(
-        { success: false, error: "Email or phone is required" },
+      return NextResponse.json({ success: false, error: "Email or phone is required" },
         { status: 400 }
       );
     }
@@ -98,7 +97,7 @@ export async function POST(req: NextRequest) {
     console.error("Signup error:", err);
 
     return NextResponse.json(
-      { success: false, error: err.message || "Something went wrong" },
+      { success: false, error: "Something went wrong" },
       { status: 500 }
     );
   }

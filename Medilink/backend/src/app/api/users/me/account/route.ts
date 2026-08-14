@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { logAudit } from "@/lib/audit/logAudit";
+import { serverErrorResponse } from "@/lib/http/serverError";
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -138,6 +139,6 @@ export async function DELETE(req: NextRequest) {
     if (err.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return serverErrorResponse(err, "users/me/account");
   }
 }

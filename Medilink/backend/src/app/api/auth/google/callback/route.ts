@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     console.error("GOOGLE CALLBACK ERROR:", err);
 
     return NextResponse.json(
-      { error: err.message || "Server error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }

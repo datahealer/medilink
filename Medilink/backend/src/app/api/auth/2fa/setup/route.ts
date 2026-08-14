@@ -19,8 +19,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { success: false, error: "Profile not found" },
+      return NextResponse.json({ success: false, error: "Profile not found" },
         { status: 404 }
       );
     }
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest) {
     if (authRes) return authRes;
     console.error("MFA enroll error:", err);
     return NextResponse.json(
-      { success: false, error: err.message || "Server error" },
+      { success: false, error: "Server error" },
       { status: 500 }
     );
   }

@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
+import { serverErrorResponse } from "@/lib/http/serverError";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,6 @@ export async function GET(
   } catch (err: any) {
     const authRes = authErrorResponse(err);
     if (authRes) return authRes;
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return serverErrorResponse(err, "prescriptions/[id]/download");
   }
 }

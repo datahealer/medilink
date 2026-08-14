@@ -10,8 +10,7 @@ export async function POST(req: NextRequest) {
 
     const { factorId } = await req.json();
     if (!factorId) {
-      return NextResponse.json(
-        { success: false, error: "factorId is required" },
+      return NextResponse.json({ success: false, error: "factorId is required" },
         { status: 400 }
       );
     }
@@ -30,7 +29,7 @@ export async function POST(req: NextRequest) {
     const authRes = authErrorResponse(err, "success");
     if (authRes) return authRes;
     return NextResponse.json(
-      { success: false, error: err.message || "Server error" },
+      { success: false, error: "Server error" },
       { status: 500 }
     );
   }

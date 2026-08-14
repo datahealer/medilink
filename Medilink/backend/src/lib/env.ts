@@ -55,8 +55,8 @@ export const OPTIONAL_ENV: Record<string, string> = {
   // ── Payments (Thawani) ──
   THAWANI_BASE_URL: "Thawani API host — checkout, verify, refund and webhook re-query all fail without it",
   THAWANI_SECRET_KEY: "Thawani API key — same four routes",
-  THAWANI_PUBLISHABLE_KEY: "appended to the hosted-checkout URL; the redirect is rejected without it",
-  THAWANI_CHECKOUT_BASE_URL: "hosted-checkout host; falls back to the UAT host, so real-money deploys MUST set it",
+  THAWANI_PUBLISHABLE_KEY: "appended to the hosted-checkout URL; without it POST /api/payments/checkout returns 503 (it used to emit ?key=undefined, which Thawani renders as a 404 page)",
+  THAWANI_CHECKOUT_BASE_URL: "hosted-checkout host; no default — without it POST /api/payments/checkout returns 503, and its host must match THAWANI_BASE_URL's",
   THAWANI_WEBHOOK_SECRET: "enables webhook HMAC verification; unset skips it (the Thawani re-query stays authoritative)",
   THAWANI_WEBHOOK_SIGNATURE_HEADER: 'signature header name; defaults to "thawani-signature"',
 

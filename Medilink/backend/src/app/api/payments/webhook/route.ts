@@ -61,7 +61,20 @@ export async function POST(req: NextRequest) {
       body = {};
     }
 
-    console.log("📩 Webhook body:", JSON.stringify(body));
+    // Identifiers only. The full body used to be serialised here, which put the Thawani
+    // payload — session id, client_reference_id, amounts and whatever customer fields the
+    // gateway includes — into Vercel logs, where it is retained, searchable and visible to
+    // everyone with project access. That is a far wider audience than the RLS boundary
+    // protecting the same data in the database. What an operator actually needs to trace a
+    // delivery is the event type and the two ids, so that is what is logged.
+    console.log(
+      "📩 Webhook received:",
+      JSON.stringify({
+        event_type: (body as { event_type?: unknown })?.event_type ?? null,
+        session_id: (body as { data?: { session_id?: unknown } })?.data?.session_id ?? null,
+        client_reference_id: (body as { data?: { client_reference_id?: unknown } })?.data?.client_reference_id ?? null,
+      })
+    );
 
     const client_reference_id =
       body?.data?.client_reference_id ||
@@ -320,15 +333,23 @@ export async function POST(req: NextRequest) {
     const email = authUser?.email || null;
 
     if (email && invoiceUrl) {
-      console.log("📧 Sending email to:", email);
+      // The address itself is PHI-adjacent (it identifies the patient) and does not help
+      // diagnose a delivery failure — the payment id already correlates this log line to
+      // the row, and the transporter logs its own SMTP result. Log presence, not value.
+      console.log("📧 Sending invoice email for payment:", payment.id);
       try {
         await sendInvoiceEmail(email, invoiceUrl, invoiceNumber);
-        console.log("✅ Email sent");
+        console.log("✅ Email sent for payment:", payment.id);
       } catch (emailErr: any) {
-        console.error("❌ Email send failed (non-fatal):", emailErr.message);
+        console.error("❌ Email send failed (non-fatal) for payment:", payment.id, emailErr?.message);
       }
     } else {
-      console.log("⚠️ Skipping email — email:", email, "invoiceUrl:", invoiceUrl);
+      // Booleans, not values: this line exists to say WHICH precondition was missing.
+      console.log(
+        "⚠️ Skipping invoice email for payment:",
+        payment.id,
+        JSON.stringify({ has_email: !!email, has_invoice_url: !!invoiceUrl })
+      );
     }
 
     // ✅ BOOKING CONFIRMATION EMAIL — the patient-facing counterpart to the invoice.

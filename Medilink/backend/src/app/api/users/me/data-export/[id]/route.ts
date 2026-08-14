@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { logAudit } from "@/lib/audit/logAudit";
+import { serverErrorResponse } from "@/lib/http/serverError";
 
 type ExportRow = {
   id: string;
@@ -76,6 +77,6 @@ export async function GET(
     if (err.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return serverErrorResponse(err, "users/me/data-export/[id]");
   }
 }

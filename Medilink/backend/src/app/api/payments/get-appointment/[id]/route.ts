@@ -3,6 +3,7 @@ import { feeForType } from "@medilink/shared";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
+import { serverErrorResponse } from "@/lib/http/serverError";
 
 export async function GET(
   req: NextRequest,
@@ -49,6 +50,6 @@ export async function GET(
   } catch (err: any) {
     const authRes = authErrorResponse(err);
     if (authRes) return authRes;
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return serverErrorResponse(err, "payments/get-appointment/[id]");
   }
 }
