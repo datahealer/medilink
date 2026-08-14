@@ -97,43 +97,9 @@ export const schemas = {
     },
   },
 
-  SendOtpRequest: {
-    type: "object",
-    description:
-      "Phone is optional when `profiles.phone` is already set; required otherwise (E.164).",
-    properties: {
-      phone: { type: "string", example: "+96890000000", nullable: true },
-    },
-  },
 
-  ResendOtpRequest: {
-    type: "object",
-    properties: { phone: { type: "string", example: "+96890000000" } },
-    required: ["phone"],
-  },
 
-  ResendOtpResponse: {
-    type: "object",
-    properties: {
-      success: { type: "boolean", example: true },
-      message: { type: "string", example: "OTP sent successfully" },
-      otp: {
-        type: "string",
-        description: "DEV-ONLY echo of the code. Must be removed before production.",
-        example: "482915",
-      },
-    },
-    required: ["success"],
-  },
 
-  VerifyOtpRequest: {
-    type: "object",
-    properties: {
-      code: { type: "string", minLength: 6, maxLength: 6, example: "482915" },
-      phone: { type: "string", example: "+96890000000", nullable: true },
-    },
-    required: ["code"],
-  },
 
   SetPasswordRequest: {
     type: "object",

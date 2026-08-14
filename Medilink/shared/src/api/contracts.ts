@@ -22,5 +22,9 @@ export interface BackendApi {
   payments: { checkout(body: unknown): Promise<unknown>; invoice(id: string): Promise<unknown>; };
   ai: { symptomCheck(body: unknown): Promise<unknown>; suggestDoctor(body: unknown): Promise<unknown>; };
   prescriptions: { generatePdf(id: string): Promise<Blob>; shareLink(id: string): Promise<{ url: string }>; };
-  auth: { sendOtp(body: unknown): Promise<unknown>; verifyOtp(body: unknown): Promise<unknown>; };
+  // Phone verification is LINKING, not a custom OTP store: POST /api/auth/phone/start
+  // sends via Twilio Verify and /check writes auth.users.phone with the Admin API. The
+  // former sendOtp/verifyOtp pair described the retired otp_records routes, which had no
+  // callers, never delivered an SMS, and let a client assert phone_verified.
+  auth: { phoneStart(body: unknown): Promise<unknown>; phoneCheck(body: unknown): Promise<unknown>; };
 }

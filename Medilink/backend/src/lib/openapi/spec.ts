@@ -104,47 +104,6 @@ export function buildOpenApiSpec() {
           },
         },
       },
-      "/api/auth/send-otp": {
-        post: {
-          tags: ["Authentication"], summary: "Send phone-verification OTP", security: bearer,
-          description: "Generates a 6-digit SMS OTP for the authenticated patient (5-min expiry). NOTE: SMS delivery is currently disabled in code.",
-          requestBody: { required: false, ...json(ref("SendOtpRequest")) },
-          responses: {
-            "200": { description: "OTP generated.", ...json(ref("Ok")) },
-            "400": { description: "Phone required / invalid format.", ...json(ref("Error")) },
-            "403": { description: "Not a patient.", ...json(ref("Error")) },
-            "404": { description: "Profile not found.", ...json(ref("Error")) },
-            ...commonErrors,
-          },
-        },
-      },
-      "/api/auth/resend-otp": {
-        post: {
-          tags: ["Authentication"], summary: "Resend OTP", security: bearer,
-          description: "Regenerates a 6-digit OTP (10-min expiry). Echoes the code in dev only.",
-          requestBody: { required: true, ...json(ref("ResendOtpRequest")) },
-          responses: {
-            "200": { description: "OTP sent.", ...json(ref("ResendOtpResponse")) },
-            "400": { description: "Phone required.", ...json(ref("SuccessError")) },
-            ...commonErrorsSuccessShape,
-          },
-        },
-      },
-      "/api/auth/verify-otp": {
-        post: {
-          tags: ["Authentication"], summary: "Verify phone OTP", security: bearer,
-          description: "Verifies the 6-digit code; sets `phone_verified` on success.",
-          requestBody: { required: true, ...json(ref("VerifyOtpRequest")) },
-          responses: {
-            "200": { description: "Verified.", ...json(ref("Ok")) },
-            "400": { description: "Invalid / expired / not found.", ...json(ref("Error")) },
-            "403": { description: "Not a patient.", ...json(ref("Error")) },
-            "404": { description: "Profile not found.", ...json(ref("Error")) },
-            "429": { description: "Too many attempts.", ...json(ref("Error")) },
-            ...commonErrors,
-          },
-        },
-      },
       "/api/auth/set-password": {
         post: {
           tags: ["Authentication"], summary: "Set / change password",

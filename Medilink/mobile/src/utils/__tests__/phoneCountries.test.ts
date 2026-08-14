@@ -359,19 +359,56 @@ describe("phone_verified lifecycle — verification belongs to a NUMBER, not an 
     fs.readFileSync(path.join(repoRoot, "mobile", "app", "(app)", "edit-profile.tsx"), "utf8")
   );
 
-  it("CHANGING the phone clears verification, in the SAME write", () => {
-    // Coupled at the single shared write path so a screen cannot forget it. If `phone` is
-    // in the patch, `phone_verified: false` is in the same UPDATE.
-    expect(profileApi).toMatch(/if \(patch\.phone !== undefined\) \{[\s\S]*?accountPatch\.phone_verified = false;/);
+  /**
+   * CONTRACT CHANGE (20260814020000_lock_phone_verified).
+   *
+   * These two cases previously asserted `accountPatch.phone_verified = false` inside the
+   * phone branch of `updateMyProfile`. That rule has not been dropped — it MOVED into a
+   * BEFORE UPDATE trigger, and the column was revoked from `authenticated`.
+   *
+   * The move makes the guarantee strictly stronger. The old rule only held for callers
+   * that went through `updateMyProfile`; the trigger holds for every writer, including a
+   * raw PostgREST PATCH that never mentions the column. It also closes the hole the old
+   * arrangement left wide open: a client could assert `phone_verified = true` directly.
+   *
+   * The client must now NOT name the column at all — PostgREST rejects an entire statement
+   * that references a column the role cannot write, even to set it false. So the assertion
+   * inverts: absence from the payload is the correct state.
+   */
+  const lockMigration = fs.readFileSync(
+    path.join(repoRoot, "supabase", "migrations", "20260814020000_lock_phone_verified.sql"),
+    "utf8"
+  );
+
+  it("the client never writes phone_verified at all — naming it would fail the UPDATE", () => {
+    expect(profileApi).not.toMatch(/accountPatch\.phone_verified\s*=/);
   });
 
-  it("the clear is INSIDE the phone branch — not applied to unrelated edits", () => {
-    // Structural proof: the only assignment to phone_verified sits within the
-    // `patch.phone !== undefined` block, so saving a name or DOB cannot reach it.
-    const assignments = profileApi.match(/accountPatch\.phone_verified/g) ?? [];
-    expect(assignments).toHaveLength(1);
-    const phoneBranch = /if \(patch\.phone !== undefined\) \{[\s\S]*?\n  \}/.exec(profileApi)?.[0] ?? "";
-    expect(phoneBranch).toMatch(/accountPatch\.phone_verified = false;/);
+  it("CHANGING the phone still clears verification — now enforced by a database trigger", () => {
+    expect(lockMigration).toMatch(/CREATE TRIGGER trg_profiles_phone_verified_trust/);
+    expect(lockMigration).toMatch(/BEFORE UPDATE OF phone, phone_verified ON public\.profiles/);
+    // The clear is conditional on the number actually changing.
+    expect(lockMigration).toMatch(/NEW\.phone IS DISTINCT FROM OLD\.phone[\s\S]*?NEW\.phone_verified := FALSE/);
+  });
+
+  it("the clear is conditional, so unrelated profile edits keep verification", () => {
+    // Trigger fires only on UPDATE OF phone/phone_verified, and even then the assignment
+    // is guarded by `NEW.phone IS DISTINCT FROM OLD.phone` — saving a name or DOB cannot
+    // reach it. This is the same invariant the old in-code branch provided.
+    expect(lockMigration).toMatch(/IS DISTINCT FROM OLD\.phone AND NOT v_trusted/);
+  });
+
+  it("only service_role may assert TRUE", () => {
+    expect(lockMigration).toMatch(/NEW\.phone_verified IS TRUE AND OLD\.phone_verified IS DISTINCT FROM TRUE AND NOT v_trusted/);
+    expect(lockMigration).toMatch(/REVOKE UPDATE \(phone_verified\) ON public\.profiles FROM authenticated/);
+    expect(lockMigration).toMatch(/GRANT UPDATE \(phone_verified\) ON public\.profiles TO service_role/);
+  });
+
+  it("the three dead OTP routes that blocked this revoke are gone", () => {
+    for (const r of ["send-otp", "resend-otp", "verify-otp"]) {
+      const p = path.join(repoRoot, "backend", "src", "app", "api", "auth", r, "route.ts");
+      expect({ route: r, exists: fs.existsSync(p) }).toEqual({ route: r, exists: false });
+    }
   });
 
   it("an UNCHANGED phone is never written, so verification survives a plain save", () => {

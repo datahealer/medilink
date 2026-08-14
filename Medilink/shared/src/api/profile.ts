@@ -86,29 +86,32 @@ export async function updateMyProfile(db: DB, patch: ProfilePatch): Promise<MyPr
       : (omanPhoneE164(patch.phone) ?? normalizeOptionalText(patch.phone));
 
     /**
-     * WRITING A PHONE NUMBER ALWAYS UNVERIFIES IT.
+     * WRITING A PHONE NUMBER ALWAYS UNVERIFIES IT — enforced by the DATABASE, not here.
      *
      * `profiles.phone_verified` attests that an SMS code was delivered to a specific
      * handset and entered back. That attestation belongs to a NUMBER, not to an account, so
-     * the moment the number changes the old attestation is meaningless — and leaving it set
-     * is worse than merely untidy: a clinic reading `phone_verified = true` would believe a
-     * number nobody has ever confirmed, and phone OTP login would treat it as a credential.
+     * the moment the number changes the old attestation is meaningless — a clinic reading
+     * `phone_verified = true` would believe a number nobody has ever confirmed, and phone
+     * OTP login would treat it as a credential.
      *
-     * This lives HERE, at the single write path shared by web and mobile, rather than in
-     * either screen. A screen can forget; this cannot — if `phone` is in the patch,
-     * `phone_verified: false` is in the same UPDATE, atomically. That mirrors the G2
-     * guarantee on the other side: an UNTOUCHED number is structurally unwritable, so
-     * merely opening Edit Profile and saving other fields never reaches this branch and
-     * never clears verification.
+     * This used to be `accountPatch.phone_verified = false` right here. Migration
+     * 20260814020000 moved the rule into a BEFORE UPDATE trigger and REVOKED the column
+     * from `authenticated`, for two reasons:
      *
-     * ── ONLY EVER `false` FROM A CLIENT ──
+     *   1. The client could previously assert `phone_verified = true` with a direct
+     *      PostgREST PATCH, skipping verification entirely.
+     *   2. A rule that lives in application code only holds for callers who remember it.
+     *      The trigger clears the flag for EVERY writer — including a raw PostgREST call
+     *      that never mentions the column.
      *
-     * The one place `phone_verified` becomes `true` is `POST /api/auth/phone/check`, under
-     * the service role, after Twilio Verify returns `approved`. That route does not go
-     * through `updateMyProfile`, so there is no conflict and no ordering hazard. Nothing in
-     * shared/ or mobile/ ever writes `true`.
+     * Naming the column in this payload now FAILS THE WHOLE UPDATE, because PostgREST
+     * rejects a statement referencing a column the role cannot write — even to set it
+     * false. So it is deliberately absent, and the clear still happens, atomically, in the
+     * same statement.
+     *
+     * The single place it becomes `true` remains `POST /api/auth/phone/check`, under the
+     * service role, after Twilio Verify returns `approved`.
      */
-    accountPatch.phone_verified = false;
   }
 
   const patientPatch: Update<"patient_profiles"> = {};
