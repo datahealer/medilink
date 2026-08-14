@@ -24,14 +24,10 @@ const SERVICE_CARDS = [
     en: { title: "Find Doctors Near You", desc: "Search by specialty or symptom. Confirmed same-day appointments." },
     ar: { title: "ابحث عن أطباء قريبين",  desc: "ابحث حسب التخصص أو الأعراض. مواعيد مؤكدة في نفس اليوم." },
     from: "#e8d5f0", to: "#c8dff0" },
-  { href: "/dashboard/lab-tests", emoji: "🔬",
-    en: { title: "Lab Tests",              desc: "Safe and trusted lab tests delivered to your app." },
-    ar: { title: "تحاليل مختبرية",         desc: "تحاليل آمنة وموثوقة تُرسل مباشرة إلى تطبيقك." },
-    from: "#d5e8f5", to: "#ede0f8" },
-  { href: "/dashboard/surgeries", emoji: "🏥",
-    en: { title: "Surgeries",              desc: "Safe and trusted surgery centers across the region." },
-    ar: { title: "العمليات الجراحية",       desc: "مراكز جراحية آمنة وموثوقة في جميع أنحاء المنطقة." },
-    from: "#ede0f8", to: "#e8d5f0" },
+  // Lab Tests and Surgeries were removed from the dashboard: both pages advertised
+  // hardcoded prices, ratings and bookable slots with no backend behind them. The routes
+  // now render an honest "not available yet" state, so promoting them here would still be
+  // selling a service the product cannot deliver. Restore alongside a real catalogue.
 ];
 
 type UpItem = {
@@ -112,7 +108,6 @@ const QUICK_ACTIONS = [
   { href: "/dashboard/appointments",     emoji: "📅", en: "Book Appointment",   ar: "احجز موعداً",       from: "#e8d5f0", to: "#DFC8E7" },
   { href: "/dashboard/symptom-checker",  emoji: "🤖", en: "AI Symptom Checker", ar: "فاحص الأعراض",       from: "#c8dff0", to: "#d1fae5" },
   { href: "/dashboard/records",          emoji: "📋", en: "My Records",         ar: "سجلاتي",             from: "#d5e8f5", to: "#c8dff0" },
-  { href: "/dashboard/lab-tests",        emoji: "🔬", en: "Lab Tests",          ar: "تحاليل مختبرية",     from: "#ede0f8", to: "#d5e8f5" },
   { href: "/dashboard/find-doctors",     emoji: "🩺", en: "Find a Doctor",      ar: "ابحث عن طبيب",       from: "#d1fae5", to: "#c8dff0" },
   { href: "/dashboard/profile",          emoji: "👨‍👩‍👧", en: "Family & Profile", ar: "العائلة والملف",     from: "#fde68a", to: "#e8d5f0" },
 ];

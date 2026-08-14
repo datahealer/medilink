@@ -120,8 +120,8 @@ function NotificationBell({ ar }: { ar: boolean }) {
 const NAV_LINKS = [
   { href: "/dashboard/find-doctors",     en: "Find Doctors",       ar: "ابحث عن طبيب" },
   { href: "/dashboard/symptom-checker",  en: "Symptom Checker",    ar: "فاحص الأعراض" },
-  { href: "/dashboard/lab-tests",        en: "Lab Tests",          ar: "تحاليل مختبرية" },
-  { href: "/dashboard/surgeries",        en: "Surgeries",          ar: "العمليات الجراحية" },
+  // Lab Tests / Surgeries intentionally absent — see the header of their page.tsx files.
+  // Both had hardcoded prices and fake booking; the routes remain but say so.
   { href: "/dashboard/profile",          en: "My Profile",         ar: "ملفي الشخصي" },
 ];
 

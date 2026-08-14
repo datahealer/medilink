@@ -20,30 +20,10 @@ const PAGES: PageEntry[] = [
   { en: "Notifications",      ar: "الإشعارات",          keywords: ["notification", "alert", "reminder"],         href: "/dashboard/notifications",   icon: "🔔" },
 ];
 
-// Lightweight name/category index mirroring the LABS array in dashboard/lab-tests/page.tsx —
-// kept minimal here since lab tests have no detail route to link to (just this page's own search).
-const LAB_TESTS_INDEX = [
-  { id: "AL", en: "Complete Blood Count (CBC)",   ar: "صورة الدم الكاملة (CBC)" },
-  { id: "LF", en: "Liver Function Test (LFT)",    ar: "وظائف الكبد" },
-  { id: "HB", en: "HbA1c (Glycated Haemoglobin)", ar: "الهيموغلوبين الغليكوزيلاتي HbA1c" },
-  { id: "TH", en: "Thyroid Panel (T3, T4, TSH)",  ar: "هرمونات الغدة الدرقية" },
-  { id: "UA", en: "Urine Analysis (Routine)",     ar: "تحليل البول الروتيني" },
-  { id: "EC", en: "ECG + Echocardiogram",         ar: "تخطيط القلب والصدى" },
-  { id: "XR", en: "Chest X-Ray",                  ar: "أشعة الصدر" },
-  { id: "LI", en: "Kidney Function Test (KFT)",   ar: "وظائف الكلى" },
-];
+// Lab Tests / Surgeries are NOT searchable: both features are disabled (no catalogue
+// backend), so surfacing their names here would let a patient search for a service the
+// product cannot deliver. See dashboard/lab-tests/page.tsx.
 
-// Mirrors the SURGERIES array in dashboard/surgeries/page.tsx — same rationale as above.
-const SURGERIES_INDEX = [
-  { id: "KR", en: "Knee Replacement",             ar: "استبدال مفصل الركبة" },
-  { id: "CB", en: "Coronary Bypass (CABG)",       ar: "جراحة القلب المفتوح (CABG)" },
-  { id: "LS", en: "LASIK Eye Surgery",            ar: "عملية الليزك للعيون" },
-  { id: "AP", en: "Laparoscopic Appendectomy",    ar: "استئصال الزائدة بالمنظار" },
-  { id: "CS", en: "Caesarean Section (C-Section)",ar: "الولادة القيصرية" },
-  { id: "TS", en: "Tonsillectomy",                ar: "استئصال اللوزتين" },
-  { id: "RN", en: "Rhinoplasty (Nose Job)",       ar: "تجميل الأنف" },
-  { id: "SH", en: "Shoulder Arthroscopy",         ar: "تنظير مفصل الكتف" },
-];
 
 type Doctor = { id: string; full_name: string; specialty: string | null };
 type Result = { key: string; icon: string; label: string; sub?: string; href: string };
@@ -110,30 +90,12 @@ export function SiteSearch({
     key: d.id, icon: "🩺", label: d.full_name, sub: d.specialty ? specialtyLabel(d.specialty, isAr) : undefined, href: `/dashboard/find-doctors/${d.id}`,
   }));
 
-  const labResults: Result[] = q.length === 0 ? [] : LAB_TESTS_INDEX.filter(l =>
-    l.en.toLowerCase().includes(q) || l.ar.includes(q)
-  ).slice(0, 3).map(l => ({
-    key: l.id, icon: "🔬", label: isAr ? l.ar : l.en, href: `/dashboard/lab-tests?q=${encodeURIComponent(isAr ? l.ar : l.en)}`,
-  }));
-
-  const surgeryResults: Result[] = q.length === 0 ? [] : SURGERIES_INDEX.filter(s =>
-    s.en.toLowerCase().includes(q) || s.ar.includes(q)
-  ).slice(0, 3).map(s => ({
-    key: s.id, icon: "🏥", label: isAr ? s.ar : s.en, href: `/dashboard/surgeries?q=${encodeURIComponent(isAr ? s.ar : s.en)}`,
-  }));
-
-  const hasResults = pageResults.length + articleResults.length + doctorResults.length + labResults.length + surgeryResults.length > 0;
+  const hasResults = pageResults.length + articleResults.length + doctorResults.length > 0;
 
   // Route "see all results" to whichever category actually has matches, instead of
   // always landing on Find Doctors (which looked broken for lab test / surgery queries).
   function fallbackHref(trimmed: string) {
     const encoded = encodeURIComponent(trimmed);
-    if (surgeryResults.length > 0 && surgeryResults.length >= labResults.length && surgeryResults.length >= doctorResults.length) {
-      return `/dashboard/surgeries?q=${encoded}`;
-    }
-    if (labResults.length > 0 && labResults.length >= doctorResults.length) {
-      return `/dashboard/lab-tests?q=${encoded}`;
-    }
     return `/dashboard/find-doctors?q=${encoded}`;
   }
 
@@ -193,8 +155,6 @@ export function SiteSearch({
             <div className="max-h-96 overflow-y-auto py-1.5" style={{ scrollbarWidth: "thin" }}>
               {pageResults.length > 0 && <ResultGroup label={isAr ? "الصفحات" : "Pages"} items={pageResults} onSelect={go} isAr={isAr} />}
               {doctorResults.length > 0 && <ResultGroup label={isAr ? "الأطباء" : "Doctors"} items={doctorResults} onSelect={go} isAr={isAr} />}
-              {labResults.length > 0 && <ResultGroup label={isAr ? "تحاليل مختبرية" : "Lab Tests"} items={labResults} onSelect={go} isAr={isAr} />}
-              {surgeryResults.length > 0 && <ResultGroup label={isAr ? "العمليات الجراحية" : "Surgeries"} items={surgeryResults} onSelect={go} isAr={isAr} />}
               {articleResults.length > 0 && <ResultGroup label={isAr ? "المقالات" : "Articles"} items={articleResults} onSelect={go} isAr={isAr} />}
             </div>
           )}
