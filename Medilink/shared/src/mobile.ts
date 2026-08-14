@@ -9,6 +9,9 @@ export * from "./utils/normalize";
 // Redirect allow-listing. Mobile does not redirect, but this is the only workspace with
 // a Jest runner, so its tests live there — see src/utils/__tests__/safeNext.test.ts.
 export * from "./utils/safeNext";
+// Upcoming/Past classification + patient action gating. Lives in shared so web and mobile
+// cannot drift apart again — the bug it replaces was a mobile-only copy of the rule.
+export * from "./utils/appointmentLifecycle";
 export * as api from "./api/index";
 
 // Flat domain-type re-exports so app screens import HAMS-shaped types directly

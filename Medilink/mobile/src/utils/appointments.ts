@@ -1,4 +1,4 @@
-import { omanWallClockToInstant } from "@medilink/shared/mobile";
+import { omanWallClockToInstant, type AppointmentOutcome } from "@medilink/shared/mobile";
 
 import type { useI18n } from "@/i18n";
 import type { ThemeColors } from "@/theme/light";
@@ -56,10 +56,21 @@ export function formatApptTime(value: string | null | undefined, num: Num): stri
 
 export type ApptStatusCategory = "success" | "warning" | "danger" | "muted";
 
-/** Map a backend status to a semantic tone category (no blue — per design). */
+/**
+ * Map a backend status to a semantic tone category (no blue — per design).
+ *
+ * `approved` was missing until now and fell through to `default → "muted"`. Because the
+ * appointments screen used this to decide the tab, a future staff-approved emergency
+ * appointment was classified as PAST. It is a live status, so it tones like `confirmed`.
+ *
+ * NOTE: this is a COLOUR decision only. It used to double as the Upcoming/Past rule, which
+ * is what made an appointment from three weeks ago read as upcoming forever. Classification
+ * now belongs to `appointmentPhase` in `@medilink/shared` — do not reintroduce it here.
+ */
 export function apptStatusCategory(status: string | null | undefined): ApptStatusCategory {
   switch (status) {
     case "confirmed":
+    case "approved":
     case "checked_in":
       return "success"; // green "Confirmed" chip
     case "pending":
@@ -67,6 +78,22 @@ export function apptStatusCategory(status: string | null | undefined): ApptStatu
     case "cancelled":
     case "no_show":
       return "danger";
+    case "completed":
+    default:
+      return "muted";
+  }
+}
+
+/** Tone for a derived lifecycle outcome — what the Past list actually labels a row with. */
+export function apptOutcomeCategory(outcome: AppointmentOutcome): ApptStatusCategory {
+  switch (outcome) {
+    case "scheduled":
+    case "in_progress":
+      return "success";
+    case "missed":
+    case "cancelled":
+      return "danger";
+    case "attended":
     case "completed":
     default:
       return "muted";
@@ -127,6 +154,8 @@ export function refundTier(hours: number): RefundTier {
 
 const STATUS_KEYS: Record<string, Parameters<T>[0]> = {
   pending: "appointments.status_pending",
+  // `approved` (migration 20260430000001) had no key, so it rendered as the raw enum value.
+  approved: "appointments.status_approved",
   confirmed: "appointments.status_confirmed",
   checked_in: "appointments.status_checked_in",
   completed: "appointments.status_completed",
@@ -139,6 +168,27 @@ export function apptStatusLabel(status: string | null | undefined, t: T): string
   if (!status) return "";
   const key = STATUS_KEYS[status];
   return key ? t(key) : status.replace(/_/g, " ");
+}
+
+const OUTCOME_KEYS: Record<AppointmentOutcome, Parameters<T>[0]> = {
+  scheduled: "appointments.status_confirmed",
+  in_progress: "appointments.status_checked_in",
+  completed: "appointments.status_completed",
+  cancelled: "appointments.status_cancelled",
+  missed: "appointments.outcome_missed",
+  attended: "appointments.outcome_attended",
+};
+
+/**
+ * Localized label for a DERIVED outcome — what the Past list shows.
+ *
+ * Distinct from `apptStatusLabel` because two of these have no backend status behind them:
+ * `missed` covers an appointment whose slot elapsed with nobody resolving it, and `attended`
+ * covers a checked-in visit the clinic never closed. Labelling the latter "Completed" would
+ * assert a clinical outcome the system does not know.
+ */
+export function apptOutcomeLabel(outcome: AppointmentOutcome, t: T): string {
+  return t(OUTCOME_KEYS[outcome]);
 }
 
 /**

@@ -22,7 +22,14 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { localizedName } from "@/utils/localizedName";
-import { round3 } from "@medilink/shared/mobile";
+import {
+  appointmentOutcome,
+  canBookAgain,
+  canCancelAppointment,
+  canCheckInAppointment,
+  canRescheduleAppointment,
+  round3,
+} from "@medilink/shared/mobile";
 import { useAppointment, useCancelAppointment, useCheckInAppointment, useProfile } from "@/hooks/queries/usePatient";
 import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime, hoursUntilAppt, refundTier } from "@/utils/appointments";
 import type { Appointment } from "@/data/types";
@@ -107,13 +114,28 @@ export default function AppointmentDetailsScreen() {
     { label: t("appointments.patient"), value: patientName },
   ];
 
-  const showCheckIn = status === "confirmed";
+  // Every gate below is time-aware via the shared lifecycle rule. Status alone is not
+  // enough: nothing in the backend ends an appointment, so a three-week-old visit is still
+  // `confirmed` and used to offer Check in, Reschedule and Cancel indefinitely.
+  const outcome = appointmentOutcome(a);
+  const showCheckIn = canCheckInAppointment(a);
   // Already checked in → the queue is the useful destination, not check-in again.
-  const showQueue = status === "checked_in";
-  const showReschedule = status === "pending" || status === "confirmed";
-  const showCancel = status === "pending" || status === "confirmed";
+  const showQueue = status === "checked_in" && outcome === "in_progress";
+  const showReschedule = canRescheduleAppointment(a);
+  const showCancel = canCancelAppointment(a);
   const showRate = status === "completed";
-  const hasActions = showCheckIn || showQueue || showReschedule || showCancel || showRate;
+  /**
+   * A missed appointment gets "Book again", never "Reschedule".
+   *
+   * Rescheduling would MUTATE this row — `reschedule_appointment_atomic` overwrites
+   * `slot_date`/`slot_start`/`slot_end` in place, keeping only one `previous_slot_*` pair —
+   * so moving a missed appointment to a future date erases the fact that it was missed.
+   * It also would have SUCCEEDED: the RPC only rejects `SLOT_IN_PAST` for the NEW slot.
+   * Booking again creates a new appointment and leaves the history intact.
+   */
+  const showBookAgain = canBookAgain(a);
+  const hasActions =
+    showCheckIn || showQueue || showReschedule || showCancel || showRate || showBookAgain;
 
   return (
     <Screen
@@ -170,6 +192,21 @@ export default function AppointmentDetailsScreen() {
           ) : null}
           {showRate ? (
             <Button label={t("appointments.rate")} onPress={() => router.push(`/rate/${id}`)} />
+          ) : null}
+          {showBookAgain ? (
+            <>
+              <Text variant="caption" color="textMuted">{t("appointments.missedNotice")}</Text>
+              <Button
+                label={t("appointments.bookAgain")}
+                onPress={() =>
+                  // Straight into the normal booking flow for the same doctor. A new
+                  // appointment row — this one stays as history.
+                  router.push(
+                    a.doctor_id ? `/booking/${a.doctor_id}/schedule` : "/(app)/(tabs)/search"
+                  )
+                }
+              />
+            </>
           ) : null}
         </View>
       ) : null}

@@ -102,12 +102,30 @@ describe("listMyAppointments — upcoming excludes ended appointments", () => {
     expect(statusExclusion(filters) ?? "").not.toContain("approved");
   });
 
-  it("leaves the past tab untouched — a cancelled visit belongs there", async () => {
+  /**
+   * CONTRACT CHANGE (Upcoming/Past lifecycle fix).
+   *
+   * The `past` tab used to filter `slot_date < today`. That was replaced by the shared
+   * `isUpcomingAppointment` rule applied to the returned rows, because the SQL filter
+   * silently dropped two real cases:
+   *
+   *   • an appointment EARLIER TODAY that has already finished — `slot_date < today` is
+   *     false, so it appeared in neither tab;
+   *   • a CANCELLED appointment booked for next week — excluded from `upcoming` by status
+   *     and from `past` by date, so it also appeared in neither tab.
+   *
+   * PostgREST cannot express the wall-clock half of the rule (slot_end + grace, in
+   * Asia/Muscat), and encoding half of it in SQL is exactly how the dashboard and the
+   * appointments screen drifted into two different answers. So `past` now applies no date
+   * filter and the shared rule decides.
+   */
+  it("applies NO date filter to the past tab — the shared lifecycle rule decides", async () => {
     const { db, filters } = makeDb();
     await api.appointments.listMyAppointments(db as unknown as AnyDb, "past");
 
     expect(statusExclusion(filters)).toBeNull();
-    expect(filters.some((f) => f.method === "lt" && f.args[0] === "slot_date")).toBe(true);
+    expect(filters.some((f) => f.method === "lt" && f.args[0] === "slot_date")).toBe(false);
+    expect(filters.some((f) => f.method === "gte" && f.args[0] === "slot_date")).toBe(false);
   });
 
   it("leaves the all tab unfiltered — the Appointments screen splits it client-side", async () => {

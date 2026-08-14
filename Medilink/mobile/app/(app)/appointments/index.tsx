@@ -21,13 +21,18 @@ import { localizedName } from "@/utils/localizedName";
 import { useAppointments, useCheckInAppointment } from "@/hooks/queries/usePatient";
 import { useRefresh } from "@/hooks/useRefresh";
 import type { Appointment } from "@/data/types";
-import { apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
+import { appointmentOutcome, isUpcomingAppointment } from "@medilink/shared/mobile";
+import { apptOutcomeLabel, apptStatusCategory, apptStatusLabel, apptTone, formatApptDate, formatApptTime } from "@/utils/appointments";
 
-/** A status that is still active (vs. an ended/past appointment). */
-function isUpcoming(a: Appointment): boolean {
-  const c = apptStatusCategory(a.status);
-  return c === "success" || c === "warning";
-}
+/**
+ * Upcoming/Past is decided by `isUpcomingAppointment` in `@medilink/shared`, NOT here.
+ *
+ * The previous local rule read the status category and nothing else, so an appointment from
+ * 24 July was still listed under Upcoming three weeks later — no status transition ever
+ * happens to move it (nothing in the backend writes `completed` or `no_show` to
+ * `appointments`). The shared rule compares `slot_end` in Oman wall-clock time and treats
+ * the backend's own resolved statuses as authoritative. See its header for the full trace.
+ */
 
 /** Appointments — Upcoming & Past (PDF p24). */
 export default function AppointmentsScreen() {
@@ -42,8 +47,11 @@ export default function AppointmentsScreen() {
   const query = useAppointments("all");
   const { refreshing, onRefresh } = useRefresh(() => query.refetch());
   const all = query.data ?? [];
-  const upcomingList = all.filter(isUpcoming);
-  const pastList = all.filter((a) => !isUpcoming(a));
+  // Recomputed on every render rather than memoised on the data alone: the answer is a
+  // function of the CLOCK as well as the rows, so a cached split would leave an appointment
+  // in Upcoming after its slot passed until the next refetch.
+  const upcomingList = all.filter((a) => isUpcomingAppointment(a));
+  const pastList = all.filter((a) => !isUpcomingAppointment(a));
 
   const checkIn = useCheckInAppointment();
   const onHeroCheckIn = (apptId: string) =>
@@ -86,7 +94,10 @@ export default function AppointmentsScreen() {
   // Design p24 subtitle: "Cardiology · Royal Hospital · 10:30 AM".
   const upcomingSubtitle = (a: Appointment) =>
     [specialtyLabel(a.doctor?.specialty, a.doctor?.specialty ?? "", t), localizedName(a.facility?.name ?? "", a.facility?.name_ar, a.facility?.name_ar_status, isRTL), timeLabel(a)].filter(Boolean).join(" · ");
-  const pastSubtitle = (a: Appointment) => [apptStatusLabel(a.status, t), dateLabel(a)].filter(Boolean).join(" · ");
+  // Labelled by the DERIVED outcome, not the raw status: an appointment stuck at `confirmed`
+  // whose slot has passed must read "Missed", not "Confirmed", in the Past list.
+  const pastSubtitle = (a: Appointment) =>
+    [apptOutcomeLabel(appointmentOutcome(a), t), dateLabel(a)].filter(Boolean).join(" · ");
 
   const pastSection = (
     <>

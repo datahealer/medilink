@@ -1,5 +1,10 @@
 // APPOINTMENTS — RE-HOMED from HAMS `patients/me/appointments`, `appointments/book`,
 // `appointments/[id]`, `slots` → direct Supabase + RPCs (RLS / SECURITY DEFINER).
+import {
+  ENDED_APPOINTMENT_STATUSES,
+  isUpcomingAppointment,
+  type AppointmentLifecycleInput,
+} from "../utils/appointmentLifecycle";
 import { normalizeFreeText } from "../utils/normalize";
 import type { DB, Enums, Json } from "./client";
 import { getCurrentUserId, getMyPatientProfileId, today } from "./client";
@@ -30,17 +35,26 @@ const LIST_SELECT =
 export type AppointmentTab = "upcoming" | "past" | "all";
 
 /**
- * Statuses that END an appointment. They may still carry a future `slot_date`, so a
- * date-only filter is NOT enough to decide what is "upcoming" — a cancelled visit
- * booked for next week is still `slot_date >= today`.
+ * List the patient's appointments (newest first), optionally partitioned by tab.
  *
- * Kept as an exclusion list rather than an allow-list of active statuses on purpose:
- * `appointment_status` also contains `approved`, which the appointments UI treats as
- * equivalent to `confirmed`. An allow-list would silently drop it.
+ * ── WHY THE SPLIT IS NOT DONE IN SQL ──
+ *
+ * "Upcoming" is a function of `slot_date` + `slot_end` + status + a grace period, evaluated
+ * in Asia/Muscat. PostgREST can express the date half but not the wall-clock half, and
+ * duplicating a partial rule in SQL is exactly how the two definitions in this app drifted
+ * apart: the dashboard used the date-filtered query while the appointments screen used a
+ * status-only client rule, and the same appointment appeared in one and not the other.
+ *
+ * So SQL narrows, and `isUpcomingAppointment` — the single shared rule — decides. The
+ * `upcoming` query keeps a date+status filter because it is a strict SUPERSET of the answer
+ * (anything upcoming necessarily has `slot_date >= today` and a non-ended status), which
+ * keeps the dashboard's fetch small without letting SQL make the decision.
+ *
+ * `past` deliberately has NO date filter. `slot_date < today` used to be the whole rule,
+ * which dropped two real cases on the floor: an appointment earlier TODAY that has already
+ * finished, and a cancelled appointment booked for NEXT week — the latter appeared in
+ * neither tab.
  */
-const ENDED_STATUSES = ["cancelled", "completed", "no_show"] as const;
-
-/** List the patient's appointments (newest first), optionally partitioned by tab. */
 export async function listMyAppointments(db: DB, tab: AppointmentTab = "all") {
   const patientId = await getMyPatientProfileId(db);
   let query = db
@@ -50,18 +64,20 @@ export async function listMyAppointments(db: DB, tab: AppointmentTab = "all") {
     .order("slot_date", { ascending: false });
 
   if (tab === "upcoming") {
-    // "Upcoming" means still going to happen: future-dated AND not already ended.
-    // Without the status filter a cancelled future appointment stayed in this list,
-    // so the dashboard "next visit" card kept rendering it after a successful cancel.
-    // `past`/`all` are deliberately untouched — that is where a cancelled visit belongs.
+    // Superset pre-filter only — see the note above. The authoritative decision is the
+    // `isUpcomingAppointment` pass below.
     query = query
       .gte("slot_date", today())
-      .not("status", "in", `(${ENDED_STATUSES.join(",")})`);
-  } else if (tab === "past") query = query.lt("slot_date", today());
+      .not("status", "in", `(${ENDED_APPOINTMENT_STATUSES.join(",")})`);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
-  return data ?? [];
+  const rows = data ?? [];
+
+  if (tab === "upcoming") return rows.filter((r) => isUpcomingAppointment(r as AppointmentLifecycleInput));
+  if (tab === "past") return rows.filter((r) => !isUpcomingAppointment(r as AppointmentLifecycleInput));
+  return rows;
 }
 
 /** A single appointment (same shape as the list rows), scoped to the caller. */

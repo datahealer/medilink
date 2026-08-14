@@ -90,11 +90,19 @@ export const en = {
     inPerson: "In-person",
     online: "Online",
     status_pending: "Pending",
+    status_approved: "Approved",
     status_confirmed: "Confirmed",
     status_checked_in: "Checked in",
     status_completed: "Completed",
     status_cancelled: "Cancelled",
     status_no_show: "No-show",
+    // Derived lifecycle outcomes — no backend status behind these two.
+    // "Attended" is deliberately not "Completed": the patient checked in, but nothing in
+    // the system closes a visit, so we do not know the clinical outcome.
+    outcome_missed: "Missed",
+    outcome_attended: "Attended",
+    bookAgain: "Book again",
+    missedNotice: "This appointment time has passed. Book a new appointment to see this doctor.",
     consultationFee: "Consultation fee",
     vat: "VAT (5%)",
     total: "Total",
