@@ -12,9 +12,30 @@ import { NextRequest, NextResponse } from "next/server";
  * headers the browser needs to expose the (already-correct) response to JS,
  * and answers CORS preflight (OPTIONS) requests.
  */
+/**
+ * `http://localhost:3000` is allowed ONLY outside production.
+ *
+ * It used to be allow-listed unconditionally, so the deployed API reflected
+ * `Access-Control-Allow-Origin: http://localhost:3000` with
+ * `Access-Control-Allow-Credentials: true`. Anything a patient runs on their own port 3000
+ * — a dev server, a local tool, a malicious app told to listen there — could then make
+ * credentialed cross-origin calls to production and read the responses.
+ *
+ * Gated on NODE_ENV rather than removed, because local web development genuinely needs it:
+ * `frontend` runs on :3000 and calls this API on :3001 as a separate origin. Next sets
+ * NODE_ENV=production in a deployed build and development under `next dev`, so this needs
+ * no new environment variable.
+ *
+ * Production origins come from NEXT_PUBLIC_FRONTEND_URL / FRONTEND_URL, which are already
+ * the documented way to add one (see .env.example). An unset value is dropped rather than
+ * defaulted — an empty allow-list refuses everything, which is the correct failure
+ * direction for CORS.
+ */
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
 const ALLOWED_ORIGINS = new Set<string>(
   [
-    "http://localhost:3000",
+    IS_PRODUCTION ? "" : "http://localhost:3000",
     process.env.NEXT_PUBLIC_FRONTEND_URL ?? "",
     process.env.FRONTEND_URL ?? "",
   ].filter(Boolean)

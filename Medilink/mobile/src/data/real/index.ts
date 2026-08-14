@@ -82,6 +82,59 @@ function errText(e: unknown): string {
 
 // ---- auth -------------------------------------------------------------------
 
+/**
+ * PATIENT-ONLY GATE for the patient app.
+ *
+ * MediLink and HAMS share one Supabase project and one `profiles.role` column, so a HAMS
+ * doctor, technician, staff member or facility admin can authenticate here with their
+ * existing credentials. Nothing stopped them: no sign-in path read `role`.
+ *
+ * That is not a PHI leak — every patient query filters on the caller's own
+ * `patient_id` in addition to RLS, so a staff session returns nothing. The real damage is
+ * pollution: with no patient profile the `(app)` gate routes them into onboarding, where
+ * they can create a `patient_profiles` row against a staff account in the shared clinical
+ * database, and appear to the clinic as their own patient.
+ *
+ * Enforced HERE rather than by hiding UI, because this is the single boundary every session
+ * passes through — cold-launch restore and every fresh sign-in both resolve through
+ * `restoreSession` or the `subscribe` stream. Gating one screen would leave deep links and
+ * session restore open.
+ *
+ * Deliberately NOT a second role system: it reads the same `profiles.role` the backend
+ * already gates on (`auth/phone/start` returns 403 for non-patients) and the same values
+ * HAMS writes.
+ *
+ * FAILS OPEN on a read error, and that is intentional. A network blip or an RLS hiccup must
+ * not lock a legitimate patient out of their own records; the authoritative protection
+ * remains RLS plus the explicit `patient_id` filters, which return nothing for a staff
+ * account regardless. This gate exists to stop accidental entry, not to be the last line.
+ */
+async function patientSessionOrNull(
+  session: Awaited<ReturnType<typeof api.auth.getSession>>
+): Promise<{ id: string; email: string | null } | null> {
+  const user = session?.user;
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  // No row yet = a signup whose provisioning trigger has not landed. Treat as a patient;
+  // the profile-setup gate handles the rest.
+  if (error || !data) return { id: user.id, email: user.email ?? null };
+
+  if (data.role && data.role !== "patient") {
+    // Drop the session so the app returns to the sign-in wall instead of sitting in a
+    // half-authenticated state that the (app) gate would bounce on every navigation.
+    await api.auth.signOut(supabase).catch(() => {});
+    return null;
+  }
+
+  return { id: user.id, email: user.email ?? null };
+}
+
 const authRepo: AuthRepository = {
   signIn: (input) => authService.signIn(input),
   signUp: (input) => authService.signUp(input),
@@ -105,12 +158,14 @@ const authRepo: AuthRepository = {
   cancelDeletion: () => authService.cancelDeletion(),
   async restoreSession() {
     const session = await api.auth.getSession(supabase);
-    return session?.user ? { id: session.user.id, email: session.user.email ?? null } : null;
+    return patientSessionOrNull(session);
   },
   subscribe(onChange) {
-    return api.auth.onAuthStateChange(supabase, (session) =>
-      onChange(session?.user ? { id: session.user.id, email: session.user.email ?? null } : null)
-    );
+    return api.auth.onAuthStateChange(supabase, (session) => {
+      // Async inside a sync callback: resolve the role, then emit. Emitting the raw session
+      // first and correcting later would flash patient UI for a staff account.
+      void patientSessionOrNull(session).then(onChange);
+    });
   },
 };
 
