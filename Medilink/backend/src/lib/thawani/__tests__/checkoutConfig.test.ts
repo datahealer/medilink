@@ -78,6 +78,36 @@ describe("REGRESSION: the publishable key is never interpolated blind", () => {
     assert.equal(problems.length, 1);
     assert.match(problems[0], /whitespace or control characters/);
   });
+
+  /**
+   * The control-character half of that rule, pinned explicitly.
+   *
+   * The regex used to be written with LITERAL NUL and 0x1F bytes embedded in the source.
+   * It now uses `\x00-\x1F` escapes so the file is reviewable text rather than something
+   * git diffs as binary. These cases exist so that swap is provably behaviour-preserving —
+   * and so nobody later "tidies" the class into `[\s -]`, which is what the literal form
+   * LOOKED like in an editor and would only catch a space or a hyphen.
+   */
+  it("rejects a key containing any C0 control character", () => {
+    for (const [label, ch] of [
+      ["NUL", "\x00"],
+      ["unit separator 0x1F", "\x1f"],
+      ["bell 0x07", "\x07"],
+      ["escape 0x1B", "\x1b"],
+    ] as const) {
+      const env = { ...ok(), THAWANI_PUBLISHABLE_KEY: `HGvTML${ch}DssJghr9` };
+      const problems = checkoutConfigProblems(env);
+      assert.equal(problems.length, 1, `${label} should be reported`);
+      assert.match(problems[0], /whitespace or control characters/);
+    }
+  });
+
+  it("still accepts a clean key — the class has not been widened", () => {
+    // Guards against an over-broad range swallowing ordinary printable characters.
+    for (const key of ["HGvTMLDssJghr9", "pk_test_ABC-123_xyz", "abcXYZ0189"]) {
+      assert.deepEqual(checkoutConfigProblems({ ...ok(), THAWANI_PUBLISHABLE_KEY: key }), []);
+    }
+  });
 });
 
 describe("REGRESSION: no silent host fallback", () => {

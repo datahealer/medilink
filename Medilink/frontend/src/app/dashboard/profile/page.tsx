@@ -397,7 +397,8 @@ export default function ProfilePage() {
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData.user?.id ?? "anon";
       await Promise.all(items.map(async (file) => {
-        const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+        // `-` needs no escape as the final member of a character class.
+        const safeName = file.name.replace(/[^\w.-]+/g, "_");
         const path = `${uid}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage.from("patient-docs").upload(path, file);
         if (upErr) throw upErr;

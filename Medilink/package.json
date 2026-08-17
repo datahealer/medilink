@@ -19,8 +19,11 @@
     "lint": "npm run lint --workspaces --if-present",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked 2>/dev/null > shared/src/types/supabase.ts",
-    "test": "npm run test --workspace=@medilink/mobile",
-    "test:coverage": "npm run test:coverage --workspace=@medilink/mobile"
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspace=@medilink/mobile",
+    "test:mobile": "npm run test --workspace=@medilink/mobile",
+    "test:backend": "npm run test --workspace=@medilink/backend",
+    "verify": "npm run typecheck && npm run lint && npm run test"
   },
   "engines": {
     "node": ">=20"
