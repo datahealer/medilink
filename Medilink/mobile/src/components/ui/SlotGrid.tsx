@@ -19,7 +19,7 @@ export function SlotGrid({ slots, selected, onSelect, emptyLabel }: SlotGridProp
     return emptyLabel ? <Text variant="body" color="textMuted">{emptyLabel}</Text> : null;
   }
   return (
-    <View style={[styles.wrap, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+    <View testID="slot-grid-wrap" style={[styles.wrap, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
       {slots.map((s) => {
         const sel = s === selected;
         return (

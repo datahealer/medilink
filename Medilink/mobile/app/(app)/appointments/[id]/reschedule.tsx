@@ -40,7 +40,28 @@ function addMinutes(hhmm: string, mins: number): string {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
-/** Reschedule — reuses the booking slot logic, then reschedule_appointment_atomic. */
+/**
+ * Reschedule — reuses the booking slot logic, then reschedule_appointment_atomic.
+ *
+ * ── ON THE ABSENCE OF `isRTL` IN THIS FILE ──
+ *
+ * Deliberate, not an oversight. The 2026-08-11 audit flagged this screen for an RTL pass
+ * because it contains no `isRTL` reference; that metric is a proxy and it is wrong here.
+ *
+ * This screen declares NO physical direction of its own — no `flexDirection`, no
+ * margin/padding Left/Right, no absolute left/right. It composes `AppHeader` (mirrors its
+ * row and its back chevron), `DayGrid` and `SlotGrid` (both mirror to `row-reverse`),
+ * `Text` (defaults `textAlign`/`writingDirection` from the locale) and a full-width
+ * `Button`. There is nothing left to mirror, and adding `isRTL` here would either be dead
+ * code or would double-mirror a child that already handles itself.
+ *
+ * Because that correctness is INHERITED, it is pinned by
+ * `src/components/ui/__tests__/rescheduleControlsRtl.test.tsx`, which asserts the mirroring
+ * on the primitives this screen depends on. Removing `row-reverse` from DayGrid would
+ * otherwise break Arabic here silently — no typecheck error, no lint warning.
+ *
+ * If you add a custom row to this screen, it needs `isRTL` and it needs a test.
+ */
 export default function RescheduleScreen() {
   const { spacing } = useTheme();
   const { contentMaxWidth } = useResponsive();

@@ -22,7 +22,7 @@ export interface DayGridProps {
 export function DayGrid({ items, selectedId, onSelect }: DayGridProps) {
   const { colors, radii, isRTL } = useTheme();
   return (
-    <View style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+    <View testID="day-grid-row" style={[styles.row, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
       {items.map((d) => {
         const sel = d.id === selectedId;
         return (

@@ -18,6 +18,7 @@ export function AppHeader({ title, showBack = true, right }: AppHeaderProps) {
 
   return (
     <View
+      testID="app-header-row"
       style={[
         styles.row,
         { flexDirection: isRTL ? "row-reverse" : "row", marginBottom: spacing.md },
