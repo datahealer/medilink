@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, i18n, BOOKING_WINDOW_DAYS, omanTodayParts } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { env } from "@/lib/env";
+import { backendJson } from "@/lib/backendFetch";
 
 /* ─── Shared doctor booking flow — used by Find Doctors, doctor profile, and Symptom Checker ──
  * Single implementation. Wired to the real backend:
@@ -272,15 +272,20 @@ export function BookingModal({
 
       // Only Thawani initiates the hosted checkout; card/cash book as pending (no online gateway).
       if (payMethod === "thawani") {
-        const r = await fetch(`${env.BACKEND_URL}/api/payments/checkout`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          // BP-4: the amount is derived server-side from the doctor's fee + VAT.
-          // The client no longer sends it (previously sent fee without VAT).
-          body: JSON.stringify({ appointment_id: res.appointment_id }),
-        });
-        const j = await r.json().catch(() => null);
+        // `backendFetch` attaches the caller's Supabase access token. Cookies alone cannot
+        // authenticate here: the backend is a separate origin, so the host-only Supabase
+        // cookies never reach it and this POST returned 401 with a perfectly healthy
+        // preflight. See lib/backendFetch.ts.
+        const { res: r, data: j } = await backendJson<{ checkoutUrl?: string }>(
+          "/api/payments/checkout",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // BP-4: the amount is derived server-side from the doctor's fee + VAT.
+            // The client no longer sends it (previously sent fee without VAT).
+            body: JSON.stringify({ appointment_id: res.appointment_id }),
+          }
+        );
         if (r.ok && j?.checkoutUrl) {
           window.location.href = j.checkoutUrl; // → Thawani → webhook confirms → /payment-success
           return;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { env } from "@/lib/env";
+import { backendFetch, openBackendFile } from "@/lib/backendFetch";
 import { useMyProfile } from "@/hooks/useMyProfile";
 
 type Status = "paid" | "pending" | "refunded" | "failed";
@@ -254,7 +254,9 @@ export default function PaymentsPage() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${env.BACKEND_URL}/api/payments`, { credentials: "include" });
+        // Session attached — cookies alone 401 against the separate backend origin, which
+        // silently rendered an empty payment history. See lib/backendFetch.ts.
+        const res = await backendFetch("/api/payments");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const rows = (await res.json()) as BackendPayment[];
         if (active) setPayments((Array.isArray(rows) ? rows : []).map(toPayment));
@@ -275,10 +277,17 @@ export default function PaymentsPage() {
     // Prefer the backend-generated invoice (redirects to the stored PDF) when one
     // exists; fall back to client-side generation only when it doesn't.
     if (modalPayment.invoiceUrl) {
-      window.open(`${env.BACKEND_URL}/api/payments/${modalPayment.id}/invoice`, "_blank", "noopener,noreferrer");
-      setDownloadedId(modalPayment.id);
-      setTimeout(() => setDownloadedId(null), 2000);
-      return;
+      // `window.open` cannot carry an Authorization header, so it would 401 against the
+      // separate backend origin. Ask the route for a short-lived signed URL with the
+      // session attached (?format=json) and open THAT — the signed URL needs no
+      // credentials of its own. Falls through to client-side generation if it fails, so
+      // the button is never a dead end.
+      const opened = await openBackendFile(`/api/payments/${modalPayment.id}/invoice?format=json`);
+      if (opened) {
+        setDownloadedId(modalPayment.id);
+        setTimeout(() => setDownloadedId(null), 2000);
+        return;
+      }
     }
     const node = document.getElementById("invoice-print-root");
     if (!node) return;

@@ -5,7 +5,7 @@ import type { Json } from "@medilink/shared";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
-import { env } from "@/lib/env";
+import { backendFetch } from "@/lib/backendFetch";
 
 function downloadRecord(rec: MedRecord, isAr: boolean) {
   const info = isAr ? rec.ar : rec.en;
@@ -102,9 +102,8 @@ async function downloadFile(url: string, filename: string): Promise<void> {
 
 /** Real backend PDF for a prescription — replaces the generic local text export. */
 async function downloadPrescriptionPdf(prescriptionId: string): Promise<string> {
-  const res = await fetch(`${env.BACKEND_URL}/api/prescriptions/${prescriptionId}/download`, {
-    credentials: "include",
-  });
+  // Session attached — cookies alone 401 against the separate backend origin.
+  const res = await backendFetch(`/api/prescriptions/${prescriptionId}/download`);
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.signed_url) throw new Error(data?.error ?? "download_failed");
   return data.signed_url as string;

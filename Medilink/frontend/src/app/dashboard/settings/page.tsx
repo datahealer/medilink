@@ -13,7 +13,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { ThemeToggle } from "@/components/auth/ThemeToggle";
-import { env } from "@/lib/env";
+import { backendFetch } from "@/lib/backendFetch";
 
 /* ─── Channel prefs (profiles.notification_prefs JSONB) ─────────────────── */
 type Channels = { push: boolean; email: boolean; sms: boolean };
@@ -103,7 +103,7 @@ export default function SettingsPage() {
 
   const loadExports = useCallback(async () => {
     try {
-      const res = await fetch(`${env.BACKEND_URL}/api/users/me/data-export`, { credentials: "include" });
+      const res = await backendFetch("/api/users/me/data-export");
       if (!res.ok) return;
       const json = (await res.json()) as { exports?: ExportRequest[] };
       setLatestExport(json.exports?.[0] ?? null);
@@ -140,7 +140,7 @@ export default function SettingsPage() {
     setExportBusy(true);
     setError("");
     try {
-      const res = await fetch(`${env.BACKEND_URL}/api/users/me/data-export`, { method: "POST", credentials: "include" });
+      const res = await backendFetch("/api/users/me/data-export", { method: "POST" });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error || "export failed");
@@ -159,9 +159,8 @@ export default function SettingsPage() {
     setDeleteBusy(true);
     setError("");
     try {
-      const res = await fetch(`${env.BACKEND_URL}/api/users/me/account`, {
+      const res = await backendFetch("/api/users/me/account", {
         method: "DELETE",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirmation: "DELETE" }),
       });
@@ -183,7 +182,7 @@ export default function SettingsPage() {
     setDeleteBusy(true);
     setError("");
     try {
-      const res = await fetch(`${env.BACKEND_URL}/api/users/me/account/cancel-deletion`, { method: "POST", credentials: "include" });
+      const res = await backendFetch("/api/users/me/account/cancel-deletion", { method: "POST" });
       if (!res.ok) throw new Error("cancel failed");
       await loadAccount();
     } catch {

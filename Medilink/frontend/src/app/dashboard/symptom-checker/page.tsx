@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useAuth } from "@/context/AuthContext";
-import { env } from "@/lib/env";
+import { backendFetch } from "@/lib/backendFetch";
 import { specialtyLabel } from "@/lib/specialties";
 import { BookingModal, type ViewDoctor } from "@/components/dashboard/DoctorBooking";
 
@@ -129,10 +129,10 @@ export default function SymptomCheckerPage() {
     setExplanation("");
 
     try {
-      const res = await fetch(`${env.BACKEND_URL}/api/ai/symptom-check`, {
+      // Session attached — cookies alone 401 against the separate backend origin.
+      const res = await backendFetch("/api/ai/symptom-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           symptoms: symptoms.trim(),
           patient_age: age ? Number(age) : undefined,

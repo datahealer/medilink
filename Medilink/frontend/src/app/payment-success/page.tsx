@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api } from "@medilink/shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { env } from "@/lib/env";
+import { backendJson } from "@/lib/backendFetch";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /* Thawani redirects the hosted-checkout browser here:
@@ -71,13 +71,17 @@ function PaymentSuccessInner() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${env.BACKEND_URL}/api/payments/verify`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ appointment_id: appointmentId }),
-        });
-        const json = await res.json().catch(() => null);
+        // Session attached via backendJson — the backend is a separate origin, so cookies
+        // alone leave this 401 and the patient sees "processing" forever after a real
+        // payment. See lib/backendFetch.ts.
+        const { res, data: json } = await backendJson<{ payment?: Recap }>(
+          "/api/payments/verify",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ appointment_id: appointmentId }),
+          }
+        );
         if (active && res.ok && json?.payment) setRecap(json.payment as Recap);
       } finally {
         if (active) setLoading(false);
