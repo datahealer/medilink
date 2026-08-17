@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
@@ -6,6 +5,8 @@ import { sendAppointmentEmailForUser } from "@/lib/email/appointmentEmailForUser
 import { logAudit } from "@/lib/audit/logAudit";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 import { ensureInvoice } from "@/lib/payments/ensureInvoice";
+import { invoiceDownloadUrl } from "@/lib/payments/invoiceObject";
+import { verifyWebhookSignature } from "@/lib/payments/webhookSignature";
 
 // Vercel: the webhook runs a sequential chain (gateway verify → invoice edge fn →
 // email → notifications); give it headroom above the low default timeout.
@@ -15,30 +16,10 @@ export const maxDuration = 60;
  * BP-6 — HMAC/signature verification (defense-in-depth, in addition to the Thawani
  * re-query + idempotent claim below).
  *
- * Verifies `HMAC-SHA256(rawBody, THAWANI_WEBHOOK_SECRET)` (hex) against the signature
- * header (`THAWANI_WEBHOOK_SIGNATURE_HEADER`, default `thawani-signature`), using a
- * timing-safe compare. Gated on the secret being set:
- *   • secret unset  → skip (the re-query below stays the authoritative anti-spoof
- *     guard, so no deployment breaks by omitting it).
- *   • secret set    → a missing/mismatched signature is rejected (401).
- * Even if the secret is misconfigured, payments still finalize via the client
- * `/payments/verify` path (which re-queries Thawani directly), so this never strands
- * a real payment.
+ * The implementation moved to `@/lib/payments/webhookSignature` so it can be tested
+ * without a database, an SMTP transport or a live Thawani account. Behaviour is unchanged;
+ * see that module for why an unset secret skips rather than rejects.
  */
-function verifyWebhookSignature(req: NextRequest, rawBody: string): { ok: boolean; reason?: string } {
-  const secret = process.env.THAWANI_WEBHOOK_SECRET;
-  if (!secret) return { ok: true, reason: "hmac-not-configured" };
-
-  const headerName = process.env.THAWANI_WEBHOOK_SIGNATURE_HEADER || "thawani-signature";
-  const provided = req.headers.get(headerName);
-  if (!provided) return { ok: false, reason: "missing-signature" };
-
-  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return { ok: false, reason: "signature-mismatch" };
-  return { ok: crypto.timingSafeEqual(a, b), reason: "signature-mismatch" };
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -338,7 +319,14 @@ export async function POST(req: NextRequest) {
       // the row, and the transporter logs its own SMTP result. Log presence, not value.
       console.log("📧 Sending invoice email for payment:", payment.id);
       try {
-        await sendInvoiceEmail(email, invoiceUrl, invoiceNumber);
+        // The AUTHENTICATED route, never `invoiceUrl` (a public storage link). Email is the
+        // one channel that carries a link permanently outside our control, so it must not
+        // carry a directly-fetchable PHI object. See lib/payments/invoiceObject.ts.
+        await sendInvoiceEmail(
+          email,
+          invoiceDownloadUrl(process.env.NEXT_PUBLIC_APP_URL ?? "", payment.id),
+          invoiceNumber
+        );
         console.log("✅ Email sent for payment:", payment.id);
       } catch (emailErr: any) {
         console.error("❌ Email send failed (non-fatal) for payment:", payment.id, emailErr?.message);

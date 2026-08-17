@@ -94,7 +94,8 @@ export default function PaymentConfirmationScreen() {
     if (!isPaid || !payment?.invoiceUrl || filedRef.current) return;
     filedRef.current = true;
     saveInvoice({
-      invoiceUrl: payment.invoiceUrl,
+      // `invoiceUrl` is an existence flag; the hook mints its own signed URL to download.
+      paymentId: payment.id,
       name: `Invoice ${payment.reference || payment.id.slice(0, 8)}`,
       appointmentId: payment.appointment?.id ?? null,
     });

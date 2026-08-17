@@ -5,6 +5,7 @@ import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 import { ensureInvoice } from "@/lib/payments/ensureInvoice";
+import { invoiceDownloadUrl } from "@/lib/payments/invoiceObject";
 import { sendAppointmentEmailForUser } from "@/lib/email/appointmentEmailForUser";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoice";
 
@@ -50,7 +51,14 @@ async function buildRecap(service: Service, appointmentId: string) {
     status: p.status ?? null,
     reference: p.gateway_ref ?? p.id ?? null,
     method: p.payment_method ?? p.gateway ?? null,
-    invoiceUrl: p.invoice_url ?? null,
+    // The authenticated route, not the public storage URL — see the mapping note in
+    // GET /api/payments. Null stays null so "no invoice yet" still renders correctly.
+    // Keyed by PAYMENT id (`p.id`), not the appointment id — /api/payments/{id}/invoice
+    // looks up `payments.id`. Passing the appointment id here would 404 for every patient.
+    invoiceUrl:
+      p.invoice_url && process.env.NEXT_PUBLIC_APP_URL
+        ? invoiceDownloadUrl(process.env.NEXT_PUBLIC_APP_URL, p.id)
+        : null,
     createdAt: p.created_at ?? null,
     appointment: a
       ? {
@@ -179,7 +187,13 @@ export async function POST(req: NextRequest) {
 
       if (to) {
         if (invoice?.url) {
-          await sendInvoiceEmail(to, invoice.url, invoice.invoiceNumber || payment.id);
+          // `invoice.url` proves the worker finished; the LINK is the authenticated route,
+          // not that public storage URL. See lib/payments/invoiceObject.ts.
+          await sendInvoiceEmail(
+            to,
+            invoiceDownloadUrl(process.env.NEXT_PUBLIC_APP_URL ?? "", payment.id),
+            invoice.invoiceNumber || payment.id
+          );
         } else {
           // Distinguishable from "email failed": there was nothing to attach yet, so no
           // receipt was even attempted. The invoice sweeper will regenerate it.

@@ -4,6 +4,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
 import { serverErrorResponse } from "@/lib/http/serverError";
+import { invoiceDownloadUrl } from "@/lib/payments/invoiceObject";
 
 export async function GET(req: NextRequest) {
   try {
@@ -69,7 +70,26 @@ export async function GET(req: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json(data || []);
+    /**
+     * Never hand a client the raw `invoice_url`.
+     *
+     * It is a PUBLIC storage link to a PDF containing the patient's name, email, doctor,
+     * facility and amount. Returning it put an unauthenticated PHI URL into every client
+     * bundle's memory, every browser devtools Network tab, and anywhere those clients chose
+     * to persist or share it.
+     *
+     * The field keeps its name and its null-ness — clients already use it as "is there an
+     * invoice?" and render a disabled button when null — but the VALUE becomes the
+     * authenticated download route. Existing consumers keep working unchanged and become
+     * safe by default rather than needing to be individually corrected.
+     */
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    const rows = (data || []).map((row) => ({
+      ...row,
+      invoice_url: row.invoice_url && appUrl ? invoiceDownloadUrl(appUrl, row.id) : null,
+    }));
+
+    return NextResponse.json(rows);
 
   } catch (err: any) {
     const authRes = authErrorResponse(err);

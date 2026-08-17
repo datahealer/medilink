@@ -4,6 +4,7 @@ import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
 import { ensureInvoice } from "@/lib/payments/ensureInvoice";
+import { invoiceDownloadUrl } from "@/lib/payments/invoiceObject";
 
 // Invoice generation can invoke the PDF edge function + storage; give headroom.
 export const maxDuration = 60;
@@ -42,9 +43,18 @@ export async function POST(
     }
 
     // 2. Already has an invoice → return it (idempotent, no duplicate).
+    //
+    // The stored `invoice_url` is a PUBLIC storage link and must never reach a client; what
+    // goes back is the authenticated download route, same as GET /api/payments. The stored
+    // value is read only as the "an invoice exists" flag.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     if (payment.invoice_url) {
       return NextResponse.json(
-        { status: "exists", invoice_url: payment.invoice_url, invoice_number: payment.invoice_number },
+        {
+          status: "exists",
+          invoice_url: appUrl ? invoiceDownloadUrl(appUrl, payment.id) : null,
+          invoice_number: payment.invoice_number,
+        },
         { status: 200 },
       );
     }
@@ -58,8 +68,13 @@ export async function POST(
     const result = await ensureInvoice(id, "manual");
 
     if (result.ok && result.url) {
+      // `result.url` proves the worker finished; the client gets the gated route instead.
       return NextResponse.json(
-        { status: "generated", invoice_url: result.url, invoice_number: result.invoiceNumber },
+        {
+          status: "generated",
+          invoice_url: appUrl ? invoiceDownloadUrl(appUrl, id) : null,
+          invoice_number: result.invoiceNumber,
+        },
         { status: 200 },
       );
     }

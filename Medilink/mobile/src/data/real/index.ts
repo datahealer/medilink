@@ -442,6 +442,16 @@ const paymentRepo: PaymentRepository = {
     );
     return { invoiceUrl: res?.invoice_url ?? null, status: res?.status ?? "queued" };
   },
+  async invoiceFileUrl(paymentId) {
+    // `?format=json` returns the signed URL instead of 302-ing to it. The redirect shape is
+    // for browsers and email links; here we need the URL itself so it can be handed to
+    // Linking/share/download. `apiFetch` attaches the bearer token — the route authenticates
+    // and re-checks `patient_id = auth.uid()` before signing anything.
+    const res = await apiFetch<{ url?: string }>(
+      `/api/payments/${paymentId}/invoice?format=json`,
+    );
+    return res?.url ?? null;
+  },
 };
 
 const appointmentRepo: AppointmentRepository = {

@@ -189,6 +189,21 @@ export interface PaymentRepository {
    * invoice is still being generated (status 'queued'/'in_progress') — poll again.
    */
   regenerateInvoice(paymentId: string): Promise<{ invoiceUrl: string | null; status: string }>;
+
+  /**
+   * Mint a SHORT-LIVED signed URL for this payment's invoice PDF.
+   *
+   * Must be called immediately before opening, sharing or downloading the file, and the
+   * result must never be cached or persisted — it expires in minutes by design.
+   *
+   * Why this exists: the invoice PDF carries the patient's name, email, doctor, facility
+   * and amount, and used to live on a permanently-valid PUBLIC storage URL that the app
+   * fetched with no credentials. The URL is now issued per request by the backend, which
+   * re-checks the session and payment ownership on every call.
+   *
+   * Returns null when there is no invoice yet (the worker has not finished).
+   */
+  invoiceFileUrl(paymentId: string): Promise<string | null>;
 }
 
 /** Read-only discovery data for the dashboard (recents/featured) + specialty grid. */

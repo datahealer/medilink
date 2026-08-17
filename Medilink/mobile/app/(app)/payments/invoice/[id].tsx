@@ -8,6 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { usePayment, useRegenerateInvoice } from "@/hooks/queries/usePatient";
 import { useSaveInvoiceToVault } from "@/hooks/queries/useRecords";
+import { repositories } from "@/data";
 import { formatApptDate } from "@/utils/appointments";
 import { payCategory, payStatusLabel, payTone } from "@/utils/payments";
 import { consultationTotal, round3 } from "@medilink/shared/mobile";
@@ -35,11 +36,13 @@ export default function InvoiceScreen() {
   const { mutate: saveInvoice } = useSaveInvoiceToVault();
   const savedRef = useRef(false);
   useEffect(() => {
+    // `invoiceUrl` is now the authenticated route, so it is an EXISTENCE flag only — the
+    // hook mints its own short-lived signed URL to do the actual download.
     const inv = payment?.invoiceUrl;
     if (!inv || savedRef.current) return;
     savedRef.current = true;
     saveInvoice({
-      invoiceUrl: inv,
+      paymentId: id,
       name: `Invoice ${payment?.reference || id.slice(0, 8)}`,
       appointmentId: payment?.appointment?.id ?? null,
     });
@@ -80,14 +83,40 @@ export default function InvoiceScreen() {
   const dateText = formatApptDate(payment.createdAt?.slice(0, 10), t, num);
   const invoiceUrl = payment.invoiceUrl;
 
-  const onDownload = () => {
-    if (!invoiceUrl) return;
-    Linking.openURL(invoiceUrl).catch(() => Alert.alert(t("payments.loadError")));
+  /**
+   * Mint a fresh signed URL immediately before use.
+   *
+   * `payment.invoiceUrl` is no longer a fetchable file — the backend now returns the
+   * AUTHENTICATED route there, and the underlying storage object is private. So it is used
+   * only to decide whether an invoice exists (button enabled/disabled); the actual URL is
+   * requested per action and deliberately never stored in state, because it expires in
+   * minutes and holding a stale one would surface as an unexplained failure later.
+   */
+  const freshInvoiceUrl = async (): Promise<string | null> => {
+    try {
+      return await repositories.payment.invoiceFileUrl(id);
+    } catch {
+      return null;
+    }
   };
-  const onShare = () => {
-    if (!invoiceUrl) return;
-    // Share the actual invoice PDF (downloaded from the URL), not a link.
-    void shareRemoteFile(invoiceUrl, {
+
+  const onDownload = async () => {
+    const url = await freshInvoiceUrl();
+    if (!url) {
+      Alert.alert(t("payments.loadError"));
+      return;
+    }
+    Linking.openURL(url).catch(() => Alert.alert(t("payments.loadError")));
+  };
+  const onShare = async () => {
+    const url = await freshInvoiceUrl();
+    if (!url) {
+      Alert.alert(t("payments.loadError"));
+      return;
+    }
+    // Share the actual invoice PDF (downloaded from the signed URL), not a link — sharing a
+    // signed URL would hand someone else a live, if brief, key to the patient's PHI.
+    void shareRemoteFile(url, {
       filename: "invoice.pdf",
       mimeType: "application/pdf",
       dialogTitle: t("payments.share"),

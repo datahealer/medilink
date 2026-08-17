@@ -54,20 +54,35 @@ export function useDeleteDocument() {
 /**
  * File a paid invoice PDF into the Document Vault (type "invoice"), idempotently: it
  * first checks the vault for a document with the same name and skips the upload if it's
- * already there, so re-opening the invoice never creates duplicates. Downloads the PDF
- * from its (public) invoice URL and re-stores it in the private patient-docs bucket so
- * the vault's signed-URL view/download/share works like any other document.
+ * already there, so re-opening the invoice never creates duplicates. Downloads the PDF and
+ * re-stores it in the private patient-docs bucket so the vault's signed-URL
+ * view/download/share works like any other document.
+ *
+ * ── TAKES A paymentId, NOT A URL ──
+ *
+ * This used to accept the invoice URL and `fetch` it with no credentials, which only worked
+ * because the `invoices` bucket was PUBLIC — the same exposure migration 20260817000000
+ * closes. It now asks the backend to mint a short-lived signed URL for the caller's own
+ * payment, so the download is authenticated and the object can stay private.
+ *
+ * The signed URL is fetched inside the mutation and never returned or cached: it is used
+ * once, immediately, and expires in minutes.
  */
 export function useSaveInvoiceToVault() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { invoiceUrl: string; name: string; appointmentId?: string | null }) => {
+    mutationFn: async (input: { paymentId: string; name: string; appointmentId?: string | null }) => {
       const existing = await repositories.document.list();
       if (existing.some((d) => d.type === "invoice" && d.name === input.name)) return null;
+
+      // Mint late, use immediately.
+      const signedUrl = await repositories.payment.invoiceFileUrl(input.paymentId);
+      if (!signedUrl) return null; // No invoice yet — the sweeper will produce one.
+
       return repositories.document.upload({
         name: input.name,
         type: "invoice",
-        asset: { uri: input.invoiceUrl, name: `${input.name}.pdf`, mimeType: "application/pdf" },
+        asset: { uri: signedUrl, name: `${input.name}.pdf`, mimeType: "application/pdf" },
         linkedAppointmentId: input.appointmentId ?? null,
       });
     },

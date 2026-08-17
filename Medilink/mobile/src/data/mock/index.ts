@@ -786,6 +786,12 @@ const paymentRepo: PaymentRepository = {
     // Mock has no backend worker; seeded payments already carry an invoiceUrl.
     return delay({ invoiceUrl: null, status: "queued" }, 300);
   },
+  async invoiceFileUrl(paymentId) {
+    // Mock mode has no storage and no signing. Return the seeded payment's URL so the
+    // download/share buttons stay exercisable offline, or null when there is none.
+    const p = payments.find((x) => x.id === paymentId);
+    return delay(p?.invoiceUrl ?? null, 200);
+  },
 };
 
 const documentRepo: DocumentRepository = (() => {
