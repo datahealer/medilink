@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppHeader, Button, Card, Chip, MeMark, Screen, Text, TextField } from "@/components/ui";
@@ -8,7 +8,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useI18n } from "@/i18n";
 import { specialtyLabel } from "@/utils/specialties";
 import { useScheduleAssist } from "@/hooks/queries/useAi";
-import { ApiError } from "@/services/api";
+import { isRetryableError, isSessionExpired } from "@/utils/retryableError";
 import type { AiScheduleDoctorResult, AiScheduleEntities, AiScheduleTurn } from "@/data/types";
 
 type Bubble =
@@ -21,7 +21,11 @@ type Bubble =
       kind: "no_results";
       text: string;
       nextAvailable: { date: string; doctorName: string | null; doctorId: string | null } | null;
-    };
+    }
+  // A failed turn. Carries the query that failed so the retry can re-run it without the
+  // user retyping — previously the failure produced a plain text bubble and the query
+  // was gone, which on a flaky connection meant retyping the whole request.
+  | { id: number; role: "assistant"; kind: "error"; text: string; query: string; retryable: boolean };
 
 /** Patient-local YYYY-MM-DD (relative phrases like "tomorrow" resolve without UTC drift). */
 function localDate(): string {
@@ -69,12 +73,13 @@ export default function AiScheduleScreen() {
     [t]
   );
 
-  const send = (raw: string) => {
-    const query = raw.trim();
-    if (!query || assist.isPending) return;
-    setDraft("");
-    setMessages((m) => [...m, { id: nextId(), role: "user", text: query }]);
-
+  /**
+   * Run one assist turn for an already-recorded query.
+   *
+   * Split out of `send` so a retry can re-issue the SAME query without appending a second
+   * user bubble — the user asked once, and a failed network call is not a second question.
+   */
+  const runAssist = (query: string) => {
     assist.mutate(
       { query, clientDate: localDate(), history: historyRef.current, pendingEntities: entitiesRef.current },
       {
@@ -104,11 +109,33 @@ export default function AiScheduleScreen() {
           ].slice(-8); // keep the last few turns for context, bounded
         },
         onError: (err) => {
-          const text = err instanceof ApiError && err.status === 401 ? t("common.sessionExpired") : t("aiSchedule.error");
-          setMessages((m) => [...m, { id: nextId(), role: "assistant", kind: "text", text }]);
+          // Only transient failures get a retry affordance, so the button never promises
+          // something it cannot deliver. The rule lives in utils/retryableError.ts and is
+          // unit-tested there — see its header for why 401/403 and the 4xx block are
+          // excluded while 408/429 are not.
+          const text = isSessionExpired(err) ? t("common.sessionExpired") : t("aiSchedule.error");
+          setMessages((m) => [
+            ...m,
+            { id: nextId(), role: "assistant", kind: "error", text, query, retryable: isRetryableError(err) },
+          ]);
         },
       }
     );
+  };
+
+  const send = (raw: string) => {
+    const query = raw.trim();
+    if (!query || assist.isPending) return;
+    setDraft("");
+    setMessages((m) => [...m, { id: nextId(), role: "user", text: query }]);
+    runAssist(query);
+  };
+
+  /** Drop the failed bubble and re-issue its query. */
+  const retry = (bubbleId: number, query: string) => {
+    if (assist.isPending) return;
+    setMessages((m) => m.filter((b) => b.id !== bubbleId));
+    runAssist(query);
   };
 
   const showExamples = messages.length <= 1 && !assist.isPending;
@@ -172,6 +199,27 @@ export default function AiScheduleScreen() {
                 {b.kind === "text" ? (
                   <View style={[styles.bubble, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg, alignSelf: isRTL ? "flex-end" : "flex-start" }]}>
                     <Text variant="body" align={isRTL ? "right" : "left"}>{b.text}</Text>
+                  </View>
+                ) : b.kind === "error" ? (
+                  <View
+                    accessibilityRole="alert"
+                    style={[styles.bubble, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg, alignSelf: isRTL ? "flex-end" : "flex-start" }]}
+                  >
+                    <Text variant="body" color="error" align={isRTL ? "right" : "left"}>{b.text}</Text>
+                    {b.retryable ? (
+                      <Pressable
+                        onPress={() => retry(b.id, b.query)}
+                        disabled={assist.isPending}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("common.retry")}
+                        style={{ marginTop: spacing.xs, alignSelf: isRTL ? "flex-end" : "flex-start" }}
+                      >
+                        <Text variant="caption" weight="700" color={assist.isPending ? "textMuted" : "primary"}>
+                          {t("common.retry")}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ) : b.kind === "no_results" ? (
                   <View style={[styles.bubble, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg, alignSelf: isRTL ? "flex-end" : "flex-start", width: "100%" }]}>

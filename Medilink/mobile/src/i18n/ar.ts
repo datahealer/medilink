@@ -622,6 +622,7 @@ export const ar: Messages = {
   },
   meHub: {
     title: "حسابي",
+    loadError: "تعذّر تحميل بيانات حسابك.",
     sectionAccount: "الحساب",
     sectionHealth: "الصحة",
     sectionActivity: "النشاط",

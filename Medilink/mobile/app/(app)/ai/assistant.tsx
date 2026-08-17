@@ -22,6 +22,13 @@ interface AiTextMsg {
 interface AiDoctorsMsg {
   id: number; role: "ai"; kind: "doctors"; ts: number;
   status: "loading" | "done" | "error"; doctors: AiSuggestedDoctor[]; reasoning: string | null;
+  /**
+   * The symptom text this card was requested with, kept so a failed lookup can be retried
+   * in place. The chat stream above already had retry (see `regenerate`); this card did
+   * not, so a transient failure here left a dead "couldn't load recommendations" bubble
+   * and the only way back was to trigger a whole new assessment.
+   */
+  symptoms: string;
 }
 type Msg = UserMsg | AiTextMsg | AiDoctorsMsg;
 
@@ -107,15 +114,21 @@ export default function AiSymptomCheckerScreen() {
     });
   };
 
+  /** Fetch (or re-fetch) doctor suggestions into an existing card. */
+  const loadDoctors = useCallback((cardId: number, symptoms: string) => {
+    patch(cardId, (m) => (m.role === "ai" && m.kind === "doctors" ? { ...m, status: "loading" } : m));
+    repositories.ai
+      .suggestDoctors(symptoms)
+      .then((res) => patch(cardId, (m) => (m.role === "ai" && m.kind === "doctors" ? { ...m, status: "done", doctors: res.doctors, reasoning: res.reasoning } : m)))
+      .catch(() => patch(cardId, (m) => (m.role === "ai" && m.kind === "doctors" ? { ...m, status: "error" } : m)));
+  }, [patch]);
+
   const recommendDoctors = (fromId: number) => {
     patch(fromId, (m) => (m.role === "ai" && m.kind === "text" ? { ...m, recommendAnswered: true } : m));
     const symptoms = messages.filter((m): m is UserMsg => m.role === "user").map((m) => m.text).join(". ").slice(0, 1000);
-    const docMsg: AiDoctorsMsg = { id: nextId(), role: "ai", kind: "doctors", ts: Date.now(), status: "loading", doctors: [], reasoning: null };
+    const docMsg: AiDoctorsMsg = { id: nextId(), role: "ai", kind: "doctors", ts: Date.now(), status: "loading", doctors: [], reasoning: null, symptoms };
     setMessages((prev) => [...prev, docMsg]);
-    repositories.ai
-      .suggestDoctors(symptoms)
-      .then((res) => patch(docMsg.id, (m) => (m.role === "ai" && m.kind === "doctors" ? { ...m, status: "done", doctors: res.doctors, reasoning: res.reasoning } : m)))
-      .catch(() => patch(docMsg.id, (m) => (m.role === "ai" && m.kind === "doctors" ? { ...m, status: "error" } : m)));
+    loadDoctors(docMsg.id, symptoms);
   };
 
   // "Continue Chat" just dismisses the offer for this message; the conversation continues and
@@ -228,8 +241,20 @@ export default function AiSymptomCheckerScreen() {
                       <Text variant="caption" color="textMuted" align={isRTL ? "right" : "left"}>{t("aiAssistant.doctorsLoading")}</Text>
                     </View>
                   ) : m.status === "error" ? (
-                    <View style={[styles.bubble, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg }]}>
-                      <Text variant="body" align={isRTL ? "right" : "left"}>{t("aiAssistant.doctorsError")}</Text>
+                    <View
+                      accessibilityRole="alert"
+                      style={[styles.bubble, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg }]}
+                    >
+                      <Text variant="body" color="error" align={isRTL ? "right" : "left"}>{t("aiAssistant.doctorsError")}</Text>
+                      <Pressable
+                        onPress={() => loadDoctors(m.id, m.symptoms)}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("aiAssistant.retry")}
+                        style={{ marginTop: spacing.xs, alignSelf: isRTL ? "flex-end" : "flex-start" }}
+                      >
+                        <Text variant="caption" weight="700" color="primary">{t("aiAssistant.retry")}</Text>
+                      </Pressable>
                     </View>
                   ) : m.doctors.length === 0 ? (
                     <View style={[styles.bubble, { backgroundColor: colors.surfaceAlt, borderRadius: radii.lg }]}>

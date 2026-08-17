@@ -663,6 +663,11 @@ export const en = {
   },
   meHub: {
     title: "Me",
+    // Shown in the account header when the profile query fails. Deliberately scoped to
+    // the header rather than replacing the screen: every hub row below is static
+    // navigation that still works, so blocking them for a failed name/email fetch would
+    // strand the user in a dead end.
+    loadError: "Couldn't load your account details.",
     sectionAccount: "Account",
     sectionHealth: "Health",
     sectionActivity: "Activity",

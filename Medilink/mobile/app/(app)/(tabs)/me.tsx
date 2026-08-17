@@ -204,6 +204,46 @@ export default function MeHubScreen() {
         </View>
       </View>
 
+      {/*
+        Profile-load failure. Scoped to the header, NOT the whole screen: the sections
+        below are static navigation that works regardless of this query, so the
+        full-screen ErrorState used by (tabs)/profile.tsx would be wrong here — it would
+        take away working destinations because a name and email failed to load.
+        Without this the failure was completely silent: the header just fell back to the
+        generic "Me" title and the email row vanished, which is indistinguishable from an
+        account that has no name set.
+      */}
+      {profile.isError ? (
+        <View
+          accessibilityRole="alert"
+          style={[
+            styles.loadError,
+            {
+              flexDirection: isRTL ? "row-reverse" : "row",
+              backgroundColor: colors.surfaceAlt,
+              borderColor: colors.border,
+              borderRadius: radii.md,
+            },
+          ]}
+        >
+          <Text variant="caption" color="textMuted" style={styles.flex} align={isRTL ? "right" : "left"}>
+            {t("meHub.loadError")}
+          </Text>
+          <Pressable
+            onPress={() => profile.refetch()}
+            hitSlop={8}
+            disabled={profile.isFetching}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.retry")}
+            style={isRTL ? { marginEnd: spacing.sm } : { marginStart: spacing.sm }}
+          >
+            <Text variant="caption" weight="700" color={profile.isFetching ? "textMuted" : "primary"}>
+              {t("common.retry")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {sections.map((section) => (
         <View key={section.titleKey}>
           <Text variant="label" color="textMuted" style={styles.section}>{t(section.titleKey)}</Text>
@@ -221,7 +261,15 @@ export default function MeHubScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   header: { alignItems: "center", marginBottom: 8 },
+  loadError: {
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    marginBottom: 8,
+  },
   guestAvatar: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
   guestCard: { borderWidth: StyleSheet.hairlineWidth * 2, padding: 16, marginTop: 8 },
   section: { marginTop: 20, marginBottom: 8 },
