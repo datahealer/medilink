@@ -5,12 +5,25 @@ import Link from "next/link";
 import { useI18n } from "@/i18n/I18nProvider";
 import { HomeNav } from "@/components/home/HomeNav";
 import { HomeFooter } from "@/components/home/HomeFooter";
+import {
+  buildMailtoUrl,
+  canComposeMessage,
+  supportChannels,
+  type SupportChannel,
+} from "@/lib/supportContact";
 
-const CONTACT_OPTIONS = [
-  { icon: "✉️", en: "Email us",       ar: "راسلنا",       detail: "hello@medilink.om",  href: "mailto:hello@medilink.om" },
-  { icon: "📞", en: "Call us",        ar: "اتصل بنا",     detail: "+968 9000 0000",     href: "tel:+96890000000" },
-  { icon: "💬", en: "WhatsApp",       ar: "واتساب",       detail: "+968 9000 0000",     href: "https://wa.me/96890000000" },
-];
+/**
+ * Labels only. This replaced a `CONTACT_OPTIONS` array that carried the ADDRESSES themselves —
+ * `hello@medilink.om` and `+968 9000 0000` (used for both the phone and the WhatsApp link) —
+ * none of which reach anyone. Contact details now come from configuration via
+ * `supportChannels()`, and an unconfigured channel simply does not render. See
+ * lib/supportContact.ts for why absence is the safe default here.
+ */
+const CHANNEL_META: Record<SupportChannel["kind"], { icon: string; en: string; ar: string }> = {
+  email:    { icon: "✉️", en: "Email us",  ar: "راسلنا"   },
+  phone:    { icon: "📞", en: "Call us",   ar: "اتصل بنا" },
+  whatsapp: { icon: "💬", en: "WhatsApp",  ar: "واتساب"   },
+};
 
 const TOPICS = {
   en: ["General question", "I'm a patient", "I'm a clinic", "Partnership", "Press", "Other"],
@@ -22,11 +35,26 @@ export default function ContactPage() {
   const ar = locale === "ar";
 
   const [form, setForm] = useState({ name: "", email: "", topic: "", message: "" });
-  const [sent, setSent] = useState(false);
+  const [opened, setOpened] = useState(false);
 
+  const channels = supportChannels();
+  const canCompose = canComposeMessage();
+
+  /**
+   * Hand the message to the visitor's own mail client.
+   *
+   * This used to be `setSent(true)` and nothing else — the form claimed "Message sent!" and
+   * promised a reply within one business day while sending nothing anywhere. There is no contact
+   * backend in this project (no route, no table, no support-inbox variable), so rather than
+   * invent one, the draft opens in the visitor's mail client. They press send, so delivery is
+   * their action and their sent-items record; this app never asserts it.
+   */
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSent(true);
+    const url = buildMailtoUrl(form);
+    if (!url) return; // No support address configured — the form is not rendered at all.
+    window.location.href = url;
+    setOpened(true);
   }
 
   return (
@@ -65,22 +93,35 @@ export default function ContactPage() {
                 style={{ fontSize: "clamp(1.2rem, 2vw, 1.5rem)" }}>
                 {ar ? "تواصل معنا مباشرة" : "Reach us directly"}
               </h2>
-              {CONTACT_OPTIONS.map(o => (
-                <a key={o.en} href={o.href}
-                  className="flex items-center gap-4 p-5 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030] hover:-translate-y-0.5 hover:shadow-md transition-all no-underline group">
-                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#241540] border border-[#e7dcee] dark:border-[#3a2560] flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
-                    {o.icon}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-0.5">
-                      {ar ? o.ar : o.en}
-                    </p>
-                    <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] group-hover:text-[#46255f] dark:group-hover:text-white transition-colors">
-                      {o.detail}
-                    </p>
-                  </div>
-                </a>
-              ))}
+              {channels.length === 0 && (
+                <div className="p-5 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030]">
+                  <p className="text-sm text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 leading-relaxed">
+                    {ar
+                      ? "لم يتم نشر قنوات الاتصال بعد. يمكنك التواصل مع عيادتك مباشرةً في الوقت الحالي."
+                      : "Our contact channels aren't published yet. For anything urgent, please contact your clinic directly."}
+                  </p>
+                </div>
+              )}
+              {channels.map((c) => {
+                const meta = CHANNEL_META[c.kind];
+                return (
+                  <a key={c.kind} href={c.href}
+                    className="flex items-center gap-4 p-5 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030] hover:-translate-y-0.5 hover:shadow-md transition-all no-underline group">
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#241540] border border-[#e7dcee] dark:border-[#3a2560] flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                      {meta.icon}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold  tracking-widest text-[#2E1A47]/35 dark:text-[#DFC8E7]/35 mb-0.5">
+                        {ar ? meta.ar : meta.en}
+                      </p>
+                      {/* The value comes from configuration, never from a hardcoded literal. */}
+                      <p className="text-sm font-semibold text-[#2E1A47] dark:text-[#DFC8E7] group-hover:text-[#46255f] dark:group-hover:text-white transition-colors">
+                        {c.detail}
+                      </p>
+                    </div>
+                  </a>
+                );
+              })}
 
               {/* Office */}
               <div className="p-5 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030]">
@@ -97,22 +138,40 @@ export default function ContactPage() {
 
             {/* Right — contact form */}
             <div className="lg:col-span-3">
-              {sent ? (
+              {!canCompose ? (
+                /* No support address configured. Deliberately does NOT render a form: a form
+                   that cannot do anything is exactly what produced the fake "Message sent!".
+                   Say plainly that the channel is not open, and point somewhere real. */
                 <div className="flex flex-col items-center justify-center h-full min-h-[360px] gap-5 text-center p-10 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030]">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
-                    style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7)" }}>✓</div>
+                    style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7)" }}>✉️</div>
                   <h3 className="font-bold font-serif text-xl text-[#2E1A47] dark:text-white">
-                    {ar ? "تم الإرسال!" : "Message sent!"}
+                    {ar ? "المراسلة غير متاحة بعد" : "Messaging isn't available yet"}
                   </h3>
                   <p className="text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 max-w-xs">
                     {ar
-                      ? "سنرد عليك في غضون يوم عمل واحد."
-                      : "We'll get back to you within one business day."}
+                      ? "لم نفتح قناة المراسلة بعد. لأي أمر عاجل يتعلق برعايتك، تواصل مع عيادتك مباشرةً."
+                      : "We haven't opened a messaging channel yet. For anything urgent about your care, please contact your clinic directly."}
+                  </p>
+                </div>
+              ) : opened ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[360px] gap-5 text-center p-10 rounded-2xl border border-[#e7dcee] dark:border-[#3a2560] bg-[#faf8fc] dark:bg-[#1a1030]">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
+                    style={{ background: "linear-gradient(135deg, #e8d5f0, #DFC8E7)" }}>✉️</div>
+                  <h3 className="font-bold font-serif text-xl text-[#2E1A47] dark:text-white">
+                    {ar ? "تم فتح تطبيق البريد" : "Your email app is opening"}
+                  </h3>
+                  <p className="text-sm text-[#2E1A47]/55 dark:text-[#DFC8E7]/55 max-w-xs">
+                    {/* Truthful: the draft is prepared, the visitor sends it. No delivery claim
+                        and no response-time promise this product cannot keep. */}
+                    {ar
+                      ? "أعدّنا رسالتك في تطبيق البريد لديك — اضغط إرسال هناك لإتمامها. إن لم يفتح تلقائياً، استخدم عنوان البريد المذكور بالأعلى."
+                      : "We've prepared your message in your email app — press send there to complete it. If nothing opened, use the email address listed above."}
                   </p>
                   <button
-                    onClick={() => { setSent(false); setForm({ name: "", email: "", topic: "", message: "" }); }}
+                    onClick={() => setOpened(false)}
                     className="text-sm font-semibold text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">
-                    {ar ? "إرسال رسالة أخرى" : "Send another message"}
+                    {ar ? "الرجوع إلى الرسالة" : "Back to the message"}
                   </button>
                 </div>
               ) : (
@@ -182,7 +241,7 @@ export default function ContactPage() {
                     className="self-start inline-flex items-center justify-center font-bold text-sm text-[#2E1A47] hover:opacity-90 active:scale-[0.97] transition-all tracking-widest  px-10 py-4 cursor-pointer border-0"
                     style={{ backgroundImage: "linear-gradient(135deg, #e8d5f0, #DFC8E7 50%, #c8dff0)", transform: "skewX(-12deg)", borderRadius: "10px", boxShadow: "0 10px 32px rgba(223,200,231,0.45)" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", transform: "skewX(12deg)" }}>
-                      {ar ? "إرسال الرسالة ←" : "Send message →"}
+                      {ar ? "الفتح في تطبيق البريد ←" : "Open in email app →"}
                     </span>
                   </button>
                 </form>

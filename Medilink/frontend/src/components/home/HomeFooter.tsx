@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nProvider";
+import { supportChannels } from "@/lib/supportContact";
 
 const PLATFORM_LINKS = [
   { en: "Services",        ar: "الخدمات",        href: "/services"    },
@@ -96,18 +97,23 @@ export function HomeFooter() {
                   </Link>
                 </li>
               ))}
-              <li>
-                <a href="mailto:hello@medilink.om"
-                  className="text-sm text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">
-                  hello@medilink.om
-                </a>
-              </li>
-              <li>
-                <a href="tel:+96890000000"
-                  className="text-sm text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">
-                  +968 9000 0000
-                </a>
-              </li>
+              {/*
+                Contact links come from configuration; an unconfigured channel is omitted.
+                These were hardcoded `hello@medilink.om` and `+968 9000 0000` — the same
+                placeholders as the contact page, but rendered in the GLOBAL footer, so the fake
+                number was published on every marketing page. A patient calling it reaches
+                nobody. See lib/supportContact.ts.
+              */}
+              {supportChannels()
+                .filter((c) => c.kind !== "whatsapp")
+                .map((c) => (
+                  <li key={c.kind}>
+                    <a href={c.href}
+                      className="text-sm text-[#2E1A47]/50 dark:text-[#DFC8E7]/50 hover:text-[#2E1A47] dark:hover:text-[#DFC8E7] transition-colors">
+                      {c.detail}
+                    </a>
+                  </li>
+                ))}
             </ul>
           </div>
 

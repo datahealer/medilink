@@ -50,6 +50,9 @@ const REQUIRED_VALUES: Record<(typeof REQUIRED_ENV)[number], string | undefined>
 const OPTIONAL_VALUES: Record<string, string | undefined> = {
   NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  NEXT_PUBLIC_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
+  NEXT_PUBLIC_SUPPORT_PHONE: process.env.NEXT_PUBLIC_SUPPORT_PHONE,
+  NEXT_PUBLIC_SUPPORT_WHATSAPP: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP,
   // Server-only by design (no NEXT_PUBLIC_ prefix), so this is always undefined in the
   // browser. `inactiveOptionalEnv` is a diagnostic, so reporting it as inactive client-side
   // is expected and was the behaviour before this fix too.
@@ -70,6 +73,16 @@ export const OPTIONAL_ENV: Record<string, string> = {
     "browser error reporting; unset means the Sentry SDK is never downloaded at all " +
     "(see instrumentation-client.ts)",
   SENTRY_DSN: "server-side error reporting for SSR and route handlers; unset leaves it inert",
+  NEXT_PUBLIC_SUPPORT_EMAIL:
+    "public support address. The /contact form opens the visitor's mail client addressed to " +
+    "it; unset REPLACES the form with an honest 'messaging isn't available yet' notice rather " +
+    "than the fake success state that shipped before, and drops the email link from the footer",
+  NEXT_PUBLIC_SUPPORT_PHONE:
+    "public support phone in international form. Unset omits the Call and WhatsApp channels " +
+    "entirely — never substitute a placeholder number",
+  NEXT_PUBLIC_SUPPORT_WHATSAPP:
+    "public WhatsApp number, when it differs from NEXT_PUBLIC_SUPPORT_PHONE. Unset falls back " +
+    "to the phone number, and omits WhatsApp when that is unset too",
 };
 
 /**
