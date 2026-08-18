@@ -3,6 +3,7 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 import { createApiSupabaseClient } from "@/lib/supabase/api";
 import { getAal2UserOrThrow } from "@/lib/auth/api";
 import { authErrorResponse } from "@/lib/auth/authError";
+import { serverErrorResponse } from "@/lib/http/serverError";
 import { notifyPaymentSuccess } from "@/lib/notifications/notifyPaymentSuccess";
 import { ensureInvoice } from "@/lib/payments/ensureInvoice";
 import { invoiceDownloadUrl } from "@/lib/payments/invoiceObject";
@@ -186,25 +187,72 @@ export async function POST(req: NextRequest) {
       const to = authUser.user?.email ?? null;
 
       if (to) {
-        if (invoice?.url) {
-          // `invoice.url` proves the worker finished; the LINK is the authenticated route,
-          // not that public storage URL. See lib/payments/invoiceObject.ts.
-          await sendInvoiceEmail(
-            to,
-            invoiceDownloadUrl(process.env.NEXT_PUBLIC_APP_URL ?? "", payment.id),
-            invoice.invoiceNumber || payment.id
+        /**
+         * EMAIL IS NON-FATAL. By the time this block runs the payment is already `paid` and the
+         * appointment already `confirmed` (both written above), so nothing here may be allowed
+         * to fail the request.
+         *
+         * It previously could. `invoiceDownloadUrl(process.env.NEXT_PUBLIC_APP_URL ?? "", …)`
+         * THROWS when the base URL is empty — deliberately, so a misconfigured deploy cannot
+         * emit `undefined/api/...`. That throw was uncaught here, so it propagated to the outer
+         * catch and returned 500 for a payment that had in fact succeeded: the patient saw a
+         * failure on the success screen, and BOTH emails were lost, because the throw happened
+         * before the booking confirmation below.
+         *
+         * The webhook has always wrapped the same call (see webhook/route.ts) — this route was
+         * simply missing that guard. Each email now gets its own try/catch so one failing cannot
+         * suppress the other, and the receipt link is checked rather than thrown.
+         */
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+        // Receipt: needs BOTH a generated invoice and a base URL to link to.
+        if (invoice?.url && appUrl) {
+          try {
+            // `invoice.url` proves the worker finished; the LINK is the authenticated route,
+            // not that public storage URL. See lib/payments/invoiceObject.ts.
+            await sendInvoiceEmail(
+              to,
+              invoiceDownloadUrl(appUrl, payment.id),
+              invoice.invoiceNumber || payment.id
+            );
+          } catch (emailErr: unknown) {
+            console.error(
+              "[email] receipt failed (non-fatal) for payment",
+              payment.id,
+              emailErr instanceof Error ? emailErr.message : emailErr
+            );
+          }
+        } else if (!appUrl) {
+          // A configuration fault, not a payment fault. Named explicitly so an operator can act
+          // on it: the payment settled and the appointment is confirmed, only the receipt link
+          // could not be built.
+          console.error(
+            "[email] receipt SKIPPED — NEXT_PUBLIC_APP_URL is not set, so no invoice link can be built. Payment",
+            payment.id,
+            "is paid and the appointment is confirmed; set the variable and the invoice remains available in-app."
           );
         } else {
           // Distinguishable from "email failed": there was nothing to attach yet, so no
           // receipt was even attempted. The invoice sweeper will regenerate it.
           console.warn("[email] receipt not attempted — invoice URL not ready for payment", payment.id);
         }
-        await sendAppointmentEmailForUser(service, {
-          appointmentId: appointment_id,
-          userId: payment.patient_id,
-          kind: "booked",
-          to,
-        });
+
+        // Booking confirmation: independent of the receipt, and independent of APP_URL. It must
+        // still go out when the receipt is skipped — losing both was the worst part of the bug.
+        try {
+          await sendAppointmentEmailForUser(service, {
+            appointmentId: appointment_id,
+            userId: payment.patient_id,
+            kind: "booked",
+            to,
+          });
+        } catch (emailErr: unknown) {
+          console.error(
+            "[email] booking confirmation failed (non-fatal) for appointment",
+            appointment_id,
+            emailErr instanceof Error ? emailErr.message : emailErr
+          );
+        }
       } else {
         console.warn("[email] no email on account", payment.patient_id, "— receipt/confirmation not sent");
       }
@@ -215,7 +263,16 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const authRes = authErrorResponse(err);
     if (authRes) return authRes;
-    const message = err instanceof Error ? err.message : "verify failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    /**
+     * Was `{ error: err.message }`, which returned the raw internal message to the patient.
+     * That is how the `NEXT_PUBLIC_APP_URL` fault would have surfaced — as
+     * "invoiceDownloadUrl: base URL is empty — set NEXT_PUBLIC_APP_URL" rendered in the client,
+     * naming an environment variable to anyone who triggered it.
+     *
+     * `serverErrorResponse` logs the detail server-side and returns a generic body, which is
+     * the pattern ff01e24 established across the rest of the payments surface. This route was
+     * the last one still leaking.
+     */
+    return serverErrorResponse(err, "payments/verify");
   }
 }
