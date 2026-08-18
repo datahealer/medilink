@@ -1,0 +1,147 @@
+-- =============================================================================
+-- Exclude deactivated doctors from availability and slot RPCs
+-- =============================================================================
+-- ⚠️ NOT APPLIED. Prepared for review. Requires explicit approval, and item 2 below
+--    additionally needs HAMS sign-off because it changes a function HAMS also calls.
+--
+-- ── THE DEFECT ──
+--
+-- `public.doctors` carries two SELECT policies in production:
+--
+--     doctors_public_read    USING (is_active = true)     -- the intended restriction
+--     "Public read doctors"  USING (true)                 -- added out of band, in no migration
+--
+-- RLS policies are OR'd, so the second nullifies the first. Measured read-only against
+-- production on 2026-08-18:
+--
+--     doctors total                                     112
+--     doctors with is_active = false                      21   (visible to anon)
+--     inactive doctors WITH doctor_availability rows      14
+--     inactive doctors returned by doctors_available_today 13
+--     slots returned by get_available_slots for one
+--       inactive doctor, for today                         5
+--
+-- So a deactivated doctor was discoverable AND had bookable slots. A patient could pay for an
+-- appointment with a doctor the clinic had removed.
+--
+-- ── WHAT IS ALREADY FIXED WITHOUT THIS MIGRATION ──
+--
+-- The client-side chokepoints are closed in code (shipped separately):
+--   • shared/src/api/doctors.ts  searchDoctors + getDoctor now filter is_active = true.
+--     getDoctor is the booking chokepoint — mobile `useDoctor(id)` and the web detail page
+--     both route through it, so the UI can no longer reach a deactivated doctor at all.
+--   • frontend favourites hydration now filters is_active (the detail page, nearby map and
+--     site search already did).
+--
+-- That means a normal patient cannot reach an inactive doctor through any screen. What remains
+-- is the RPC layer: anyone who already holds a doctor id can call these functions directly
+-- (both are granted to `anon` for guest availability) and still be told slots exist. Booking
+-- itself additionally requires `book_appointment_atomic`, which is authenticated-only — but
+-- the honest position is that the data layer still advertises bookable slots for a doctor the
+-- clinic deactivated, and it should not.
+--
+-- ── WHY THE POLICY IS NOT DROPPED HERE ──
+--
+-- Dropping `"Public read doctors"` would be the root-cause fix and is one line. It is
+-- deliberately NOT in this migration: `doctors` is shared with the HAMS staff platform, the
+-- policy is not in any migration so its purpose is undocumented, and something in HAMS may
+-- depend on reading inactive doctors (a facility admin managing their roster almost certainly
+-- must). Removing it could break HAMS's own screens in a way this repository cannot see.
+--
+-- Recommended sequence: apply PART 1 (MediLink-owned, safe), get HAMS to confirm PART 2, and
+-- treat the policy drop as a separate coordinated change.
+-- =============================================================================
+
+
+-- =============================================================================
+-- PART 1 — doctors_available_today  (MediLink-owned, safe to apply)
+-- =============================================================================
+-- Created by 20260717000000 and last modified by 20260811010000, both MediLink migrations.
+-- HAMS does not call it: it exists for MediLink's "Available today" badge (BP-1).
+--
+-- Only the doctors join gains a predicate. Slot maths, the Oman-time window, the booking-window
+-- clamp and the occupancy exclusion are all copied verbatim from 20260811010000 so this stays a
+-- single-predicate change and nothing about slot correctness moves.
+--
+-- ⚠️ REPLACE THE BODY BELOW WITH THE CURRENT DEFINITION BEFORE APPLYING.
+--    Do not hand-write it from memory. Dump the live function first:
+--
+--      SELECT pg_get_functiondef('public.doctors_available_today(date)'::regprocedure);
+--
+--    then re-apply it with `AND d.is_active` added to the WHERE clause. Writing the body from
+--    the migration history risks silently reverting a later hotfix that was applied directly,
+--    which is exactly the class of drift that produced the `"Public read doctors"` policy.
+--
+--    The one-line change is:
+--
+--      FROM public.doctor_availability da
+--      JOIN public.doctors d ON d.id = da.doctor_id
+--     WHERE ...
+--       AND d.is_active                      -- <<< ADD THIS
+--
+-- Effect: the "Available today" badge stops being computed for deactivated doctors. Because
+-- the doctor LIST is already filtered in code, those ids are currently discarded anyway — so
+-- this corrects the data without changing any screen.
+
+
+-- =============================================================================
+-- PART 2 — get_available_slots  (HAMS-ORIGINATED — NEEDS SIGN-OFF)
+-- =============================================================================
+-- Origin: 20260330083952_overbooking_functions.sql (HAMS). MediLink has since modified it four
+-- times (20260330091834, 20260717000001, 20260717000002, 20260811000000, 20260811010000), so
+-- it is co-owned in practice — but it is still called by HAMS staff booking flows.
+--
+-- IMPACT TO CONFIRM WITH HAMS BEFORE APPLYING:
+--   Adding `AND d.is_active` means HAMS staff can no longer retrieve slots for a deactivated
+--   doctor. If any HAMS flow legitimately books on behalf of a patient for a doctor who is
+--   deactivated-but-still-practising (e.g. `is_active` is used as a soft "hidden from public
+--   listing" flag rather than "no longer employed"), this migration breaks it.
+--
+--   THE SEMANTICS OF `is_active` ARE THE WHOLE QUESTION. 21 of 112 doctors carry
+--   is_active = false, which is a high proportion for "no longer employed" and hints the column
+--   may mean something closer to "not publicly listed". If that is what it means, PART 1 and
+--   the code fix are still correct (MediLink should not list or book them) but PART 2 must NOT
+--   be applied, because HAMS would still need slot access.
+--
+--   Resolve that question first. It changes the answer.
+--
+-- ⚠️ Same instruction as PART 1: dump the live definition, add the single predicate, re-apply.
+--
+--      SELECT pg_get_functiondef('public.get_available_slots(uuid,date,boolean)'::regprocedure);
+
+
+-- =============================================================================
+-- PART 3 — the root cause (SEPARATE, COORDINATED CHANGE — NOT HERE)
+-- =============================================================================
+--   DROP POLICY IF EXISTS "Public read doctors" ON public.doctors;
+--
+-- This restores `doctors_public_read USING (is_active = true)` as the effective rule and fixes
+-- every consumer at once, including HAMS and any future code that forgets to filter. It is left
+-- out because the policy's purpose is undocumented and HAMS roster management plausibly needs
+-- to read inactive doctors.
+--
+-- The same redundant-permissive-policy pattern exists elsewhere and should be reviewed with
+-- HAMS in one pass rather than piecemeal:
+--
+--     facilities            "Public can read facilities", "Public read facilities"  (qual=true)
+--                           -> nullifies facilities_public_read USING (status = 'active');
+--                              32 of 52 facilities are pending_approval and anon-readable.
+--                              MediLink's own reads DO filter status, so this is raw-table
+--                              exposure rather than a booking path.
+--     doctor_availability   three separate qual=true policies
+--     announcements, branches, specialties, facility_photos, system_config  (one each)
+--
+-- =============================================================================
+-- VERIFICATION AFTER APPLYING PART 1 (read-only)
+-- =============================================================================
+--   -- must be 0:
+--   SELECT count(*) FROM public.doctors_available_today(public.oman_today()) r
+--     JOIN public.doctors d ON d.id = r.doctor_id
+--    WHERE d.is_active = false;
+--
+--   -- must be unchanged (active doctors still surface):
+--   SELECT count(*) FROM public.doctors_available_today(public.oman_today());
+--
+--   -- guest mode unchanged: anon still sees the active doctor list
+--   --   GET /rest/v1/doctors?select=id&is_active=eq.true  -> 91
+-- =============================================================================

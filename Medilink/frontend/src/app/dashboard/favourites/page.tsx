@@ -42,10 +42,24 @@ export default function FavouritesPage() {
 
         const [docRes, facRes] = await Promise.all([
           doctorIds.length
-            ? supabase.from("doctors").select("id, full_name, specialty, avg_rating").in("id", doctorIds)
+            // `is_active` filtered here too. A favourite outlives the doctor's employment, so
+            // this is the one web path that could still surface a deactivated doctor — the
+            // detail page, nearby map and site search already filter. A deactivated favourite
+            // now drops out of the list instead of offering a booking nobody can honour.
+            ? supabase
+                .from("doctors")
+                .select("id, full_name, specialty, avg_rating")
+                .eq("is_active", true)
+                .in("id", doctorIds)
             : Promise.resolve({ data: [] as FavDoctor[] }),
           facilityIds.length
-            ? supabase.from("facilities").select("id, name").in("id", facilityIds)
+            // Same reasoning for facilities: `status = 'active'` matches what
+            // shared/src/api/facilities.ts enforces on every other facility read.
+            ? supabase
+                .from("facilities")
+                .select("id, name")
+                .eq("status", "active")
+                .in("id", facilityIds)
             : Promise.resolve({ data: [] as FavFacility[] }),
         ]);
         if (cancelled) return;
