@@ -64,6 +64,17 @@ Use it for Android only. Its `distribution: "internal"` also applies to iOS, whe
 means ad-hoc — which requires every test device's UDID to be registered with Apple first
 (`eas device:create`). With no devices registered, an ad-hoc iOS build installs nowhere.
 
+It also sets `"environment": "production"` explicitly, and that line is load-bearing. EAS picks
+the **server-side environment** whose name matches the profile, and only a profile literally named
+`production` gets the `production` environment — anything else silently falls back to `preview`.
+The first run of this profile logged `Resolved "preview" environment for the build`. Nothing was
+wrong with that build, because the inline `env` block inherited from `production` overrides
+environment values ("The values from the build profile configuration will be used"), and the two
+environments happen to hold identical values today. But it meant the profile's correctness
+depended entirely on that duplicated block: delete it as redundant — which it looks like — and the
+profile would quietly build against `preview` with `APP_ENV` unset. Declaring the environment
+removes that trap.
+
 ## Getting a build onto a physical device
 
 **Android** — one step:
