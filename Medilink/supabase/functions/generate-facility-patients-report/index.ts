@@ -5,6 +5,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // @ts-ignore npm specifier — Deno Node compat
 import PDFDocument from "npm:pdfkit";
 import { Buffer } from "node:buffer";
+import {
+  isUuid,
+  REPORT_SIGNED_URL_TTL_SECONDS,
+  requireInternalCaller,
+} from "../_shared/internalAuth.ts";
 
 declare const Deno: {
   env: { get: (key: string) => string | undefined };
@@ -16,8 +21,34 @@ const MONTH_NAMES = [
 ];
 
 serve(async (req: Request) => {
+  /**
+   * SERVER-TO-SERVER ONLY. This function renders privileged data with the service role, so
+   * it must never be reachable by an end user directly. See _shared/internalAuth.ts for the
+   * full account of the PHI disclosure this closes.
+   */
+  const refusal = requireInternalCaller(req, "generate-facility-patients-report");
+  if (refusal) return refusal;
+
   try {
     const { facility_id, month, year, created_by } = await req.json();
+
+    const bad = (msg: string) =>
+      new Response(JSON.stringify({ error: msg }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+
+    // Shape-validate every id BEFORE it reaches a query or a storage path. Authorization itself
+    // stays with the calling route; this only ensures an id cannot be a path or an injection.
+    if (!isUuid(facility_id)) return bad("facility_id must be a UUID");
+    // month/year are interpolated into the STORAGE PATH below. Unvalidated, a value such as
+    // "../../patients/<uuid>/medical-history" would write outside the intended prefix, so they
+    // are constrained here rather than merely trusted from the calling route.
+    if (!Number.isInteger(month) || month < 1 || month > 12) return bad("month must be an integer 1-12");
+    if (!Number.isInteger(year) || year < 1000 || year > 9999) return bad("year must be a 4-digit integer");
+    if (created_by !== undefined && created_by !== null && !isUuid(created_by)) {
+      return bad("created_by must be a UUID");
+    }
 
     if (!facility_id || !month || !year || !created_by) {
       return new Response(
@@ -198,15 +229,30 @@ serve(async (req: Request) => {
       );
     }
 
-    const { data: urlData } = supabase.storage.from("reports").getPublicUrl(filePath);
-    const publicUrl = urlData.publicUrl;
+    // SIGNED, SHORT-LIVED URL — never getPublicUrl().
+    // The `reports` bucket stored patient medical-history PDFs at a deterministic path while
+    // being world-readable, so getPublicUrl() handed out a permanent, unauthenticated link to a
+    // medical record. The bucket is made private by the prepared migration under
+    // supabase/planned/; this link now expires.
+    const { data: urlData, error: signError } = await supabase.storage
+      .from("reports")
+      .createSignedUrl(filePath, REPORT_SIGNED_URL_TTL_SECONDS);
+
+    if (signError || !urlData?.signedUrl) {
+      console.error("[generate-facility-patients-report] could not sign report URL:", signError?.message);
+      return new Response(JSON.stringify({ error: "Could not issue report link" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const publicUrl = urlData.signedUrl;
 
     // ── Insert into generated_reports ──
     await supabase.from("generated_reports").insert({
       facility_id,
       report_type: "facility_patients",
       period: `${year}-${String(month).padStart(2, "0")}`,
-      file_url: publicUrl,
+      file_url: filePath, // storage PATH, re-signable — a signed URL would be expired by then
       created_by,
     });
 
