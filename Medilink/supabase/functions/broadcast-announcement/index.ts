@@ -1,10 +1,35 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
 import nodemailer from "npm:nodemailer";
+import { requireInternalCaller } from "../_shared/internalAuth.ts";
 
 const BATCH_SIZE = 10;
 
 serve(async (req) => {
+  /**
+   * SERVER-TO-SERVER ONLY.
+   *
+   * verify_jwt alone is NOT sufficient: it only proves the caller presented a VALID project
+   * JWT, and the anon key is a valid project JWT that ships publicly in every browser bundle.
+   * Demonstrated on this project -- poll-refund-status had verify_jwt = true and no guard, and
+   * returned 200 to the public anon key.
+   *
+   * Its only caller is src/app/api/facilities/[id]/announcements/route.ts, which was sending
+   * the ANON key -- a public credential -- and has been switched to the service-role key in
+   * the same change. Unguarded, anyone could broadcast an announcement to every recipient of
+   * an arbitrary announcement_id.
+   *
+   * requireInternalCaller accepts only the raw injected service-role key or a
+   * signature-verified `role: service_role` JWT; anon and authenticated are refused 401. It is
+   * placed FIRST so an unauthorized caller learns nothing -- no method check, no body parse, no
+   * database access happens before it.
+   *
+   * ⚠️ Operational invariant from _shared/internalAuth.ts: verify_jwt must stay TRUE for this
+   * function, or an unsigned forged token could claim role: service_role.
+   */
+  const refusal = requireInternalCaller(req, "broadcast-announcement");
+  if (refusal) return refusal;
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

@@ -6,8 +6,33 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireInternalCaller } from "../_shared/internalAuth.ts";
 
 serve(async (req) => {
+  /**
+   * SERVER-TO-SERVER ONLY.
+   *
+   * verify_jwt alone is NOT sufficient: it only proves the caller presented a VALID project
+   * JWT, and the anon key is a valid project JWT that ships publicly in every browser bundle.
+   * Demonstrated on this project -- poll-refund-status had verify_jwt = true and no guard, and
+   * returned 200 to the public anon key.
+   *
+   * Has NO live caller: the trigger that invoked it (20260415000001) was dropped again by
+   * 20260415000002, and public.lab_results carries only an audit trigger today. Guarding it is
+   * pure hardening -- it cannot break a caller that does not exist. If the trigger is ever
+   * reinstated it must read its credential from Vault, as 20260820000010 does.
+   *
+   * requireInternalCaller accepts only the raw injected service-role key or a
+   * signature-verified `role: service_role` JWT; anon and authenticated are refused 401. It is
+   * placed FIRST so an unauthorized caller learns nothing -- no method check, no body parse, no
+   * database access happens before it.
+   *
+   * ⚠️ Operational invariant from _shared/internalAuth.ts: verify_jwt must stay TRUE for this
+   * function, or an unsigned forged token could claim role: service_role.
+   */
+  const refusal = requireInternalCaller(req, "notify-lab-result");
+  if (refusal) return refusal;
+
   try {
     const body = await req.json();
     const { lab_result_id } = body;

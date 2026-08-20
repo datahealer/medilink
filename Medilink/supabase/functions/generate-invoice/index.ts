@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib";
+import { requireInternalCaller } from "../_shared/internalAuth.ts";
 
 // Invoice worker (idempotent). Flow: claim_invoice_generation (advisory-locked,
 // double-checked) -> build PDF -> upload -> finalize_invoice_generation (records
@@ -8,6 +9,29 @@ import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib";
 // cron) and crashes: the claim serializes per payment and returns the existing
 // invoice when one already exists, so there are never duplicates.
 serve(async (req) => {
+  /**
+   * SERVER-TO-SERVER ONLY.
+   *
+   * verify_jwt alone is NOT sufficient: it only proves the caller presented a VALID project
+   * JWT, and the anon key is a valid project JWT that ships publicly in every browser bundle.
+   * Demonstrated on this project -- poll-refund-status had verify_jwt = true and no guard, and
+   * returned 200 to the public anon key.
+   *
+   * Callers: the HAMS payments webhook, MediLink's lib/payments/ensureInvoice, and the
+   * retry-invoices Edge Function. All three already send Bearer <service-role key>, so this
+   * guard accepts every existing caller unchanged.
+   *
+   * requireInternalCaller accepts only the raw injected service-role key or a
+   * signature-verified `role: service_role` JWT; anon and authenticated are refused 401. It is
+   * placed FIRST so an unauthorized caller learns nothing -- no method check, no body parse, no
+   * database access happens before it.
+   *
+   * ⚠️ Operational invariant from _shared/internalAuth.ts: verify_jwt must stay TRUE for this
+   * function, or an unsigned forged token could claim role: service_role.
+   */
+  const refusal = requireInternalCaller(req, "generate-invoice");
+  if (refusal) return refusal;
+
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

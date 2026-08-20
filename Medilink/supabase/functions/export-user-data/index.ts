@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { zipSync, strToU8 } from "https://esm.sh/fflate@0.8.2";
+import { requireInternalCaller } from "../_shared/internalAuth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -44,15 +45,43 @@ async function fetchPaginated(
 }
 
 serve(async (req) => {
+  /**
+   * SERVER-TO-SERVER ONLY.
+   *
+   * verify_jwt alone is NOT sufficient: it only proves the caller presented a VALID project
+   * JWT, and the anon key is a valid project JWT that ships publicly in every browser bundle.
+   * Demonstrated on this project -- poll-refund-status had verify_jwt = true and no guard, and
+   * returned 200 to the public anon key.
+   *
+   * Callers: /api/users/me/data-export in BOTH repos, each via serviceClient.functions.invoke,
+   * which attaches the service-role credential -- so this guard accepts them unchanged.
+   *
+   * This REPLACES a check that only tested whether the Authorization header started with
+   * "Bearer ". That verified nothing about the token, so the public anon key satisfied it. The
+   * export_id/user_id ownership check below is kept as defence in depth, but note it compares
+   * two values that BOTH arrive in the request body -- it proves they are consistent with each
+   * other, not that the caller is that user. Trusting the body is only sound because this
+   * guard now restricts the caller to our own backend, which derives user_id from the
+   * authenticated session.
+   *
+   * requireInternalCaller accepts only the raw injected service-role key or a
+   * signature-verified `role: service_role` JWT; anon and authenticated are refused 401. It is
+   * placed FIRST so an unauthorized caller learns nothing -- no method check, no body parse, no
+   * database access happens before it.
+   *
+   * ⚠️ Operational invariant from _shared/internalAuth.ts: verify_jwt must stay TRUE for this
+   * function, or an unsigned forged token could claim role: service_role.
+   */
+  const refusal = requireInternalCaller(req, "export-user-data");
+  if (refusal) return refusal;
+
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
-  // Fix 3a: Require Authorization header — rejects unauthenticated direct calls
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  // The former "Authorization header starts with Bearer " check lived here. It verified
+  // nothing about the token, so the public anon key satisfied it; requireInternalCaller above
+  // supersedes it by validating the credential itself.
 
   let export_id: string;
   let user_id: string;

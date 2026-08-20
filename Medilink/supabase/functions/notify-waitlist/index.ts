@@ -2,8 +2,36 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireInternalCaller } from "../_shared/internalAuth.ts";
 
 serve(async (req) => {
+  /**
+   * SERVER-TO-SERVER ONLY.
+   *
+   * verify_jwt alone is NOT sufficient: it only proves the caller presented a VALID project
+   * JWT, and the anon key is a valid project JWT that ships publicly in every browser bundle.
+   * Demonstrated on this project -- poll-refund-status had verify_jwt = true and no guard, and
+   * returned 200 to the public anon key.
+   *
+   * Callers: four HAMS routes (appointments/[id] x2, waitlist/[id]/claim x2). They were
+   * invoking through the CALLER'S client, so they sent the end user's JWT; they have been
+   * switched to the service client -- already constructed in both files -- in the same change.
+   *
+   * The DB trigger waitlist_entries.trg_notify_waitlist also targets this function, but its
+   * body still contains the literal placeholders YOUR_PROJECT_REF.supabase.co and
+   * 'Bearer YOUR_SERVICE_ROLE_KEY', so it has never reached this function and is unaffected.
+   *
+   * requireInternalCaller accepts only the raw injected service-role key or a
+   * signature-verified `role: service_role` JWT; anon and authenticated are refused 401. It is
+   * placed FIRST so an unauthorized caller learns nothing -- no method check, no body parse, no
+   * database access happens before it.
+   *
+   * ⚠️ Operational invariant from _shared/internalAuth.ts: verify_jwt must stay TRUE for this
+   * function, or an unsigned forged token could claim role: service_role.
+   */
+  const refusal = requireInternalCaller(req, "notify-waitlist");
+  if (refusal) return refusal;
+
   try {
     const body = await req.json();
 
