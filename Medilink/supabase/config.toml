@@ -497,6 +497,6 @@ entrypoint = "./functions/broadcast-announcement/index.ts"
 
 [functions.generate-health-insights]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/generate-health-insights/deno.json"
 entrypoint = "./functions/generate-health-insights/index.ts"

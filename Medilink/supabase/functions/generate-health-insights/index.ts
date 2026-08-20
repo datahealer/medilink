@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireInternalCaller } from "../_shared/internalAuth.ts";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -9,6 +10,41 @@ const SUMMARY_PROMPT =
   "Max 150 words. Do not use medical jargon. Write in plain English.";
 
 serve(async (req) => {
+  /**
+   * SERVER-TO-SERVER ONLY. Invoked by the `on_appointment_note_inserted` trigger on
+   * public.appointment_notes, which since migration 20260819000030 presents a service-role
+   * credential read from Vault at execution time.
+   *
+   * ── WHY THIS IS THE SECOND HALF OF H-7 ──
+   *
+   * The damaging half was closed earlier and is already deployed: the target appointment is now
+   * derived from the NOTE ROW rather than from a second, independent `appointment_id` parameter,
+   * which made writing one note's summary onto a different patient's appointment structurally
+   * impossible.
+   *
+   * What remained was caller authentication. This function ran with `verify_jwt = false`, i.e.
+   * no credential of any kind, because the trigger sent no Authorization header and turning
+   * verification on would have silently stopped every AI visit summary. Confirmed against
+   * production at the time: an unauthenticated POST with a bogus note id returned
+   * `404 {"error":"Note not found"}` — proving the service-role query ran for a caller with no
+   * credentials.
+   *
+   * So anyone who knew a valid note id could force that note's own summary to be regenerated,
+   * re-notifying its doctor and patient and burning Groq quota. Abuse, not disclosure.
+   *
+   * The guard is added rather than relying on `verify_jwt = true` alone, for the reason
+   * poll-refund-status demonstrated: verify_jwt accepts ANY valid project JWT, and the anon key
+   * is a valid project JWT that ships publicly in every browser bundle. requireInternalCaller
+   * accepts only the raw injected service-role key or a signature-verified `role: service_role`
+   * JWT, so anon and authenticated are both refused.
+   *
+   * ⚠️ Operational invariant, per _shared/internalAuth.ts: `verify_jwt` must stay TRUE for this
+   * function. It was flipped from false to true alongside this change. Deploying with
+   * --no-verify-jwt would let an unsigned forged token assert `role: service_role`.
+   */
+  const refusal = requireInternalCaller(req, "generate-health-insights");
+  if (refusal) return refusal;
+
   try {
     const body = await req.json();
     const appointment_note_id = body?.appointment_note_id;
@@ -191,7 +227,7 @@ serve(async (req) => {
           type: "info",
           title: "Visit Summary Ready",
           body: "Your visit summary from your recent appointment is now available.",
-          data: { appointment_id, kind: "insight" },
+          data: { appointment_id },
         });
         if (ptNotifErr) {
           console.error("Failed to notify patient:", ptNotifErr.message);
