@@ -10,11 +10,27 @@ const SUMMARY_PROMPT =
 
 serve(async (req) => {
   try {
-    const { appointment_note_id, appointment_id } = await req.json();
+    const body = await req.json();
+    const appointment_note_id = body?.appointment_note_id;
+    /**
+     * `appointment_id` from the request is accepted ONLY to be CHECKED against the note row.
+     * It is never used to decide what to write. See the comment on `appointment_id` below.
+     */
+    const claimed_appointment_id = body?.appointment_id;
 
-    if (!appointment_note_id || !appointment_id) {
+    const isUuid = (v: unknown): v is string =>
+      typeof v === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+    if (!isUuid(appointment_note_id)) {
       return new Response(
-        JSON.stringify({ error: "appointment_note_id and appointment_id are required" }),
+        JSON.stringify({ error: "appointment_note_id must be a UUID" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (claimed_appointment_id !== undefined && claimed_appointment_id !== null && !isUuid(claimed_appointment_id)) {
+      return new Response(
+        JSON.stringify({ error: "appointment_id must be a UUID" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -27,7 +43,7 @@ serve(async (req) => {
     // Step 1: Fetch note content
     const { data: note, error: noteError } = await supabase
       .from("appointment_notes")
-      .select("content")
+      .select("content, appointment_id")
       .eq("id", appointment_note_id)
       .single();
 
@@ -35,6 +51,49 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Note not found" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    /**
+     * ── THE APPOINTMENT COMES FROM THE NOTE, NEVER FROM THE REQUEST (audit finding H-7) ──
+     *
+     * This function previously took `appointment_note_id` AND `appointment_id` as two
+     * INDEPENDENT parameters, ran with the service role (bypassing RLS), and had no caller
+     * authentication whatsoever — `verify_jwt = false`, set because the calling database
+     * trigger sends no Authorization header. Confirmed live: an unauthenticated POST reached
+     * the privileged query and returned "Note not found" for a bogus id.
+     *
+     * Because the two ids were unrelated, anyone who knew ONE note id could write THAT note's
+     * AI summary onto ANY OTHER appointment: `appointments.patient_summary` was overwritten,
+     * `ai_generated` set true, the target appointment's doctor was sent an in-app notification
+     * containing up to 197 characters of the summary, and the target patient received an in-app
+     * notification and an Expo push. So one patient's clinical summary could be planted in a
+     * different patient's record and delivered to them. Note ids are obtainable: patients can
+     * read notes for their own appointments, and `appt_notes_staff_all` lets any doctor-role
+     * user read every note row.
+     *
+     * The second parameter was never needed — a note already knows its appointment. Deriving it
+     * from the note row makes the cross-appointment write structurally impossible rather than
+     * merely checked. A supplied `appointment_id` is still honoured as an assertion: if it
+     * disagrees with the note, the request is refused rather than silently retargeted.
+     */
+    const appointment_id: string | null = note.appointment_id ?? null;
+
+    if (!appointment_id) {
+      return new Response(
+        JSON.stringify({ error: "Note is not linked to an appointment" }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (claimed_appointment_id && claimed_appointment_id !== appointment_id) {
+      // A caller asking to write this note onto a different appointment is the attack.
+      console.warn(
+        "[generate-health-insights] refused: appointment_id does not match the note's own appointment"
+      );
+      return new Response(
+        JSON.stringify({ error: "appointment_id does not match the note" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
