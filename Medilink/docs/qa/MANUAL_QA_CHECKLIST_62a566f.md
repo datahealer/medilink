@@ -68,21 +68,56 @@ measured against the wrong build and should be re-checked here. See
 
 | Variable | Where | Status as of `62a566f` | Effect if unset |
 |---|---|---|---|
-| `FRONTEND_URL` | backend (Vercel) | **NOT SET — confirmed** | Web frontend cannot call the backend at all. Mobile unaffected. |
+| `FRONTEND_URL` | backend (Vercel) | ~~**NOT SET — confirmed**~~ → **SET, and working — corrected 2026-08-20** | n/a — see the correction below. Not a blocker. |
 | `NEXT_PUBLIC_APP_URL` | backend (Vercel) | UNVERIFIED | Payment receipt email is skipped (logged). Payment itself still succeeds; booking confirmation still sends. |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` / `_PHONE` / `_WHATSAPP` | frontend (Vercel) | UNVERIFIED | `/contact` shows "messaging isn't available yet" and the footer omits contact links. Web-only. |
 
-`FRONTEND_URL` was verified empty by probing production directly: an `OPTIONS` preflight to
-`/api/payments/verify` carrying `Origin: https://medilink-frontend.vercel.app` returned `204` with
-**no** `Access-Control-Allow-Origin` header. The allow-list is empty, which is the correct failure
-direction but still means web↔backend calls are broken. Being `NEXT_PUBLIC_*`,
-`NEXT_PUBLIC_APP_URL` and the support variables need a **redeploy** after being set, not just a
-dashboard edit.
+> **CORRECTION — 2026-08-20. The `FRONTEND_URL` entry above was wrong, and the reasoning that
+> produced it was wrong. Left in place, struck through, so the error is traceable.**
+>
+> The original claim was that `FRONTEND_URL` was "verified empty by probing production directly:
+> an `OPTIONS` preflight to `/api/payments/verify` carrying
+> `Origin: https://medilink-frontend.vercel.app` returned `204` with **no**
+> `Access-Control-Allow-Origin` header."
+>
+> The preflight result was real. The conclusion drawn from it was not, for two reasons:
+>
+> 1. **`medilink-frontend.vercel.app` is not our frontend.** It serves an unrelated third-party
+>    Angular application — `<base href>`, `critters`, `runtime/polyfills/main` bundles and
+>    **Razorpay** checkout, with zero Next.js markers and a `<title>Project</title>`. Both bare
+>    `medilink-frontend` and `medilink-backend` subdomains were already taken by other Vercel
+>    accounts, so this project's deployments got suffixed. The real production frontend is
+>    **`https://medilink-frontend-six.vercel.app`** (`<title>MediLink</title>`, `_next` assets,
+>    real 404 on an unknown path). So that origin was correctly refused for not being ours, and
+>    the origin that mattered was never tested.
+>
+> 2. **Both variables were already set.** `vercel env ls production` shows `FRONTEND_URL` *and*
+>    `NEXT_PUBLIC_FRONTEND_URL` on the backend's Production environment, created well before the
+>    probe.
+>
+> Verified 2026-08-20 against production, from the correct origin:
+>
+> | Request | Result |
+> |---|---|
+> | `OPTIONS /api/payments`, `/api/payments/checkout`, `/api/appointments/:id/email`, `/api/doctors` | `204` + `Access-Control-Allow-Origin: https://medilink-frontend-six.vercel.app` + `Allow-Credentials: true` + `Vary: Origin` |
+> | `GET /api/payments` (real response, not preflight) | `401` **with** ACAO — the browser receives the response instead of a CORS error |
+> | `POST /api/payments/checkout` | `401` with ACAO |
+> | `POST /api/appointments/:id/email` | `400` (payload validation) with ACAO |
+>
+> And it is allow-listing, not echoing — which would have been a vulnerability given
+> `Allow-Credentials: true`. Refused: the impostor host, `evil.example.com`, a
+> `…-six.vercel.app.evil.com` suffix attack, `http://localhost:3000` and `null`.
+>
+> **No environment variable was changed**, because none needed changing. Sections E, F and I can
+> be run against `https://medilink-frontend-six.vercel.app`. Item I1 below ("currently expected
+> to FAIL") no longer applies.
+>
+> Backend deployment currency, previously listed as UNVERIFIED, is also resolved: the
+> `medilink-backend` project's newest Production deployment is `Ready` and postdates the CORS
+> work, so sections E and F can be trusted.
 
-Also UNVERIFIED: whether the backend Vercel project has actually deployed `62a566f`. It cannot be
-determined from outside — an empty allow-list looks identical on the old and new code. Confirm in
-the Vercel dashboard that the backend deployment's commit is `62a566f` before trusting any result
-in sections E or F.
+Being `NEXT_PUBLIC_*`, `NEXT_PUBLIC_APP_URL` and the support variables need a **redeploy** after
+being set, not just a dashboard edit.
 
 ## How to record results
 
@@ -218,8 +253,8 @@ Listed here so they are not lost; none of these are testable from the mobile bui
 
 | # | Check | Expected | Result |
 |---|---|---|---|
-| I1 | Web sign-in, then any backend-backed action | **Currently expected to FAIL** — `FRONTEND_URL` is unset so the CORS allow-list is empty. Re-test after setting it and redeploying | |
-| I2 | After setting `FRONTEND_URL`: same action | Succeeds; response carries `Access-Control-Allow-Origin` for the frontend origin and `Vary: Origin` | |
+| I1 | Web sign-in from `https://medilink-frontend-six.vercel.app`, then any backend-backed action | **Expected to SUCCEED** — corrected 2026-08-20; the earlier "expected to FAIL" was based on probing a third-party host. CORS is verified working from this origin | |
+| I2 | Same action, checking headers in devtools | Response carries `Access-Control-Allow-Origin: https://medilink-frontend-six.vercel.app` and `Vary: Origin`. Already confirmed server-side by curl; this row is the in-browser confirmation | |
 | I3 | `/contact` with support vars unset | Shows "Messaging isn't available yet" and **no form** — never a fake "Message sent!" | |
 | I4 | `/contact` with `NEXT_PUBLIC_SUPPORT_EMAIL` set (after redeploy) | Form appears; submitting opens the mail client pre-filled; confirmation claims only that the draft was prepared | |
 | I5 | Footer contact links | Only configured channels appear; no `hello@medilink.om`, no `+968 9000 0000` anywhere | |
@@ -240,5 +275,6 @@ Listed here so they are not lost; none of these are testable from the mobile bui
 | Date | |
 | PASS / FAIL / BLOCKED counts | |
 
-Do not treat this round as a release gate while any of these is true: `FRONTEND_URL` unset, the
-iOS build uninstallable, or Thawani production payment unverified.
+Do not treat this round as a release gate while either of these is true: the iOS build
+uninstallable, or Thawani production payment unverified. (`FRONTEND_URL` was previously listed
+here; it was never actually unset -- see the 2026-08-20 correction above.)

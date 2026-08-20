@@ -1,16 +1,36 @@
 /**
  * CORS allow-list resolution — pure, so the rules are assertable without Next.js.
  *
- * ── WHY THIS EXISTS ──
+ * ── CORRECTION (2026-08-20): THE ORIGINAL DIAGNOSIS IN THIS COMMENT WAS WRONG ──
  *
- * The deployed backend was returning NO `Access-Control-Allow-Origin` for ANY origin. Probed
- * against production on 2026-08-18: the real frontend, the custom domain, preview URLs and
- * localhost all got nothing back. The allow-list was simply EMPTY, because neither
- * `NEXT_PUBLIC_FRONTEND_URL` nor `FRONTEND_URL` is set in the backend's environment.
+ * This header used to state that the deployed backend returned no `Access-Control-Allow-Origin`
+ * for ANY origin, and that the allow-list was EMPTY "because neither `NEXT_PUBLIC_FRONTEND_URL`
+ * nor `FRONTEND_URL` is set in the backend's environment". Both halves of that are false, and
+ * the claim is corrected here rather than deleted so the mistake is not repeated:
  *
- * The old code was CORRECT about that — "an empty allow-list refuses everything, which is the
- * correct failure direction for CORS" — but it had three properties that turned a missing
- * environment variable into a silent, hard-to-diagnose outage:
+ *   • BOTH variables ARE set on the backend's Production environment, and were already set when
+ *     the 2026-08-18 probe was run (`vercel env ls production` reports both created 37 days
+ *     before 2026-08-20).
+ *
+ *   • The probe that produced "no ACAO for any origin" sent
+ *     `Origin: https://medilink-frontend.vercel.app`. That host is NOT this product's frontend —
+ *     it serves an unrelated third-party Angular application (`<base href>`, `critters`,
+ *     `runtime/polyfills/main` bundles, Razorpay checkout). The bare `medilink-frontend` and
+ *     `medilink-backend` subdomains were both already taken, so Vercel suffixed this project's
+ *     deployments. The real production frontend is `https://medilink-frontend-six.vercel.app`.
+ *
+ * So every origin in that probe was legitimately refused for being absent from the allow-list,
+ * and the one origin that should have been tested never was. Verified 2026-08-20 against
+ * production: the correct origin is allow-listed and answered with
+ * `Access-Control-Allow-Origin: https://medilink-frontend-six.vercel.app`,
+ * `Access-Control-Allow-Credentials: true` and `Vary: Origin`, on preflights AND on real
+ * responses, while the impostor host, `evil.example.com`, a
+ * `…-six.vercel.app.evil.com` suffix attack, `localhost:3000` and `null` are all refused.
+ *
+ * Whether the PREVIOUS implementation would also have accepted the correct origin is no longer
+ * testable — that code is gone. It is therefore NOT claimed here that the three properties below
+ * caused a demonstrated outage. They are real robustness problems, fixed and worth keeping
+ * fixed, but they were never shown to have broken a correctly-configured origin:
  *
  *   1. THE LIST WAS BUILT AT MODULE SCOPE. In the Edge runtime that is evaluated once per
  *      isolate boot, so a corrected environment variable did not take effect until the isolate
@@ -24,9 +44,10 @@
  *      per-deployment preview URL, and this product also expects a custom domain later. One
  *      slot forced a choice between them. A comma-separated list is accepted now.
  *
- * And separately — the failure was SILENT. Nothing was logged when an origin was refused, which
- * is why this survived to production. `corsRejectionLog()` exists so the next occurrence is one
- * log line away from being understood.
+ * And separately — a refusal was SILENT. Nothing was logged when an origin was rejected, which is
+ * precisely why the wrong-origin probe above was mistaken for an empty allow-list and went
+ * unchallenged for two days. `corsRejectionLog()` exists so the next refusal is one log line away
+ * from being understood, including the case where the origin under test is simply not ours.
  *
  * ── WHAT DELIBERATELY DID NOT CHANGE ──
  *
@@ -46,9 +67,15 @@
  * `FRONTEND_URL` appears nowhere in the output.
  *
  * So setting `NEXT_PUBLIC_FRONTEND_URL` in a hosting dashboard and NOT redeploying changes
- * nothing — the old (empty) value is already compiled in. `FRONTEND_URL` is read at runtime and
- * is therefore the variable to prefer. Both are still supported, because `.env.example`
- * documents both and existing deployments may use either.
+ * nothing — whatever value was present at build time is already compiled in. `FRONTEND_URL` is
+ * read at runtime and is therefore the variable to prefer. Both are still supported, because
+ * `.env.example` documents both and existing deployments may use either.
+ *
+ * Production currently has BOTH set. Which one is actually carrying the value has not been
+ * confirmed, because doing so requires `vercel env pull`, which writes every production secret
+ * (service-role key, Thawani keys) to disk. Behaviour is identical either way, so that was judged
+ * not worth the exposure. If the distinction ever matters, prefer re-setting `FRONTEND_URL`
+ * rather than reading the existing values.
  */
 
 export interface CorsEnv {
