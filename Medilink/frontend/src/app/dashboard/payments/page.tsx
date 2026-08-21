@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { backendFetch, openBackendFile } from "@/lib/backendFetch";
-import { useMyProfile } from "@/hooks/useMyProfile";
+import { backendFetch, backendJson } from "@/lib/backendFetch";
 
 type Status = "paid" | "pending" | "refunded" | "failed";
 
@@ -128,80 +127,27 @@ function IconCheck() {
   );
 }
 
-function InvoiceContent({ payment, ar }: { payment: Payment; ar: boolean }) {
-  const info = ar ? payment.ar : payment.en;
-  const meta = STATUS_META[payment.status];
-  const { fullName, email } = useMyProfile();
-  return (
-    <div dir={ar ? "rtl" : "ltr"} style={{ width: 640, background: "#ffffff", color: "#2E1A47", padding: 40, fontFamily: "sans-serif" }}>
-      <div className={`flex items-start justify-between pb-6 border-b ${ar ? "flex-row-reverse" : ""}`} style={{ borderColor: "#e7dcee" }}>
-        <div className={ar ? "text-right" : ""}>
-          <p style={{ fontWeight: 900, fontSize: 20, color: "#2E1A47" }}>MediLink</p>
-          <p style={{ fontSize: 12, color: "#2E1A4799", marginTop: 4 }}>{ar ? "فاتورة دفع" : "Payment Invoice"}</p>
-        </div>
-        <div className={ar ? "text-left" : "text-right"}>
-          <p style={{ fontSize: 12, color: "#2E1A4780" }}>{ar ? "رقم الفاتورة" : "Invoice No."}</p>
-          <p style={{ fontWeight: 700, fontSize: 13 }}>{payment.invoiceNumber}</p>
-          <p style={{ fontSize: 12, color: "#2E1A4780", marginTop: 6 }}>{payment.date}</p>
-        </div>
-      </div>
+/**
+ * The bespoke MediLink invoice template that used to live here has been REMOVED.
+ *
+ * It was a second invoice representation: Preview and Print rendered it, while Download
+ * served the pdf-lib PDF built by supabase/functions/generate-invoice. The two disagreed on
+ * the header, the invoice number (this template fabricated `INV-<id[0:8]>` instead of using
+ * payments.invoice_number), the payment method (hardcoded "\u2014"), and on money \u2014 it showed no
+ * subtotal or tax at all. It could not have matched: GET /api/payments does not return
+ * invoice_number, appointment_id, facility, doctor or method, so the data was not there to
+ * render.
+ *
+ * The generated PDF is now the single representation. Preview embeds that exact file, so
+ * Preview, Download and Print are the same artefact by construction rather than by
+ * agreement between two templates.
+ */
 
-      <div className={`flex items-center justify-between py-5 ${ar ? "flex-row-reverse" : ""}`}>
-        <div className={ar ? "text-right" : ""}>
-          <p style={{ fontSize: 11, textTransform: "", letterSpacing: 1, color: "#2E1A4780", fontWeight: 700 }}>{ar ? "الفاتورة إلى" : "Billed To"}</p>
-          <p style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>{fullName || (ar ? "المريض" : "Patient")}</p>
-          <p style={{ fontSize: 12, color: "#2E1A4799" }}>{email}</p>
-        </div>
-        <div className={ar ? "text-left" : "text-right"}>
-          <p style={{ fontSize: 11, textTransform: "", letterSpacing: 1, color: "#2E1A4780", fontWeight: 700 }}>{ar ? "مزود الخدمة" : "Provider"}</p>
-          <p style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>{info.provider}</p>
-          <p style={{ fontSize: 12, color: "#2E1A4799" }}>{ar ? payment.category : payment.category}</p>
-        </div>
-      </div>
-
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
-        <thead>
-          <tr style={{ background: "#f9f4fa" }}>
-            <th style={{ textAlign: ar ? "right" : "left", padding: "10px 12px", fontSize: 11, textTransform: "", letterSpacing: 0.5, color: "#2E1A4780" }}>{ar ? "الوصف" : "Description"}</th>
-            <th style={{ textAlign: ar ? "left" : "right", padding: "10px 12px", fontSize: 11, textTransform: "", letterSpacing: 0.5, color: "#2E1A4780" }}>{ar ? "المبلغ" : "Amount"}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style={{ borderBottom: "1px solid #e7dcee" }}>
-            <td style={{ padding: "14px 12px" }}>
-              <p style={{ fontWeight: 700, fontSize: 13 }}>{info.title}</p>
-              <p style={{ fontSize: 12, color: "#2E1A4799", marginTop: 3 }}>{info.description}</p>
-            </td>
-            <td style={{ padding: "14px 12px", textAlign: ar ? "left" : "right", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>{fmt(payment.amount, payment.currency)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div className={`flex items-center justify-between mt-3 pt-4`} style={{ borderTop: "2px solid #2E1A47" }}>
-        <p style={{ fontSize: 13, fontWeight: 700 }}>{ar ? "الإجمالي" : "Total"}</p>
-        <p style={{ fontSize: 18, fontWeight: 900 }}>{fmt(payment.amount, payment.currency)}</p>
-      </div>
-
-      <div className={`flex items-center justify-between mt-6 pt-5`} style={{ borderTop: "1px solid #e7dcee" }}>
-        <div>
-          <p style={{ fontSize: 11, color: "#2E1A4780" }}>{ar ? "طريقة الدفع" : "Payment Method"}</p>
-          <p style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }}>{ar ? payment.method.ar : payment.method.en}</p>
-        </div>
-        <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 999, background: payment.status === "paid" ? "#d1fae5" : payment.status === "pending" ? "#fef3c7" : payment.status === "refunded" ? "#e0f2fe" : "#ffe4e6", color: payment.status === "paid" ? "#059669" : payment.status === "pending" ? "#d97706" : payment.status === "refunded" ? "#0284c7" : "#e11d48" }}>
-          {ar ? meta.ar : meta.en}
-        </span>
-      </div>
-
-      <p style={{ fontSize: 11, color: "#2E1A4760", textAlign: "center", marginTop: 30 }}>
-        {ar ? "شكرًا لاختياركم ميدلينك" : "Thank you for choosing MediLink"}
-      </p>
-    </div>
-  );
-}
-
-function InvoiceModal({ payment, ar, onClose, onDownload, onPrint, downloading }: {
-  payment: Payment; ar: boolean; onClose: () => void; onDownload: () => void; onPrint: () => void; downloading: boolean;
+function InvoiceModal({ payment, ar, pdfUrl, loading, error, onClose, onDownload, onPrint, downloading }: {
+  payment: Payment; ar: boolean; pdfUrl: string | null; loading: boolean; error: string | null;
+  onClose: () => void; onDownload: () => void; onPrint: () => void; downloading: boolean;
 }) {
+  const ready = !loading && !error && !!pdfUrl;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -215,21 +161,39 @@ function InvoiceModal({ payment, ar, onClose, onDownload, onPrint, downloading }
           </button>
         </div>
 
-        <div className="overflow-auto p-5 flex justify-center" style={{ background: "#f3edf7" }}>
-          <div className="shadow-sm rounded-lg overflow-hidden flex-shrink-0">
-            <InvoiceContent payment={payment} ar={ar} />
-          </div>
+        {/*
+          The preview IS the generated PDF, loaded from the same short-lived signed URL that
+          Download and Print use. Embedding the artefact rather than re-drawing it is what makes
+          the three actions consistent by construction.
+        */}
+        <div className="overflow-auto flex items-center justify-center" style={{ background: "#f3edf7", minHeight: 420 }}>
+          {loading && (
+            <p className="text-sm text-[#2E1A47]/60 dark:text-[#DFC8E7]/60 py-16">
+              {ar ? "جارٍ تحميل الفاتورة..." : "Loading invoice..."}
+            </p>
+          )}
+          {!loading && error && (
+            <p className="text-sm text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 py-16 px-6 text-center">{error}</p>
+          )}
+          {ready && (
+            <iframe
+              src={pdfUrl!}
+              title={ar ? "معاينة الفاتورة" : "Invoice preview"}
+              className="w-full"
+              style={{ height: "60vh", border: "none", background: "#ffffff" }}
+            />
+          )}
         </div>
 
         <div className={`flex gap-2 px-5 py-4 border-t border-[#e7dcee] dark:border-[#2a1840] flex-shrink-0 ${ar ? "flex-row-reverse" : ""}`}>
           <button onClick={onDownload}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#2E1A47]/30 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
-            disabled={downloading}>
+            disabled={downloading || !ready}>
             {downloading ? <IconCheck /> : <IconDownload />}
             {downloading ? (ar ? "تم التحميل!" : "Downloaded!") : (ar ? "تحميل PDF" : "Download PDF")}
           </button>
-          <button onClick={onPrint}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#2E1A47]/30 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20 transition-all flex items-center justify-center gap-1.5">
+          <button onClick={onPrint} disabled={!ready}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-[#e7dcee] dark:border-[#3a2560] text-[#2E1A47]/70 dark:text-[#DFC8E7]/70 hover:border-[#2E1A47]/30 hover:bg-[#f0e8f8] dark:hover:bg-[#2E1A47]/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60">
             <IconPrinter />
             {ar ? "طباعة" : "Print"}
           </button>
@@ -239,6 +203,7 @@ function InvoiceModal({ payment, ar, onClose, onDownload, onPrint, downloading }
   );
 }
 
+
 export default function PaymentsPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
@@ -247,6 +212,11 @@ export default function PaymentsPage() {
   const [modalPayment, setModalPayment] = useState<Payment | null>(null);
   const [pendingAction, setPendingAction] = useState<"download" | "print" | null>(null);
   const [downloadedId, setDownloadedId] = useState<string | null>(null);
+  // The signed URL of the generated PDF for the open invoice. One fetch feeds the preview,
+  // the download and the print, so all three necessarily show the same document.
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   // Load the patient's real payments from the backend (replaces the mock array).
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -267,55 +237,109 @@ export default function PaymentsPage() {
     return () => { active = false; };
   }, []);
 
+  /**
+   * Ask the backend for a short-lived signed URL to this payment's stored invoice PDF.
+   *
+   * The URL cannot be used directly from an <iframe src> without this hop: the object lives in
+   * the private `invoices` bucket, and window/iframe requests cannot carry an Authorization
+   * header, so hitting the route itself would 401 across the separate backend origin.
+   * ?format=json returns the signed URL with the session attached; the signed URL then needs no
+   * credentials of its own.
+   *
+   * If no invoice exists yet, the existing authenticated regenerate route is asked to produce
+   * one. That replaces the old client-side html2canvas+jsPDF fallback, which was a second PDF
+   * generator producing a different document from the authoritative one.
+   */
+  async function loadInvoiceUrl(payment: Payment): Promise<string | null> {
+    setInvoiceLoading(true);
+    setInvoiceError(null);
+    setInvoiceUrl(null);
+    try {
+      const ask = async () => {
+        const { res, data } = await backendJson<{ url?: string }>(
+          `/api/payments/${payment.id}/invoice?format=json`
+        );
+        return res.ok && typeof data?.url === "string" ? data.url : null;
+      };
+
+      let url = await ask();
+
+      if (!url) {
+        // No stored invoice yet — have the backend generate it, then ask once more.
+        const gen = await backendFetch(`/api/payments/${payment.id}/invoice/regenerate`, { method: "POST" });
+        if (gen.ok) url = await ask();
+      }
+
+      if (!url) {
+        setInvoiceError(ar ? "الفاتورة غير متاحة بعد. يرجى المحاولة لاحقًا." : "This invoice is not available yet. Please try again shortly.");
+        return null;
+      }
+      setInvoiceUrl(url);
+      return url;
+    } catch {
+      setInvoiceError(ar ? "تعذر تحميل الفاتورة." : "Could not load the invoice.");
+      return null;
+    } finally {
+      setInvoiceLoading(false);
+    }
+  }
+
   function openInvoice(payment: Payment, action?: "download" | "print") {
     setModalPayment(payment);
     setPendingAction(action ?? null);
+    void loadInvoiceUrl(payment);
   }
 
-  async function handleDownload() {
-    if (!modalPayment) return;
-    // Prefer the backend-generated invoice (redirects to the stored PDF) when one
-    // exists; fall back to client-side generation only when it doesn't.
-    if (modalPayment.invoiceUrl) {
-      // `window.open` cannot carry an Authorization header, so it would 401 against the
-      // separate backend origin. Ask the route for a short-lived signed URL with the
-      // session attached (?format=json) and open THAT — the signed URL needs no
-      // credentials of its own. Falls through to client-side generation if it fails, so
-      // the button is never a dead end.
-      const opened = await openBackendFile(`/api/payments/${modalPayment.id}/invoice?format=json`);
-      if (opened) {
-        setDownloadedId(modalPayment.id);
-        setTimeout(() => setDownloadedId(null), 2000);
-        return;
-      }
-    }
-    const node = document.getElementById("invoice-print-root");
-    if (!node) return;
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`${modalPayment.invoiceNumber}.pdf`);
+  function closeInvoice() {
+    setModalPayment(null);
+    setInvoiceUrl(null);
+    setInvoiceError(null);
+  }
+
+  function handleDownload() {
+    if (!modalPayment || !invoiceUrl) return;
+    // Same signed URL the preview is showing, so the file that arrives is the file that was
+    // previewed. No client-side generation.
+    window.open(invoiceUrl, "_blank", "noopener,noreferrer");
     setDownloadedId(modalPayment.id);
     setTimeout(() => setDownloadedId(null), 2000);
   }
 
   function handlePrint() {
-    window.print();
+    if (!invoiceUrl) return;
+    /**
+     * Print the PDF itself, not an HTML lookalike.
+     *
+     * window.print() is deliberately NOT used any more: it printed a hidden DOM node rendered
+     * from the removed MediLink template, which is exactly why Print matched Preview but not the
+     * downloaded file.
+     *
+     * The signed URL is on Supabase's origin, so iframe.contentWindow.print() is blocked by the
+     * same-origin policy. Opening the PDF in a tab hands it to the browser's own PDF viewer,
+     * whose print control prints this exact document. Attempted programmatically first for the
+     * same-origin case, with the tab as the fallback.
+     */
+    const w = window.open(invoiceUrl, "_blank", "noopener,noreferrer");
+    if (!w) return;
+    try {
+      w.addEventListener("load", () => { try { w.print(); } catch { /* cross-origin: user prints from the viewer */ } });
+    } catch {
+      /* nothing further to do — the document is open and printable */
+    }
   }
 
   useEffect(() => {
     if (!modalPayment || !pendingAction) return;
+    // Wait for the signed URL before acting, otherwise a deep-linked download/print would fire
+    // against a null URL.
+    if (invoiceLoading) return;
     const action = pendingAction;
-    const t = setTimeout(() => {
-      if (action === "download") handleDownload();
-      else if (action === "print") handlePrint();
-      setPendingAction(null);
-    }, 200);
-    return () => clearTimeout(t);
+    if (action === "download") handleDownload();
+    else if (action === "print") handlePrint();
+    setPendingAction(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalPayment, pendingAction]);
+  }, [modalPayment, pendingAction, invoiceLoading, invoiceUrl]);
+
 
   const filtered = payments.filter(p => {
     if (activeTab === "current") return p.status === "pending";
@@ -328,29 +352,12 @@ export default function PaymentsPage() {
 
   return (
     <div dir={ar ? "rtl" : "ltr"} className="min-h-screen bg-[#f9f4fa] dark:bg-[#0f0a1e] text-[#2E1A47] dark:text-[#DFC8E7]">
-      <style jsx global>{`
-        @page { margin: 0; }
-        @media print {
-          body * { visibility: hidden; }
-          #invoice-print-root, #invoice-print-root * { visibility: visible !important; }
-          /* Override the inline top/left:-10000px (inline beats a plain ID rule) so the
-             invoice is pulled back on-page during printing instead of staying off-screen. */
-          #invoice-print-root {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: auto !important;
-            bottom: auto !important;
-            z-index: 9999 !important;
-            margin: 0 auto;
-          }
-        }
-      `}</style>
-
-      {/* Hidden node used for PDF export + print, always mirrors the open invoice */}
-      <div id="invoice-print-root" style={{ position: "fixed", top: -10000, left: -10000, zIndex: -1 }}>
-        {modalPayment && <InvoiceContent payment={modalPayment} ar={ar} />}
-      </div>
+      {/*
+        The @media print block and the hidden #invoice-print-root mirror that used to sit here
+        are gone. They printed a DOM copy of the removed MediLink template, which is precisely
+        why Print matched Preview but not the downloaded PDF. Printing now goes through the
+        generated PDF itself \u2014 see handlePrint.
+      */}
 
       {/* Hero */}
       <section className="py-10 px-4" style={{ background: "linear-gradient(140deg, #1e1038 0%, #2E1A47 55%, #1e1038 100%)" }}>
@@ -464,7 +471,10 @@ export default function PaymentsPage() {
         <InvoiceModal
           payment={modalPayment}
           ar={ar}
-          onClose={() => setModalPayment(null)}
+          pdfUrl={invoiceUrl}
+          loading={invoiceLoading}
+          error={invoiceError}
+          onClose={closeInvoice}
           onDownload={handleDownload}
           onPrint={handlePrint}
           downloading={downloadedId === modalPayment.id}
